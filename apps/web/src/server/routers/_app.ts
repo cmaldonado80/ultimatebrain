@@ -8,6 +8,7 @@ import { approvalsRouter } from './approvals'
 import { gatewayRouter } from './gateway'
 import { evalsRouter } from './evals'
 import { entitiesRouter } from './entities'
+import { tracesRouter } from './traces'
 
 export const appRouter = router({
   workspaces: workspacesRouter,
@@ -19,6 +20,7 @@ export const appRouter = router({
   gateway: gatewayRouter,
   evals: evalsRouter,
   entities: entitiesRouter,
+  traces: tracesRouter,
 })
 
 export type AppRouter = typeof appRouter

@@ -19,6 +19,7 @@ import { CostTracker } from './cost-tracker'
 import { RateLimiter } from './rate-limiter'
 import { SemanticCache, shouldSkipCache } from './cache'
 import { KeyVault } from './key-vault'
+import type { Tracer, Span } from '../tracing/tracer'
 
 // === Provider Resolution ===
 
@@ -161,10 +162,12 @@ export class GatewayRouter {
   readonly keyVault: KeyVault
   private adapters = new Map<ProviderName, ProviderAdapter>()
   private config: GatewayConfig
+  private tracer?: Tracer
 
   constructor(
     private db: Database,
     config?: Partial<GatewayConfig>,
+    tracer?: Tracer,
   ) {
     this.config = { ...DEFAULT_GATEWAY_CONFIG, ...config }
     this.circuitBreaker = new CircuitBreakerRegistry()
@@ -172,6 +175,12 @@ export class GatewayRouter {
     this.rateLimiter = new RateLimiter()
     this.cache = new SemanticCache(db)
     this.keyVault = new KeyVault(db)
+    this.tracer = tracer
+  }
+
+  /** Attach a tracer after construction (e.g. when wiring DI) */
+  setTracer(tracer: Tracer): void {
+    this.tracer = tracer
   }
 
   /** Register a provider adapter (OpenClaw, direct Anthropic, etc.) */
@@ -182,143 +191,188 @@ export class GatewayRouter {
   /**
    * Main entry point: route an LLM chat request through the gateway.
    */
-  async chat(input: LlmChatInput): Promise<LlmChatOutput> {
+  async chat(input: LlmChatInput, parentSpan?: Span): Promise<LlmChatOutput> {
     const startTime = Date.now()
     const model = input.model ?? this.config.defaultModel
     const messages = input.messages
 
-    // 1. Check rate limits
-    const rateCheck = this.rateLimiter.tryConsume({
+    const rootSpan = this.tracer?.start('gateway.chat', {
+      service: 'gateway',
       agentId: input.agentId,
-      estimatedTokens: this.estimateTokens(messages),
+      ticketId: input.ticketId,
+      parent: parentSpan
+        ? { traceId: parentSpan.traceId, parentSpanId: parentSpan.spanId }
+        : undefined,
     })
-    if (!rateCheck.allowed) {
-      throw new GatewayError(
-        'RATE_LIMITED',
-        `Rate limited. Retry after ${rateCheck.retryAfterMs}ms`,
-        { retryAfterMs: rateCheck.retryAfterMs },
-      )
-    }
+    rootSpan?.setAttribute('llm.model', model)
+    rootSpan?.setAttribute('llm.messages', messages.length)
 
-    // 2. Check budget
-    if (input.agentId) {
-      const budget = await this.costTracker.checkBudget(input.agentId)
-      if (!budget.allowed) {
-        throw new GatewayError('BUDGET_EXCEEDED', `Agent budget exceeded. Remaining: $${budget.remainingUsd.toFixed(2)}`)
+    try {
+      // 1. Check rate limits
+      const rateCheck = this.rateLimiter.tryConsume({
+        agentId: input.agentId,
+        estimatedTokens: this.estimateTokens(messages),
+      })
+      if (!rateCheck.allowed) {
+        throw new GatewayError(
+          'RATE_LIMITED',
+          `Rate limited. Retry after ${rateCheck.retryAfterMs}ms`,
+          { retryAfterMs: rateCheck.retryAfterMs },
+        )
       }
-    }
 
-    // 3. Check semantic cache (skip for streaming / tool-use)
-    if (this.config.cacheEnabled && !shouldSkipCache({ stream: input.stream, tools: input.tools, messages })) {
-      const cached = await this.cache.lookup(model, messages)
-      if (cached) {
-        // Record cache hit metric
-        const latencyMs = Date.now() - startTime
-        await this.costTracker.record({
-          provider: 'cache',
-          model: cached.model,
-          agentId: input.agentId,
-          ticketId: input.ticketId,
-          tokensIn: cached.tokensIn,
-          tokensOut: cached.tokensOut,
-          latencyMs,
-          cached: true,
-        })
-
-        return {
-          content: cached.response,
-          model: cached.model,
-          provider: 'cache',
-          tokensIn: cached.tokensIn,
-          tokensOut: cached.tokensOut,
-          latencyMs,
-          costUsd: 0,
-          cached: true,
+      // 2. Check budget
+      if (input.agentId) {
+        const budget = await this.costTracker.checkBudget(input.agentId)
+        if (!budget.allowed) {
+          throw new GatewayError('BUDGET_EXCEEDED', `Agent budget exceeded. Remaining: $${budget.remainingUsd.toFixed(2)}`)
         }
       }
-    }
 
-    // 4. Resolve provider + attempt with circuit breaking and fallbacks
-    const resolved = resolveProvider(model)
-    const providers = this.buildProviderChain(resolved.provider, model)
+      // 3. Check semantic cache (skip for streaming / tool-use)
+      if (this.config.cacheEnabled && !shouldSkipCache({ stream: input.stream, tools: input.tools, messages })) {
+        const cacheSpan = this.tracer?.start('gateway.cache.lookup', {
+          service: 'gateway',
+          parent: rootSpan ? { traceId: rootSpan.traceId, parentSpanId: rootSpan.spanId } : undefined,
+        })
+        const cached = await this.cache.lookup(model, messages)
+        cacheSpan?.setAttribute('cache.hit', !!cached)
+        await cacheSpan?.end()
 
-    let lastError: Error | null = null
+        if (cached) {
+          const latencyMs = Date.now() - startTime
+          await this.costTracker.record({
+            provider: 'cache',
+            model: cached.model,
+            agentId: input.agentId,
+            ticketId: input.ticketId,
+            tokensIn: cached.tokensIn,
+            tokensOut: cached.tokensOut,
+            latencyMs,
+            cached: true,
+          })
 
-    for (const { provider, targetModel } of providers) {
-      // Check circuit breaker
-      if (!this.circuitBreaker.canRequest(provider)) {
-        continue
+          rootSpan?.setAttribute('cache.hit', true)
+          rootSpan?.setStatus('ok')
+
+          return {
+            content: cached.response,
+            model: cached.model,
+            provider: 'cache',
+            tokensIn: cached.tokensIn,
+            tokensOut: cached.tokensOut,
+            latencyMs,
+            costUsd: 0,
+            cached: true,
+          }
+        }
       }
 
-      const adapter = this.adapters.get(provider)
-      if (!adapter) continue
+      // 4. Resolve provider + attempt with circuit breaking and fallbacks
+      const resolved = resolveProvider(model)
+      const providers = this.buildProviderChain(resolved.provider, model)
 
-      try {
-        // Get API key for provider
-        const apiKey = await this.keyVault.getKey(provider)
+      let lastError: Error | null = null
 
-        const result = await adapter.chat({
-          model: targetModel,
-          messages,
-          tools: input.tools as unknown[],
-          apiKey: apiKey ?? undefined,
-        })
+      for (const { provider, targetModel } of providers) {
+        // Check circuit breaker
+        if (!this.circuitBreaker.canRequest(provider)) {
+          rootSpan?.setAttribute(`circuit.${provider}`, 'OPEN')
+          continue
+        }
 
-        // Record success
-        this.circuitBreaker.recordSuccess(provider)
-        const latencyMs = Date.now() - startTime
-        const costResult = await this.costTracker.record({
-          provider,
-          model: targetModel,
+        const adapter = this.adapters.get(provider)
+        if (!adapter) continue
+
+        const providerSpan = this.tracer?.start(`gateway.provider.${provider}`, {
+          service: 'gateway',
           agentId: input.agentId,
           ticketId: input.ticketId,
-          tokensIn: result.tokensIn,
-          tokensOut: result.tokensOut,
-          latencyMs,
-          cached: false,
+          parent: rootSpan ? { traceId: rootSpan.traceId, parentSpanId: rootSpan.spanId } : undefined,
         })
+        providerSpan?.setAttribute('llm.provider', provider)
+        providerSpan?.setAttribute('llm.model', targetModel)
 
-        // Store in cache (async, don't block response)
-        if (this.config.cacheEnabled && !shouldSkipCache({ stream: input.stream, tools: input.tools, messages })) {
-          this.cache.store(targetModel, messages, result.content, result.tokensIn, result.tokensOut).catch(() => {
-            // Cache write failure is non-fatal
+        try {
+          const apiKey = await this.keyVault.getKey(provider)
+
+          const result = await adapter.chat({
+            model: targetModel,
+            messages,
+            tools: input.tools as unknown[],
+            apiKey: apiKey ?? undefined,
+          })
+
+          this.circuitBreaker.recordSuccess(provider)
+          const latencyMs = Date.now() - startTime
+          const costResult = await this.costTracker.record({
+            provider,
+            model: targetModel,
+            agentId: input.agentId,
+            ticketId: input.ticketId,
+            tokensIn: result.tokensIn,
+            tokensOut: result.tokensOut,
+            latencyMs,
+            cached: false,
+          })
+
+          providerSpan?.setAttribute('llm.tokens_in', result.tokensIn)
+          providerSpan?.setAttribute('llm.tokens_out', result.tokensOut)
+          providerSpan?.setAttribute('llm.cost_usd', costResult.costUsd)
+          providerSpan?.setAttribute('llm.latency_ms', latencyMs)
+          providerSpan?.setStatus('ok')
+          await providerSpan?.end()
+
+          rootSpan?.setAttribute('llm.provider', provider)
+          rootSpan?.setAttribute('llm.cost_usd', costResult.costUsd)
+          rootSpan?.setStatus('ok')
+
+          // Store in cache (async, don't block response)
+          if (this.config.cacheEnabled && !shouldSkipCache({ stream: input.stream, tools: input.tools, messages })) {
+            this.cache.store(targetModel, messages, result.content, result.tokensIn, result.tokensOut).catch(() => {})
+          }
+
+          return {
+            content: result.content,
+            model: targetModel,
+            provider,
+            tokensIn: result.tokensIn,
+            tokensOut: result.tokensOut,
+            latencyMs,
+            costUsd: costResult.costUsd,
+            cached: false,
+          }
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error(String(err))
+          this.circuitBreaker.recordFailure(provider)
+
+          providerSpan?.recordError(lastError)
+          await providerSpan?.end()
+
+          await this.costTracker.record({
+            provider,
+            model: targetModel,
+            agentId: input.agentId,
+            ticketId: input.ticketId,
+            tokensIn: 0,
+            tokensOut: 0,
+            latencyMs: Date.now() - startTime,
+            cached: false,
+            error: lastError.message,
           })
         }
-
-        return {
-          content: result.content,
-          model: targetModel,
-          provider,
-          tokensIn: result.tokensIn,
-          tokensOut: result.tokensOut,
-          latencyMs,
-          costUsd: costResult.costUsd,
-          cached: false,
-        }
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err))
-        this.circuitBreaker.recordFailure(provider)
-
-        // Record error metric
-        await this.costTracker.record({
-          provider,
-          model: targetModel,
-          agentId: input.agentId,
-          ticketId: input.ticketId,
-          tokensIn: 0,
-          tokensOut: 0,
-          latencyMs: Date.now() - startTime,
-          cached: false,
-          error: lastError.message,
-        })
       }
-    }
 
-    // All providers failed
-    throw new GatewayError(
-      'ALL_PROVIDERS_FAILED',
-      `All providers failed for model ${model}. Last error: ${lastError?.message}`,
-    )
+      throw new GatewayError(
+        'ALL_PROVIDERS_FAILED',
+        `All providers failed for model ${model}. Last error: ${lastError?.message}`,
+      )
+    } catch (err) {
+      rootSpan?.recordError(err)
+      throw err
+    } finally {
+      await rootSpan?.end()
+    }
   }
 
   /**
