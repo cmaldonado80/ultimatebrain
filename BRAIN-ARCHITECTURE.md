@@ -13,6 +13,92 @@ Child apps (hotel management, healthcare, legal, marketing, etc.) are thin domai
 
 ---
 
+## Clean Architecture Enforcement Rules
+
+These rules are **non-negotiable**. Every PR, every agent-generated code change, every Mini Brain scaffold MUST comply. Violations are caught by guardrails, CI linting, and the Architect Agent.
+
+### The Dependency Rule
+
+```
+Source code dependencies ALWAYS point inward. Nothing in an inner circle
+can know about anything in an outer circle.
+
+┌─────────────────────────────────────────────────────────┐
+│  OUTER: Infrastructure (DB, LLM providers, MCP, HTTP)   │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │  MIDDLE: Application (Use cases, Flows, Crews)   │    │
+│  │  ┌─────────────────────────────────────────┐     │    │
+│  │  │  INNER: Domain (Entities, Value Objects,  │     │    │
+│  │  │  Events, Ports/Interfaces)                │     │    │
+│  │  └─────────────────────────────────────────┘     │    │
+│  └─────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Layer Boundaries
+
+| Layer | Can Import From | NEVER Imports From | Lives In |
+|-------|----------------|-------------------|----------|
+| **Domain** (entities, value objects, events, ports) | Nothing (zero deps) | Application, Infrastructure, UI | `packages/types/`, engine `contracts/` |
+| **Application** (use cases, flows, crews) | Domain only | Infrastructure, UI | `engines/*/core/`, `src/server/services/` |
+| **Infrastructure** (DB adapters, LLM providers, MCP) | Domain (implements ports) | Application directly | `src/server/adapters/`, `packages/db/` |
+| **Presentation** (tRPC routers, API routes, UI) | Application (via ports) | Infrastructure internals | `src/server/routers/`, `src/app/` |
+
+### Concrete Rules
+
+1. **Domain layer has ZERO external imports** — No `drizzle-orm`, no `@trpc/server`, no `pg`, no `@anthropic-ai/sdk`. Only standard TypeScript. Domain types live in `packages/types/` and `packages/engine-contracts/`.
+
+2. **Ports define the contract, adapters fulfill it** — Every external integration (Postgres, OpenClaw, LLM providers, MCP servers) connects through a port interface defined in the domain layer. Swapping Postgres for MySQL or Claude for GPT requires changing only the adapter, never the use case.
+
+3. **Use cases orchestrate, never implement I/O** — A use case calls `this.llmPort.chat()`, never `anthropic.messages.create()`. A use case calls `this.memoryPort.search()`, never `db.select().from(memories)`.
+
+4. **No cross-engine imports** — The LLM Engine never imports from the Memory Engine directly. Cross-engine communication goes through the Orchestration Engine or event bus. Each engine is a deployable boundary.
+
+5. **DTOs at boundaries only** — Data Transfer Objects (Zod schemas) exist only at the API/tRPC layer. Internally, use domain entities and value objects. Never pass a Drizzle row type through a use case.
+
+6. **Events over direct calls for cross-domain** — Mini Brains communicate with the Brain via engine APIs, never by directly querying each other's databases. Developments NEVER access the Brain's Postgres — they go through the Mini Brain SDK.
+
+7. **Infrastructure config is injected, never imported** — Database URLs, API keys, and service endpoints are injected via dependency injection (constructor params or factory functions). No `process.env` reads inside domain or application layers.
+
+8. **Test isolation follows the architecture** — Domain tests: pure unit tests, no mocks needed. Application tests: mock the ports. Infrastructure tests: test against real services (Docker). E2E tests: test through the API.
+
+### Enforcement Mechanisms
+
+| Mechanism | What It Catches | When It Runs |
+|-----------|----------------|--------------|
+| **ESLint `no-restricted-imports`** | Domain importing from infrastructure | Every save (IDE) + CI |
+| **TypeScript project references** | Cross-package boundary violations | `tsc --build` in CI |
+| **Architect Agent guardrail** | Structural violations in agent-generated code | Every autonomous/deep-work ticket |
+| **PR review checklist** | Manual verification of layer compliance | Every pull request |
+| **Dependency graph CI check** | Circular dependencies, layer violations | GitHub Actions on every push |
+
+```typescript
+// ESLint rule example for packages/types/
+// .eslintrc.js in packages/types/
+{
+  rules: {
+    'no-restricted-imports': ['error', {
+      patterns: [
+        'drizzle-orm*', '@trpc/*', 'pg', 'pg-boss',
+        '@anthropic-ai/*', '@openai/*', 'openai',
+        '../adapters/*', '../infrastructure/*',
+        '../server/*', '../app/*'
+      ]
+    }]
+  }
+}
+```
+
+### Architecture Per Tier
+
+| Tier | Architecture Style | Rationale |
+|------|-------------------|-----------|
+| **Brain** | Hexagonal (Ports & Adapters) + Event-Driven | Must support swappable providers, multiple consumers, engine isolation |
+| **Mini Brain** | Hexagonal for domain engines, simplified for glue code | Domain engines need the same rigor; brain-bridge is thin adapter |
+| **Development** | Feature-based modules with Mini Brain SDK as the I/O boundary | Apps are thin — most intelligence comes from Mini Brain. Keep simple |
+
+---
+
 ## Architecture Overview: Three-Tier Intelligence Hierarchy
 
 ```
@@ -629,7 +715,7 @@ Migrate all 25 JSON files to relational tables:
 - `eval_runs` (id, dataset_id FK, version, scores JSONB, created_at) — Feature #5
 - `agent_cards` (agent_id PK/FK, capabilities JSONB, auth_requirements JSONB, endpoint, updated_at) — Feature #7
 - `playbooks` (id, name, description, steps JSONB, created_at_by, version, created_at) — Feature #8
-- `gateway_metrics` (id, provider, model, tokens_in, tokens_out, latency_ms, cost_usd, cached, error, created_at) — Feature #9
+- `gateway_metrics` (id, provider, model, agent_id FK, ticket_id FK, tokens_in, tokens_out, latency_ms, cost_usd, cached, error, created_at) — Feature #9
 - `skills_marketplace` (id, name, source_url, version, installed, config JSONB, created_at) — Feature #15
 
 **Indexes:**
@@ -2450,4 +2536,29 @@ services:
       DATABASE_URL: postgres://postgres:dev@postgres:5432/solarc
       OPENCLAW_WS: ws://openclaw:18789
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+
+volumes:
+  pgdata:
+  openclaw-data:
 ```
+
+---
+
+## Anti-Patterns — What Will Kill This Project
+
+These are the failure modes that sink ambitious AI platforms. Every developer and agent must avoid them.
+
+| Anti-Pattern | Why It's Fatal | Prevention |
+|-------------|----------------|------------|
+| **God Service** — One service that "does everything" | Impossible to test, deploy, or reason about. Every change risks breaking unrelated features | Each engine is a separate module with its own tests. No engine exceeds 2,000 LOC. Split on first sign of bloat |
+| **Shared Mutable State** — Global objects, singletons with state | Race conditions, impossible debugging, state corruption across async flows | Postgres is the single source of truth. In-memory state is read-only caches with TTL. Zustand for UI-only state |
+| **Leaky Abstractions** — Drizzle types in use cases, tRPC context in domain | Couples inner layers to outer layers, makes swapping impossible | Clean Architecture Enforcement Rules above. ESLint catches violations. Architect Agent flags them |
+| **Premature Optimization** — Building for 10K concurrent users on day 1 | Over-engineering kills velocity. You need working features, not theoretical scale | Build for correctness first. Profile before optimizing. pg-boss handles job scaling. Optimize only when metrics prove a bottleneck |
+| **Agent Sprawl** — 200 agents with overlapping skills | Routing becomes impossible, context is wasted listing capabilities, token costs explode | Each Mini Brain has max 8 domain agents. Brain has max 12 universal agents. Merge before adding. Quality > quantity |
+| **Unmonitored LLM Calls** — LLM calls without traces, cost tracking, or guardrails | Runaway costs, silent hallucinations, no debugging capability | EVERY LLM call goes through the Gateway Engine. No direct `anthropic.messages.create()` anywhere. Gateway enforces tracing + cost + guardrails |
+| **JSON File Persistence** — Storing state in JSON files (the ClawCloneOS trap) | No transactions, no concurrent safety, no queries, total data loss risk | Phase 0 migrates ALL state to Postgres. JSON files are read once during seed migration, then deleted. No new JSON persistence ever |
+| **Missing Error Boundaries** — One failed agent crashes the entire Brain | Cascading failures take down all Mini Brains and Developments | Circuit breakers per engine, per provider. pg-boss DLQ for failed jobs. Healing Engine auto-detects and isolates failures |
+
+---
+
+*This is a living document. Update it as the project evolves. The Brain's Documentation Agent auto-updates the ATLAS.md system reference from this blueprint.*
