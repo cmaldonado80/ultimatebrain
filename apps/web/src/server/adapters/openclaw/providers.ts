@@ -1,4 +1,5 @@
 import type { OpenClawClient } from './client'
+import type { ProviderAdapter } from '../../services/gateway'
 
 export interface ChatRequest {
   model: string
@@ -15,22 +16,89 @@ export interface ChatResponse {
   latencyMs: number
 }
 
-export class OpenClawProviders {
+/**
+ * OpenClaw adapter implementing ProviderAdapter.
+ * Routes LLM calls through OpenClaw daemon's 20+ providers via WebSocket.
+ */
+export class OpenClawProviders implements ProviderAdapter {
   constructor(private client: OpenClawClient) {}
 
-  async chat(request: ChatRequest): Promise<ChatResponse> {
-    // TODO: Route through OpenClaw daemon's 20+ LLM providers
-    // For now, stub response
-    throw new Error('OpenClaw chat not yet implemented. Build AI Gateway (Phase 1) first.')
+  async chat(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    tools?: unknown[]
+    apiKey?: string
+  }): Promise<{ content: string; tokensIn: number; tokensOut: number }> {
+    if (!this.client.isConnected()) {
+      throw new Error('OpenClaw daemon not connected')
+    }
+
+    return new Promise((resolve, reject) => {
+      const requestId = crypto.randomUUID()
+      const timeout = setTimeout(() => {
+        this.client.removeAllListeners(`response:${requestId}`)
+        reject(new Error('OpenClaw chat request timed out after 120s'))
+      }, 120_000)
+
+      this.client.once(`response:${requestId}`, (data: ChatResponse) => {
+        clearTimeout(timeout)
+        resolve({
+          content: data.content,
+          tokensIn: data.tokensIn,
+          tokensOut: data.tokensOut,
+        })
+      })
+
+      this.client.once(`error:${requestId}`, (err: { message: string }) => {
+        clearTimeout(timeout)
+        reject(new Error(`OpenClaw error: ${err.message}`))
+      })
+
+      this.client.send({
+        type: 'chat',
+        requestId,
+        model: params.model,
+        messages: params.messages,
+        tools: params.tools,
+      })
+    })
   }
 
-  async embed(text: string, model?: string): Promise<number[]> {
-    // TODO: Route through OpenClaw embedding providers
-    throw new Error('OpenClaw embed not yet implemented. Build AI Gateway (Phase 1) first.')
-  }
+  async embed(params: {
+    text: string
+    model?: string
+    apiKey?: string
+  }): Promise<{ embedding: number[]; dimensions: number }> {
+    if (!this.client.isConnected()) {
+      throw new Error('OpenClaw daemon not connected')
+    }
 
-  async complete(prompt: string, model?: string): Promise<string> {
-    // TODO: Simple completion endpoint
-    throw new Error('OpenClaw complete not yet implemented. Build AI Gateway (Phase 1) first.')
+    return new Promise((resolve, reject) => {
+      const requestId = crypto.randomUUID()
+      const timeout = setTimeout(() => {
+        this.client.removeAllListeners(`response:${requestId}`)
+        reject(new Error('OpenClaw embed request timed out after 30s'))
+      }, 30_000)
+
+      this.client.once(`response:${requestId}`, (data: { embedding: number[] }) => {
+        clearTimeout(timeout)
+        resolve({
+          embedding: data.embedding,
+          dimensions: data.embedding.length,
+        })
+      })
+
+      this.client.once(`error:${requestId}`, (err: { message: string }) => {
+        clearTimeout(timeout)
+        reject(new Error(`OpenClaw embed error: ${err.message}`))
+      })
+
+      this.client.send({
+        type: 'embed',
+        requestId,
+        text: params.text,
+        model: params.model ?? 'text-embedding-3-small',
+      })
+    })
   }
 }
