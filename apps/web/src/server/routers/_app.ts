@@ -9,6 +9,7 @@ import { gatewayRouter } from './gateway'
 import { evalsRouter } from './evals'
 import { entitiesRouter } from './entities'
 import { tracesRouter } from './traces'
+import { guardrailsRouter } from './guardrails'
 
 export const appRouter = router({
   workspaces: workspacesRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   evals: evalsRouter,
   entities: entitiesRouter,
   traces: tracesRouter,
+  guardrails: guardrailsRouter,
 })
 
 export type AppRouter = typeof appRouter
