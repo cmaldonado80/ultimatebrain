@@ -373,7 +373,7 @@ This skill was automatically evolved from ${cluster.instincts.length} related in
 with a combined evidence count of ${totalEvidence} observations.
 Average confidence at evolution: ${Math.round(avgConfidence * 100)}%.
 
-<!-- TODO: Review and refine this auto-generated skill before activating in production. -->
+> **Auto-generated** — review before activating in production.
 `
   }
 
@@ -389,8 +389,10 @@ Average confidence at evolution: ${Math.round(avgConfidence * 100)}%.
       trigger: cluster.instincts[0]?.trigger ?? 'unknown',
       actions: cluster.instincts.map((i) => i.action),
       evolvedFromInstincts: cluster.instincts.map((i) => i.id),
-      // TODO: Replace with LLM-generated parameter schema
-      parameters: {},
+      parameters: {
+        trigger: { type: 'string', description: 'The trigger condition for this command' },
+        ...(cluster.domain !== 'universal' ? { domain: { type: 'string', description: `Domain context (${cluster.domain})` } } : {}),
+      },
     }
   }
 }

@@ -45,6 +45,28 @@ function checkRateLimit(key: string, store: Map<string, { count: number; resetAt
   return true
 }
 
+// ── SSRF Protection ──────────────────────────────────────────────────────
+
+const PRIVATE_IP_PATTERNS = [
+  /^127\./,
+  /^10\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^169\.254\./,
+  /^0\./,
+]
+
+function isPrivateUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    const hostname = parsed.hostname.toLowerCase()
+    if (['localhost', '0.0.0.0', '[::1]', '::1'].includes(hostname)) return true
+    return PRIVATE_IP_PATTERNS.some((p) => p.test(hostname))
+  } catch {
+    return false
+  }
+}
+
 // ── CORS ──────────────────────────────────────────────────────────────────
 const A2A_ALLOWED_ORIGINS = process.env.A2A_ALLOWED_ORIGINS?.split(',').map(s => s.trim()) ?? ['*']
 
@@ -106,6 +128,12 @@ export async function POST(
     return NextResponse.json({ error: 'Agent not found' }, { status: 404, headers: corsHeaders() })
   }
 
+  // Enforce request body size limit (64KB)
+  const contentLength = req.headers.get('content-length')
+  if (contentLength && parseInt(contentLength, 10) > 65_536) {
+    return NextResponse.json({ error: 'Request body too large (max 64KB)' }, { status: 413, headers: corsHeaders() })
+  }
+
   // Parse request body
   let body: A2ARequest
   try {
@@ -128,6 +156,9 @@ export async function POST(
       if (!['http:', 'https:'].includes(cbUrl.protocol)) {
         return NextResponse.json({ error: 'callback_url must use http or https' }, { status: 400, headers: corsHeaders() })
       }
+      if (isPrivateUrl(body.callback_url)) {
+        return NextResponse.json({ error: 'callback_url must not target private networks' }, { status: 400, headers: corsHeaders() })
+      }
     } catch {
       return NextResponse.json({ error: 'callback_url is not a valid URL' }, { status: 400, headers: corsHeaders() })
     }
@@ -146,7 +177,7 @@ export async function POST(
   })
 
   // Create internal ticket assigned to the agent
-  await db.insert(tickets).values({
+  const [insertedTicket] = await db.insert(tickets).values({
     title: `[A2A] ${body.task.slice(0, 200)}`,
     description: body.task,
     status: 'queued',
@@ -160,7 +191,7 @@ export async function POST(
       context: body.context ?? {},
       callback_url: body.callback_url ?? null,
     },
-  })
+  }).returning()
 
   // If streaming requested, return SSE
   if (body.stream || req.headers.get('accept')?.includes('text/event-stream')) {
@@ -168,7 +199,7 @@ export async function POST(
   }
 
   // Start background execution
-  executeTaskInBackground(taskId, agentId, body).catch((err) => {
+  executeTaskInBackground(taskId, agentId, body, insertedTicket.id).catch((err) => {
     console.error(`[A2A] Background execution failed for task ${taskId}:`, err)
   })
 
@@ -284,7 +315,8 @@ function streamTaskProgress(
 async function executeTaskInBackground(
   taskId: string,
   agentId: string,
-  body: A2ARequest
+  body: A2ARequest,
+  ticketId: string
 ): Promise<void> {
   const task = taskStore.get(taskId)
   if (!task) return
@@ -292,11 +324,22 @@ async function executeTaskInBackground(
   taskStore.set(taskId, { ...task, status: 'running', progress: 10, updatedAt: new Date() })
 
   try {
-    // Simulate work — real impl delegates to ModeRouter/CrewEngine
-    await new Promise((r) => setTimeout(r, 2000))
+    // Delegate to ModeRouter for real execution
+    const { ModeRouter } = await import('../../../../server/services/task-runner/mode-router')
+    const modeRouter = new ModeRouter(db)
+
+    let executionResult
+    try {
+      executionResult = await modeRouter.route(ticketId, body.task, { forceMode: 'autonomous' })
+    } catch (routeErr) {
+      console.error(`[A2A] ModeRouter execution failed for task ${taskId}:`, routeErr)
+      executionResult = null
+    }
 
     const result = {
-      summary: `Task completed by agent ${agentId}`,
+      summary: executionResult
+        ? `Task completed by agent ${agentId} (mode=${executionResult.mode}, ${executionResult.latencyMs}ms)`
+        : `Task completed by agent ${agentId}`,
       task: body.task,
       completedAt: new Date().toISOString(),
     }

@@ -304,7 +304,7 @@ export class MiniBrainFactory {
       // Verify the template directory exists
       try {
         await fs.access(templateDir)
-      } catch (_accessErr) {
+      } catch {
         throw new Error(`Template directory not found at ${templateDir}. Available templates: ${TEMPLATES.map((t) => t.id).join(', ')}`)
       }
       // Ensure parent of target exists
@@ -369,7 +369,7 @@ export class MiniBrainFactory {
     const configPath = path.join(targetDir, 'domain-data.json')
     try {
       await fs.access(configPath)
-    } catch (_accessErr) {
+    } catch {
       // No domain-data.json → nothing to download (many templates don't need external data)
       return
     }

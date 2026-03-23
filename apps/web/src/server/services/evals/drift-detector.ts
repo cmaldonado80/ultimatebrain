@@ -57,7 +57,7 @@ export class DriftDetector {
    * Intended to be called by a daily cron job.
    */
   async detectAll(): Promise<DriftReport[]> {
-    const datasets = await this.db.query.evalDatasets.findMany()
+    const datasets = await this.db.query.evalDatasets.findMany({ limit: 100 })
     const reports: DriftReport[] = []
 
     for (const dataset of datasets) {

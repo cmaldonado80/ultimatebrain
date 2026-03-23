@@ -219,7 +219,7 @@ export class ModelFallbackService {
   }
 
   async listAll() {
-    return this.db.query.modelFallbacks.findMany()
+    return this.db.query.modelFallbacks.findMany({ limit: 100 })
   }
 
   async delete(agentId: string) {

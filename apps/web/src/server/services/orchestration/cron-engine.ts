@@ -140,7 +140,7 @@ export class CronEngine {
         where: eq(cronJobs.workspaceId, workspaceId),
       })
     }
-    return this.db.query.cronJobs.findMany()
+    return this.db.query.cronJobs.findMany({ limit: 200 })
   }
 
   /**

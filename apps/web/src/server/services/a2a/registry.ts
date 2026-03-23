@@ -42,7 +42,7 @@ export class A2ARegistry {
    * List all registered external agents with health status.
    */
   async list(): Promise<ExternalAgentRecord[]> {
-    const cards = await this.db.query.agentCards.findMany()
+    const cards = await this.db.query.agentCards.findMany({ limit: 200 })
 
     return cards
       .filter((c) => {

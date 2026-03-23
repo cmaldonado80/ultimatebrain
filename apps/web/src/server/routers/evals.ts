@@ -25,7 +25,7 @@ export const evalsRouter = router({
   // === Dataset CRUD ===
 
   datasets: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.query.evalDatasets.findMany()
+    return ctx.db.query.evalDatasets.findMany({ limit: 100 })
   }),
 
   createDataset: protectedProcedure

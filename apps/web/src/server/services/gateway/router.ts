@@ -393,7 +393,7 @@ export class GatewayRouter {
         const result = await adapter.embed({ text, model: embedModel, apiKey: apiKey ?? undefined })
         this.circuitBreaker.recordSuccess(provider)
         return { ...result, model: embedModel }
-      } catch (err) {
+      } catch (_err) {
         this.circuitBreaker.recordFailure(provider)
       }
     }

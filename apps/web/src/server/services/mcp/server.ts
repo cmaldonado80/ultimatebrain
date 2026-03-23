@@ -101,8 +101,8 @@ export class MCPServer {
    */
   async registerPlatformTools(): Promise<void> {
     const [dbAgents, dbFlows] = await Promise.all([
-      this.db.query.agents.findMany(),
-      this.db.query.flows.findMany(),
+      this.db.query.agents.findMany({ limit: 200 }),
+      this.db.query.flows.findMany({ limit: 200 }),
     ])
 
     // Register agents as tools

@@ -390,7 +390,7 @@ export class CrewEngine {
         const raw = line.slice('Action Input:'.length).trim()
         try {
           actionInput = JSON.parse(raw)
-        } catch (_parseErr) {
+        } catch {
           actionInput = { input: raw }
         }
       }

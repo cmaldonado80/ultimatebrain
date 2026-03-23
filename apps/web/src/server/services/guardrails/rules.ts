@@ -179,7 +179,7 @@ export const toolCallValidator: GuardrailRule = {
           severity: 'critical',
         })
       }
-    } catch (_parseErr) {
+    } catch {
       // Not a JSON tool call — skip
     }
     return violations
