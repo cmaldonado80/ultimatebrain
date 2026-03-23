@@ -1,45 +1,22 @@
 'use client'
 
 /**
- * App Dashboard — list all connected Mini Brains and Developments
+ * App Dashboard — list all connected agents / apps from the database
  */
 
 import { useState } from 'react'
+import { trpc } from '../../../utils/trpc'
 
-interface ConnectedApp {
+interface DisplayApp {
   id: string
   name: string
-  tier: 'mini_brain' | 'development'
-  template: string
-  domain: string
-  url: string
-  healthScore: number
-  connectedEngines: string[]
-  activeAgents: number
-  recentIncidents: number
-  llmCost30d: number
-  memoryEntries: number
+  type: string
+  description: string
+  model: string
   status: 'running' | 'degraded' | 'offline'
+  tags: string[]
+  skills: string[]
   createdAt: Date
-}
-
-const MOCK_APPS: ConnectedApp[] = [
-  { id: 'mb-1', name: 'Astro Brain', tier: 'mini_brain', template: 'astrology', domain: 'Astrology', url: 'http://localhost:3101', healthScore: 0.97, connectedEngines: ['llm', 'memory', 'a2a', 'healing'], activeAgents: 4, recentIncidents: 0, llmCost30d: 142.50, memoryEntries: 1240, status: 'running', createdAt: new Date('2026-02-15') },
-  { id: 'mb-2', name: 'Hotel Ops Brain', tier: 'mini_brain', template: 'hospitality', domain: 'Hotels', url: 'http://localhost:3102', healthScore: 0.89, connectedEngines: ['llm', 'memory', 'a2a', 'healing', 'guardrails', 'eval'], activeAgents: 7, recentIncidents: 2, llmCost30d: 387.20, memoryEntries: 3420, status: 'running', createdAt: new Date('2026-01-20') },
-  { id: 'dev-1', name: 'Sports Astrology App', tier: 'development', template: 'sports-astrology', domain: 'Astrology', url: 'http://localhost:4101', healthScore: 0.94, connectedEngines: ['llm', 'memory'], activeAgents: 2, recentIncidents: 0, llmCost30d: 28.90, memoryEntries: 310, status: 'running', createdAt: new Date('2026-03-01') },
-  { id: 'dev-2', name: 'Luxury Hotel Portal', tier: 'development', template: 'luxury-hotel', domain: 'Hotels', url: 'http://localhost:4102', healthScore: 0.72, connectedEngines: ['llm', 'memory', 'guardrails'], activeAgents: 3, recentIncidents: 1, llmCost30d: 95.40, memoryEntries: 890, status: 'degraded', createdAt: new Date('2026-02-28') },
-  { id: 'mb-3', name: 'SOC Brain', tier: 'mini_brain', template: 'soc-ops', domain: 'Security', url: 'http://localhost:3103', healthScore: 0.0, connectedEngines: ['llm', 'memory', 'a2a', 'healing', 'guardrails'], activeAgents: 0, recentIncidents: 5, llmCost30d: 0, memoryEntries: 560, status: 'offline', createdAt: new Date('2026-03-10') },
-]
-
-function HealthBar({ score }: { score: number }) {
-  const pct = Math.round(score * 100)
-  const color = pct >= 90 ? '#22c55e' : pct >= 70 ? '#f97316' : '#ef4444'
-  return (
-    <div style={styles.healthBarBg}>
-      <div style={{ ...styles.healthBarFill, width: `${pct}%`, background: color }} />
-      <span style={{ ...styles.healthLabel, color }}>{pct}%</span>
-    </div>
-  )
 }
 
 function StatusDot({ status }: { status: string }) {
@@ -47,76 +24,112 @@ function StatusDot({ status }: { status: string }) {
   return <span style={{ ...styles.statusDot, background: color, boxShadow: `0 0 4px ${color}` }} />
 }
 
-function AppCard({ app }: { app: ConnectedApp }) {
+function AppCard({ app }: { app: DisplayApp }) {
   return (
     <a href={`/apps/${app.id}`} style={styles.card}>
       <div style={styles.cardTop}>
         <div style={styles.cardLeft}>
           <StatusDot status={app.status} />
           <span style={styles.cardName}>{app.name}</span>
-          <span style={styles.tierBadge}>{app.tier === 'mini_brain' ? 'Mini Brain' : 'Development'}</span>
+          <span style={styles.tierBadge}>{app.type || 'Agent'}</span>
         </div>
-        <HealthBar score={app.healthScore} />
       </div>
-      <div style={styles.cardDomain}>{app.domain} · {app.template}</div>
+      <div style={styles.cardDomain}>{app.description || 'No description'}</div>
       <div style={styles.statsRow}>
         <div style={styles.stat}>
-          <span style={styles.statValue}>{app.connectedEngines.length}</span>
-          <span style={styles.statLabel}>Engines</span>
+          <span style={styles.statValue}>{app.model || 'N/A'}</span>
+          <span style={styles.statLabel}>Model</span>
         </div>
         <div style={styles.stat}>
-          <span style={styles.statValue}>{app.activeAgents}</span>
-          <span style={styles.statLabel}>Agents</span>
+          <span style={styles.statValue}>{app.skills.length}</span>
+          <span style={styles.statLabel}>Skills</span>
         </div>
         <div style={styles.stat}>
-          <span style={{ ...styles.statValue, color: app.recentIncidents > 0 ? '#f87171' : '#4ade80' }}>{app.recentIncidents}</span>
-          <span style={styles.statLabel}>Incidents</span>
-        </div>
-        <div style={styles.stat}>
-          <span style={styles.statValue}>${app.llmCost30d.toFixed(0)}</span>
-          <span style={styles.statLabel}>LLM Cost</span>
-        </div>
-        <div style={styles.stat}>
-          <span style={styles.statValue}>{app.memoryEntries.toLocaleString()}</span>
-          <span style={styles.statLabel}>Memories</span>
+          <span style={styles.statValue}>{app.tags.length}</span>
+          <span style={styles.statLabel}>Tags</span>
         </div>
       </div>
-      <div style={styles.engineTags}>
-        {app.connectedEngines.map((e) => (
-          <span key={e} style={styles.engineTag}>{e}</span>
-        ))}
-      </div>
+      {app.tags.length > 0 && (
+        <div style={styles.engineTags}>
+          {app.tags.map((t) => (
+            <span key={t} style={styles.engineTag}>{t}</span>
+          ))}
+        </div>
+      )}
     </a>
   )
 }
 
 export default function AppsPage() {
-  const [filter, setFilter] = useState<'all' | 'mini_brain' | 'development'>('all')
-  const filtered = filter === 'all' ? MOCK_APPS : MOCK_APPS.filter((a) => a.tier === filter)
+  const [filter, setFilter] = useState<string>('all')
+  const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
 
-  const miniBrains = MOCK_APPS.filter((a) => a.tier === 'mini_brain')
-  const developments = MOCK_APPS.filter((a) => a.tier === 'development')
-  const totalCost = MOCK_APPS.reduce((s, a) => s + a.llmCost30d, 0)
+  if (isLoading) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#6b7280' }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
+          <div style={{ fontSize: 13 }}>Fetching apps</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#f87171' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading apps</div>
+          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
+        </div>
+      </div>
+    )
+  }
+
+  const agents = data ?? []
+
+  const apps: DisplayApp[] = agents.map((a: any) => ({
+    id: a.id,
+    name: a.name ?? `Agent ${a.id.slice(0, 8)}`,
+    type: a.type ?? 'agent',
+    description: a.description ?? '',
+    model: a.model ?? '',
+    status: 'running' as const,
+    tags: a.tags ?? [],
+    skills: a.skills ?? [],
+    createdAt: new Date(a.createdAt),
+  }))
+
+  // Collect unique types for filter tabs
+  const types = [...new Set(apps.map((a) => a.type))]
+  const filtered = filter === 'all' ? apps : apps.filter((a) => a.type === filter)
 
   return (
     <div style={styles.page}>
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>Connected Apps</h1>
-          <p style={styles.subtitle}>{miniBrains.length} Mini Brains · {developments.length} Developments · ${totalCost.toFixed(0)} LLM cost (30d)</p>
+          <p style={styles.subtitle}>{apps.length} agent{apps.length !== 1 ? 's' : ''} registered</p>
         </div>
       </div>
 
       <div style={styles.tabs}>
-        {(['all', 'mini_brain', 'development'] as const).map((t) => (
+        <button style={filter === 'all' ? styles.tabActive : styles.tab} onClick={() => setFilter('all')}>
+          All ({apps.length})
+        </button>
+        {types.map((t) => (
           <button key={t} style={filter === t ? styles.tabActive : styles.tab} onClick={() => setFilter(t)}>
-            {t === 'all' ? 'All' : t === 'mini_brain' ? 'Mini Brains' : 'Developments'}
+            {t} ({apps.filter((a) => a.type === t).length})
           </button>
         ))}
       </div>
 
       <div style={styles.grid}>
-        {filtered.map((app) => <AppCard key={app.id} app={app} />)}
+        {filtered.length === 0 ? (
+          <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>No apps found</div>
+        ) : (
+          filtered.map((app) => <AppCard key={app.id} app={app} />)
+        )}
       </div>
     </div>
   )
@@ -138,9 +151,6 @@ const styles = {
   tierBadge: { fontSize: 10, background: '#1e3a5f', color: '#93c5fd', padding: '1px 6px', borderRadius: 4, fontWeight: 600 },
   cardDomain: { fontSize: 12, color: '#6b7280', marginBottom: 10 },
   statusDot: { width: 8, height: 8, borderRadius: '50%', display: 'inline-block' },
-  healthBarBg: { width: 100, height: 6, background: '#374151', borderRadius: 3, position: 'relative' as const, display: 'flex', alignItems: 'center' },
-  healthBarFill: { height: '100%', borderRadius: 3 },
-  healthLabel: { fontSize: 10, marginLeft: 6 },
   statsRow: { display: 'flex', gap: 20, marginBottom: 10 },
   stat: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center' },
   statValue: { fontSize: 16, fontWeight: 700 },
