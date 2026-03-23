@@ -234,7 +234,9 @@ export class BrowserAgentStream {
     // Try real Playwright capture asynchronously
     void (async () => {
       try {
-        const pw = await import('playwright').catch(() => null)
+        // Playwright is an optional peer dependency — dynamically imported
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pw = await (Function('return import("playwright")')() as Promise<any>).catch(() => null)
         if (!pw) {
           if (!this.playwrightWarned) {
             console.warn('[BrowserAgentStream] playwright not available — using placeholder screenshot URLs')
