@@ -481,7 +481,7 @@ export class ModeRouter {
     try {
       step.status = 'in_progress'
 
-      const _result = await this.gateway.chat({
+      await this.gateway.chat({
         messages: [
           {
             role: 'system',

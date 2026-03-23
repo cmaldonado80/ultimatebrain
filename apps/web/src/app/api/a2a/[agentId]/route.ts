@@ -134,7 +134,7 @@ export async function POST(
 }
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   const { agentId } = await params

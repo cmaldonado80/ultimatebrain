@@ -165,7 +165,7 @@ export class GatewayRouter {
   private tracer?: Tracer
 
   constructor(
-    private _db: Database,
+    _db: Database,
     config?: Partial<GatewayConfig>,
     tracer?: Tracer,
   ) {

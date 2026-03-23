@@ -72,7 +72,7 @@ const runStore = new Map<string, PlaybookRunResult>()
 export class PlaybookExecutor {
   private gateway: GatewayRouter
 
-  constructor(private _db: Database) {
+  constructor(_db: Database) {
     this.gateway = new GatewayRouter(_db)
   }
 

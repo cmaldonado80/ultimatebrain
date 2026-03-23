@@ -51,7 +51,6 @@ export class A2ARegistry {
       })
       .map((c) => {
         const caps = (c.capabilities ?? {}) as Record<string, unknown>
-        const _auth = (c.authRequirements ?? {}) as Record<string, unknown>
         return {
           id: c.agentId,
           url: (caps['base_url'] as string) ?? '',

@@ -103,7 +103,7 @@ const DEFAULT_MAX_ITERATIONS = 10
 export class CrewEngine {
   private gateway: GatewayRouter
 
-  constructor(private _db: Database) {
+  constructor(_db: Database) {
     this.gateway = new GatewayRouter(_db)
   }
 

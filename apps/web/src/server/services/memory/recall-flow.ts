@@ -46,8 +46,8 @@ export class RecallFlow {
   private memoryService: MemoryService
 
   constructor(
-    private _db: Database,
-    private _embed: EmbedFunction
+    _db: Database,
+    _embed: EmbedFunction
   ) {
     this.memoryService = new MemoryService(_db)
     this.memoryService.setEmbedFunction(_embed)
