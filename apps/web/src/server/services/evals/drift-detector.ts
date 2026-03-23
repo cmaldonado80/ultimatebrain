@@ -10,6 +10,7 @@ import type { Database } from '@solarc/db'
 import { evalDatasets, evalRuns } from '@solarc/db'
 import { eq, desc, lt } from 'drizzle-orm'
 import type { EvalScores } from '@solarc/engine-contracts'
+import { WebhookService } from '../integrations/integrations-service'
 
 export interface DriftReport {
   datasetId: string
@@ -145,12 +146,16 @@ export class DriftDetector {
    * Real impl calls OpenClaw channel adapter for Telegram/Slack.
    */
   async dispatchAlerts(alerts: DriftAlert[]): Promise<void> {
+    const webhookService = new WebhookService(this.db)
     for (const alert of alerts) {
       // Ops Center notification (stored as trace attribute for now)
       console.warn(`[DriftDetector] ${alert.severity.toUpperCase()}: ${alert.message}`)
 
-      // TODO: call IntegrationsService.sendToChannel(channelId, alert.message)
-      // when OpenClaw channel is configured for the workspace
+      try {
+        await webhookService.dispatch({ type: 'drift_alert', payload: alert })
+      } catch (err) {
+        console.warn(`[DriftDetector] Failed to dispatch webhook for "${alert.datasetName}":`, err)
+      }
     }
   }
 
