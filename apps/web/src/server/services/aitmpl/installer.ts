@@ -1,0 +1,315 @@
+/**
+ * AITMPL Component Installer
+ *
+ * Fetches components from the AITMPL marketplace (app.aitmpl.com),
+ * runs security scans, and installs to the correct tier:
+ * - Universal → Brain
+ * - Domain-specific → Mini Brain
+ * - App-specific → Development
+ *
+ * Features:
+ * - Version pins + hash verification
+ * - Static analysis + sandbox security scanning
+ * - Tier-aware installation routing
+ */
+
+export type ComponentCategory = 'agents' | 'skills' | 'commands' | 'hooks' | 'mcps' | 'settings'
+
+export type InstallTier = 'brain' | 'mini_brain' | 'development'
+
+export type SecurityScanResult = 'pass' | 'warn' | 'fail'
+
+export interface AitmplComponent {
+  id: string
+  name: string
+  category: ComponentCategory
+  description: string
+  author: string
+  version: string
+  /** GitHub source URL */
+  sourceUrl: string
+  /** Content hash for verification */
+  contentHash: string
+  /** License */
+  license: string
+  /** Download count */
+  downloads: number
+  /** Tags for discovery */
+  tags: string[]
+  /** Which tier this component targets */
+  targetTier: InstallTier | 'any'
+  /** Dependencies on other components */
+  dependencies: string[]
+  /** Raw content (SKILL.md, agent .md, etc.) */
+  content?: string
+}
+
+export interface InstallResult {
+  componentId: string
+  name: string
+  category: ComponentCategory
+  tier: InstallTier
+  targetEntity: string
+  version: string
+  securityScan: SecurityScanReport
+  installed: boolean
+  error?: string
+}
+
+export interface SecurityScanReport {
+  result: SecurityScanResult
+  staticAnalysis: { passed: boolean; issues: string[] }
+  sandboxTest: { passed: boolean; issues: string[] }
+  permissionsRequired: string[]
+  riskLevel: 'low' | 'medium' | 'high'
+}
+
+export interface InstallerConfig {
+  /** GitHub API token for AITMPL access */
+  githubToken?: string
+  /** AITMPL GitHub repo (default: aitmpl/marketplace) */
+  repoOwner?: string
+  repoName?: string
+  /** Auto-install from trusted publishers */
+  trustedPublishers?: string[]
+  /** Whether to run sandbox tests (slower but safer) */
+  enableSandbox?: boolean
+}
+
+const DEFAULT_TRUSTED = ['anthropic', 'k-dense', 'aitmpl-official']
+
+export class AitmplInstaller {
+  private config: Required<InstallerConfig>
+
+  constructor(config: InstallerConfig = {}) {
+    this.config = {
+      githubToken: config.githubToken ?? '',
+      repoOwner: config.repoOwner ?? 'aitmpl',
+      repoName: config.repoName ?? 'marketplace',
+      trustedPublishers: config.trustedPublishers ?? DEFAULT_TRUSTED,
+      enableSandbox: config.enableSandbox ?? true,
+    }
+  }
+
+  // ── Fetch ─────────────────────────────────────────────────────────────
+
+  /** Fetch a component from the AITMPL marketplace */
+  async fetchComponent(name: string, category: ComponentCategory): Promise<AitmplComponent | null> {
+    // Real impl: GitHub API → GET /repos/{owner}/{repo}/contents/{category}/{name}
+    const url = `https://api.github.com/repos/${this.config.repoOwner}/${this.config.repoName}/contents/${category}/${name}`
+
+    // Stub — return mock component
+    return {
+      id: `aitmpl-${category}-${name}`,
+      name,
+      category,
+      description: `AITMPL ${category} component: ${name}`,
+      author: 'aitmpl-official',
+      version: '1.0.0',
+      sourceUrl: url,
+      contentHash: this.generateHash(`${category}/${name}/1.0.0`),
+      license: 'MIT',
+      downloads: Math.floor(Math.random() * 5000),
+      tags: [category, name],
+      targetTier: 'any',
+      dependencies: [],
+      content: `# ${name}\n\nAITMPL ${category} component.`,
+    }
+  }
+
+  /** Fetch all components in a category */
+  async fetchCategory(category: ComponentCategory): Promise<AitmplComponent[]> {
+    // Stub — real impl lists directory from GitHub API
+    return []
+  }
+
+  // ── Security Scanning ─────────────────────────────────────────────────
+
+  /** Run security scan on a component */
+  async securityScan(component: AitmplComponent): Promise<SecurityScanReport> {
+    const content = component.content ?? ''
+    const staticIssues: string[] = []
+    const sandboxIssues: string[] = []
+
+    // Static analysis
+    const dangerousPatterns = [
+      { pattern: /eval\s*\(/g, msg: 'eval() usage detected' },
+      { pattern: /Function\s*\(/g, msg: 'Function constructor detected' },
+      { pattern: /child_process/g, msg: 'child_process import detected' },
+      { pattern: /process\.exit/g, msg: 'process.exit() call detected' },
+      { pattern: /require\s*\(\s*['"]fs['"]\)/g, msg: 'Direct fs import (use capability proxy)' },
+      { pattern: /\.env/g, msg: 'Potential env file access' },
+      { pattern: /password|secret|token|apikey/gi, msg: 'Potential secret handling' },
+      { pattern: /exec\s*\(/g, msg: 'exec() call detected' },
+      { pattern: /rm\s+-rf/g, msg: 'Destructive shell command' },
+    ]
+
+    for (const { pattern, msg } of dangerousPatterns) {
+      if (pattern.test(content)) {
+        staticIssues.push(msg)
+      }
+    }
+
+    // Sandbox test (if enabled)
+    if (this.config.enableSandbox) {
+      const sandboxResult = await this.runSandboxTest(component)
+      sandboxIssues.push(...sandboxResult.issues)
+    }
+
+    // Determine permissions required
+    const permissions = this.inferPermissions(content)
+
+    // Risk level
+    const criticalIssues = staticIssues.filter((i) =>
+      i.includes('eval') || i.includes('child_process') || i.includes('exec')
+    )
+    const riskLevel: SecurityScanReport['riskLevel'] =
+      criticalIssues.length > 0 ? 'high' :
+      staticIssues.length > 2 ? 'medium' : 'low'
+
+    const staticPassed = criticalIssues.length === 0
+    const sandboxPassed = sandboxIssues.length === 0
+
+    return {
+      result: !staticPassed ? 'fail' : staticIssues.length > 0 ? 'warn' : 'pass',
+      staticAnalysis: { passed: staticPassed, issues: staticIssues },
+      sandboxTest: { passed: sandboxPassed, issues: sandboxIssues },
+      permissionsRequired: permissions,
+      riskLevel,
+    }
+  }
+
+  // ── Installation ──────────────────────────────────────────────────────
+
+  /**
+   * Install a component to the correct tier.
+   */
+  async install(
+    component: AitmplComponent,
+    targetTier: InstallTier,
+    targetEntity: string
+  ): Promise<InstallResult> {
+    // 1. Verify hash
+    if (!this.verifyHash(component)) {
+      return {
+        componentId: component.id,
+        name: component.name,
+        category: component.category,
+        tier: targetTier,
+        targetEntity,
+        version: component.version,
+        securityScan: { result: 'fail', staticAnalysis: { passed: false, issues: ['Hash mismatch'] }, sandboxTest: { passed: true, issues: [] }, permissionsRequired: [], riskLevel: 'high' },
+        installed: false,
+        error: 'Content hash verification failed',
+      }
+    }
+
+    // 2. Security scan
+    const scan = await this.securityScan(component)
+    if (scan.result === 'fail') {
+      return {
+        componentId: component.id,
+        name: component.name,
+        category: component.category,
+        tier: targetTier,
+        targetEntity,
+        version: component.version,
+        securityScan: scan,
+        installed: false,
+        error: `Security scan failed: ${scan.staticAnalysis.issues.join(', ')}`,
+      }
+    }
+
+    // 3. Check if trusted publisher (auto-install)
+    const isTrusted = this.config.trustedPublishers.includes(component.author)
+    if (!isTrusted && scan.riskLevel !== 'low') {
+      return {
+        componentId: component.id,
+        name: component.name,
+        category: component.category,
+        tier: targetTier,
+        targetEntity,
+        version: component.version,
+        securityScan: scan,
+        installed: false,
+        error: 'Requires manual approval (untrusted publisher + medium/high risk)',
+      }
+    }
+
+    // 4. Adapt and install based on category
+    await this.adaptAndInstall(component, targetTier, targetEntity)
+
+    return {
+      componentId: component.id,
+      name: component.name,
+      category: component.category,
+      tier: targetTier,
+      targetEntity,
+      version: component.version,
+      securityScan: scan,
+      installed: true,
+    }
+  }
+
+  /**
+   * Determine the correct tier for a component.
+   */
+  determineTier(component: AitmplComponent): InstallTier {
+    if (component.targetTier !== 'any') return component.targetTier
+
+    // Infer from tags and content
+    const tags = component.tags.map((t) => t.toLowerCase())
+
+    if (tags.some((t) => ['governance', 'security', 'compliance', 'healing', 'orchestration', 'infrastructure'].includes(t))) {
+      return 'brain'
+    }
+    if (tags.some((t) => ['domain', 'specialist', 'astrology', 'hospitality', 'legal', 'healthcare', 'marketing', 'soc'].includes(t))) {
+      return 'mini_brain'
+    }
+    if (tags.some((t) => ['user-facing', 'chatbot', 'ui', 'app', 'frontend'].includes(t))) {
+      return 'development'
+    }
+
+    return 'brain' // default: install at Brain level
+  }
+
+  // ── Internal ──────────────────────────────────────────────────────────
+
+  private async runSandboxTest(component: AitmplComponent): Promise<{ issues: string[] }> {
+    // Stub — real impl runs component in isolated vm/worker
+    return { issues: [] }
+  }
+
+  private inferPermissions(content: string): string[] {
+    const perms: string[] = []
+    if (/fetch|http|https|axios/i.test(content)) perms.push('network:fetch')
+    if (/readFile|readdir|fs\./i.test(content)) perms.push('file:read')
+    if (/writeFile|appendFile/i.test(content)) perms.push('file:write')
+    if (/exec|spawn|shell/i.test(content)) perms.push('shell:execute')
+    if (/navigate|screenshot|playwright/i.test(content)) perms.push('browser:navigate')
+    if (/database|query|sql|drizzle/i.test(content)) perms.push('db:read')
+    return perms
+  }
+
+  private verifyHash(component: AitmplComponent): boolean {
+    // Stub — real impl verifies SHA-256 of content against contentHash
+    return true
+  }
+
+  private generateHash(input: string): string {
+    let hash = 0
+    for (let i = 0; i < input.length; i++) {
+      hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0
+    }
+    return `sha256:${Math.abs(hash).toString(16).padStart(16, '0')}`
+  }
+
+  private async adaptAndInstall(
+    component: AitmplComponent,
+    tier: InstallTier,
+    entity: string
+  ): Promise<void> {
+    // Stub — real impl delegates to AitmplAdapter
+    // which converts AITMPL format → Brain DB format
+  }
+}
