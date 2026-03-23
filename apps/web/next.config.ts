@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   images: { formats: ['image/avif', 'image/webp'] },
   transpilePackages: ['@solarc/db', '@solarc/types', '@solarc/engine-contracts'],
   poweredByHeader: false,
