@@ -1,3 +1,9 @@
+/**
+ * Tickets Router — CRUD and lifecycle operations for execution tickets.
+ *
+ * Tickets are the primary work unit: created by users or A2A, assigned to agents,
+ * and executed through the ModeRouter pipeline (quick/autonomous/deep_work).
+ */
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, publicProcedure, protectedProcedure } from '../trpc'

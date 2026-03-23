@@ -212,6 +212,7 @@ export class A2AClient {
    * Returns the external_agent tool definition for use inside CrewEngine.
    */
   externalAgentTool(authToken?: string) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const client = this
     return {
       name: 'external_agent',

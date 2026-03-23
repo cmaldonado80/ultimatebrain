@@ -80,7 +80,7 @@ export class A2ARegistry {
       if (!record.url) continue
 
       const isHealthy = await this.client.healthCheck(record.url)
-      isHealthy ? healthy++ : unhealthy++
+      if (isHealthy) { healthy++ } else { unhealthy++ }
 
       // Update health status in DB
       const card = await this.db.query.agentCards.findFirst({

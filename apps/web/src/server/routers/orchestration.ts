@@ -1,3 +1,9 @@
+/**
+ * Orchestration Router — ticket execution, cron jobs, swarms, and receipts.
+ *
+ * Coordinates the full execution lifecycle: lease acquisition, status transitions,
+ * cron scheduling, multi-agent swarm management, and execution receipt generation.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'

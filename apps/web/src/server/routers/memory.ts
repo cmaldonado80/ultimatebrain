@@ -1,3 +1,9 @@
+/**
+ * Memory Router — CRUD and promotion for the tiered memory system.
+ *
+ * Memory tiers: core (high-confidence facts) → recall (working memory) → archival (long-term).
+ * Supports confidence scoring, promotion nominations, and bulk compaction.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { memories } from '@solarc/db'

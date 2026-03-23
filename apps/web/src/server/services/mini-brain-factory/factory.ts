@@ -304,7 +304,7 @@ export class MiniBrainFactory {
       // Verify the template directory exists
       try {
         await fs.access(templateDir)
-      } catch (accessErr) {
+      } catch (_accessErr) {
         throw new Error(`Template directory not found at ${templateDir}. Available templates: ${TEMPLATES.map((t) => t.id).join(', ')}`)
       }
       // Ensure parent of target exists

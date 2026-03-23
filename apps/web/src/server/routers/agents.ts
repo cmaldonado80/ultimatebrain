@@ -1,3 +1,9 @@
+/**
+ * Agents Router — CRUD for AI agent instances.
+ *
+ * Agents have types (executor/reviewer/planner/specialist), belong to workspaces,
+ * and are assigned to tickets for execution. Supports capability and model configuration.
+ */
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, publicProcedure, protectedProcedure } from '../trpc'
