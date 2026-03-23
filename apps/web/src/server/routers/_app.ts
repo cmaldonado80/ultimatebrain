@@ -2,6 +2,7 @@ import { router } from '../trpc'
 import { checkpointingRouter } from './checkpointing'
 import { taskRunnerRouter } from './task-runner'
 import { flowsRouter } from './flows'
+import { playbooksRouter } from './playbooks'
 import { workspacesRouter } from './workspaces'
 import { agentsRouter } from './agents'
 import { ticketsRouter } from './tickets'
@@ -41,6 +42,7 @@ export const appRouter = router({
   checkpointing: checkpointingRouter,
   taskRunner: taskRunnerRouter,
   flows: flowsRouter,
+  playbooks: playbooksRouter,
 })
 
 export type AppRouter = typeof appRouter
