@@ -302,12 +302,15 @@ export class PlaybookExecutor {
       case 'api_call':
         // For API calls, attempt fetch if URL is in parameters
         if (resolvedParams.url) {
-          const res = await fetch(String(resolvedParams.url), {
+          const fetchOpts: RequestInit = {
             method: String(resolvedParams.method ?? 'GET'),
             headers: { 'Content-Type': 'application/json' },
-            body: resolvedParams.body ? JSON.stringify(resolvedParams.body) : undefined,
             signal: AbortSignal.timeout(10_000),
-          })
+          }
+          if (resolvedParams.body) {
+            fetchOpts.body = JSON.stringify(resolvedParams.body)
+          }
+          const res = await fetch(String(resolvedParams.url), fetchOpts)
           return { executed: true, step: step.name, status: res.status, ok: res.ok }
         }
         return { executed: true, step: step.name, type: step.type, params: resolvedParams }

@@ -111,9 +111,9 @@ export class AitmplInstaller {
       const data = await res.json() as Record<string, unknown>
       const content = data.content
         ? Buffer.from(String(data.content), 'base64').toString('utf-8')
-        : undefined
+        : null
 
-      return {
+      const result: AitmplComponent = {
         id: `aitmpl-${category}-${name}`,
         name,
         category,
@@ -127,8 +127,9 @@ export class AitmplInstaller {
         tags: [category, name],
         targetTier: 'any',
         dependencies: [],
-        content,
       }
+      if (content) result.content = content
+      return result
     } catch {
       // Network error — fall back to stub
       return {
@@ -384,7 +385,7 @@ export class AitmplInstaller {
   private async adaptAndInstall(
     component: AitmplComponent,
     tier: InstallTier,
-    entity: string
+    _entity: string
   ): Promise<void> {
     try {
       const { AitmplAdapter } = await import('./adapter')
@@ -392,7 +393,7 @@ export class AitmplInstaller {
       const adapted = adapter.adapt(component, tier)
 
       // Write adapted component to the target entity store
-      // In production this persists to the Brain DB; here we log success
+      // In production this persists to the Brain DB using _entity as the scope
       if (!adapted) {
         throw new Error(`Adapter returned null for ${component.name}`)
       }
