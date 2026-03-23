@@ -88,7 +88,7 @@ export const promptOverlays = pgTable('prompt_overlays', {
 })
 
 export const agentTrustScores = pgTable('agent_trust_scores', {
-  agentId: uuid('agent_id').references(() => agents.id).primaryKey(),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'cascade' }).primaryKey(),
   score: real('score').default(0.5).notNull(),
   factors: jsonb('factors'),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -96,8 +96,8 @@ export const agentTrustScores = pgTable('agent_trust_scores', {
 
 export const cognitiveCandidates = pgTable('cognitive_candidates', {
   id: uuid('id').primaryKey().defaultRandom(),
-  memoryId: uuid('memory_id').references(() => memories.id),
-  status: text('status').default('pending'),
+  memoryId: uuid('memory_id').references(() => memories.id, { onDelete: 'cascade' }),
+  status: candidateStatusEnum('status').default('pending'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })

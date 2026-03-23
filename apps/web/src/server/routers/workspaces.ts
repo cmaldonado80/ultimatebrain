@@ -1,11 +1,11 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import { router, publicProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { workspaces } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
 export const workspacesRouter = router({
-  list: publicProcedure
+  list: protectedProcedure
     .input(z.object({
       limit: z.number().min(1).max(100).default(50),
       offset: z.number().min(0).default(0),
@@ -16,10 +16,10 @@ export const workspacesRouter = router({
         offset: input.offset,
       })
     }),
-  byId: publicProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+  byId: protectedProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
     return ctx.db.query.workspaces.findFirst({ where: eq(workspaces.id, input.id) })
   }),
-  create: publicProcedure
+  create: protectedProcedure
     .input(z.object({ name: z.string().min(1), type: z.string().optional(), goal: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const [ws] = await ctx.db.insert(workspaces).values(input).returning()

@@ -1,14 +1,14 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import { router, publicProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { approvalGates } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
 export const approvalsRouter = router({
-  pending: publicProcedure.query(async ({ ctx }) => {
+  pending: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.query.approvalGates.findMany({ where: eq(approvalGates.status, 'pending') })
   }),
-  decide: publicProcedure
+  decide: protectedProcedure
     .input(z.object({
       id: z.string().uuid(),
       status: z.enum(['approved', 'denied']),

@@ -161,16 +161,16 @@ export default function AppDetailPage() {
               <span style={styles.detailKey}>ID:</span>
               <span style={styles.detailVal}>{appId}</span>
             </div>
-            {(app as any).workspaceId && (
+            {agent.workspaceId && (
               <div style={styles.detailRow}>
                 <span style={styles.detailKey}>Workspace:</span>
-                <span style={styles.detailVal}>{(app as any).workspaceId}</span>
+                <span style={styles.detailVal}>{agent.workspaceId}</span>
               </div>
             )}
-            {(app as any).createdAt && (
+            {agent.createdAt && (
               <div style={styles.detailRow}>
                 <span style={styles.detailKey}>Created:</span>
-                <span style={styles.detailVal}>{new Date((app as any).createdAt).toLocaleDateString()}</span>
+                <span style={styles.detailVal}>{new Date(agent.createdAt).toLocaleDateString()}</span>
               </div>
             )}
           </div>

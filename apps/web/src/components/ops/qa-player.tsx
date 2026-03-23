@@ -255,9 +255,9 @@ export default function QAPlayer({
           {/* Timeline with markers */}
           <div style={styles.timeline} onClick={handleTimelineClick}>
             <div style={{ ...styles.timelineProgress, width: `${(currentMs / recording.durationMs) * 100}%` }} />
-            {recording.annotations.map((ann, i) => (
+            {recording.annotations.map((ann) => (
               <TimelineMarker
-                key={i}
+                key={ann.timestampMs}
                 annotation={ann}
                 totalMs={recording.durationMs}
                 onClick={() => { seekTo(ann.timestampMs); setActiveAnnotation(ann) }}
@@ -294,8 +294,8 @@ export default function QAPlayer({
           {/* Checkpoints */}
           <div style={styles.section}>
             <div style={styles.sectionHeader}>Checkpoints</div>
-            {review.checkpointResults.map((r, i) => (
-              <CheckpointRow key={i} result={r} />
+            {review.checkpointResults.map((r) => (
+              <CheckpointRow key={r.checkpoint.name} result={r} />
             ))}
           </div>
 
@@ -303,9 +303,9 @@ export default function QAPlayer({
           {review.failureFrames.length > 0 && (
             <div style={styles.section}>
               <div style={styles.sectionHeader}>Failures</div>
-              {review.failureFrames.map((f, i) => (
+              {review.failureFrames.map((f) => (
                 <div
-                  key={i}
+                  key={f.frameIndex}
                   style={styles.failureRow}
                   onClick={() => seekTo(f.offsetMs)}
                 >
