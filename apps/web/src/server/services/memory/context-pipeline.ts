@@ -11,7 +11,7 @@
 import type { Database } from '@solarc/db'
 import { GatewayRouter } from '../gateway'
 import { MemoryService } from './memory-service'
-import { RecallFlow, type RecallQuery } from './recall-flow'
+import { RecallFlow } from './recall-flow'
 import type { EmbedFunction } from './memory-service'
 
 export interface ContextSource {

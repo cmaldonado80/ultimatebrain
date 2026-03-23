@@ -8,6 +8,8 @@
  * - Outputs: SKILL.md-format playbook documentation
  */
 
+import type { Database } from '@solarc/db'
+import { GatewayRouter } from '../gateway'
 import type { PlaybookStep, RecordedEvent, SavedPlaybook } from './recorder'
 
 export interface DistilledPlaybook {
@@ -33,6 +35,13 @@ export interface DistillOptions {
 }
 
 export class PlaybookDistiller {
+  private gateway: GatewayRouter | null = null
+
+  constructor(opts?: { db?: Database }) {
+    if (opts?.db) {
+      this.gateway = new GatewayRouter(opts.db)
+    }
+  }
   /**
    * Distill raw playbook steps into a reusable parameterized playbook.
    * Calls LLM to extract patterns, parameterize values, and generate docs.
@@ -130,17 +139,54 @@ export class PlaybookDistiller {
     expectedOutcomes: string[]
     confidence: number
   }> {
-    // Stub — real impl calls GatewayRouter with analysis prompt
-    const stepSummary = steps.map((s, i) => `${i + 1}. ${s.description}`).join('\n')
+    const stepSummary = steps.map((s, i) => `${i + 1}. [${s.type}] ${s.name}: ${s.description}`).join('\n')
 
-    // Infer name from steps
+    // Try LLM analysis for pattern extraction and parameterization suggestions
+    try {
+      if (this.gateway) {
+        const result = await this.gateway.chat({
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a playbook analyst. Analyze the following recorded steps and extract: ' +
+                'a concise name, description, trigger conditions, expected outcomes, and confidence (0-1). ' +
+                'Also suggest which parameters should be extracted as variables. ' +
+                'Respond with a JSON object: ' +
+                '{"name": "...", "description": "...", "triggerConditions": ["..."], ' +
+                '"expectedOutcomes": ["..."], "confidence": 0.0-1.0}. ' +
+                'Respond ONLY with JSON.',
+            },
+            {
+              role: 'user',
+              content:
+                (options.suggestedName ? `Suggested name: ${options.suggestedName}\n` : '') +
+                (options.context ? `Context: ${options.context}\n` : '') +
+                `\nSteps:\n${stepSummary}`,
+            },
+          ],
+        })
+
+        const parsed = JSON.parse(result.content)
+        return {
+          name: String(parsed.name ?? options.suggestedName ?? 'Unnamed Playbook'),
+          description: String(parsed.description ?? ''),
+          triggerConditions: Array.isArray(parsed.triggerConditions) ? parsed.triggerConditions.map(String) : [],
+          expectedOutcomes: Array.isArray(parsed.expectedOutcomes) ? parsed.expectedOutcomes.map(String) : [],
+          confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.7,
+        }
+      }
+    } catch (err) {
+      console.error('[PlaybookDistiller] LLM analysis failed, using heuristic fallback:', err)
+    }
+
+    // Fallback: heuristic-based analysis
     const firstAction = steps[0]?.name ?? 'unknown action'
     const lastAction = steps[steps.length - 1]?.name ?? 'completion'
     const inferredName =
       options.suggestedName ??
       `Playbook: ${firstAction.slice(0, 40)} → ${lastAction.slice(0, 30)}`
 
-    // Infer trigger from first step
     const triggerConditions = this.inferTriggers(steps)
     const expectedOutcomes = this.inferOutcomes(steps)
 

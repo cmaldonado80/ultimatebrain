@@ -268,11 +268,59 @@ export class VisualQAReviewer {
   ): Promise<SuggestedFix[]> {
     if (failures.length === 0) return []
 
-    // Stub — real impl sends failure context to LLM for fix generation
+    // Try LLM-based fix generation
+    try {
+      if (this.gateway) {
+        const failureContext = failures.map((f) =>
+          `Frame ${f.frameIndex} (offset ${f.offsetMs}ms): ${f.reason}`
+        ).join('\n')
+
+        const checkpointContext = checkpointResults
+          .filter((r) => r.verdict === 'fail')
+          .map((r) => `Checkpoint "${r.checkpoint.name}": ${r.explanation}`)
+          .join('\n')
+
+        const result = await this.gateway.chat({
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a QA engineer analyzing UI test failures. ' +
+                'Given the failures, suggest fixes as a JSON array. Each fix: ' +
+                '{"description": "...", "category": "ui"|"logic"|"data"|"timing"|"selector", ' +
+                '"priority": "low"|"medium"|"high", "suggestion": "optional code/config hint"}. ' +
+                'Respond ONLY with the JSON array.',
+            },
+            {
+              role: 'user',
+              content:
+                `Recording: agent "${recording.agentName}", ticket ${recording.ticketId ?? 'N/A'}\n\n` +
+                `Failures:\n${failureContext}\n\nFailed checkpoints:\n${checkpointContext}`,
+            },
+          ],
+        })
+
+        const parsed = JSON.parse(result.content) as SuggestedFix[]
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((fix) => {
+            const base: SuggestedFix = {
+              description: String(fix.description),
+              category: fix.category ?? 'ui',
+              priority: fix.priority ?? 'medium',
+            }
+            if (fix.suggestion) base.suggestion = String(fix.suggestion)
+            return base
+          })
+        }
+      }
+    } catch (err) {
+      console.error('[VisualQAReviewer] LLM fix generation failed, using keyword fallback:', err)
+    }
+
+    // Fallback: keyword-based categorization
     const fixes: SuggestedFix[] = []
 
     for (const failure of failures) {
-      // Categorize based on failure reason keywords
       const reason = failure.reason.toLowerCase()
       let category: SuggestedFix['category'] = 'ui'
       let priority: SuggestedFix['priority'] = 'medium'
