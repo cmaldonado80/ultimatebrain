@@ -95,32 +95,88 @@ export class AitmplInstaller {
 
   /** Fetch a component from the AITMPL marketplace */
   async fetchComponent(name: string, category: ComponentCategory): Promise<AitmplComponent | null> {
-    // Real impl: GitHub API → GET /repos/{owner}/{repo}/contents/{category}/{name}
     const url = `https://api.github.com/repos/${this.config.repoOwner}/${this.config.repoName}/contents/${category}/${name}`
 
-    // Stub — return mock component
-    return {
-      id: `aitmpl-${category}-${name}`,
-      name,
-      category,
-      description: `AITMPL ${category} component: ${name}`,
-      author: 'aitmpl-official',
-      version: '1.0.0',
-      sourceUrl: url,
-      contentHash: this.generateHash(`${category}/${name}/1.0.0`),
-      license: 'MIT',
-      downloads: Math.floor(Math.random() * 5000),
-      tags: [category, name],
-      targetTier: 'any',
-      dependencies: [],
-      content: `# ${name}\n\nAITMPL ${category} component.`,
+    try {
+      const headers: Record<string, string> = {
+        'Accept': 'application/vnd.github.v3+json',
+      }
+      if (this.config.githubToken) {
+        headers['Authorization'] = `Bearer ${this.config.githubToken}`
+      }
+
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) })
+      if (!res.ok) return null
+
+      const data = await res.json() as Record<string, unknown>
+      const content = data.content
+        ? Buffer.from(String(data.content), 'base64').toString('utf-8')
+        : undefined
+
+      return {
+        id: `aitmpl-${category}-${name}`,
+        name,
+        category,
+        description: `AITMPL ${category} component: ${name}`,
+        author: (data.author as string) ?? 'unknown',
+        version: (data.version as string) ?? '1.0.0',
+        sourceUrl: url,
+        contentHash: content ? this.computeSha256(content) : this.generateHash(`${category}/${name}/1.0.0`),
+        license: (data.license as string) ?? 'MIT',
+        downloads: 0,
+        tags: [category, name],
+        targetTier: 'any',
+        dependencies: [],
+        content,
+      }
+    } catch {
+      // Network error — fall back to stub
+      return {
+        id: `aitmpl-${category}-${name}`,
+        name,
+        category,
+        description: `AITMPL ${category} component: ${name}`,
+        author: 'aitmpl-official',
+        version: '1.0.0',
+        sourceUrl: url,
+        contentHash: this.generateHash(`${category}/${name}/1.0.0`),
+        license: 'MIT',
+        downloads: 0,
+        tags: [category, name],
+        targetTier: 'any',
+        dependencies: [],
+        content: `# ${name}\n\nAITMPL ${category} component.`,
+      }
     }
   }
 
   /** Fetch all components in a category */
   async fetchCategory(category: ComponentCategory): Promise<AitmplComponent[]> {
-    // Stub — real impl lists directory from GitHub API
-    return []
+    const url = `https://api.github.com/repos/${this.config.repoOwner}/${this.config.repoName}/contents/${category}`
+
+    try {
+      const headers: Record<string, string> = {
+        'Accept': 'application/vnd.github.v3+json',
+      }
+      if (this.config.githubToken) {
+        headers['Authorization'] = `Bearer ${this.config.githubToken}`
+      }
+
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) })
+      if (!res.ok) return []
+
+      const entries = (await res.json()) as Array<{ name: string; type: string }>
+      const dirs = entries.filter((e) => e.type === 'dir')
+
+      const components: AitmplComponent[] = []
+      for (const dir of dirs) {
+        const component = await this.fetchComponent(dir.name, category)
+        if (component) components.push(component)
+      }
+      return components
+    } catch {
+      return []
+    }
   }
 
   // ── Security Scanning ─────────────────────────────────────────────────
@@ -276,8 +332,23 @@ export class AitmplInstaller {
   // ── Internal ──────────────────────────────────────────────────────────
 
   private async runSandboxTest(component: AitmplComponent): Promise<{ issues: string[] }> {
-    // Stub — real impl runs component in isolated vm/worker
-    return { issues: [] }
+    const content = component.content ?? ''
+    const issues: string[] = []
+
+    const dangerousPatterns: Array<{ pattern: RegExp; msg: string }> = [
+      { pattern: /\beval\s*\(/g, msg: 'eval() usage detected in sandbox analysis' },
+      { pattern: /\brequire\s*\(/g, msg: 'require() usage detected — use ES imports' },
+      { pattern: /\bprocess\.exit\b/g, msg: 'process.exit() would terminate the host process' },
+      { pattern: /\bchild_process\b/g, msg: 'child_process access detected in sandbox' },
+    ]
+
+    for (const { pattern, msg } of dangerousPatterns) {
+      if (pattern.test(content)) {
+        issues.push(msg)
+      }
+    }
+
+    return { issues }
   }
 
   private inferPermissions(content: string): string[] {
@@ -292,8 +363,14 @@ export class AitmplInstaller {
   }
 
   private verifyHash(component: AitmplComponent): boolean {
-    // Stub — real impl verifies SHA-256 of content against contentHash
-    return true
+    if (!component.content) return true
+    const actual = this.computeSha256(component.content)
+    return actual === component.contentHash
+  }
+
+  private computeSha256(content: string): string {
+    const { createHash } = require('node:crypto') as typeof import('node:crypto')
+    return `sha256:${createHash('sha256').update(content).digest('hex')}`
   }
 
   private generateHash(input: string): string {

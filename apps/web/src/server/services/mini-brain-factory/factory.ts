@@ -11,6 +11,12 @@
  * - Start Mini Brain service
  */
 
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import pg from 'pg'
+import { eq } from 'drizzle-orm'
+import { createDb, agents, brainEntities, brainEntityAgents } from '@solarc/db'
+
 export type MiniBrainTemplate =
   | 'astrology'
   | 'hospitality'

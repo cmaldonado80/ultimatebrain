@@ -156,9 +156,30 @@ export class InstinctEvolver {
     const avgConfidence =
       cluster.instincts.reduce((sum, i) => sum + i.confidence, 0) / cluster.instincts.length
 
-    // STUB: In production, replace this with an LLM call that generates
-    // a valid SKILL.md using the instinct triggers and actions as input.
-    const skillMdContent = this.generateSkillMdStub(cluster, skillId, totalEvidence, avgConfidence)
+    let skillMdContent: string
+    if (this.gateway) {
+      try {
+        const triggers = cluster.instincts.map((i) => `- ${i.trigger}`).join('\n')
+        const actions = cluster.instincts.map((i) => `- ${i.action}`).join('\n')
+        const result = await this.gateway.chat({
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a skill document generator. Given a cluster of instinct triggers and actions, produce a valid SKILL.md document with sections: Skill name, version, domain, Trigger Conditions, Steps, and Notes.',
+            },
+            {
+              role: 'user',
+              content: `Generate a SKILL.md for skill "${cluster.label}" (id: ${skillId}) in domain "${cluster.domain}".\n\nTrigger conditions:\n${triggers}\n\nActions:\n${actions}\n\nTotal evidence: ${totalEvidence}, avg confidence: ${avgConfidence.toFixed(2)}.`,
+            },
+          ],
+        })
+        skillMdContent = result.content
+      } catch {
+        skillMdContent = this.generateSkillMdStub(cluster, skillId, totalEvidence, avgConfidence)
+      }
+    } else {
+      skillMdContent = this.generateSkillMdStub(cluster, skillId, totalEvidence, avgConfidence)
+    }
 
     return {
       instinctIds: cluster.instincts.map((i) => i.id),
@@ -188,14 +209,36 @@ export class InstinctEvolver {
   async evolveToCommand(cluster: InstinctCluster): Promise<EvolutionResult> {
     const commandId = `cmd-${cluster.label}-${randomUUID().slice(0, 8)}`
 
-    // STUB: Replace with LLM-generated command schema
-    const commandDefinition = this.generateCommandStub(cluster, commandId)
+    let content: string
+    if (this.gateway) {
+      try {
+        const triggers = cluster.instincts.map((i) => `- ${i.trigger}`).join('\n')
+        const actions = cluster.instincts.map((i) => `- ${i.action}`).join('\n')
+        const result = await this.gateway.chat({
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a command schema generator. Given a cluster of instinct triggers and actions, produce a JSON command definition with fields: id, name, description, domain, trigger, actions, parameters.',
+            },
+            {
+              role: 'user',
+              content: `Generate a command definition for command "${cluster.label}" (id: ${commandId}) in domain "${cluster.domain}".\n\nTrigger conditions:\n${triggers}\n\nActions:\n${actions}`,
+            },
+          ],
+        })
+        content = result.content
+      } catch {
+        content = JSON.stringify(this.generateCommandStub(cluster, commandId), null, 2)
+      }
+    } else {
+      content = JSON.stringify(this.generateCommandStub(cluster, commandId), null, 2)
+    }
 
     return {
       instinctIds: cluster.instincts.map((i) => i.id),
       artifactType: 'command',
       artifactId: commandId,
-      content: JSON.stringify(commandDefinition, null, 2),
+      content,
     }
   }
 
