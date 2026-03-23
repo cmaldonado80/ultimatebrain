@@ -297,7 +297,7 @@ export default function DashboardPage() {
           {TOPOLOGY.length === 0 ? (
             <div style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', padding: 20 }}>No workspaces found</div>
           ) : (
-            TOPOLOGY.map((entity: any) => (
+            TOPOLOGY.map((entity: TopologyEntry) => (
               <div key={entity.name} style={styles.topoRow}>
                 <span style={styles.topoConnector}>◆</span>
                 <span style={styles.topoName}>{entity.name}</span>

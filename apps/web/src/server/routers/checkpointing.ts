@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { CheckpointManager } from '../services/checkpointing/checkpoint-manager'
 import { TimeTravelEngine } from '../services/checkpointing/time-travel'
@@ -62,7 +63,7 @@ export const checkpointingRouter = router({
     .query(async ({ ctx, input }) => {
       const manager = getCheckpointManager(ctx.db)
       const checkpoint = await manager.get(input.checkpointId)
-      if (!checkpoint) throw new Error('Checkpoint not found')
+      if (!checkpoint) throw new TRPCError({ code: 'NOT_FOUND', message: 'Checkpoint not found' })
       return checkpoint
     }),
 

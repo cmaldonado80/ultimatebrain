@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { evalDatasets, evalCases, evalRuns } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
 import { EvalCaseInput, EvalScores } from '@solarc/engine-contracts'
@@ -17,11 +17,11 @@ function getRunner(db: any): EvalRunner {
 export const evalsRouter = router({
   // === Dataset CRUD ===
 
-  datasets: publicProcedure.query(async ({ ctx }) => {
+  datasets: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.query.evalDatasets.findMany()
   }),
 
-  createDataset: publicProcedure
+  createDataset: protectedProcedure
     .input(z.object({ name: z.string().min(1), description: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const [ds] = await ctx.db.insert(evalDatasets).values(input).returning()
@@ -30,13 +30,13 @@ export const evalsRouter = router({
 
   // === Case CRUD ===
 
-  cases: publicProcedure
+  cases: protectedProcedure
     .input(z.object({ datasetId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.query.evalCases.findMany({ where: eq(evalCases.datasetId, input.datasetId) })
     }),
 
-  addCase: publicProcedure
+  addCase: protectedProcedure
     .input(z.object({
       datasetId: z.string().uuid(),
       input: z.unknown(),
@@ -53,7 +53,7 @@ export const evalsRouter = router({
       return c
     }),
 
-  addCasesBatch: publicProcedure
+  addCasesBatch: protectedProcedure
     .input(z.object({
       datasetId: z.string().uuid(),
       cases: z.array(z.object({
@@ -74,7 +74,7 @@ export const evalsRouter = router({
 
   // === Run Management ===
 
-  runs: publicProcedure
+  runs: protectedProcedure
     .input(z.object({ datasetId: z.string().uuid(), limit: z.number().min(1).max(100).optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.query.evalRuns.findMany({
@@ -84,7 +84,7 @@ export const evalsRouter = router({
       })
     }),
 
-  run: publicProcedure
+  run: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.query.evalRuns.findFirst({ where: eq(evalRuns.id, input.id) })
@@ -93,7 +93,7 @@ export const evalsRouter = router({
   // === Scoring ===
 
   /** Score a single case (no persistence, just returns scores) */
-  scoreCase: publicProcedure
+  scoreCase: protectedProcedure
     .input(z.object({
       input: z.unknown(),
       expectedOutput: z.unknown().optional(),
@@ -121,7 +121,7 @@ export const evalsRouter = router({
     }),
 
   /** Run eval on a dataset with pre-computed outputs */
-  runDataset: publicProcedure
+  runDataset: protectedProcedure
     .input(z.object({
       datasetId: z.string().uuid(),
       version: z.string().optional(),
@@ -155,7 +155,7 @@ export const evalsRouter = router({
     }),
 
   /** Compare two runs */
-  compareRuns: publicProcedure
+  compareRuns: protectedProcedure
     .input(z.object({
       runIdA: z.string().uuid(),
       runIdB: z.string().uuid(),
@@ -168,13 +168,13 @@ export const evalsRouter = router({
   // === Dataset Builder (Phase 7) ===
 
   /** List all datasets with case counts */
-  datasetsWithCounts: publicProcedure.query(async ({ ctx }) => {
+  datasetsWithCounts: protectedProcedure.query(async ({ ctx }) => {
     const builder = new DatasetBuilder(ctx.db)
     return builder.listDatasets()
   }),
 
   /** Save a production trace as an eval case */
-  saveFromTrace: publicProcedure
+  saveFromTrace: protectedProcedure
     .input(z.object({
       traceId: z.string(),
       datasetName: z.string(),
@@ -186,7 +186,7 @@ export const evalsRouter = router({
     }),
 
   /** Auto-generate cases from failed tickets */
-  autoGenerateFromFailures: publicProcedure
+  autoGenerateFromFailures: protectedProcedure
     .input(z.object({
       datasetName: z.string().optional(),
       limit: z.number().min(1).max(500).optional(),
@@ -198,7 +198,7 @@ export const evalsRouter = router({
     }),
 
   /** Auto-generate cases from successful traces */
-  autoGenerateFromSuccesses: publicProcedure
+  autoGenerateFromSuccesses: protectedProcedure
     .input(z.object({
       datasetName: z.string().optional(),
       limit: z.number().min(1).max(500).optional(),
@@ -212,7 +212,7 @@ export const evalsRouter = router({
   // === Drift Detector (Phase 7) ===
 
   /** Check a dataset for score regression vs. previous run */
-  detectDrift: publicProcedure
+  detectDrift: protectedProcedure
     .input(z.object({
       datasetId: z.string().uuid(),
       threshold: z.number().min(0).max(1).optional(),
@@ -223,13 +223,13 @@ export const evalsRouter = router({
     }),
 
   /** Check all datasets for regression */
-  detectDriftAll: publicProcedure.query(async ({ ctx }) => {
+  detectDriftAll: protectedProcedure.query(async ({ ctx }) => {
     const detector = new DriftDetector(ctx.db)
     return detector.detectAll()
   }),
 
   /** Get score trend history for a dataset */
-  scoreHistory: publicProcedure
+  scoreHistory: protectedProcedure
     .input(z.object({
       datasetId: z.string().uuid(),
       limit: z.number().min(1).max(100).optional(),

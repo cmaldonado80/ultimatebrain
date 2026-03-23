@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 import { router, publicProcedure } from '../trpc'
 import { workspaces } from '@solarc/db'
 import { eq } from 'drizzle-orm'
@@ -22,6 +23,7 @@ export const workspacesRouter = router({
     .input(z.object({ name: z.string().min(1), type: z.string().optional(), goal: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const [ws] = await ctx.db.insert(workspaces).values(input).returning()
+      if (!ws) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create workspace' })
       return ws
     }),
 })

@@ -42,6 +42,36 @@ interface EvalCase {
   traceId: string | null
 }
 
+/** Row shape returned by `trpc.evals.datasetsWithCounts` (DatasetSummary from dataset-builder) */
+interface DatasetRaw {
+  id: string
+  name: string
+  description: string | null
+  caseCount: number
+  createdAt: Date | string
+}
+
+/** Row shape returned by `trpc.evals.runs` (drizzle `evalRuns` table select) */
+interface EvalRunRaw {
+  id: string
+  datasetId: string
+  version: string | null
+  scores: unknown
+  createdAt: Date | string
+  updatedAt: Date | string | null
+}
+
+/** Row shape returned by `trpc.evals.cases` (drizzle `evalCases` table select) */
+interface EvalCaseRaw {
+  id: string
+  datasetId: string
+  input: unknown
+  expectedOutput: unknown
+  traceId: string | null
+  createdAt: Date | string
+  updatedAt: Date | string | null
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────
 
 const SCORE_DIMENSIONS: ScoreDimension[] = [
@@ -194,8 +224,8 @@ export default function EvalsPage() {
     )
   }
 
-  const datasetsRaw: any[] = datasetsQuery.data ?? []
-  const datasets: Dataset[] = datasetsRaw.map((d: any) => ({
+  const datasetsRaw: DatasetRaw[] = (datasetsQuery.data ?? []) as DatasetRaw[]
+  const datasets: Dataset[] = datasetsRaw.map((d: DatasetRaw) => ({
     id: d.id,
     name: d.name ?? `Dataset ${d.id.slice(0, 8)}`,
     description: d.description ?? null,
@@ -212,8 +242,8 @@ export default function EvalsPage() {
     }
   }, [selectedDataset, selectedDatasetId])
 
-  const runsRaw: any[] = runsQuery.data ?? []
-  const history: RunHistory[] = runsRaw.map((r: any) => ({
+  const runsRaw: EvalRunRaw[] = (runsQuery.data ?? []) as EvalRunRaw[]
+  const history: RunHistory[] = runsRaw.map((r: EvalRunRaw) => ({
     id: r.id,
     version: r.version ?? null,
     scores: (r.scores as Record<string, number>) ?? {},
@@ -222,8 +252,8 @@ export default function EvalsPage() {
 
   const latestRun = history.length > 0 ? history[history.length - 1] : null
 
-  const casesRaw: any[] = casesQuery.data ?? []
-  const evalCases: EvalCase[] = casesRaw.map((c: any) => ({
+  const casesRaw: EvalCaseRaw[] = (casesQuery.data ?? []) as EvalCaseRaw[]
+  const evalCases: EvalCase[] = casesRaw.map((c: EvalCaseRaw) => ({
     id: c.id,
     input: (c.input as Record<string, unknown>) ?? {},
     expectedOutput: (c.expectedOutput as Record<string, unknown>) ?? null,

@@ -318,7 +318,7 @@ export class FlowRunner {
       await this.checkpointManager.save({
         entityType: 'flow',
         entityId: ctx.flowId,
-        stepIndex: ctx.stepIndex * 1000 + iterations,
+        stepIndex: ctx.stepIndex * 1_000_000 + iterations,
         state: { data: current.data, loop: step.name, iteration: iterations },
         metadata: { trigger: 'dag_step', label: `${step.name}:iter:${iterations}` },
       })

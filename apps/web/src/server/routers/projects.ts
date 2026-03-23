@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 import { router, publicProcedure } from '../trpc'
 import { projects } from '@solarc/db'
 import { eq } from 'drizzle-orm'
@@ -22,6 +23,7 @@ export const projectsRouter = router({
     .input(z.object({ name: z.string().min(1), goal: z.string().optional(), deadline: z.date().optional() }))
     .mutation(async ({ ctx, input }) => {
       const [project] = await ctx.db.insert(projects).values(input).returning()
+      if (!project) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create project' })
       return project
     }),
 })

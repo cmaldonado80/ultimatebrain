@@ -91,6 +91,7 @@ function hashPrompt(model: string, messages: Array<{ role: string; content: stri
 export class SemanticCache {
   private config: CacheConfig
   private initialized = false
+  private initPromise: Promise<void> | null = null
 
   constructor(
     private db: Database,
@@ -102,29 +103,41 @@ export class SemanticCache {
   /** Ensure the cache table exists (run once at startup) */
   async initialize(): Promise<void> {
     if (this.initialized) return
-    await this.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS gateway_cache (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        prompt_hash text NOT NULL,
-        model text NOT NULL,
-        response text NOT NULL,
-        tokens_in integer NOT NULL DEFAULT 0,
-        tokens_out integer NOT NULL DEFAULT 0,
-        embedding vector(1536),
-        ttl_ms integer NOT NULL DEFAULT 86400000,
-        created_at timestamptz NOT NULL DEFAULT now()
-      )
-    `)
-    // Index for exact hash lookup
-    await this.db.execute(sql`
-      CREATE INDEX IF NOT EXISTS gateway_cache_hash_idx ON gateway_cache (prompt_hash)
-    `)
-    // HNSW index for vector similarity search
-    await this.db.execute(sql`
-      CREATE INDEX IF NOT EXISTS gateway_cache_embedding_idx
-      ON gateway_cache USING hnsw (embedding vector_cosine_ops)
-    `)
-    this.initialized = true
+    // Use a promise-based lock to prevent concurrent initialization
+    if (this.initPromise) return this.initPromise
+    this.initPromise = this._doInitialize()
+    return this.initPromise
+  }
+
+  private async _doInitialize(): Promise<void> {
+    try {
+      await this.db.execute(sql`
+        CREATE TABLE IF NOT EXISTS gateway_cache (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          prompt_hash text NOT NULL,
+          model text NOT NULL,
+          response text NOT NULL,
+          tokens_in integer NOT NULL DEFAULT 0,
+          tokens_out integer NOT NULL DEFAULT 0,
+          embedding vector(1536),
+          ttl_ms integer NOT NULL DEFAULT 86400000,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `)
+      // Index for exact hash lookup
+      await this.db.execute(sql`
+        CREATE INDEX IF NOT EXISTS gateway_cache_hash_idx ON gateway_cache (prompt_hash)
+      `)
+      // HNSW index for vector similarity search
+      await this.db.execute(sql`
+        CREATE INDEX IF NOT EXISTS gateway_cache_embedding_idx
+        ON gateway_cache USING hnsw (embedding vector_cosine_ops)
+      `)
+      this.initialized = true
+    } catch (err) {
+      this.initPromise = null
+      throw err
+    }
   }
 
   /**

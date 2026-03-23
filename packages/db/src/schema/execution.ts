@@ -62,12 +62,12 @@ export const receipts = pgTable('receipts', {
 
 export const receiptActions = pgTable('receipt_actions', {
   id: uuid('id').primaryKey().defaultRandom(),
-  receiptId: uuid('receipt_id').references(() => receipts.id).notNull(),
+  receiptId: uuid('receipt_id').references(() => receipts.id, { onDelete: 'cascade' }).notNull(),
   sequence: integer('sequence').notNull(),
   type: text('type').notNull(),
   target: text('target'),
   summary: text('summary'),
-  status: text('status'),
+  status: receiptActionStatusEnum('status'),
   isRollbackEligible: boolean('is_rollback_eligible').default(false),
   durationMs: integer('duration_ms'),
   preState: jsonb('pre_state'),
@@ -80,9 +80,9 @@ export const receiptActions = pgTable('receipt_actions', {
 
 export const receiptAnomalies = pgTable('receipt_anomalies', {
   id: uuid('id').primaryKey().defaultRandom(),
-  receiptId: uuid('receipt_id').references(() => receipts.id).notNull(),
+  receiptId: uuid('receipt_id').references(() => receipts.id, { onDelete: 'cascade' }).notNull(),
   description: text('description').notNull(),
-  severity: text('severity'),
+  severity: anomalySeverityEnum('severity'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (t) => [
@@ -92,7 +92,7 @@ export const receiptAnomalies = pgTable('receipt_anomalies', {
 export const approvalGates = pgTable('approval_gates', {
   id: uuid('id').primaryKey().defaultRandom(),
   action: text('action').notNull(),
-  agentId: uuid('agent_id').references(() => agents.id),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
   risk: text('risk'),
   status: approvalStatusEnum('status').default('pending').notNull(),
   requestedAt: timestamp('requested_at').defaultNow().notNull(),

@@ -1,13 +1,16 @@
-import { pgTable, text, timestamp, boolean, jsonb, uuid, real, vector, index } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, jsonb, uuid, real, vector, index, pgEnum } from 'drizzle-orm/pg-core'
 import { agents, workspaces, memoryTierEnum } from './core'
+
+// === Enums ===
+export const candidateStatusEnum = pgEnum('candidate_status', ['pending', 'promoted', 'rejected'])
 
 export const memories = pgTable('memories', {
   id: uuid('id').primaryKey().defaultRandom(),
   key: text('key').notNull(),
   content: text('content').notNull(),
-  source: uuid('source').references(() => agents.id),
+  source: uuid('source').references(() => agents.id, { onDelete: 'set null' }),
   confidence: real('confidence'),
-  workspaceId: uuid('workspace_id').references(() => workspaces.id),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
   tier: memoryTierEnum('tier').default('recall').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -18,8 +21,10 @@ export const memories = pgTable('memories', {
 ])
 
 export const memoryVectors = pgTable('memory_vectors', {
-  memoryId: uuid('memory_id').references(() => memories.id).primaryKey(),
+  memoryId: uuid('memory_id').references(() => memories.id, { onDelete: 'cascade' }).primaryKey(),
   embedding: vector('embedding', { dimensions: 1536 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const chatSessions = pgTable('chat_sessions', {

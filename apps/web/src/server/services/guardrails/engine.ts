@@ -81,14 +81,15 @@ export class GuardrailEngine {
     // Sanitize if configured and rules support it
     let modifiedContent: string | undefined
     if (this.config.autoSanitize && violations.length > 0) {
-      modifiedContent = content
+      // Create a copy to avoid mutating the original content
+      let sanitized = String(content)
       for (const rule of activeRules) {
         if (rule.sanitize) {
-          modifiedContent = rule.sanitize(modifiedContent, ctx)
+          sanitized = rule.sanitize(sanitized, ctx)
         }
       }
       // Only include if actually different
-      if (modifiedContent === content) modifiedContent = undefined
+      modifiedContent = sanitized !== content ? sanitized : undefined
     }
 
     return { passed, violations, modifiedContent }
