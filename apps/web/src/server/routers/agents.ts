@@ -4,15 +4,33 @@ import { agents } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
 export const agentsRouter = router({
-  list: publicProcedure.query(async ({ ctx }) => {
-    return ctx.db.query.agents.findMany()
-  }),
+  list: publicProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(50),
+      offset: z.number().min(0).default(0),
+    }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.agents.findMany({
+        limit: input.limit,
+        offset: input.offset,
+      })
+    }),
   byId: publicProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
     return ctx.db.query.agents.findFirst({ where: eq(agents.id, input.id) })
   }),
-  byWorkspace: publicProcedure.input(z.object({ workspaceId: z.string().uuid() })).query(async ({ ctx, input }) => {
-    return ctx.db.query.agents.findMany({ where: eq(agents.workspaceId, input.workspaceId) })
-  }),
+  byWorkspace: publicProcedure
+    .input(z.object({
+      workspaceId: z.string().uuid(),
+      limit: z.number().min(1).max(100).default(50),
+      offset: z.number().min(0).default(0),
+    }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.agents.findMany({
+        where: eq(agents.workspaceId, input.workspaceId),
+        limit: input.limit,
+        offset: input.offset,
+      })
+    }),
   create: publicProcedure
     .input(z.object({
       name: z.string().min(1),

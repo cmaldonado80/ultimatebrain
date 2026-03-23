@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer, jsonb, uuid, primaryKey } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, integer, jsonb, uuid, primaryKey, index } from 'drizzle-orm/pg-core'
 import { agents, workspaces, tickets, projects, cronJobStatusEnum, receiptStatusEnum, approvalStatusEnum } from './core'
 
 export const cronJobs = pgTable('cron_jobs', {
@@ -18,13 +18,16 @@ export const cronJobs = pgTable('cron_jobs', {
   runs: integer('runs').default(0),
   fails: integer('fails').default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (t) => [
+  index('cron_jobs_workspace_id_idx').on(t.workspaceId),
+])
 
 export const ephemeralSwarms = pgTable('ephemeral_swarms', {
   id: uuid('id').primaryKey().defaultRandom(),
   task: text('task').notNull(),
   status: text('status').default('active'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const swarmAgents = pgTable('swarm_agents', {
@@ -62,7 +65,10 @@ export const receiptActions = pgTable('receipt_actions', {
   preState: jsonb('pre_state'),
   result: jsonb('result'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => [
+  index('receipt_actions_receipt_id_idx').on(t.receiptId),
+])
 
 export const receiptAnomalies = pgTable('receipt_anomalies', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -70,7 +76,10 @@ export const receiptAnomalies = pgTable('receipt_anomalies', {
   description: text('description').notNull(),
   severity: text('severity'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => [
+  index('receipt_anomalies_receipt_id_idx').on(t.receiptId),
+])
 
 export const approvalGates = pgTable('approval_gates', {
   id: uuid('id').primaryKey().defaultRandom(),

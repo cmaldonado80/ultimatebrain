@@ -10,9 +10,11 @@ export const memories = pgTable('memories', {
   workspaceId: uuid('workspace_id').references(() => workspaces.id),
   tier: memoryTierEnum('tier').default('recall').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => [
   index('memories_key_idx').on(table.key),
   index('memories_tier_idx').on(table.tier),
+  index('memories_workspace_id_idx').on(table.workspaceId),
 ])
 
 export const memoryVectors = pgTable('memory_vectors', {
@@ -25,7 +27,9 @@ export const chatSessions = pgTable('chat_sessions', {
   agentId: uuid('agent_id').references(() => agents.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (t) => [
+  index('chat_sessions_agent_id_idx').on(t.agentId),
+])
 
 export const chatMessages = pgTable('chat_messages', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -44,8 +48,11 @@ export const agentMessages = pgTable('agent_messages', {
   read: boolean('read').default(false),
   ackStatus: text('ack_status'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => [
   index('agent_messages_to_read_idx').on(table.toAgentId, table.read),
+  index('agent_messages_from_agent_id_idx').on(table.fromAgentId),
+  index('agent_messages_to_agent_id_idx').on(table.toAgentId),
 ])
 
 export const episodes = pgTable('episodes', {
@@ -53,6 +60,7 @@ export const episodes = pgTable('episodes', {
   eventType: text('event_type').notNull(),
   payload: jsonb('payload'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => [
   index('episodes_type_created_idx').on(table.eventType, table.createdAt),
 ])
@@ -70,6 +78,7 @@ export const promptOverlays = pgTable('prompt_overlays', {
   content: text('content').notNull(),
   active: boolean('active').default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const agentTrustScores = pgTable('agent_trust_scores', {
@@ -84,4 +93,5 @@ export const cognitiveCandidates = pgTable('cognitive_candidates', {
   memoryId: uuid('memory_id').references(() => memories.id),
   status: text('status').default('pending'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })

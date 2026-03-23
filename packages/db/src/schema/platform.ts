@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, real, primaryKey } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, real, primaryKey, index } from 'drizzle-orm/pg-core'
 import { agents, entityTierEnum, entityStatusEnum, entityAgentRoleEnum, debateSessionStatusEnum, debateEdgeTypeEnum, projects } from './core'
 
 // Brain entity hierarchy
@@ -39,7 +39,10 @@ export const brainEngineUsage = pgTable('brain_engine_usage', {
   costUsd: real('cost_usd').default(0),
   period: timestamp('period').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => [
+  index('brain_engine_usage_entity_id_idx').on(t.entityId),
+])
 
 // Debate persistence
 export const debateSessions = pgTable('debate_sessions', {
@@ -48,6 +51,7 @@ export const debateSessions = pgTable('debate_sessions', {
   status: debateSessionStatusEnum('status').default('active').notNull(),
   constitutionalRules: jsonb('constitutional_rules'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const debateNodes = pgTable('debate_nodes', {
@@ -89,6 +93,7 @@ export const tokenLedger = pgTable('token_ledger', {
   costUsd: real('cost_usd').default(0),
   period: timestamp('period').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const tokenBudgets = pgTable('token_budgets', {

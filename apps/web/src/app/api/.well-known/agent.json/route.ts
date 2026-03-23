@@ -10,10 +10,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@solarc/db'
 import { AgentCardGenerator } from '../../../server/services/a2a/agent-card'
+import { env } from '../../../../env'
 
 export async function GET(req: NextRequest) {
   const host = req.headers.get('host') ?? 'localhost:3000'
-  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+  const protocol = env.NODE_ENV === 'production' ? 'https' : 'http'
   const baseUrl = `${protocol}://${host}`
 
   const generator = new AgentCardGenerator(db)
@@ -23,13 +24,13 @@ export async function GET(req: NextRequest) {
       baseUrl,
       authType: 'bearer',
       tokenUrl: `${baseUrl}/api/auth/token`,
-      version: process.env.BRAIN_VERSION ?? '1.0.0',
+      version: env.BRAIN_VERSION,
     })
 
     return NextResponse.json(
       {
-        brain: process.env.BRAIN_NAME ?? 'UltimateBrain',
-        version: process.env.BRAIN_VERSION ?? '1.0.0',
+        brain: env.BRAIN_NAME,
+        version: env.BRAIN_VERSION,
         base_url: baseUrl,
         agents: Object.values(cards),
         total: Object.keys(cards).length,

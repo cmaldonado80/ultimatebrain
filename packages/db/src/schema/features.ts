@@ -10,6 +10,7 @@ export const checkpoints = pgTable('checkpoints', {
   state: jsonb('state').notNull(),
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => [
   index('checkpoints_entity_idx').on(table.entityType, table.entityId, table.stepIndex),
 ])
@@ -27,8 +28,10 @@ export const traces = pgTable('traces', {
   status: text('status'),
   attributes: jsonb('attributes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => [
   index('traces_trace_id_idx').on(table.traceId),
+  index('traces_agent_id_idx').on(table.agentId),
   index('traces_agent_created_idx').on(table.agentId, table.createdAt),
   index('traces_ticket_idx').on(table.ticketId),
 ])
@@ -43,7 +46,10 @@ export const guardrailLogs = pgTable('guardrail_logs', {
   passed: boolean('passed').notNull(),
   violationDetail: text('violation_detail'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => [
+  index('guardrail_logs_agent_id_idx').on(t.agentId),
+])
 
 // Feature #5: Evals
 export const evalDatasets = pgTable('eval_datasets', {
@@ -51,6 +57,7 @@ export const evalDatasets = pgTable('eval_datasets', {
   name: text('name').notNull(),
   description: text('description'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const evalCases = pgTable('eval_cases', {
@@ -60,7 +67,10 @@ export const evalCases = pgTable('eval_cases', {
   expectedOutput: jsonb('expected_output'),
   traceId: text('trace_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => [
+  index('eval_cases_dataset_id_idx').on(t.datasetId),
+])
 
 export const evalRuns = pgTable('eval_runs', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -68,7 +78,10 @@ export const evalRuns = pgTable('eval_runs', {
   version: text('version'),
   scores: jsonb('scores'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => [
+  index('eval_runs_dataset_id_idx').on(t.datasetId),
+])
 
 // Feature #7: A2A
 export const agentCards = pgTable('agent_cards', {
@@ -101,6 +114,7 @@ export const playbooks = pgTable('playbooks', {
   createdBy: text('created_by'),
   version: integer('version').default(1),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 // Feature #9: Gateway Metrics
@@ -131,6 +145,7 @@ export const skillsMarketplace = pgTable('skills_marketplace', {
   installed: boolean('installed').default(false),
   config: jsonb('config'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 // ECC: Instincts

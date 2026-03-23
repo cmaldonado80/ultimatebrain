@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer, jsonb, pgEnum, uuid, real, primaryKey } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, integer, jsonb, pgEnum, uuid, real, primaryKey, index } from 'drizzle-orm/pg-core'
 
 // === Enums ===
 
@@ -51,7 +51,9 @@ export const agents = pgTable('agents', {
   triggerMode: text('trigger_mode'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (t) => [
+  index('agents_workspace_id_idx').on(t.workspaceId),
+])
 
 export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -81,7 +83,9 @@ export const projectLog = pgTable('project_log', {
   agentId: uuid('agent_id'),
   reply: text('reply'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (t) => [
+  index('project_log_project_id_idx').on(t.projectId),
+])
 
 export const tickets = pgTable('tickets', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -100,7 +104,11 @@ export const tickets = pgTable('tickets', {
   result: text('result'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (t) => [
+  index('tickets_workspace_id_idx').on(t.workspaceId),
+  index('tickets_assigned_agent_id_idx').on(t.assignedAgentId),
+  index('tickets_project_id_idx').on(t.projectId),
+])
 
 export const ticketExecution = pgTable('ticket_execution', {
   ticketId: uuid('ticket_id').references(() => tickets.id).primaryKey(),
@@ -119,7 +127,9 @@ export const ticketStatusHistory = pgTable('ticket_status_history', {
   fromStatus: text('from_status'),
   toStatus: text('to_status').notNull(),
   changedAt: timestamp('changed_at').defaultNow().notNull(),
-})
+}, (t) => [
+  index('ticket_status_history_ticket_id_idx').on(t.ticketId),
+])
 
 export const ticketComments = pgTable('ticket_comments', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -127,7 +137,10 @@ export const ticketComments = pgTable('ticket_comments', {
   agentId: uuid('agent_id').references(() => agents.id),
   text: text('text').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => [
+  index('ticket_comments_ticket_id_idx').on(t.ticketId),
+])
 
 export const ticketDependencies = pgTable('ticket_dependencies', {
   ticketId: uuid('ticket_id').references(() => tickets.id).notNull(),

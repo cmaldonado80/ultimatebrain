@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, jsonb, uuid, integer } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, index } from 'drizzle-orm/pg-core'
 import { agents, workspaces, tickets } from './core'
 
 export const channels = pgTable('channels', {
@@ -7,6 +7,7 @@ export const channels = pgTable('channels', {
   config: jsonb('config'),
   enabled: boolean('enabled').default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const webhooks = pgTable('webhooks', {
@@ -16,6 +17,7 @@ export const webhooks = pgTable('webhooks', {
   secret: text('secret'),
   enabled: boolean('enabled').default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const artifacts = pgTable('artifacts', {
@@ -26,6 +28,7 @@ export const artifacts = pgTable('artifacts', {
   agentId: uuid('agent_id').references(() => agents.id),
   type: text('type'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const strategyRuns = pgTable('strategy_runs', {
@@ -45,6 +48,7 @@ export const apiKeys = pgTable('api_keys', {
   provider: text('provider').notNull(),
   encryptedKey: text('encrypted_key').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const modelFallbacks = pgTable('model_fallbacks', {
@@ -52,6 +56,7 @@ export const modelFallbacks = pgTable('model_fallbacks', {
   agentId: uuid('agent_id').references(() => agents.id),
   chain: text('chain').array().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const orchestratorRoutes = pgTable('orchestrator_routes', {
@@ -61,4 +66,5 @@ export const orchestratorRoutes = pgTable('orchestrator_routes', {
   rule: text('rule'),
   priority: integer('priority').default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })

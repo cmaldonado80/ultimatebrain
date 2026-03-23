@@ -7,6 +7,7 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:
 import { eq } from 'drizzle-orm'
 import { apiKeys } from '@solarc/db'
 import type { Database } from '@solarc/db'
+import { env } from '../../../env'
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 16
@@ -22,7 +23,7 @@ function deriveKey(secret: string, salt: Buffer): Buffer {
 }
 
 function getVaultSecret(): string {
-  const secret = process.env.VAULT_SECRET
+  const secret = env.VAULT_SECRET
   if (!secret) throw new Error('VAULT_SECRET environment variable is required for key vault operations')
   return secret
 }

@@ -4,9 +4,17 @@ import { brainEntities } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
 export const entitiesRouter = router({
-  list: publicProcedure.query(async ({ ctx }) => {
-    return ctx.db.query.brainEntities.findMany()
-  }),
+  list: publicProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(50),
+      offset: z.number().min(0).default(0),
+    }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.brainEntities.findMany({
+        limit: input.limit,
+        offset: input.offset,
+      })
+    }),
   byTier: publicProcedure
     .input(z.object({ tier: z.enum(['brain', 'mini_brain', 'development']) }))
     .query(async ({ ctx, input }) => {

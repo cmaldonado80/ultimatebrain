@@ -21,6 +21,7 @@ import { a2aRouter } from './a2a'
 import { healingRouter } from './healing'
 import { integrationsRouter } from './integrations'
 import { mcpRouter } from './mcp'
+import { skillsRouter } from './skills'
 
 export const appRouter = router({
   workspaces: workspacesRouter,

@@ -4,9 +4,17 @@ import { projects } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
 export const projectsRouter = router({
-  list: publicProcedure.query(async ({ ctx }) => {
-    return ctx.db.query.projects.findMany()
-  }),
+  list: publicProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(50),
+      offset: z.number().min(0).default(0),
+    }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.projects.findMany({
+        limit: input.limit,
+        offset: input.offset,
+      })
+    }),
   byId: publicProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
     return ctx.db.query.projects.findFirst({ where: eq(projects.id, input.id) })
   }),
