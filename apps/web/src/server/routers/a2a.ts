@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { A2AEngine, AgentCardGenerator, A2ARegistry } from '../services/a2a'
 
 let engine: A2AEngine | null = null
@@ -8,7 +8,7 @@ function getEngine(db: any) { return engine ??= new A2AEngine(db) }
 export const a2aRouter = router({
   // === Agent Card Registry ===
 
-  registerCard: publicProcedure
+  registerCard: protectedProcedure
     .input(z.object({
       agentId: z.string().uuid(),
       capabilities: z.unknown().optional(),
@@ -30,7 +30,7 @@ export const a2aRouter = router({
     return getEngine(ctx.db).listCards()
   }),
 
-  removeCard: publicProcedure
+  removeCard: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getEngine(ctx.db).removeCard(input.agentId)
@@ -44,7 +44,7 @@ export const a2aRouter = router({
 
   // === Task Delegation ===
 
-  delegate: publicProcedure
+  delegate: protectedProcedure
     .input(z.object({
       agentId: z.string(),
       task: z.string().min(1),
@@ -55,25 +55,25 @@ export const a2aRouter = router({
       return getEngine(ctx.db).delegate(input)
     }),
 
-  accept: publicProcedure
+  accept: protectedProcedure
     .input(z.object({ delegationId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getEngine(ctx.db).accept(input.delegationId)
     }),
 
-  reject: publicProcedure
+  reject: protectedProcedure
     .input(z.object({ delegationId: z.string().uuid(), reason: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       return getEngine(ctx.db).reject(input.delegationId, input.reason)
     }),
 
-  completeDelegation: publicProcedure
+  completeDelegation: protectedProcedure
     .input(z.object({ delegationId: z.string().uuid(), result: z.unknown() }))
     .mutation(async ({ ctx, input }) => {
       return getEngine(ctx.db).complete(input.delegationId, input.result)
     }),
 
-  failDelegation: publicProcedure
+  failDelegation: protectedProcedure
     .input(z.object({ delegationId: z.string().uuid(), error: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return getEngine(ctx.db).fail(input.delegationId, input.error)
@@ -94,7 +94,7 @@ export const a2aRouter = router({
   // === Phase 9: Agent Card Generation ===
 
   /** Generate well-known card for a single agent */
-  generateCard: publicProcedure
+  generateCard: protectedProcedure
     .input(z.object({
       agentId: z.string().uuid(),
       baseUrl: z.string().url(),
@@ -112,7 +112,7 @@ export const a2aRouter = router({
     }),
 
   /** Generate and persist cards for all active agents */
-  generateAllCards: publicProcedure
+  generateAllCards: protectedProcedure
     .input(z.object({ baseUrl: z.string().url(), version: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const generator = new AgentCardGenerator(ctx.db)
@@ -126,7 +126,7 @@ export const a2aRouter = router({
   // === Phase 9: External Agent Registry ===
 
   /** Register an external agent by its base URL */
-  registerExternal: publicProcedure
+  registerExternal: protectedProcedure
     .input(z.object({ agentBaseUrl: z.string().url() }))
     .mutation(async ({ ctx, input }) => {
       const registry = new A2ARegistry(ctx.db)
@@ -148,13 +148,13 @@ export const a2aRouter = router({
     }),
 
   /** Run health checks on all registered external agents */
-  healthCheckAll: publicProcedure.mutation(async ({ ctx }) => {
+  healthCheckAll: protectedProcedure.mutation(async ({ ctx }) => {
     const registry = new A2ARegistry(ctx.db)
     return registry.runHealthChecks()
   }),
 
   /** Deregister an external agent */
-  deregisterExternal: publicProcedure
+  deregisterExternal: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const registry = new A2ARegistry(ctx.db)

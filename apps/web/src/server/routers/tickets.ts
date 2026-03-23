@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { TRPCError } from '@trpc/server'
+import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { tickets, ticketStatusHistory } from '@solarc/db'
 import { eq, and } from 'drizzle-orm'
 
@@ -14,7 +15,7 @@ export const ticketsRouter = router({
   byId: publicProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
     return ctx.db.query.tickets.findFirst({ where: eq(tickets.id, input.id) })
   }),
-  create: publicProcedure
+  create: protectedProcedure
     .input(z.object({
       title: z.string().min(1),
       description: z.string().optional(),
@@ -29,11 +30,11 @@ export const ticketsRouter = router({
       const [ticket] = await ctx.db.insert(tickets).values(input).returning()
       return ticket
     }),
-  updateStatus: publicProcedure
+  updateStatus: protectedProcedure
     .input(z.object({ id: z.string().uuid(), status: z.enum(['backlog', 'queued', 'in_progress', 'review', 'done', 'failed', 'cancelled']) }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.query.tickets.findFirst({ where: eq(tickets.id, input.id) })
-      if (!existing) throw new Error('Ticket not found')
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Ticket not found' })
       await ctx.db.insert(ticketStatusHistory).values({
         ticketId: input.id,
         fromStatus: existing.status,

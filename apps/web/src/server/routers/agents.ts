@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import { router, publicProcedure } from '../trpc'
+import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { agents } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
@@ -32,7 +32,7 @@ export const agentsRouter = router({
         offset: input.offset,
       })
     }),
-  create: publicProcedure
+  create: protectedProcedure
     .input(z.object({
       name: z.string().min(1),
       type: z.string().optional(),

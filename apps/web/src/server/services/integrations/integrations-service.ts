@@ -8,6 +8,7 @@
  * - Model fallbacks: per-agent fallback chain management
  */
 
+import { createHmac } from 'node:crypto'
 import type { Database } from '@solarc/db'
 import { channels, webhooks, artifacts, modelFallbacks } from '@solarc/db'
 import { eq, and, desc } from 'drizzle-orm'
@@ -106,16 +107,18 @@ export class WebhookService {
 
     for (const wh of targets) {
       try {
+        const body = JSON.stringify(event)
         const headers: Record<string, string> = { 'Content-Type': 'application/json' }
         if (wh.secret) {
-          // Sign payload with HMAC (simplified — production would use crypto.subtle)
-          headers['X-Webhook-Secret'] = wh.secret
+          // HMAC-SHA256 signature for webhook verification (never send secret directly)
+          const signature = createHmac('sha256', wh.secret).update(body).digest('hex')
+          headers['X-Webhook-Signature'] = `sha256=${signature}`
         }
 
         const res = await fetch(wh.url, {
           method: 'POST',
           headers,
-          body: JSON.stringify(event),
+          body,
           signal: AbortSignal.timeout(10_000),
         })
 

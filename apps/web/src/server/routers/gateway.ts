@@ -20,7 +20,7 @@ function getGateway(db: any): GatewayRouter {
 
 export const gatewayRouter = router({
   /** Send a chat request through the AI gateway */
-  chat: publicProcedure
+  chat: protectedProcedure
     .input(LlmChatInput)
     .mutation(async ({ ctx, input }) => {
       const gw = getGateway(ctx.db)
@@ -35,7 +35,7 @@ export const gatewayRouter = router({
     }),
 
   /** Generate an embedding */
-  embed: publicProcedure
+  embed: protectedProcedure
     .input(LlmEmbedInput)
     .mutation(async ({ ctx, input }) => {
       const gw = getGateway(ctx.db)
@@ -53,7 +53,7 @@ export const gatewayRouter = router({
     }),
 
   /** Record a metric manually (for external providers or testing) */
-  record: publicProcedure
+  record: protectedProcedure
     .input(z.object({
       provider: z.string(),
       model: z.string(),

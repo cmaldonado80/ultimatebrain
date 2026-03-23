@@ -108,9 +108,10 @@ export class A2AEngine {
     }> = []
 
     // Search agent skills
-    const skillAgents = await this.db.query.agents.findMany({
-      where: sql`${skill} = ANY(${agents.skills})`,
-    })
+    const skillAgents = await this.db
+      .select()
+      .from(agents)
+      .where(sql`${skill} = ANY(${agents.skills})`)
     for (const agent of skillAgents) {
       results.push({
         agentId: agent.id,
