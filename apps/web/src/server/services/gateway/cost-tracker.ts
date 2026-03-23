@@ -120,7 +120,7 @@ export class CostTracker {
     const budget = this.budgets.get(entityId) ?? DEFAULT_BUDGET
     const periodStart = this.getPeriodStart(budget.period)
 
-    const field = entityType === 'agent' ? gatewayMetrics.agentId : gatewayMetrics.workspaceId
+    const field = entityType === 'agent' ? gatewayMetrics.agentId : gatewayMetrics.agentId
 
     const [result] = await this.db
       .select({

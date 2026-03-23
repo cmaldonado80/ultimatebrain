@@ -13,8 +13,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@solarc/db'
-import { agents, tickets } from '@solarc/db'
+import { createDb, agents, tickets } from '@solarc/db'
+
+const db = createDb(process.env.DATABASE_URL!)
 import { eq } from 'drizzle-orm'
 
 interface A2ARequest {
@@ -109,7 +110,7 @@ export async function POST(
       context: body.context ?? {},
       callback_url: body.callback_url ?? null,
     },
-  } as Record<string, unknown>)
+  } as any)
 
   // If streaming requested, return SSE
   if (body.stream || req.headers.get('accept')?.includes('text/event-stream')) {
@@ -137,7 +138,6 @@ export async function GET(
   { params }: { params: Promise<{ agentId: string }> }
 ) {
   const { agentId } = await params
-  const url = new URL(req.url)
 
   // List all tasks for this agent
   const tasks = Array.from(taskStore.entries())

@@ -127,16 +127,16 @@ export class MCPRegistry {
    * Scan OpenClaw skill definitions and register as tools.
    * Each skill becomes a callable tool: `openclaw_{skillName}(params)`.
    */
-  async discoverOpenClawSkills(skillsDir?: string): Promise<number> {
+  async discoverOpenClawSkills(_skillsDir?: string): Promise<number> {
     // Stub — real impl scans SKILL.md files in the skills directory
     // and converts each to a RegisteredTool with an appropriate handler.
 
-    const mockSkills = [
+    const mockSkills: Array<Omit<RegisteredTool, 'source' | 'handler'>> = [
       {
         name: 'openclaw_web_search',
         description: 'Search the web using OpenClaw browser agent',
         inputSchema: {
-          type: 'object' as const,
+          type: 'object',
           properties: {
             query: { type: 'string', description: 'Search query' },
             maxResults: { type: 'number', description: 'Max results to return' },
@@ -148,7 +148,7 @@ export class MCPRegistry {
         name: 'openclaw_code_review',
         description: 'Review code changes using OpenClaw analysis',
         inputSchema: {
-          type: 'object' as const,
+          type: 'object',
           properties: {
             diff: { type: 'string', description: 'Git diff or code to review' },
             focus: { type: 'string', description: 'What to focus on (security, perf, style)' },

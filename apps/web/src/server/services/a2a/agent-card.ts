@@ -156,8 +156,8 @@ export class AgentCardGenerator {
       return capabilities.skills.filter((s): s is string => typeof s === 'string')
     }
 
-    // Fall back to agent role-based skill inference
-    const role = (agent.role ?? '').toLowerCase()
+    // Fall back to agent type-based skill inference
+    const role = (agent.type ?? '').toLowerCase()
     const inferred: string[] = []
 
     if (role.includes('frontend')) inferred.push('react', 'typescript', 'css', 'testing')

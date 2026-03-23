@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { tickets, ticketExecution, ticketDependencies, ticketStatusHistory, ticketComments, agents } from '@solarc/db'
-import { eq, and, inArray, isNull, lte, sql, ne } from 'drizzle-orm'
+import { eq, and, inArray, lte, sql } from 'drizzle-orm'
 
 export type TicketStatus = 'backlog' | 'queued' | 'in_progress' | 'review' | 'done' | 'failed' | 'cancelled'
 
@@ -281,7 +281,7 @@ export class TicketExecutionEngine {
 
         // Set agent back to idle only if currently in execution
         await tx.update(agents).set({ status: 'idle', updatedAt: new Date() })
-          .where(and(eq(agents.id, agentId), eq(agents.status, 'in_execution')))
+          .where(and(eq(agents.id, agentId), eq(agents.status, 'executing')))
       }
     })
   }
@@ -317,7 +317,7 @@ export class TicketExecutionEngine {
         }).where(eq(ticketExecution.ticketId, ticketId))
 
         await tx.update(agents).set({ status: 'idle', updatedAt: new Date() })
-          .where(and(eq(agents.id, agentId), eq(agents.status, 'in_execution')))
+          .where(and(eq(agents.id, agentId), eq(agents.status, 'executing')))
       }
     })
   }

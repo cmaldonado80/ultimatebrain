@@ -72,8 +72,8 @@ const runStore = new Map<string, PlaybookRunResult>()
 export class PlaybookExecutor {
   private gateway: GatewayRouter
 
-  constructor(private db: Database) {
-    this.gateway = new GatewayRouter(db)
+  constructor(private _db: Database) {
+    this.gateway = new GatewayRouter(_db)
   }
 
   /**
@@ -82,7 +82,7 @@ export class PlaybookExecutor {
   async execute(playbook: SavedPlaybook, options: ExecuteOptions = {}): Promise<PlaybookRunResult> {
     const runId = crypto.randomUUID()
     const start = Date.now()
-    const { parameterValues = {}, hitlMode = false, maxRetries = 2 } = options
+    const { parameterValues = {}, hitlMode: _hitlMode = false, maxRetries = 2 } = options
 
     const stepResults: StepExecutionResult[] = []
     let pausedAtStep: number | undefined

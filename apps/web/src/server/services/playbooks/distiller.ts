@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { GatewayRouter } from '../gateway'
-import type { PlaybookStep, RecordedEvent, SavedPlaybook } from './recorder'
+import type { PlaybookStep, SavedPlaybook } from './recorder'
 
 export interface DistilledPlaybook {
   name: string

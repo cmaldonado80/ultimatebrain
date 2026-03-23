@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, real, primaryKey, index } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, real, primaryKey, index, type AnyPgColumn } from 'drizzle-orm/pg-core'
 import { agents, entityTierEnum, entityStatusEnum, entityAgentRoleEnum, debateSessionStatusEnum, debateEdgeTypeEnum, projects } from './core'
 
 // Brain entity hierarchy
@@ -7,7 +7,7 @@ export const brainEntities = pgTable('brain_entities', {
   name: text('name').notNull(),
   domain: text('domain'),
   tier: entityTierEnum('tier').notNull(),
-  parentId: uuid('parent_id').references(() => brainEntities.id, { onDelete: 'set null' }),
+  parentId: uuid('parent_id').references((): AnyPgColumn => brainEntities.id, { onDelete: 'set null' }),
   enginesEnabled: text('engines_enabled').array(),
   domainEngines: jsonb('domain_engines'),
   apiKeyHash: text('api_key_hash'),
@@ -60,7 +60,7 @@ export const debateNodes = pgTable('debate_nodes', {
   agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
   text: text('text').notNull(),
   validity: real('validity'),
-  parentId: uuid('parent_id').references(() => debateNodes.id, { onDelete: 'set null' }),
+  parentId: uuid('parent_id').references((): AnyPgColumn => debateNodes.id, { onDelete: 'set null' }),
   isAxiom: boolean('is_axiom').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow(),

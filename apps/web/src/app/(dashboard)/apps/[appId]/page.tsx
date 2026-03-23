@@ -28,16 +28,6 @@ interface AgentRecord {
   updatedAt: Date
 }
 
-function HealthRing({ score }: { score: number }) {
-  const pct = Math.round(score * 100)
-  const color = pct >= 90 ? '#22c55e' : pct >= 70 ? '#f97316' : '#ef4444'
-  return (
-    <div style={styles.ring}>
-      <span style={{ ...styles.ringValue, color }}>{pct}</span>
-      <span style={styles.ringLabel}>Health</span>
-    </div>
-  )
-}
 
 export default function AppDetailPage() {
   const params = useParams()

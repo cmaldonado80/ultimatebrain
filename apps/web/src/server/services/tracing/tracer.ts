@@ -65,13 +65,13 @@ export interface TraceContext {
 // Node AsyncLocalStorage for implicit context propagation
 let _als: import('node:async_hooks').AsyncLocalStorage<TraceContext> | null = null
 
-function getALS() {
+function getALS(): import('node:async_hooks').AsyncLocalStorage<TraceContext> {
   if (!_als) {
     // Lazy import — avoids issues in edge runtimes
     const { AsyncLocalStorage } = require('node:async_hooks')
-    _als = new AsyncLocalStorage<TraceContext>()
+    _als = new AsyncLocalStorage(/* TraceContext */)
   }
-  return _als
+  return _als!
 }
 
 // === Span implementation ===

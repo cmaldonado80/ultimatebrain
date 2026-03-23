@@ -8,7 +8,7 @@
 
 import type { Database } from '@solarc/db'
 import { evalDatasets, evalRuns } from '@solarc/db'
-import { eq, desc, lt } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import type { EvalScores } from '@solarc/engine-contracts'
 import { WebhookService } from '../integrations/integrations-service'
 
@@ -201,11 +201,11 @@ export class DriftDetector {
 
     const regressions: RegressionDetail[] = []
     const dimensions: (keyof EvalScores)[] = [
-      'task_completion',
+      'taskCompletion',
       'factuality',
-      'tool_use_accuracy',
+      'toolUseAccuracy',
       'safety',
-      'cost_efficiency',
+      'costEfficiency',
     ]
 
     for (const dim of dimensions) {

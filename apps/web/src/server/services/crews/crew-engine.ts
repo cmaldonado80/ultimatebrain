@@ -103,8 +103,8 @@ const DEFAULT_MAX_ITERATIONS = 10
 export class CrewEngine {
   private gateway: GatewayRouter
 
-  constructor(private db: Database) {
-    this.gateway = new GatewayRouter(db)
+  constructor(private _db: Database) {
+    this.gateway = new GatewayRouter(_db)
   }
 
   /**
@@ -359,7 +359,7 @@ export class CrewEngine {
 
   private parseReActResponse(
     response: string,
-    tools: ToolDefinition[]
+    _tools: ToolDefinition[]
   ): {
     thought: string
     action: string | null

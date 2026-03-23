@@ -11,7 +11,7 @@
 
 import type { Database } from '@solarc/db'
 import { debateSessions, debateNodes, debateEdges, debateElo } from '@solarc/db'
-import { eq, and, desc, sql } from 'drizzle-orm'
+import { eq, desc, sql } from 'drizzle-orm'
 
 export type DebateStatus = 'active' | 'completed' | 'cancelled'
 export type EdgeType = 'support' | 'attack' | 'rebuttal'

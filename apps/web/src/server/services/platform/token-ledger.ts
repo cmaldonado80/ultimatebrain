@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { tokenLedger, tokenBudgets, brainEngineUsage } from '@solarc/db'
-import { eq, and, gte, lte, sql, desc } from 'drizzle-orm'
+import { eq, and, gte, lte, sql } from 'drizzle-orm'
 
 export interface RecordUsageInput {
   entityId?: string

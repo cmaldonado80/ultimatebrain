@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
-import { CrewEngine } from '../services/crews/crew-engine'
-import { RecallFlow } from '../services/memory/recall-flow'
+import { CrewEngine, type AgentDefinition } from '../services/crews/crew-engine'
+import { RecallFlow, type RecallQuery } from '../services/memory/recall-flow'
 import { GatewayRouter } from '../services/gateway'
 
 let _crewEngine: CrewEngine | null = null
@@ -13,7 +13,7 @@ function getCrewEngine(db: Database) { return _crewEngine ??= new CrewEngine(db)
 function getGateway(db: Database) { return _gateway ??= new GatewayRouter(db) }
 
 const realEmbed = async (text: string, db: Database): Promise<number[]> => {
-  try { return await getGateway(db).embed(text) } catch { return Array(1536).fill(0) }
+  try { const result = await getGateway(db).embed(text); return result.embedding } catch { return Array(1536).fill(0) }
 }
 
 function getRecallFlow(db: Database) {
@@ -57,7 +57,7 @@ export const flowsRouter = router({
         name: input.name,
         task: input.task,
         verbose: input.verbose,
-        agents: input.agents.map((a) => ({
+        agents: input.agents.map((a): AgentDefinition => ({
           ...a,
           tools: [], // tools injected server-side in full impl
         })),
@@ -75,7 +75,7 @@ export const flowsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       return getCrewEngine(ctx.db).runAgent(
-        { ...input.agent, tools: [] },
+        { ...input.agent, tools: [] } as AgentDefinition,
         input.task,
         input.crewId ?? crypto.randomUUID(),
         []
@@ -88,14 +88,14 @@ export const flowsRouter = router({
   recall: protectedProcedure
     .input(recallQuerySchema)
     .query(async ({ ctx, input }) => {
-      return getRecallFlow(ctx.db).search(input)
+      return getRecallFlow(ctx.db).search(input as RecallQuery)
     }),
 
   /** Search memory and return a formatted context block for agent injection */
   recallAndInject: protectedProcedure
     .input(recallQuerySchema)
     .query(async ({ ctx, input }) => {
-      return getRecallFlow(ctx.db).searchAndInject(input)
+      return getRecallFlow(ctx.db).searchAndInject(input as RecallQuery)
     }),
 
   /** Promote memory IDs that were useful in an agent turn */

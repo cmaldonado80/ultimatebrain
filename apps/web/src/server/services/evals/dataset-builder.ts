@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { evalDatasets, evalCases, traces } from '@solarc/db'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 
 export interface TraceSnapshot {
   traceId: string

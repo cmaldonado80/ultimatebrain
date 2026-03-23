@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback } from 'react'
-import type { RankedPanel, PanelId, UserPreferences } from '../../server/services/adaptive/layout-engine'
+import type { RankedPanel, PanelId } from '../../server/services/adaptive/layout-engine'
 
 // ── Mock ranked panels ────────────────────────────────────────────────────
 

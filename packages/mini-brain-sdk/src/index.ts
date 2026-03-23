@@ -2,7 +2,6 @@
 // Auto-generated client from Mini Brain tRPC router types
 
 import { createTRPCClient, httpBatchLink } from '@trpc/client'
-import superjson from 'superjson'
 
 export interface MiniBrainClientConfig {
   /** The Mini Brain's base URL (e.g. http://localhost:3100) */
@@ -33,10 +32,9 @@ export function createMiniBrainClient(config: MiniBrainClientConfig) {
     links: [
       httpBatchLink({
         url: `${config.url}/api/trpc`,
-        transformer: superjson,
-        headers: config.apiKey
-          ? { Authorization: `Bearer ${config.apiKey}` }
-          : undefined,
+        ...(config.apiKey && {
+          headers: () => ({ Authorization: `Bearer ${config.apiKey}` }),
+        }),
       }),
     ],
   })

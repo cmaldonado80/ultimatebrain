@@ -11,7 +11,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { QARecording, RecordingAnnotation, QAVerdict } from '../../server/services/visual-qa/recorder'
-import type { ReviewResult, CheckpointResult, FailureFrame, SuggestedFix } from '../../server/services/visual-qa/reviewer'
+import type { ReviewResult, CheckpointResult, SuggestedFix } from '../../server/services/visual-qa/reviewer'
 
 // ── Mock data ─────────────────────────────────────────────────────────────
 

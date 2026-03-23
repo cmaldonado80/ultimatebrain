@@ -9,7 +9,7 @@
  * - "Run": execute playbook with parameter form
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { trpc } from '../../../utils/trpc'
 import type { SavedPlaybook, PlaybookStep } from '../../../server/services/playbooks/recorder'
 

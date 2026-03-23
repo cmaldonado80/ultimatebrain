@@ -46,6 +46,7 @@ export const appRouter = router({
   flows: flowsRouter,
   playbooks: playbooksRouter,
   mcp: mcpRouter,
+  skills: skillsRouter,
 })
 
 export type AppRouter = typeof appRouter

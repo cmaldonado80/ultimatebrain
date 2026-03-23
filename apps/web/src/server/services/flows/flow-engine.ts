@@ -168,9 +168,9 @@ export class FlowRunner {
 
   constructor(
     private definition: FlowDefinition,
-    private db: Database
+    private _db: Database
   ) {
-    this.checkpointManager = new CheckpointManager(db)
+    this.checkpointManager = new CheckpointManager(_db)
   }
 
   /**

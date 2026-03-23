@@ -7,10 +7,9 @@
  */
 
 import type { Database } from '@solarc/db'
-import { agentCards, agents } from '@solarc/db'
+import { agentCards } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 import { A2AClient, type DiscoveredAgent } from './client'
-import type { WellKnownAgentCard } from './agent-card'
 
 export interface ExternalAgentRecord {
   /** Synthetic UUID used as agentId in agentCards table */
@@ -52,7 +51,7 @@ export class A2ARegistry {
       })
       .map((c) => {
         const caps = (c.capabilities ?? {}) as Record<string, unknown>
-        const auth = (c.authRequirements ?? {}) as Record<string, unknown>
+        const _auth = (c.authRequirements ?? {}) as Record<string, unknown>
         return {
           id: c.agentId,
           url: (caps['base_url'] as string) ?? '',

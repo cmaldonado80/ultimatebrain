@@ -92,7 +92,7 @@ export class InstinctInjector {
 
     const scored = candidates.map((inst) => {
       const instTokens = this.tokenize(inst.trigger)
-      const overlap = instTokens.filter((t) => triggerTokens.has(t)).length
+      const overlap = [...instTokens].filter((t) => triggerTokens.has(t)).length
       const relevanceScore = instTokens.size > 0 ? overlap / instTokens.size : 0
       const effectiveConf = this.scorer.getEffectiveConfidence(inst, now)
 

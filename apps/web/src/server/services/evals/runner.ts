@@ -5,8 +5,8 @@
  */
 
 import type { Database } from '@solarc/db'
-import { evalDatasets, evalCases, evalRuns } from '@solarc/db'
-import { eq, desc, and } from 'drizzle-orm'
+import { evalCases, evalRuns } from '@solarc/db'
+import { eq, desc } from 'drizzle-orm'
 import type { EvalScores } from '@solarc/engine-contracts'
 import { ALL_SCORERS, type ScorerInput, type Scorer } from './scorers'
 

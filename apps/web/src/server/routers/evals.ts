@@ -3,7 +3,7 @@ import { router, protectedProcedure } from '../trpc'
 import { evalDatasets, evalCases, evalRuns } from '@solarc/db'
 import type { Database } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
-import { EvalCaseInput, EvalScores } from '@solarc/engine-contracts'
+import { EvalScores } from '@solarc/engine-contracts'
 import { EvalRunner, DatasetBuilder, DriftDetector } from '../services/evals'
 
 let runnerInstance: EvalRunner | null = null
@@ -102,8 +102,8 @@ export const evalsRouter = router({
       trace: z.object({
         toolCalls: z.array(z.object({
           name: z.string(),
-          args: z.unknown(),
-          result: z.unknown(),
+          args: z.any(),
+          result: z.any(),
         })).optional(),
         tokensUsed: z.number().optional(),
         costUsd: z.number().optional(),
@@ -117,7 +117,7 @@ export const evalsRouter = router({
         input.input,
         input.expectedOutput,
         input.actualOutput,
-        input.trace,
+        input.trace as any,
       )
     }),
 
@@ -145,13 +145,13 @@ export const evalsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const runner = getRunner(ctx.db)
       const outputMap = new Map(
-        input.outputs.map((o) => [o.caseId, { output: o.output, trace: o.trace }]),
+        input.outputs.map((o) => [o.caseId, { output: o.output, trace: o.trace as any }]),
       )
 
       return runner.runDataset(input.datasetId, {
         version: input.version,
         passThreshold: input.passThreshold,
-        outputs: outputMap,
+        outputs: outputMap as any,
       })
     }),
 

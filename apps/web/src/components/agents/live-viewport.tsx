@@ -9,7 +9,7 @@
  * - Controls: pause, resume, take over (human takes control)
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { StreamEvent } from '../../server/services/browser-agent/stream'
 
 // ── Types ─────────────────────────────────────────────────────────────────

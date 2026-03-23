@@ -150,7 +150,7 @@ export class SkillSecurityScanner {
 
   // ── Sandbox Test ──────────────────────────────────────────────────────
 
-  private async runSandboxTest(content: string): Promise<SandboxTestResult> {
+  private async runSandboxTest(_content: string): Promise<SandboxTestResult> {
     // Stub — real impl: run in isolated container (Docker/VM) with:
     //   - No network access
     //   - Read-only filesystem except /tmp

@@ -13,7 +13,7 @@
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import pg from 'pg'
+// pg is dynamically imported in setupDatabase to avoid compile-time module resolution
 import { eq } from 'drizzle-orm'
 import { createDb, agents, brainEntities, brainEntityAgents } from '@solarc/db'
 
@@ -328,7 +328,9 @@ export class MiniBrainFactory {
     // Connect to the default "postgres" database to create the target DB
     const adminUrl = new URL(url)
     adminUrl.pathname = '/postgres'
-    const client = new pg.Client({ connectionString: adminUrl.toString() })
+    const pgModule = await import(/* webpackIgnore: true */ 'pg' as string) as any
+    const Client = pgModule.default?.Client ?? pgModule.Client
+    const client = new Client({ connectionString: adminUrl.toString() })
 
     try {
       await client.connect()

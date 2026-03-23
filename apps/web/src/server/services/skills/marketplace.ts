@@ -136,7 +136,13 @@ export class SkillMarketplace {
         ...skill,
         installed: !!inst?.installed,
         assignedAgents: config?.assignedAgents ?? [],
-        usageStats: config?.usageStats,
+        usageStats: config?.usageStats
+          ? {
+              totalRuns: config.usageStats.totalRuns,
+              lastUsed: config.usageStats.lastUsed ? new Date(config.usageStats.lastUsed) : undefined,
+              avgDurationMs: config.usageStats.avgDurationMs,
+            }
+          : undefined,
       }
     })
   }

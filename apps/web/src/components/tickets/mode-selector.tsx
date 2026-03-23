@@ -10,7 +10,6 @@
  * Also handles /quick, /auto, /deep slash command detection in chat.
  */
 
-import { useState } from 'react'
 import type { ExecutionMode, TicketComplexity } from '../../server/services/task-runner/mode-router'
 
 interface ModeSelectorProps {

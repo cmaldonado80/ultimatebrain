@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { traces } from '@solarc/db'
-import { eq, and, gte, lte, desc, sql } from 'drizzle-orm'
+import { eq, and, gte, desc, sql } from 'drizzle-orm'
 
 export const tracesRouter = router({
   /** Get spans for a specific trace */

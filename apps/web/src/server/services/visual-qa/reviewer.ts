@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { GatewayRouter } from '../gateway'
-import type { QARecording, QAVerdict, RecordingAnnotation, RecordingFrame } from './recorder'
+import type { QARecording, QAVerdict, RecordingFrame } from './recorder'
 
 export interface ReviewCriteria {
   /** What the UI should look like / contain */
@@ -181,7 +181,7 @@ export class VisualQAReviewer {
   private async evaluateCheckpoints(
     recording: QARecording,
     checkpoints: ReviewCheckpoint[],
-    tolerance: number
+    _tolerance: number
   ): Promise<CheckpointResult[]> {
     const results: CheckpointResult[] = []
 

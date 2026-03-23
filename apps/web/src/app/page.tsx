@@ -108,26 +108,7 @@ function Sparkline({ data, color, width = 80, height = 24 }: { data: number[]; c
 
 // ── Progress Ring ─────────────────────────────────────────────────────────
 
-function ProgressRing({ value, size = 64, color }: { value: number; size?: number; color: string }) {
-  const radius = (size - 8) / 2
-  const circumference = 2 * Math.PI * radius
-  const offset = circumference * (1 - value / 100)
-  return (
-    <svg width={size} height={size}>
-      <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#1f2937" strokeWidth="4" />
-      <circle
-        cx={size/2} cy={size/2} r={radius}
-        fill="none" stroke={color} strokeWidth="4"
-        strokeDasharray={circumference} strokeDashoffset={offset}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${size/2} ${size/2})`}
-      />
-      <text x={size/2} y={size/2} textAnchor="middle" dominantBaseline="central" fill={color} fontSize="14" fontWeight="700">
-        {value}%
-      </text>
-    </svg>
-  )
-}
+// ProgressRing removed (unused)
 
 // ── Stat Card ─────────────────────────────────────────────────────────────
 

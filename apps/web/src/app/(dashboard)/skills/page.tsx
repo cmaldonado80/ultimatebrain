@@ -9,9 +9,9 @@
  * - Installed tab: enable/disable per agent, usage stats
  */
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
-import type { SkillListing, SkillCategory, SkillCapability, SkillPermission } from '../../../server/services/skills/marketplace'
+import type { SkillListing, SkillCategory, SkillCapability } from '../../../server/services/skills/marketplace'
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -207,7 +207,7 @@ export default function SkillsPage() {
   }
 
   const allSkills: SkillListing[] = browseQuery.data ?? []
-  const installedSkills: SkillListing[] = installedQuery.data ?? []
+  const installedSkills = (installedQuery.data ?? []) as unknown as SkillListing[]
   const installedIds = new Set(installedSkills.map((s) => s.id))
 
   // Merge installed status into browse results

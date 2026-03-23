@@ -10,8 +10,7 @@
  */
 
 import type { Database } from '@solarc/db'
-import { agents, flows } from '@solarc/db'
-import type { MCPRegistry, RegisteredTool } from './registry'
+import type { MCPRegistry } from './registry'
 
 // ── JSON-RPC 2.0 Types ──────────────────────────────────────────────────
 
@@ -309,7 +308,7 @@ export class MCPServer {
 
   private async executeFlow(
     flowId: string,
-    params: Record<string, unknown>
+    _params: Record<string, unknown>
   ): Promise<unknown> {
     // Stub — real impl dispatches to flow executor
     return {

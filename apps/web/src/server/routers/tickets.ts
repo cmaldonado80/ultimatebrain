@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { tickets, ticketStatusHistory } from '@solarc/db'
-import { eq, and } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 
 export const ticketsRouter = router({
   list: publicProcedure

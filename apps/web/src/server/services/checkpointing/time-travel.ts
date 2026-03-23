@@ -64,8 +64,8 @@ export interface CheckpointTimelineEntry {
 export class TimeTravelEngine {
   private manager: CheckpointManager
 
-  constructor(private db: Database) {
-    this.manager = new CheckpointManager(db)
+  constructor(private _db: Database) {
+    this.manager = new CheckpointManager(_db)
   }
 
   /**

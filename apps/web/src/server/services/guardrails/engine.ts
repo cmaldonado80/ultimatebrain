@@ -5,7 +5,7 @@
 
 import type { Database } from '@solarc/db'
 import { guardrailLogs } from '@solarc/db'
-import type { GuardrailCheckInput, GuardrailCheckOutput } from '@solarc/engine-contracts'
+import type { GuardrailCheckOutput } from '@solarc/engine-contracts'
 import { BUILTIN_RULES, type GuardrailRule, type GuardrailLayer, type Violation } from './rules'
 
 export interface GuardrailEngineConfig {

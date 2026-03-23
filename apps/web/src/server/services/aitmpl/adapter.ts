@@ -143,7 +143,7 @@ export class AitmplAdapter {
 
   // ── Category-Specific Adapters ────────────────────────────────────────
 
-  private adaptAgent(component: AitmplComponent, tier: InstallTier): AgentRecord {
+  private adaptAgent(component: AitmplComponent, _tier: InstallTier): AgentRecord {
     const content = component.content ?? ''
 
     // Extract soul/system prompt from agent .md

@@ -105,7 +105,7 @@ interface CheckpointTooltipProps {
   onReplay: () => void
 }
 
-function CheckpointTooltip({ checkpoint, index, total, onViewDiff, onReplay }: CheckpointTooltipProps) {
+function CheckpointTooltip({ checkpoint, index, total: _total, onViewDiff, onReplay }: CheckpointTooltipProps) {
   return (
     <div style={styles.tooltip}>
       <div style={styles.tooltipHeader}>

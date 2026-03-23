@@ -131,7 +131,7 @@ export class ModeRouter {
   async executeQuick(
     ticketId: string,
     prompt: string,
-    options: ModeRouterOptions = {}
+    _options: ModeRouterOptions = {}
   ): Promise<QuickResult> {
     const start = Date.now()
 
@@ -332,7 +332,7 @@ export class ModeRouter {
 
   private async runAutonomousPipeline(
     ticketId: string,
-    options: ModeRouterOptions
+    _options: ModeRouterOptions
   ): Promise<number> {
     try {
       // Step 1: Guardrails check — call gateway with a safety-check prompt
@@ -476,12 +476,12 @@ export class ModeRouter {
   private async executeStep(
     ticketId: string,
     step: PlanStep,
-    options: ModeRouterOptions
+    _options: ModeRouterOptions
   ): Promise<void> {
     try {
       step.status = 'in_progress'
 
-      const result = await this.gateway.chat({
+      const _result = await this.gateway.chat({
         messages: [
           {
             role: 'system',

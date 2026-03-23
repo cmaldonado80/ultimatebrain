@@ -4,7 +4,7 @@
  * Sidebar — 260px navigation with 24 tabs + Cmd+K spotlight search
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 
 // ── Navigation Structure ────────────────────────────────────────────────
 

@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { memories, memoryVectors, cognitiveCandidates } from '@solarc/db'
-import { eq, and, desc, sql, inArray } from 'drizzle-orm'
+import { eq, and, desc, sql } from 'drizzle-orm'
 
 export type MemoryTier = 'core' | 'recall' | 'archival'
 

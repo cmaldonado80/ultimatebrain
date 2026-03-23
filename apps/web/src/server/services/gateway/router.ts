@@ -165,16 +165,16 @@ export class GatewayRouter {
   private tracer?: Tracer
 
   constructor(
-    private db: Database,
+    private _db: Database,
     config?: Partial<GatewayConfig>,
     tracer?: Tracer,
   ) {
     this.config = { ...DEFAULT_GATEWAY_CONFIG, ...config }
     this.circuitBreaker = new CircuitBreakerRegistry()
-    this.costTracker = new CostTracker(db)
+    this.costTracker = new CostTracker(_db)
     this.rateLimiter = new RateLimiter()
-    this.cache = new SemanticCache(db)
-    this.keyVault = new KeyVault(db)
+    this.cache = new SemanticCache(_db)
+    this.keyVault = new KeyVault(_db)
     this.tracer = tracer
   }
 

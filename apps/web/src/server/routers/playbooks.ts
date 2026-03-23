@@ -98,7 +98,7 @@ export const playbooksRouter = router({
     .mutation(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
       const { sessionId, ...event } = input
-      recorder.record(sessionId, event)
+      recorder.record(sessionId, event as Omit<import('../services/playbooks/recorder').RecordedEvent, 'timestamp'>)
       return { success: true }
     }),
 

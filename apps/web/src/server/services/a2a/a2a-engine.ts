@@ -11,7 +11,7 @@
 import type { Database } from '@solarc/db'
 import { agentCards, agents } from '@solarc/db'
 import { eq, sql } from 'drizzle-orm'
-import type { AgentCard, A2ADelegateInput } from '@solarc/engine-contracts'
+import type { A2ADelegateInput } from '@solarc/engine-contracts'
 
 export type DelegationStatus = 'pending' | 'accepted' | 'in_progress' | 'completed' | 'failed' | 'rejected'
 

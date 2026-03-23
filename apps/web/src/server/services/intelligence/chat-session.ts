@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { chatSessions, chatMessages } from '@solarc/db'
-import { eq, desc, asc, and, sql } from 'drizzle-orm'
+import { eq, desc, asc, sql } from 'drizzle-orm'
 
 export interface ChatMessage {
   id: string

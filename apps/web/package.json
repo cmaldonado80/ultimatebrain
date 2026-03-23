@@ -14,6 +14,7 @@
     "@solarc/db": "workspace:*",
     "@solarc/types": "workspace:*",
     "@solarc/engine-contracts": "workspace:*",
+    "drizzle-orm": "^0.38.0",
     "@tanstack/react-query": "^5.62.0",
     "@trpc/client": "^11.0.0",
     "@trpc/react-query": "^11.0.0",
