@@ -6,12 +6,12 @@
  */
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { agents } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
 export const agentsRouter = router({
-  list: publicProcedure
+  list: protectedProcedure
     .input(z.object({
       limit: z.number().min(1).max(100).default(50),
       offset: z.number().min(0).default(0),
@@ -22,10 +22,10 @@ export const agentsRouter = router({
         offset: input.offset,
       })
     }),
-  byId: publicProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+  byId: protectedProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
     return ctx.db.query.agents.findFirst({ where: eq(agents.id, input.id) })
   }),
-  byWorkspace: publicProcedure
+  byWorkspace: protectedProcedure
     .input(z.object({
       workspaceId: z.string().uuid(),
       limit: z.number().min(1).max(100).default(50),

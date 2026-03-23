@@ -11,6 +11,7 @@
 import type { Database } from '@solarc/db'
 import { tickets, ticketExecution, ticketDependencies, ticketStatusHistory, ticketComments, agents } from '@solarc/db'
 import { eq, and, inArray, lte, sql } from 'drizzle-orm'
+import { NotFoundError, ValidationError } from '../../errors'
 
 export type TicketStatus = 'backlog' | 'queued' | 'in_progress' | 'review' | 'done' | 'failed' | 'cancelled'
 
@@ -37,11 +38,11 @@ export class TicketExecutionEngine {
    */
   async transition(ticketId: string, toStatus: TicketStatus, agentId?: string): Promise<void> {
     const ticket = await this.db.query.tickets.findFirst({ where: eq(tickets.id, ticketId) })
-    if (!ticket) throw new Error(`Ticket ${ticketId} not found`)
+    if (!ticket) throw new NotFoundError('Ticket', ticketId)
 
     const allowed = TRANSITIONS[ticket.status as TicketStatus] ?? []
     if (!allowed.includes(toStatus)) {
-      throw new Error(`Invalid transition: ${ticket.status} → ${toStatus}`)
+      throw new ValidationError(`Invalid transition: ${ticket.status} → ${toStatus}`)
     }
 
     await this.db.transaction(async (tx) => {

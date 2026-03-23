@@ -25,6 +25,42 @@ interface A2ARequest {
   stream?: boolean
 }
 
+// ── Rate Limiting ─────────────────────────────────────────────────────────
+const RATE_LIMIT_WINDOW_MS = 60_000
+const MAX_REQUESTS_PER_IP = 30
+const MAX_REQUESTS_PER_AGENT = 100
+
+const ipRequestCounts = new Map<string, { count: number; resetAt: number }>()
+const agentRequestCounts = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(key: string, store: Map<string, { count: number; resetAt: number }>, max: number): boolean {
+  const now = Date.now()
+  const entry = store.get(key)
+  if (!entry || now > entry.resetAt) {
+    store.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= max) return false
+  entry.count++
+  return true
+}
+
+// ── CORS ──────────────────────────────────────────────────────────────────
+const A2A_ALLOWED_ORIGINS = process.env.A2A_ALLOWED_ORIGINS?.split(',').map(s => s.trim()) ?? ['*']
+
+function corsHeaders(): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': A2A_ALLOWED_ORIGINS.join(', '),
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
+  }
+}
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: corsHeaders() })
+}
+
 /** In-memory task store (production: use Redis or DB) */
 const taskStore = new Map<
   string,
@@ -47,13 +83,27 @@ export async function POST(
 ) {
   const { agentId } = await params
 
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (!checkRateLimit(ip, ipRequestCounts, MAX_REQUESTS_PER_IP)) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded' },
+      { status: 429, headers: { 'Retry-After': '60', ...corsHeaders() } }
+    )
+  }
+  if (!checkRateLimit(agentId, agentRequestCounts, MAX_REQUESTS_PER_AGENT)) {
+    return NextResponse.json(
+      { error: 'Agent rate limit exceeded' },
+      { status: 429, headers: { 'Retry-After': '60', ...corsHeaders() } }
+    )
+  }
+
   // Verify agent exists
   const agent = await db.query.agents.findFirst({
     where: eq(agents.id, agentId),
   })
 
   if (!agent) {
-    return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Agent not found' }, { status: 404, headers: corsHeaders() })
   }
 
   // Parse request body
@@ -61,25 +111,25 @@ export async function POST(
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers: corsHeaders() })
   }
 
   if (!body.task || typeof body.task !== 'string') {
-    return NextResponse.json({ error: 'task is required' }, { status: 400 })
+    return NextResponse.json({ error: 'task is required' }, { status: 400, headers: corsHeaders() })
   }
 
   if (body.task.length > 10000) {
-    return NextResponse.json({ error: 'task exceeds maximum length of 10000 characters' }, { status: 400 })
+    return NextResponse.json({ error: 'task exceeds maximum length of 10000 characters' }, { status: 400, headers: corsHeaders() })
   }
 
   if (body.callback_url) {
     try {
       const cbUrl = new URL(body.callback_url)
       if (!['http:', 'https:'].includes(cbUrl.protocol)) {
-        return NextResponse.json({ error: 'callback_url must use http or https' }, { status: 400 })
+        return NextResponse.json({ error: 'callback_url must use http or https' }, { status: 400, headers: corsHeaders() })
       }
     } catch {
-      return NextResponse.json({ error: 'callback_url is not a valid URL' }, { status: 400 })
+      return NextResponse.json({ error: 'callback_url is not a valid URL' }, { status: 400, headers: corsHeaders() })
     }
   }
 
@@ -129,7 +179,7 @@ export async function POST(
       agent: agent.name,
       poll_url: `/api/a2a/${agentId}/tasks/${taskId}`,
     },
-    { status: 202 }
+    { status: 202, headers: corsHeaders() }
   )
 }
 
@@ -144,7 +194,7 @@ export async function GET(
     .filter(([, t]) => t.agentId === agentId)
     .map(([id, t]) => ({ task_id: id, ...t }))
 
-  return NextResponse.json({ tasks })
+  return NextResponse.json({ tasks }, { headers: corsHeaders() })
 }
 
 // ── SSE Streaming ─────────────────────────────────────────────────────────
@@ -224,6 +274,7 @@ function streamTaskProgress(
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
       'X-Task-ID': taskId,
+      ...corsHeaders(),
     },
   })
 }

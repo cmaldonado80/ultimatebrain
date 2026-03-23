@@ -18,7 +18,7 @@ export class OpenClawHealthMonitor {
         }
       }
     }, this.pingIntervalMs)
-    console.log(`[OpenClaw Health] Monitoring started (every ${this.pingIntervalMs}ms)`)
+    console.warn(`[OpenClaw Health] Monitoring started (every ${this.pingIntervalMs}ms)`)
   }
 
   stop(): void {

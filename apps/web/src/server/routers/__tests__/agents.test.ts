@@ -73,7 +73,7 @@ describe('agents router', () => {
       ]
       mockFindMany.mockResolvedValue(agents)
 
-      const trpc = caller({ db, session: null })
+      const trpc = caller({ db, session: { userId: 'user-1' } })
       const result = await trpc.list({ limit: 50, offset: 0 })
 
       expect(mockFindMany).toHaveBeenCalledWith({ limit: 50, offset: 0 })
@@ -83,19 +83,19 @@ describe('agents router', () => {
     it('respects custom limit and offset', async () => {
       mockFindMany.mockResolvedValue([])
 
-      const trpc = caller({ db, session: null })
+      const trpc = caller({ db, session: { userId: 'user-1' } })
       await trpc.list({ limit: 10, offset: 20 })
 
       expect(mockFindMany).toHaveBeenCalledWith({ limit: 10, offset: 20 })
     })
 
     it('rejects limit above 100', async () => {
-      const trpc = caller({ db, session: null })
+      const trpc = caller({ db, session: { userId: 'user-1' } })
       await expect(trpc.list({ limit: 200, offset: 0 })).rejects.toThrow()
     })
 
     it('rejects negative offset', async () => {
-      const trpc = caller({ db, session: null })
+      const trpc = caller({ db, session: { userId: 'user-1' } })
       await expect(trpc.list({ limit: 10, offset: -1 })).rejects.toThrow()
     })
   })
@@ -105,14 +105,14 @@ describe('agents router', () => {
       const agent = { id: '550e8400-e29b-41d4-a716-446655440000', name: 'Agent Alpha' }
       mockFindFirst.mockResolvedValue(agent)
 
-      const trpc = caller({ db, session: null })
+      const trpc = caller({ db, session: { userId: 'user-1' } })
       const result = await trpc.byId({ id: agent.id })
 
       expect(result).toEqual(agent)
     })
 
     it('rejects non-uuid id', async () => {
-      const trpc = caller({ db, session: null })
+      const trpc = caller({ db, session: { userId: 'user-1' } })
       await expect(trpc.byId({ id: 'not-a-uuid' })).rejects.toThrow()
     })
   })
@@ -122,7 +122,7 @@ describe('agents router', () => {
       const wsId = '550e8400-e29b-41d4-a716-446655440000'
       mockFindMany.mockResolvedValue([])
 
-      const trpc = caller({ db, session: null })
+      const trpc = caller({ db, session: { userId: 'user-1' } })
       await trpc.byWorkspace({ workspaceId: wsId, limit: 50, offset: 0 })
 
       expect(mockFindMany).toHaveBeenCalledWith({

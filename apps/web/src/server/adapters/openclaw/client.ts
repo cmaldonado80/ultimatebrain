@@ -26,7 +26,7 @@ export class OpenClawClient extends EventEmitter {
       this.ws = new WebSocket(this.config.wsUrl)
 
       this.ws.onopen = () => {
-        console.log('[OpenClaw] Connected to daemon')
+        console.warn('[OpenClaw] Connected to daemon')
         this.connected = true
         this.reconnectAttempts = 0
         this.emit('connected')
@@ -64,7 +64,7 @@ export class OpenClawClient extends EventEmitter {
     }
     const delay = this.config.reconnectInterval * Math.pow(2, this.reconnectAttempts)
     this.reconnectAttempts++
-    console.log(`[OpenClaw] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`)
+    console.warn(`[OpenClaw] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`)
     setTimeout(() => this.connect(), delay)
   }
 

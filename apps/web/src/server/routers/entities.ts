@@ -24,10 +24,10 @@ export const entitiesRouter = router({
   byTier: protectedProcedure
     .input(z.object({ tier: z.enum(['brain', 'mini_brain', 'development']) }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.query.brainEntities.findMany({ where: eq(brainEntities.tier, input.tier) })
+      return ctx.db.query.brainEntities.findMany({ where: eq(brainEntities.tier, input.tier), limit: 200 })
     }),
   topology: protectedProcedure.query(async ({ ctx }) => {
-    const all = await ctx.db.query.brainEntities.findMany()
+    const all = await ctx.db.query.brainEntities.findMany({ limit: 500 })
     const brain = all.filter((e) => e.tier === 'brain')
     const miniBrains = all.filter((e) => e.tier === 'mini_brain')
     const developments = all.filter((e) => e.tier === 'development')

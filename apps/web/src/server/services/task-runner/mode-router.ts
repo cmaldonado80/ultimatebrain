@@ -18,6 +18,7 @@ import { tickets } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 import { GatewayRouter } from '../gateway'
 import { WebhookService } from '../integrations'
+import { assertNever } from '../../utils/exhaustive'
 
 export type ExecutionMode = 'quick' | 'autonomous' | 'deep_work'
 export type TicketComplexity = 'easy' | 'medium' | 'hard' | 'critical'
@@ -309,6 +310,8 @@ export class ModeRouter {
         return this.executeAutonomous(ticketId, options)
       case 'deep_work':
         return this.startDeepWork(ticketId, options)
+      default:
+        return assertNever(mode)
     }
   }
 
@@ -541,9 +544,9 @@ export class ModeRouter {
         },
         'mode-router'
       )
-    } catch (err) {
+    } catch (_err) {
       // Fallback to console logging if webhook dispatch fails
-      console.log(`[ModeRouter] ${progressSummary}`)
+      console.warn(`[ModeRouter] ${progressSummary}`)
     }
   }
 }

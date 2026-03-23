@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { createDb } from './index'
 import {
   workspaces,

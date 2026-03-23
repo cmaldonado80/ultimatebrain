@@ -87,10 +87,10 @@ describe('tickets router', () => {
       ]
       mockFindMany.mockResolvedValue(tickets)
 
-      const trpc = caller({ db, session: null })
+      const trpc = caller({ db, session: { userId: 'user-1' } })
       const result = await trpc.list()
 
-      expect(mockFindMany).toHaveBeenCalledWith({ where: undefined })
+      expect(mockFindMany).toHaveBeenCalledWith({ where: undefined, limit: 100 })
       expect(result).toEqual(tickets)
     })
 
@@ -98,11 +98,12 @@ describe('tickets router', () => {
       const wsId = '550e8400-e29b-41d4-a716-446655440000'
       mockFindMany.mockResolvedValue([])
 
-      const trpc = caller({ db, session: null })
+      const trpc = caller({ db, session: { userId: 'user-1' } })
       await trpc.list({ workspaceId: wsId })
 
       expect(mockFindMany).toHaveBeenCalledWith({
         where: { col: 'workspaceId', val: wsId },
+        limit: 100,
       })
     })
   })
@@ -112,7 +113,7 @@ describe('tickets router', () => {
       const ticket = { id: '550e8400-e29b-41d4-a716-446655440000', title: 'Test' }
       mockFindFirst.mockResolvedValue(ticket)
 
-      const trpc = caller({ db, session: null })
+      const trpc = caller({ db, session: { userId: 'user-1' } })
       const result = await trpc.byId({ id: ticket.id })
 
       expect(result).toEqual(ticket)
