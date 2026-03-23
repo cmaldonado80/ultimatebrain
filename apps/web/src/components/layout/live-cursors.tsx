@@ -7,7 +7,7 @@
  * Agents show as moving highlights on tickets they're working on.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, memo } from 'react'
 import type { CursorPosition, PresenceEntry } from '../../server/services/presence/manager'
 import { PRESENCE_CONFIG } from '../../server/services/presence/manager'
 
@@ -79,7 +79,7 @@ const MOCK_ENTRIES: PresenceEntry[] = [
 
 // ── Cursor SVG ────────────────────────────────────────────────────────────
 
-function CursorIcon({ color }: { color: string }) {
+const CursorIcon = memo(function CursorIcon({ color }: { color: string }) {
   return (
     <svg width="16" height="20" viewBox="0 0 16 20" fill="none" style={{ display: 'block' }}>
       <path
@@ -91,11 +91,11 @@ function CursorIcon({ color }: { color: string }) {
       />
     </svg>
   )
-}
+})
 
 // ── Agent Highlight ───────────────────────────────────────────────────────
 
-function AgentHighlight({
+const AgentHighlight = memo(function AgentHighlight({
   cursor,
   isExecuting,
 }: {
@@ -118,11 +118,11 @@ function AgentHighlight({
       </span>
     </div>
   )
-}
+})
 
 // ── Remote Cursor ─────────────────────────────────────────────────────────
 
-function RemoteCursorView({ cursor }: { cursor: RemoteCursor }) {
+const RemoteCursorView = memo(function RemoteCursorView({ cursor }: { cursor: RemoteCursor }) {
   if (cursor.type === 'agent') {
     return <AgentHighlight cursor={cursor} isExecuting={cursor.isExecuting ?? false} />
   }
@@ -142,7 +142,7 @@ function RemoteCursorView({ cursor }: { cursor: RemoteCursor }) {
       </span>
     </div>
   )
-}
+})
 
 // ── Main Component ────────────────────────────────────────────────────────
 

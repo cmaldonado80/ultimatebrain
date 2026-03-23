@@ -4,7 +4,7 @@
  * Sidebar — 260px navigation with 24 tabs + Cmd+K spotlight search
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 
 // ── Navigation Structure ────────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ const NAV_SECTIONS: NavSection[] = [
 
 // ── Spotlight Search ────────────────────────────────────────────────────
 
-function SpotlightSearch({
+const SpotlightSearch = memo(function SpotlightSearch({
   open,
   onClose,
 }: {
@@ -116,7 +116,7 @@ function SpotlightSearch({
       </div>
     </div>
   )
-}
+})
 
 // ── Sidebar Component ───────────────────────────────────────────────────
 

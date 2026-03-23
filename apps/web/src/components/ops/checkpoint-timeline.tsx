@@ -14,7 +14,7 @@
  * "Replay from here" opens a modal with a parameter editor.
  */
 
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import type { CheckpointTimelineEntry } from '../../server/services/checkpointing/time-travel'
 
 interface CheckpointTimelineProps {
@@ -49,7 +49,7 @@ interface ReplayModalProps {
   onClose: () => void
 }
 
-function ReplayModal({ checkpoint, onConfirm, onClose }: ReplayModalProps) {
+const ReplayModal = memo(function ReplayModal({ checkpoint, onConfirm, onClose }: ReplayModalProps) {
   const [overridesText, setOverridesText] = useState('{}')
   const [parseError, setParseError] = useState<string | null>(null)
 
@@ -95,7 +95,7 @@ function ReplayModal({ checkpoint, onConfirm, onClose }: ReplayModalProps) {
       </div>
     </div>
   )
-}
+})
 
 interface CheckpointTooltipProps {
   checkpoint: CheckpointTimelineEntry
@@ -105,7 +105,7 @@ interface CheckpointTooltipProps {
   onReplay: () => void
 }
 
-function CheckpointTooltip({ checkpoint, index, total: _total, onViewDiff, onReplay }: CheckpointTooltipProps) {
+const CheckpointTooltip = memo(function CheckpointTooltip({ checkpoint, index, total: _total, onViewDiff, onReplay }: CheckpointTooltipProps) {
   return (
     <div style={styles.tooltip}>
       <div style={styles.tooltipHeader}>
@@ -134,7 +134,7 @@ function CheckpointTooltip({ checkpoint, index, total: _total, onViewDiff, onRep
       </div>
     </div>
   )
-}
+})
 
 export function CheckpointTimeline({
   entityType,
