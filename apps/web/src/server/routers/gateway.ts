@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server'
 import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { gatewayMetrics } from '@solarc/db'
 import { LlmChatInput, LlmEmbedInput } from '@solarc/engine-contracts'
-import { GatewayRouter, GatewayError } from '../services/gateway'
+import { GatewayRouter, GatewayError, CostTracker } from '../services/gateway'
 
 /**
  * Singleton gateway instance — initialized lazily with db from context.
@@ -177,7 +177,6 @@ export const gatewayRouter = router({
 
   /** Get pricing table */
   pricing: publicProcedure.query(() => {
-    const { CostTracker } = require('../services/gateway')
     return CostTracker.getPricing()
   }),
 

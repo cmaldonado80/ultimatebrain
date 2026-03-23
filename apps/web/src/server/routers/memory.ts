@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { memories } from '@solarc/db'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { MemoryService } from '../services/memory'
 
 let memService: MemoryService | null = null
@@ -18,7 +18,7 @@ export const memoryRouter = router({
       if (input?.tier) conditions.push(eq(memories.tier, input.tier))
       if (input?.workspaceId) conditions.push(eq(memories.workspaceId, input.workspaceId))
       return ctx.db.query.memories.findMany({
-        where: input?.tier ? eq(memories.tier, input.tier) : undefined,
+        where: conditions.length > 0 ? and(...conditions) : undefined,
       })
     }),
 
