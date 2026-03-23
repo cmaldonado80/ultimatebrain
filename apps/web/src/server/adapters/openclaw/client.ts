@@ -36,8 +36,8 @@ export class OpenClawClient extends EventEmitter {
         try {
           const data = JSON.parse(String(event.data))
           this.emit('message', data)
-        } catch {
-          console.error('[OpenClaw] Failed to parse message')
+        } catch (e) {
+          console.warn('[OpenClaw] Failed to parse message:', e)
         }
       }
 

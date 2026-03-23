@@ -236,7 +236,8 @@ export class HealingEngine {
 
       this.log('requeue_ticket', ticketId, reason, true)
       return true
-    } catch {
+    } catch (e) {
+      console.warn('[Healing] Operation failed:', e)
       this.log('requeue_ticket', ticketId, reason, false)
       return false
     }

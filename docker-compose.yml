@@ -39,18 +39,5 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       NODE_ENV: development
 
-  worker:
-    build:
-      context: .
-      dockerfile: apps/worker/Dockerfile
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgres://postgres:dev@postgres:5432/solarc
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
-      NODE_ENV: development
-
 volumes:
   pgdata:
