@@ -114,30 +114,33 @@ export const tickets = pgTable('tickets', {
 ])
 
 export const ticketExecution = pgTable('ticket_execution', {
-  ticketId: uuid('ticket_id').references(() => tickets.id).primaryKey(),
+  ticketId: uuid('ticket_id').references(() => tickets.id, { onDelete: 'cascade' }).primaryKey(),
   runId: text('run_id'),
-  lockOwner: uuid('lock_owner').references(() => agents.id),
+  lockOwner: uuid('lock_owner').references(() => agents.id, { onDelete: 'set null' }),
   lockedAt: timestamp('locked_at'),
   leaseUntil: timestamp('lease_until'),
   leaseSeconds: integer('lease_seconds'),
   wakePendingCount: integer('wake_pending_count').default(0),
   lastWakeAt: timestamp('last_wake_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const ticketStatusHistory = pgTable('ticket_status_history', {
   id: uuid('id').primaryKey().defaultRandom(),
-  ticketId: uuid('ticket_id').references(() => tickets.id).notNull(),
-  fromStatus: text('from_status'),
-  toStatus: text('to_status').notNull(),
+  ticketId: uuid('ticket_id').references(() => tickets.id, { onDelete: 'cascade' }).notNull(),
+  fromStatus: ticketStatusEnum('from_status'),
+  toStatus: ticketStatusEnum('to_status').notNull(),
   changedAt: timestamp('changed_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (t) => [
   index('ticket_status_history_ticket_id_idx').on(t.ticketId),
 ])
 
 export const ticketComments = pgTable('ticket_comments', {
   id: uuid('id').primaryKey().defaultRandom(),
-  ticketId: uuid('ticket_id').references(() => tickets.id).notNull(),
-  agentId: uuid('agent_id').references(() => agents.id),
+  ticketId: uuid('ticket_id').references(() => tickets.id, { onDelete: 'cascade' }).notNull(),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
   text: text('text').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -146,14 +149,14 @@ export const ticketComments = pgTable('ticket_comments', {
 ])
 
 export const ticketDependencies = pgTable('ticket_dependencies', {
-  ticketId: uuid('ticket_id').references(() => tickets.id).notNull(),
-  blockedByTicketId: uuid('blocked_by_ticket_id').references(() => tickets.id).notNull(),
+  ticketId: uuid('ticket_id').references(() => tickets.id, { onDelete: 'cascade' }).notNull(),
+  blockedByTicketId: uuid('blocked_by_ticket_id').references(() => tickets.id, { onDelete: 'cascade' }).notNull(),
 }, (t) => [
   primaryKey({ columns: [t.ticketId, t.blockedByTicketId] }),
 ])
 
 export const ticketProof = pgTable('ticket_proof', {
-  ticketId: uuid('ticket_id').references(() => tickets.id).primaryKey(),
+  ticketId: uuid('ticket_id').references(() => tickets.id, { onDelete: 'cascade' }).primaryKey(),
   status: text('status'),
   shadowRequired: boolean('shadow_required').default(false),
   visualRequired: boolean('visual_required').default(false),
@@ -161,4 +164,6 @@ export const ticketProof = pgTable('ticket_proof', {
   visualRunId: text('visual_run_id'),
   checkedAt: timestamp('checked_at'),
   details: jsonb('details'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })

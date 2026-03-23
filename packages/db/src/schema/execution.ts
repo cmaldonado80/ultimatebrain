@@ -1,5 +1,10 @@
-import { pgTable, text, timestamp, boolean, integer, jsonb, uuid, primaryKey, index } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, integer, jsonb, uuid, primaryKey, index, pgEnum } from 'drizzle-orm/pg-core'
 import { agents, workspaces, tickets, projects, cronJobStatusEnum, receiptStatusEnum, approvalStatusEnum } from './core'
+
+// === Enums ===
+export const swarmStatusEnum = pgEnum('swarm_status', ['active', 'completed', 'disbanded'])
+export const receiptActionStatusEnum = pgEnum('receipt_action_status', ['completed', 'rolled_back', 'failed'])
+export const anomalySeverityEnum = pgEnum('anomaly_severity', ['low', 'medium', 'high', 'critical'])
 
 export const cronJobs = pgTable('cron_jobs', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -8,8 +13,8 @@ export const cronJobs = pgTable('cron_jobs', {
   type: text('type'),
   status: cronJobStatusEnum('status').default('active').notNull(),
   task: text('task'),
-  workspaceId: uuid('workspace_id').references(() => workspaces.id),
-  agentId: uuid('agent_id').references(() => agents.id),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
   enabled: boolean('enabled').default(true),
   failCount: integer('fail_count').default(0),
   lastRun: timestamp('last_run'),
@@ -18,6 +23,7 @@ export const cronJobs = pgTable('cron_jobs', {
   runs: integer('runs').default(0),
   fails: integer('fails').default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (t) => [
   index('cron_jobs_workspace_id_idx').on(t.workspaceId),
 ])
@@ -25,25 +31,27 @@ export const cronJobs = pgTable('cron_jobs', {
 export const ephemeralSwarms = pgTable('ephemeral_swarms', {
   id: uuid('id').primaryKey().defaultRandom(),
   task: text('task').notNull(),
-  status: text('status').default('active'),
+  status: swarmStatusEnum('status').default('active'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const swarmAgents = pgTable('swarm_agents', {
-  swarmId: uuid('swarm_id').references(() => ephemeralSwarms.id).notNull(),
-  agentId: uuid('agent_id').references(() => agents.id).notNull(),
+  swarmId: uuid('swarm_id').references(() => ephemeralSwarms.id, { onDelete: 'cascade' }).notNull(),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'cascade' }).notNull(),
   role: text('role'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (t) => [
   primaryKey({ columns: [t.swarmId, t.agentId] }),
 ])
 
 export const receipts = pgTable('receipts', {
   id: uuid('id').primaryKey().defaultRandom(),
-  agentId: uuid('agent_id').references(() => agents.id),
-  ticketId: uuid('ticket_id').references(() => tickets.id),
-  projectId: uuid('project_id').references(() => projects.id),
-  workspaceId: uuid('workspace_id').references(() => workspaces.id),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+  ticketId: uuid('ticket_id').references(() => tickets.id, { onDelete: 'set null' }),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
   trigger: text('trigger'),
   status: receiptStatusEnum('status').default('running').notNull(),
   startedAt: timestamp('started_at').defaultNow().notNull(),

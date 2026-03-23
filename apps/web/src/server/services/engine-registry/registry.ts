@@ -149,9 +149,13 @@ export class EngineRegistry {
     if (engine) {
       engine.totalRequests++
       engine.requestRate++ // simplified; real impl uses sliding window
-      engine.avgResponseMs = (engine.avgResponseMs * 0.95) + (responseMs * 0.05) // EWMA
+      // EWMA with decay: blend toward zero when idle, blend toward sample when active
+      const alpha = 0.05
+      engine.avgResponseMs = engine.totalRequests === 1
+        ? responseMs
+        : (engine.avgResponseMs * (1 - alpha)) + (responseMs * alpha)
       if (isError) engine.errorRate = Math.min(engine.errorRate + 0.01, 1)
-      else engine.errorRate = Math.max(engine.errorRate - 0.001, 0)
+      else engine.errorRate = Math.max(engine.errorRate * (1 - alpha), 0)
     }
 
     const key = `${appId}:${engineId}`

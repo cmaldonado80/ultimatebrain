@@ -9,6 +9,65 @@ import { trpc } from '../utils/trpc'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
+/** Row shape returned by `trpc.tickets.list` (drizzle `tickets` table select) */
+interface Ticket {
+  id: string
+  title: string
+  description: string | null
+  status: string
+  priority: string
+  complexity: string
+  executionMode: string | null
+  workspaceId: string | null
+  assignedAgentId: string | null
+  projectId: string | null
+  dagId: string | null
+  dagNodeType: string | null
+  metadata: unknown
+  result: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+/** Row shape returned by `trpc.agents.list` (drizzle `agents` table select) */
+interface Agent {
+  id: string
+  name: string
+  type: string | null
+  workspaceId: string | null
+  status: string
+  model: string | null
+  color: string | null
+  bg: string | null
+  description: string | null
+  tags: string[] | null
+  skills: string[] | null
+  isWsOrchestrator: boolean | null
+  triggerMode: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+/** Row shape returned by `trpc.workspaces.list` (drizzle `workspaces` table select) */
+interface Workspace {
+  id: string
+  name: string
+  type: string | null
+  goal: string | null
+  color: string | null
+  icon: string | null
+  autonomyLevel: number | null
+  settings: unknown
+  createdAt: Date
+  updatedAt: Date
+}
+
+interface TopologyEntry {
+  name: string
+  tier: 'brain'
+  children: number
+}
+
 interface StatCardData {
   label: string
   value: string
@@ -142,7 +201,7 @@ export default function DashboardPage() {
   const workspacesData = workspacesQuery.data ?? []
 
   const activeAgents = agents.length
-  const openTickets = tickets.filter((t: any) => t.status !== 'done' && t.status !== 'cancelled').length
+  const openTickets = tickets.filter((t: Ticket) => t.status !== 'done' && t.status !== 'cancelled').length
 
   const STATS: StatCardData[] = [
     { label: 'Active Agents', value: String(activeAgents), color: '#818cf8' },
@@ -154,9 +213,9 @@ export default function DashboardPage() {
   // Build recent activity from tickets
   const RECENT: RecentItem[] = tickets
     .slice()
-    .sort((a: any, b: any) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime())
+    .sort((a: Ticket, b: Ticket) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime())
     .slice(0, 6)
-    .map((t: any) => ({
+    .map((t: Ticket) => ({
       id: t.id,
       type: 'ticket' as const,
       title: t.title ?? `Ticket ${t.id.slice(0, 8)}`,
@@ -177,10 +236,10 @@ export default function DashboardPage() {
     { name: 'MCP', status: 'healthy', rpm: 0 },
   ]
 
-  const TOPOLOGY = workspacesData.slice(0, 5).map((ws: any) => ({
+  const TOPOLOGY: TopologyEntry[] = workspacesData.slice(0, 5).map((ws: Workspace) => ({
     name: ws.name ?? `Workspace ${ws.id.slice(0, 8)}`,
     tier: 'brain' as const,
-    children: agents.filter((a: any) => a.workspaceId === ws.id).length,
+    children: agents.filter((a: Agent) => a.workspaceId === ws.id).length,
   }))
 
   return (

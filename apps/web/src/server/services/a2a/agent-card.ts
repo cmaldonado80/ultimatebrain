@@ -135,6 +135,8 @@ export class AgentCardGenerator {
             description: card.description,
             skills: card.skills,
             streaming: card.capabilities.streaming,
+            callbacks: card.capabilities.callbacks,
+            long_running: card.capabilities.long_running,
           },
           authRequirements: card.auth,
           endpoint: card.endpoint,

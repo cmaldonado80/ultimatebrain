@@ -115,7 +115,7 @@ export class CrewEngine {
 
     for (const agentDef of definition.agents) {
       const tools = this.buildTools(agentDef, definition.agents)
-      const result = await this.runAgent(agentDef, definition.task, crewId, tools)
+      const result = await this.runAgent(agentDef, definition.task, crewId, tools, definition.name)
       agentResults.push(result)
       lastOutput = result.finalAnswer
     }
@@ -139,7 +139,8 @@ export class CrewEngine {
     agent: AgentDefinition,
     task: string,
     crewId: string,
-    tools: ToolDefinition[]
+    tools: ToolDefinition[],
+    crewName = ''
   ): Promise<AgentRunResult> {
     const start = Date.now()
     const maxIterations = agent.maxIterations ?? DEFAULT_MAX_ITERATIONS
@@ -149,7 +150,7 @@ export class CrewEngine {
 
     const ctx: CrewContext = {
       crewId,
-      crewName: '',
+      crewName,
       task,
       agentId: agent.id,
       iteration: 0,

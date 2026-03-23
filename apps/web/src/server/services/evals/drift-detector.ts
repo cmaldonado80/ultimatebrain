@@ -212,15 +212,15 @@ export class DriftDetector {
       const delta = curr - prev
       const deltaPercent = (delta / prev) * 100
 
-      // Regression = score dropped by more than threshold
-      if (delta < 0 && Math.abs(delta) > this.regressionThreshold * prev) {
+      // Regression = score dropped by more than threshold (percentage-based)
+      if (delta < 0 && Math.abs(deltaPercent) > this.regressionThreshold * 100) {
         regressions.push({
           dimension: dim,
           previousScore: prev,
           currentScore: curr,
           delta,
           deltaPercent,
-          severity: Math.abs(delta) > this.regressionThreshold * 2 * prev ? 'critical' : 'warning',
+          severity: Math.abs(deltaPercent) > this.regressionThreshold * 2 * 100 ? 'critical' : 'warning',
         })
       }
     }

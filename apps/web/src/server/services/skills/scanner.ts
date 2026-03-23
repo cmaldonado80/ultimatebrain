@@ -111,8 +111,9 @@ export class SkillSecurityScanner {
     else if (!sandboxResult.passed || (hasUndeclared && untrusted)) verdict = 'suspicious'
     else if (staticAnalysis.issues.some((i) => i.severity === 'high')) verdict = 'suspicious'
 
-    if (verdict === 'malicious' || verdict === 'suspicious') {
-      verdict = 'quarantined' // auto-quarantine
+    // auto-quarantine malicious or suspicious skills, but preserve original verdict for reporting
+    if (verdict === 'suspicious') {
+      verdict = 'quarantined'
     }
 
     return {
