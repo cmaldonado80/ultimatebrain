@@ -43,7 +43,7 @@ export const gatewayRouter = router({
     }),
 
   /** Get recent gateway metrics (paginated) */
-  metrics: publicProcedure
+  metrics: protectedProcedure
     .input(z.object({ limit: z.number().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return ctx.db.query.gatewayMetrics.findMany({
@@ -79,7 +79,7 @@ export const gatewayRouter = router({
   }),
 
   /** Get cost summary for an agent */
-  agentCost: publicProcedure
+  agentCost: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const gw = getGateway(ctx.db)
@@ -87,7 +87,7 @@ export const gatewayRouter = router({
     }),
 
   /** Check budget status for an agent */
-  budgetStatus: publicProcedure
+  budgetStatus: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const gw = getGateway(ctx.db)
@@ -129,7 +129,7 @@ export const gatewayRouter = router({
     }),
 
   /** Get rate limit capacity for an agent */
-  rateLimitStatus: publicProcedure
+  rateLimitStatus: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const gw = getGateway(ctx.db)

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { DebateEngine, TokenLedgerService, EntityManager } from '../services/platform'
 
 let debate: DebateEngine | null = null
@@ -66,7 +66,7 @@ export const platformRouter = router({
       return Object.fromEntries(scores)
     }),
 
-  debateSession: publicProcedure
+  debateSession: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getDebate(ctx.db).getSession(input.id)
@@ -88,13 +88,13 @@ export const platformRouter = router({
       return getDebate(ctx.db).cancelSession(input.sessionId)
     }),
 
-  debateElo: publicProcedure
+  debateElo: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getDebate(ctx.db).getElo(input.agentId)
     }),
 
-  debateLeaderboard: publicProcedure
+  debateLeaderboard: protectedProcedure
     .input(z.object({ limit: z.number().min(1).max(100).optional() }).optional())
     .query(async ({ ctx, input }) => {
       return getDebate(ctx.db).leaderboard(input?.limit)
@@ -116,7 +116,7 @@ export const platformRouter = router({
       return getLedger(ctx.db).record(input)
     }),
 
-  checkBudget: publicProcedure
+  checkBudget: protectedProcedure
     .input(z.object({ entityId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getLedger(ctx.db).checkBudget(input.entityId)
@@ -135,7 +135,7 @@ export const platformRouter = router({
       return getLedger(ctx.db).setBudget(entityId, limits)
     }),
 
-  usageSummary: publicProcedure
+  usageSummary: protectedProcedure
     .input(z.object({
       entityId: z.string().uuid(),
       since: z.date().optional(),
@@ -145,7 +145,7 @@ export const platformRouter = router({
       return getLedger(ctx.db).usageSummary(input.entityId, input.since, input.until)
     }),
 
-  agentUsage: publicProcedure
+  agentUsage: protectedProcedure
     .input(z.object({
       agentId: z.string().uuid(),
       since: z.date().optional(),
@@ -154,7 +154,7 @@ export const platformRouter = router({
       return getLedger(ctx.db).agentUsage(input.agentId, input.since)
     }),
 
-  dailyCostTrend: publicProcedure
+  dailyCostTrend: protectedProcedure
     .input(z.object({
       entityId: z.string().uuid(),
       days: z.number().min(1).max(365).optional(),
@@ -192,19 +192,19 @@ export const platformRouter = router({
       return getEntities(ctx.db).suspend(input.id)
     }),
 
-  entity: publicProcedure
+  entity: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getEntities(ctx.db).get(input.id)
     }),
 
-  entitiesByTier: publicProcedure
+  entitiesByTier: protectedProcedure
     .input(z.object({ tier: z.enum(['brain', 'mini_brain', 'development']).optional() }).optional())
     .query(async ({ ctx, input }) => {
       return getEntities(ctx.db).listByTier(input?.tier)
     }),
 
-  entityHierarchy: publicProcedure
+  entityHierarchy: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getEntities(ctx.db).getHierarchy(input.id)
@@ -229,13 +229,13 @@ export const platformRouter = router({
       return getEntities(ctx.db).removeAgent(input.entityId, input.agentId)
     }),
 
-  entityAgents: publicProcedure
+  entityAgents: protectedProcedure
     .input(z.object({ entityId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getEntities(ctx.db).getEntityAgents(input.entityId)
     }),
 
-  entityHealth: publicProcedure
+  entityHealth: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getEntities(ctx.db).getHealth(input.id)
@@ -277,7 +277,7 @@ export const platformRouter = router({
       return getEntities(ctx.db).completeStrategyRun(input.runId)
     }),
 
-  strategyRuns: publicProcedure
+  strategyRuns: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return getEntities(ctx.db).getStrategyRuns(input?.workspaceId)
@@ -296,7 +296,7 @@ export const platformRouter = router({
       return getEntities(ctx.db).addRoute(input.fromWorkspace, input.toWorkspace, input.rule, input.priority)
     }),
 
-  routes: publicProcedure
+  routes: protectedProcedure
     .input(z.object({ fromWorkspace: z.string().uuid().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return getEntities(ctx.db).getRoutes(input?.fromWorkspace)

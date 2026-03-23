@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { guardrailLogs } from '@solarc/db'
 import { eq, desc, and, gte, sql } from 'drizzle-orm'
 import { GuardrailCheckInput } from '@solarc/engine-contracts'
@@ -61,13 +61,13 @@ export const guardrailsRouter = router({
     }),
 
   /** List all registered rules */
-  rules: publicProcedure.query(async ({ ctx }) => {
+  rules: protectedProcedure.query(async ({ ctx }) => {
     const engine = getEngine(ctx.db)
     return engine.listRules()
   }),
 
   /** Get recent violation logs */
-  logs: publicProcedure
+  logs: protectedProcedure
     .input(z.object({
       agentId: z.string().uuid().optional(),
       limit: z.number().min(1).max(500).optional(),
@@ -85,7 +85,7 @@ export const guardrailsRouter = router({
     }),
 
   /** Get violation stats (counts by rule, severity breakdown) */
-  stats: publicProcedure
+  stats: protectedProcedure
     .input(z.object({
       since: z.date().optional(),
       agentId: z.string().uuid().optional(),

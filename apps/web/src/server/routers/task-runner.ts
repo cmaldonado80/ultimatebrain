@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { ModeRouter } from '../services/task-runner/mode-router'
 
 let _modeRouter: ModeRouter | null = null
@@ -27,7 +27,7 @@ const modeEnum = z.enum(['quick', 'autonomous', 'deep_work'])
 
 export const taskRunnerRouter = router({
   /** Auto-detect the best execution mode for a ticket */
-  detectMode: publicProcedure
+  detectMode: protectedProcedure
     .input(z.object({ ticketId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const router = getModeRouter(ctx.db)

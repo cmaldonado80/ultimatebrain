@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { ChannelService, WebhookService, ArtifactService, ModelFallbackService } from '../services/integrations'
 
 let channelSvc: ChannelService | null = null
@@ -25,7 +25,7 @@ export const integrationsRouter = router({
       return getChannels(ctx.db).create(input)
     }),
 
-  channels: publicProcedure
+  channels: protectedProcedure
     .input(z.object({ enabledOnly: z.boolean().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return getChannels(ctx.db).list(input?.enabledOnly)
@@ -56,7 +56,7 @@ export const integrationsRouter = router({
       return getWebhooks(ctx.db).create(input)
     }),
 
-  webhooks: publicProcedure
+  webhooks: protectedProcedure
     .input(z.object({ enabledOnly: z.boolean().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return getWebhooks(ctx.db).list(input?.enabledOnly)
@@ -101,19 +101,19 @@ export const integrationsRouter = router({
       return getArtifacts(ctx.db).create(input)
     }),
 
-  artifact: publicProcedure
+  artifact: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getArtifacts(ctx.db).get(input.id)
     }),
 
-  artifactsByTicket: publicProcedure
+  artifactsByTicket: protectedProcedure
     .input(z.object({ ticketId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getArtifacts(ctx.db).listByTicket(input.ticketId)
     }),
 
-  artifactsByAgent: publicProcedure
+  artifactsByAgent: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getArtifacts(ctx.db).listByAgent(input.agentId)
@@ -136,17 +136,17 @@ export const integrationsRouter = router({
       return getFallbacks(ctx.db).setChain(input.agentId, input.chain)
     }),
 
-  fallbackChain: publicProcedure
+  fallbackChain: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getFallbacks(ctx.db).getChain(input.agentId)
     }),
 
-  allFallbackChains: publicProcedure.query(async ({ ctx }) => {
+  allFallbackChains: protectedProcedure.query(async ({ ctx }) => {
     return getFallbacks(ctx.db).listAll()
   }),
 
-  resolveNextModel: publicProcedure
+  resolveNextModel: protectedProcedure
     .input(z.object({
       agentId: z.string().uuid(),
       failedModel: z.string(),

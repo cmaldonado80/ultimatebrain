@@ -89,8 +89,8 @@ export const debateElo = pgTable('debate_elo', {
 // Token accounting
 export const tokenLedger = pgTable('token_ledger', {
   id: uuid('id').primaryKey().defaultRandom(),
-  entityId: uuid('entity_id').references(() => brainEntities.id),
-  agentId: uuid('agent_id').references(() => agents.id),
+  entityId: uuid('entity_id').references(() => brainEntities.id, { onDelete: 'set null' }),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
   model: text('model'),
   provider: text('provider'),
   tokensIn: integer('tokens_in').default(0),
@@ -104,7 +104,7 @@ export const tokenLedger = pgTable('token_ledger', {
 ])
 
 export const tokenBudgets = pgTable('token_budgets', {
-  entityId: uuid('entity_id').references(() => brainEntities.id).primaryKey(),
+  entityId: uuid('entity_id').references(() => brainEntities.id, { onDelete: 'cascade' }).primaryKey(),
   dailyLimitUsd: real('daily_limit_usd'),
   monthlyLimitUsd: real('monthly_limit_usd'),
   alertThreshold: real('alert_threshold').default(0.8),
