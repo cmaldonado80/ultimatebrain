@@ -16,7 +16,9 @@
     "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@solarc/eslint-config": "workspace:*",
     "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
     "prettier": "^3.4.0",
     "turbo": "^2.4.0",
     "typescript": "^5.7.0",

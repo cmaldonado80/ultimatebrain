@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx src/seed.ts"
+    "db:seed": "tsx src/seed.ts",
+    "lint": "eslint src/",
+    "test": "vitest run"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.0",
