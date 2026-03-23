@@ -3,53 +3,15 @@
 /**
  * Playbook Manager — Teach & Repeat UI
  *
- * - List of saved playbooks: name, trigger, success rate, last run
+ * - List of saved playbooks: name, trigger, steps, last run
  * - "Record" button: starts recording mode (orange border)
  * - "Stop": ends recording, shows distilled playbook for review
  * - "Run": execute playbook with parameter form
- * - Version history with diff view
  */
 
 import { useState } from 'react'
+import { trpc } from '../../../utils/trpc'
 import type { SavedPlaybook, PlaybookStep } from '../../../server/services/playbooks/recorder'
-
-// ── Mock data ─────────────────────────────────────────────────────────────
-
-const MOCK_PLAYBOOKS: (SavedPlaybook & { successRate: number; lastRunAt: Date })[] = [
-  {
-    id: 'pb1',
-    name: 'Create & assign ticket',
-    description: 'Records the flow of creating a new ticket and assigning it to an agent',
-    steps: [
-      { index: 0, name: 'Click: TicketForm → open', type: 'click', description: 'Open new ticket form', parameters: {} },
-      { index: 1, name: 'Decide: priority=high', type: 'decision', description: 'Set priority to high', parameters: { priority: 'high' } },
-      { index: 2, name: 'Call: tickets.create', type: 'api_call', description: 'Create the ticket', parameters: { title: '{{ticket_title}}', priority: '{{priority}}' } },
-      { index: 3, name: 'Call: tickets.assign', type: 'api_call', description: 'Assign to agent', parameters: { agentId: '{{agent_id}}' } },
-    ],
-    version: 2,
-    createdBy: 'user@example.com',
-    createdAt: new Date('2026-03-20'),
-    triggerConditions: ['User opens ticket form'],
-    successRate: 0.92,
-    lastRunAt: new Date('2026-03-22'),
-  },
-  {
-    id: 'pb2',
-    name: 'Onboard new workspace',
-    description: 'Creates workspace, seeds agents, configures integrations',
-    steps: [
-      { index: 0, name: 'Call: workspaces.create', type: 'api_call', description: 'Create workspace', parameters: { name: '{{workspace_name}}' } },
-      { index: 1, name: 'Call: agents.create', type: 'api_call', description: 'Seed default agents', parameters: { workspaceId: '{{workspace_id}}' } },
-      { index: 2, name: 'Navigate: /integrations', type: 'navigation', description: 'Open integrations page', parameters: { target_path: '/integrations' } },
-    ],
-    version: 1,
-    createdBy: 'user@example.com',
-    createdAt: new Date('2026-03-21'),
-    triggerConditions: ['Admin creates new workspace'],
-    successRate: 0.78,
-    lastRunAt: new Date('2026-03-21'),
-  },
-]
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -60,17 +22,6 @@ interface RunFormProps {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────
-
-function SuccessBar({ rate }: { rate: number }) {
-  const pct = Math.round(rate * 100)
-  const color = pct >= 90 ? '#22c55e' : pct >= 70 ? '#f97316' : '#ef4444'
-  return (
-    <div style={styles.successBarWrapper}>
-      <div style={{ ...styles.successBarFill, width: `${pct}%`, background: color }} />
-      <span style={{ ...styles.successBarLabel, color }}>{pct}%</span>
-    </div>
-  )
-}
 
 function RunForm({ playbook, onRun, onClose }: RunFormProps) {
   // Extract variables from step parameters
@@ -126,7 +77,7 @@ function PlaybookRow({
   onRun,
   onView,
 }: {
-  playbook: SavedPlaybook & { successRate: number; lastRunAt: Date }
+  playbook: SavedPlaybook
   onRun: () => void
   onView: () => void
 }) {
@@ -144,9 +95,7 @@ function PlaybookRow({
         </div>
       </div>
       <div style={styles.rowRight}>
-        <div style={styles.successLabel}>Success rate</div>
-        <SuccessBar rate={playbook.successRate} />
-        <div style={styles.lastRun}>Last: {playbook.lastRunAt.toLocaleDateString()}</div>
+        <div style={styles.lastRun}>Created: {new Date(playbook.createdAt).toLocaleDateString()}</div>
         <div style={styles.rowActions}>
           <button style={styles.viewBtn} onClick={onView}>View</button>
           <button style={styles.runRowBtn} onClick={onRun}>▶ Run</button>
@@ -182,24 +131,87 @@ function StepDetail({ step }: { step: PlaybookStep }) {
 
 export default function PlaybooksPage() {
   const [recording, setRecording] = useState(false)
-  const [selectedPlaybook, setSelectedPlaybook] = useState<(typeof MOCK_PLAYBOOKS)[0] | null>(null)
-  const [runTarget, setRunTarget] = useState<(typeof MOCK_PLAYBOOKS)[0] | null>(null)
+  const [selectedPlaybook, setSelectedPlaybook] = useState<SavedPlaybook | null>(null)
+  const [runTarget, setRunTarget] = useState<SavedPlaybook | null>(null)
   const [lastRunResult, setLastRunResult] = useState<string | null>(null)
 
+  const { data: playbooks, isLoading, error } = trpc.playbooks.list.useQuery()
+  const runMutation = trpc.playbooks.run.useMutation()
+  const startRecordingMutation = trpc.playbooks.startRecording.useMutation()
+  const endRecordingMutation = trpc.playbooks.endRecording.useMutation()
+  const utils = trpc.useUtils()
+
+  const [recordingSessionId, setRecordingSessionId] = useState<string | null>(null)
+
+  if (isLoading) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#6b7280' }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
+          <div style={{ fontSize: 13 }}>Fetching playbooks</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#f87171' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading playbooks</div>
+          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
+        </div>
+      </div>
+    )
+  }
+
+  const playbookList: SavedPlaybook[] = playbooks ?? []
+
   function handleStartRecording() {
-    setRecording(true)
+    startRecordingMutation.mutate(
+      {},
+      {
+        onSuccess: (data) => {
+          setRecordingSessionId(data.sessionId)
+          setRecording(true)
+        },
+      },
+    )
   }
 
   function handleStopRecording() {
-    setRecording(false)
-    // In real impl: call recorder.endRecording() → distiller.distill() → show review
-    alert('Recording stopped. In full implementation, the distiller would now analyze your actions and show the parameterized playbook for review.')
+    if (recordingSessionId) {
+      endRecordingMutation.mutate(
+        { sessionId: recordingSessionId },
+        {
+          onSuccess: () => {
+            setRecording(false)
+            setRecordingSessionId(null)
+            utils.playbooks.list.invalidate()
+          },
+        },
+      )
+    } else {
+      setRecording(false)
+    }
   }
 
   function handleRun(params: Record<string, unknown>) {
+    if (!runTarget) return
+    runMutation.mutate(
+      { id: runTarget.id, parameterValues: params },
+      {
+        onSuccess: () => {
+          setLastRunResult(`Playbook "${runTarget.name}" executed successfully.`)
+          setTimeout(() => setLastRunResult(null), 5000)
+        },
+        onError: (err) => {
+          setLastRunResult(`Error: ${err.message}`)
+          setTimeout(() => setLastRunResult(null), 5000)
+        },
+      },
+    )
     setRunTarget(null)
-    setLastRunResult(`Playbook "${runTarget?.name}" started with ${Object.keys(params).length} parameter(s).`)
-    setTimeout(() => setLastRunResult(null), 5000)
   }
 
   return (
@@ -236,14 +248,20 @@ export default function PlaybooksPage() {
       {/* Playbook list */}
       {!selectedPlaybook ? (
         <div style={styles.list}>
-          {MOCK_PLAYBOOKS.map((pb) => (
-            <PlaybookRow
-              key={pb.id}
-              playbook={pb}
-              onRun={() => setRunTarget(pb)}
-              onView={() => setSelectedPlaybook(pb)}
-            />
-          ))}
+          {playbookList.length === 0 ? (
+            <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>
+              No playbooks yet. Click "Record" to create your first one.
+            </div>
+          ) : (
+            playbookList.map((pb) => (
+              <PlaybookRow
+                key={pb.id}
+                playbook={pb}
+                onRun={() => setRunTarget(pb)}
+                onView={() => setSelectedPlaybook(pb)}
+              />
+            ))
+          )}
         </div>
       ) : (
         /* Detail view */
@@ -254,9 +272,6 @@ export default function PlaybooksPage() {
           <div style={styles.detailMeta}>
             <span style={styles.metaTag}>v{selectedPlaybook.version}</span>
             <span style={styles.metaTag}>{selectedPlaybook.steps.length} steps</span>
-            <span style={styles.metaTag}>
-              {Math.round(selectedPlaybook.successRate * 100)}% success
-            </span>
           </div>
           <div style={styles.stepsSection}>
             <div style={styles.sectionHeader}>Steps</div>
@@ -306,10 +321,6 @@ const styles = {
   metaTag: { background: '#374151', borderRadius: 10, padding: '2px 8px', fontSize: 11, color: '#9ca3af' },
   metaTrigger: { fontSize: 11, color: '#6b7280' },
   rowRight: { display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 4, minWidth: 160 },
-  successLabel: { fontSize: 11, color: '#6b7280' },
-  successBarWrapper: { width: 140, height: 6, background: '#374151', borderRadius: 3, position: 'relative' as const, display: 'flex', alignItems: 'center' },
-  successBarFill: { height: '100%', borderRadius: 3 },
-  successBarLabel: { fontSize: 11, marginLeft: 6 },
   lastRun: { fontSize: 11, color: '#6b7280' },
   rowActions: { display: 'flex', gap: 6, marginTop: 4 },
   viewBtn: { background: 'transparent', border: '1px solid #4b5563', borderRadius: 4, color: '#9ca3af', padding: '4px 10px', fontSize: 12, cursor: 'pointer' },

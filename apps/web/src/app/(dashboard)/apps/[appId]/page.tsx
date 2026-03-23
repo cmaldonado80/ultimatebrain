@@ -1,67 +1,13 @@
 'use client'
 
 /**
- * Single App View — detailed dashboard for a connected Mini Brain or Development
+ * Single App View — detailed dashboard for a connected agent
  *
- * Shows: health score, connected engines + usage, active agents,
- * recent incidents, LLM cost, scoped memory entries.
+ * Shows: agent info, model, skills, tags, etc.
  */
 
-import { useState } from 'react'
-
-interface AppDetail {
-  id: string
-  name: string
-  tier: 'mini_brain' | 'development'
-  template: string
-  domain: string
-  url: string
-  healthScore: number
-  status: 'running' | 'degraded' | 'offline'
-  engines: EngineUsage[]
-  agents: AppAgent[]
-  incidents: AppIncident[]
-  llmCost: { last7d: number; last30d: number; trend: number }
-  memoryEntries: { total: number; working: number; episodic: number; archival: number }
-}
-
-interface EngineUsage { id: string; name: string; requests: number; errors: number; avgMs: number; status: string }
-interface AppAgent { id: string; name: string; role: string; status: 'active' | 'idle' | 'error'; currentTask?: string }
-interface AppIncident { id: string; severity: string; message: string; detectedAt: Date; resolvedAt?: Date; resolution?: string }
-
-const MOCK_APP: AppDetail = {
-  id: 'mb-2',
-  name: 'Hotel Ops Brain',
-  tier: 'mini_brain',
-  template: 'hospitality',
-  domain: 'Hotels',
-  url: 'http://localhost:3102',
-  healthScore: 0.89,
-  status: 'running',
-  engines: [
-    { id: 'llm', name: 'LLM Gateway', requests: 12400, errors: 23, avgMs: 890, status: 'healthy' },
-    { id: 'memory', name: 'Memory', requests: 8900, errors: 5, avgMs: 45, status: 'healthy' },
-    { id: 'a2a', name: 'A2A Protocol', requests: 340, errors: 2, avgMs: 120, status: 'healthy' },
-    { id: 'healing', name: 'Self-Healing', requests: 890, errors: 0, avgMs: 30, status: 'healthy' },
-    { id: 'guardrails', name: 'Guardrails', requests: 4200, errors: 12, avgMs: 65, status: 'degraded' },
-    { id: 'eval', name: 'Evaluations', requests: 180, errors: 1, avgMs: 2100, status: 'healthy' },
-  ],
-  agents: [
-    { id: 'a1', name: 'CEO', role: 'Strategic oversight', status: 'idle' },
-    { id: 'a2', name: 'COO', role: 'Operations', status: 'active', currentTask: 'Analyzing Q1 occupancy trends' },
-    { id: 'a3', name: 'CFO', role: 'Financial analysis', status: 'active', currentTask: 'Preparing monthly P&L report' },
-    { id: 'a4', name: 'GM', role: 'General management', status: 'active', currentTask: 'Guest complaint resolution T-089' },
-    { id: 'a5', name: 'F&B Director', role: 'Food & beverage', status: 'idle' },
-    { id: 'a6', name: 'HR', role: 'Human resources', status: 'idle' },
-    { id: 'a7', name: 'Sales', role: 'Revenue', status: 'active', currentTask: 'Corporate rate proposal for Acme Corp' },
-  ],
-  incidents: [
-    { id: 'i1', severity: 'medium', message: 'Guardrails engine latency spike (>500ms)', detectedAt: new Date(Date.now() - 3600_000), resolvedAt: new Date(Date.now() - 1800_000), resolution: 'Auto-scaled guardrail workers' },
-    { id: 'i2', severity: 'low', message: 'Memory tier promotion backlog (>100 entries)', detectedAt: new Date(Date.now() - 7200_000), resolvedAt: new Date(Date.now() - 5400_000), resolution: 'Batch promoted 142 entries' },
-  ],
-  llmCost: { last7d: 98.40, last30d: 387.20, trend: -0.05 },
-  memoryEntries: { total: 3420, working: 180, episodic: 1240, archival: 2000 },
-}
+import { useParams } from 'next/navigation'
+import { trpc } from '../../../../utils/trpc'
 
 function HealthRing({ score }: { score: number }) {
   const pct = Math.round(score * 100)
@@ -75,8 +21,50 @@ function HealthRing({ score }: { score: number }) {
 }
 
 export default function AppDetailPage() {
-  const app = MOCK_APP
-  const activeAgents = app.agents.filter((a) => a.status === 'active')
+  const params = useParams()
+  const appId = params.appId as string
+
+  const { data: app, isLoading, error } = trpc.agents.byId.useQuery({ id: appId })
+
+  if (isLoading) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#6b7280' }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
+          <div style={{ fontSize: 13 }}>Fetching app details</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#f87171' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading app</div>
+          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!app) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#f87171' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>App not found</div>
+          <div style={{ fontSize: 13, color: '#9ca3af' }}>No agent with ID {appId}</div>
+        </div>
+      </div>
+    )
+  }
+
+  const agentName = (app as any).name ?? `Agent ${appId.slice(0, 8)}`
+  const agentType = (app as any).type ?? 'agent'
+  const agentDescription = (app as any).description ?? ''
+  const agentModel = (app as any).model ?? 'N/A'
+  const agentSkills: string[] = (app as any).skills ?? []
+  const agentTags: string[] = (app as any).tags ?? []
 
   return (
     <div style={styles.page}>
@@ -85,100 +73,85 @@ export default function AppDetailPage() {
         <a href="/apps" style={styles.back}>← Apps</a>
         <div style={styles.headerMain}>
           <div>
-            <h1 style={styles.title}>{app.name}</h1>
+            <h1 style={styles.title}>{agentName}</h1>
             <div style={styles.headerMeta}>
-              <span style={styles.tierBadge}>{app.tier === 'mini_brain' ? 'Mini Brain' : 'Development'}</span>
-              <span style={styles.metaText}>{app.domain} · {app.template}</span>
-              <span style={styles.metaText}>{app.url}</span>
+              <span style={styles.tierBadge}>{agentType}</span>
+              {agentDescription && <span style={styles.metaText}>{agentDescription}</span>}
             </div>
           </div>
-          <HealthRing score={app.healthScore} />
         </div>
       </div>
 
       {/* Stats row */}
       <div style={styles.statsGrid}>
         <div style={styles.statCard}>
-          <div style={styles.statBig}>{app.engines.length}</div>
-          <div style={styles.statLabel}>Engines</div>
+          <div style={styles.statBig}>{agentModel}</div>
+          <div style={styles.statLabel}>Model</div>
         </div>
         <div style={styles.statCard}>
-          <div style={styles.statBig}>{activeAgents.length}/{app.agents.length}</div>
-          <div style={styles.statLabel}>Active Agents</div>
+          <div style={styles.statBig}>{agentSkills.length}</div>
+          <div style={styles.statLabel}>Skills</div>
         </div>
         <div style={styles.statCard}>
-          <div style={{ ...styles.statBig, color: app.incidents.length > 0 ? '#f87171' : '#4ade80' }}>{app.incidents.length}</div>
-          <div style={styles.statLabel}>Incidents</div>
+          <div style={styles.statBig}>{agentTags.length}</div>
+          <div style={styles.statLabel}>Tags</div>
         </div>
         <div style={styles.statCard}>
-          <div style={styles.statBig}>${app.llmCost.last30d.toFixed(0)}</div>
-          <div style={styles.statLabel}>LLM Cost (30d)</div>
-          <div style={{ fontSize: 10, color: app.llmCost.trend < 0 ? '#4ade80' : '#f87171' }}>
-            {app.llmCost.trend < 0 ? '↓' : '↑'} {Math.abs(app.llmCost.trend * 100).toFixed(0)}% vs prior
-          </div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statBig}>{app.memoryEntries.total.toLocaleString()}</div>
-          <div style={styles.statLabel}>Memories</div>
-          <div style={{ fontSize: 10, color: '#6b7280' }}>
-            W:{app.memoryEntries.working} E:{app.memoryEntries.episodic} A:{app.memoryEntries.archival}
-          </div>
+          <div style={styles.statBig}>{agentType}</div>
+          <div style={styles.statLabel}>Type</div>
         </div>
       </div>
 
       <div style={styles.columns}>
-        {/* Left: Engines + Agents */}
+        {/* Left: Skills */}
         <div style={styles.colLeft}>
-          {/* Engines */}
           <div style={styles.section}>
-            <div style={styles.sectionHeader}>Connected Engines</div>
-            {app.engines.map((e) => (
-              <div key={e.id} style={styles.engineRow}>
-                <span style={{ ...styles.eDot, background: e.status === 'healthy' ? '#22c55e' : '#f97316' }} />
-                <span style={styles.eName}>{e.name}</span>
-                <span style={styles.eStat}>{e.requests.toLocaleString()} req</span>
-                <span style={styles.eStat}>{e.errors} err</span>
-                <span style={styles.eStat}>{e.avgMs}ms</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Agents */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>Agents ({app.agents.length})</div>
-            {app.agents.map((a) => (
-              <div key={a.id} style={styles.agentRow}>
-                <span style={{ ...styles.aDot, background: a.status === 'active' ? '#22c55e' : a.status === 'idle' ? '#6b7280' : '#ef4444' }} />
-                <div style={styles.agentInfo}>
-                  <div style={styles.agentName}>{a.name} <span style={styles.agentRole}>({a.role})</span></div>
-                  {a.currentTask && <div style={styles.agentTask}>{a.currentTask}</div>}
+            <div style={styles.sectionHeader}>Skills</div>
+            {agentSkills.length === 0 ? (
+              <div style={styles.emptyText}>No skills assigned</div>
+            ) : (
+              agentSkills.map((skill) => (
+                <div key={skill} style={styles.engineRow}>
+                  <span style={{ ...styles.eDot, background: '#22c55e' }} />
+                  <span style={styles.eName}>{skill}</span>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
-        {/* Right: Incidents */}
+        {/* Right: Tags & Details */}
         <div style={styles.colRight}>
           <div style={styles.section}>
-            <div style={styles.sectionHeader}>Recent Incidents</div>
-            {app.incidents.length === 0 ? (
-              <div style={styles.emptyText}>No incidents</div>
+            <div style={styles.sectionHeader}>Tags</div>
+            {agentTags.length === 0 ? (
+              <div style={styles.emptyText}>No tags</div>
             ) : (
-              app.incidents.map((inc) => (
-                <div key={inc.id} style={styles.incidentRow}>
-                  <div style={styles.incHeader}>
-                    <span style={{ ...styles.sevBadge, background: inc.severity === 'high' || inc.severity === 'critical' ? '#7f1d1d' : inc.severity === 'medium' ? '#422006' : '#1c1917', color: inc.severity === 'high' || inc.severity === 'critical' ? '#f87171' : inc.severity === 'medium' ? '#fb923c' : '#a8a29e' }}>
-                      {inc.severity}
-                    </span>
-                    <span style={styles.incTime}>{inc.detectedAt.toLocaleTimeString()}</span>
-                  </div>
-                  <div style={styles.incMsg}>{inc.message}</div>
-                  {inc.resolution && (
-                    <div style={styles.incResolution}>Resolved: {inc.resolution}</div>
-                  )}
-                </div>
-              ))
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                {agentTags.map((tag) => (
+                  <span key={tag} style={styles.tagChip}>{tag}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={styles.section}>
+            <div style={styles.sectionHeader}>Details</div>
+            <div style={styles.detailRow}>
+              <span style={styles.detailKey}>ID:</span>
+              <span style={styles.detailVal}>{appId}</span>
+            </div>
+            {(app as any).workspaceId && (
+              <div style={styles.detailRow}>
+                <span style={styles.detailKey}>Workspace:</span>
+                <span style={styles.detailVal}>{(app as any).workspaceId}</span>
+              </div>
+            )}
+            {(app as any).createdAt && (
+              <div style={styles.detailRow}>
+                <span style={styles.detailKey}>Created:</span>
+                <span style={styles.detailVal}>{new Date((app as any).createdAt).toLocaleDateString()}</span>
+              </div>
             )}
           </div>
         </div>
@@ -200,7 +173,7 @@ const styles = {
   ringValue: { fontSize: 28, fontWeight: 700 },
   ringLabel: { fontSize: 10, color: '#6b7280' },
   // Stats
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 },
   statCard: { background: '#1f2937', borderRadius: 8, padding: 12, textAlign: 'center' as const, border: '1px solid #374151' },
   statBig: { fontSize: 22, fontWeight: 700 },
   statLabel: { fontSize: 10, color: '#6b7280', marginTop: 2 },
@@ -214,20 +187,11 @@ const styles = {
   engineRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid #111827', fontSize: 12 },
   eDot: { width: 6, height: 6, borderRadius: '50%', flexShrink: 0 },
   eName: { flex: 1, fontWeight: 600 },
-  eStat: { color: '#6b7280', fontSize: 11 },
-  // Agent rows
-  agentRow: { display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #111827' },
-  aDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0, marginTop: 4 },
-  agentInfo: { flex: 1 },
-  agentName: { fontSize: 13, fontWeight: 600 },
-  agentRole: { fontWeight: 400, color: '#6b7280', fontSize: 11 },
-  agentTask: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
-  // Incidents
-  incidentRow: { padding: '8px 0', borderBottom: '1px solid #111827' },
-  incHeader: { display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 },
-  sevBadge: { fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4 },
-  incTime: { fontSize: 10, color: '#6b7280' },
-  incMsg: { fontSize: 12, color: '#d1d5db' },
-  incResolution: { fontSize: 11, color: '#4ade80', marginTop: 4 },
+  // Tags
+  tagChip: { fontSize: 11, background: '#374151', borderRadius: 4, padding: '2px 8px', color: '#9ca3af' },
+  // Details
+  detailRow: { display: 'flex', gap: 8, padding: '4px 0', fontSize: 12, borderBottom: '1px solid #111827' },
+  detailKey: { color: '#6b7280', minWidth: 80 },
+  detailVal: { color: '#d1d5db', fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' as const },
   emptyText: { fontSize: 12, color: '#4b5563', textAlign: 'center' as const, padding: 16 },
 }

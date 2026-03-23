@@ -10,20 +10,10 @@
  */
 
 import { useState, useMemo } from 'react'
+import { trpc } from '../../../utils/trpc'
 import type { SkillListing, SkillCategory, SkillCapability, SkillPermission } from '../../../server/services/skills/marketplace'
 
-// ── Mock data ─────────────────────────────────────────────────────────────
-
-const MOCK_SKILLS: SkillListing[] = [
-  { id: 'oc-web-search', name: 'Web Search', description: 'Search the web and extract structured results', author: 'OpenClaw', category: 'data', source: 'openclaw', sourceUrl: '', version: '1.2.0', installCount: 4520, rating: 4.7, permissions: [{ capability: 'network:fetch', reason: 'Fetch search results' }], installed: true, assignedAgents: ['agent-1'], usageStats: { totalRuns: 87, lastUsed: new Date(), avgDurationMs: 1200 } },
-  { id: 'oc-code-review', name: 'Code Review', description: 'Analyze code diffs for bugs, security issues, and style', author: 'OpenClaw', category: 'coding', source: 'openclaw', sourceUrl: '', version: '2.0.1', installCount: 3890, rating: 4.8, permissions: [{ capability: 'file:read', reason: 'Read source files' }, { capability: 'llm:invoke', reason: 'LLM analysis' }], installed: true, assignedAgents: ['agent-1', 'agent-2'], usageStats: { totalRuns: 134, lastUsed: new Date(), avgDurationMs: 3400 } },
-  { id: 'oc-screenshot', name: 'Screenshot Capture', description: 'Take screenshots of web pages and annotate them', author: 'OpenClaw', category: 'media', source: 'openclaw', sourceUrl: '', version: '1.0.3', installCount: 2100, rating: 4.3, permissions: [{ capability: 'browser:navigate', reason: 'Navigate to page' }, { capability: 'browser:screenshot', reason: 'Capture screenshot' }], installed: false, assignedAgents: [] },
-  { id: 'oc-csv-transform', name: 'CSV Transform', description: 'Parse, filter, and transform CSV/Excel data', author: 'OpenClaw', category: 'data', source: 'openclaw', sourceUrl: '', version: '1.1.0', installCount: 1750, rating: 4.5, permissions: [{ capability: 'file:read', reason: 'Read input files' }, { capability: 'file:write', reason: 'Write output' }], installed: false, assignedAgents: [] },
-  { id: 'oc-slack-notify', name: 'Slack Notify', description: 'Send formatted messages and alerts to Slack channels', author: 'OpenClaw', category: 'integrations', source: 'openclaw', sourceUrl: '', version: '1.3.2', installCount: 3200, rating: 4.6, permissions: [{ capability: 'network:fetch', reason: 'Send webhooks' }], installed: false, assignedAgents: [] },
-  { id: 'oc-git-ops', name: 'Git Operations', description: 'Clone, branch, commit, and push to Git repositories', author: 'OpenClaw', category: 'coding', source: 'openclaw', sourceUrl: '', version: '2.1.0', installCount: 2900, rating: 4.4, permissions: [{ capability: 'shell:execute', reason: 'Run git commands' }, { capability: 'file:read', reason: 'Read repo' }, { capability: 'file:write', reason: 'Write changes' }], installed: false, assignedAgents: [] },
-  { id: 'oc-email-draft', name: 'Email Drafting', description: 'Draft professional emails with tone and context awareness', author: 'OpenClaw', category: 'productivity', source: 'openclaw', sourceUrl: '', version: '1.0.0', installCount: 1200, rating: 4.2, permissions: [{ capability: 'llm:invoke', reason: 'Generate email' }], installed: false, assignedAgents: [] },
-  { id: 'oc-summarize', name: 'Text Summarizer', description: 'Summarize long documents, articles, and threads', author: 'OpenClaw', category: 'productivity', source: 'openclaw', sourceUrl: '', version: '1.1.0', installCount: 3600, rating: 4.7, permissions: [{ capability: 'llm:invoke', reason: 'LLM summarization' }], installed: false, assignedAgents: [] },
-]
+// ── Constants ─────────────────────────────────────────────────────────────
 
 const CATEGORIES: { id: SkillCategory | 'all'; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -182,20 +172,76 @@ export default function SkillsPage() {
   const [search, setSearch] = useState('')
   const [installTarget, setInstallTarget] = useState<SkillListing | null>(null)
 
-  const filtered = useMemo(() => {
-    let list = tab === 'installed' ? MOCK_SKILLS.filter((s) => s.installed) : MOCK_SKILLS
-    if (category !== 'all') list = list.filter((s) => s.category === category)
-    if (search) {
-      const q = search.toLowerCase()
-      list = list.filter((s) => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
-    }
-    return list
-  }, [tab, category, search])
+  const browseQuery = trpc.skills.browse.useQuery(
+    { category: category === 'all' ? undefined : category, search: search || undefined },
+  )
+  const installedQuery = trpc.skills.installed.useQuery()
+  const installMutation = trpc.skills.install.useMutation()
+  const uninstallMutation = trpc.skills.uninstall.useMutation()
+
+  const utils = trpc.useUtils()
+
+  const isLoading = browseQuery.isLoading || installedQuery.isLoading
+  const error = browseQuery.error || installedQuery.error
+
+  if (isLoading) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#6b7280' }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
+          <div style={{ fontSize: 13 }}>Fetching skills</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#f87171' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading skills</div>
+          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
+        </div>
+      </div>
+    )
+  }
+
+  const allSkills: SkillListing[] = browseQuery.data ?? []
+  const installedSkills: SkillListing[] = installedQuery.data ?? []
+  const installedIds = new Set(installedSkills.map((s) => s.id))
+
+  // Merge installed status into browse results
+  const mergedSkills = allSkills.map((s) => ({
+    ...s,
+    installed: installedIds.has(s.id) || s.installed,
+  }))
+
+  const displaySkills = tab === 'installed' ? mergedSkills.filter((s) => s.installed) : mergedSkills
 
   function handleApprove(permissions: SkillCapability[]) {
-    // In real impl: call marketplace.install()
-    alert(`Installed "${installTarget?.name}" with ${permissions.length} permission(s)`)
+    if (!installTarget) return
+    installMutation.mutate(
+      { skillId: installTarget.id, approvedPermissions: permissions },
+      {
+        onSuccess: () => {
+          utils.skills.browse.invalidate()
+          utils.skills.installed.invalidate()
+        },
+      },
+    )
     setInstallTarget(null)
+  }
+
+  function handleUninstall(skillId: string) {
+    uninstallMutation.mutate(
+      { skillId },
+      {
+        onSuccess: () => {
+          utils.skills.browse.invalidate()
+          utils.skills.installed.invalidate()
+        },
+      },
+    )
   }
 
   return (
@@ -211,10 +257,10 @@ export default function SkillsPage() {
       {/* Tabs */}
       <div style={styles.tabs}>
         <button style={tab === 'browse' ? styles.tabActive : styles.tab} onClick={() => setTab('browse')}>
-          Browse ({MOCK_SKILLS.length})
+          Browse ({allSkills.length})
         </button>
         <button style={tab === 'installed' ? styles.tabActive : styles.tab} onClick={() => setTab('installed')}>
-          Installed ({MOCK_SKILLS.filter((s) => s.installed).length})
+          Installed ({mergedSkills.filter((s) => s.installed).length})
         </button>
       </div>
 
@@ -241,15 +287,15 @@ export default function SkillsPage() {
 
       {/* Grid */}
       <div style={styles.grid}>
-        {filtered.map((skill) => (
+        {displaySkills.map((skill) => (
           <SkillCard
             key={skill.id}
             skill={skill}
             onInstall={() => setInstallTarget(skill)}
-            onUninstall={() => alert(`Uninstalled "${skill.name}"`)}
+            onUninstall={() => handleUninstall(skill.id)}
           />
         ))}
-        {filtered.length === 0 && (
+        {displaySkills.length === 0 && (
           <div style={styles.empty}>No skills found matching your criteria.</div>
         )}
       </div>

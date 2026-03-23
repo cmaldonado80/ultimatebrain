@@ -5,11 +5,12 @@
  *
  * - Dataset list with case counts
  * - Run history with score trends (line chart)
- * - Drill into failed cases: side-by-side expected vs. actual
+ * - Drill into cases: side-by-side expected vs. actual
  * - "Create eval from trace" button in header
  */
 
 import { useState } from 'react'
+import { trpc } from '../../../utils/trpc'
 
 // ── Types (mirroring server types for client use) ─────────────────────────
 
@@ -28,7 +29,7 @@ interface ScoreDimension {
 }
 
 interface RunHistory {
-  runId: string
+  id: string
   version: string | null
   scores: Record<string, number>
   createdAt: Date
@@ -66,7 +67,7 @@ function ScoreBar({ score, color }: { score: number; color: string }) {
 function ScoreTrend({ history, dimension }: { history: RunHistory[]; dimension: ScoreDimension }) {
   if (history.length < 2) return <span style={styles.noData}>Not enough runs</span>
 
-  const values = history.map((h) => h.scores[dimension.key] ?? 0)
+  const values = history.map((h) => (h.scores as any)?.[dimension.key] ?? 0)
   const max = Math.max(...values, 1)
   const width = 200
   const height = 48
@@ -147,45 +148,85 @@ function DatasetRow({
   )
 }
 
-// ── Mock data for UI preview ─────────────────────────────────────────────
-
-const MOCK_DATASETS: Dataset[] = [
-  { id: '1', name: 'ticket-execution', description: 'Auto-generated from failed traces', caseCount: 42, createdAt: new Date('2026-03-20') },
-  { id: '2', name: 'chat-quality', description: 'High-rated completions', caseCount: 87, createdAt: new Date('2026-03-21') },
-  { id: '3', name: 'tool-use', description: 'Tool call accuracy tests', caseCount: 31, createdAt: new Date('2026-03-22') },
-]
-
-const MOCK_HISTORY: RunHistory[] = [
-  { runId: 'r1', version: 'v1.0', scores: { task_completion: 0.72, factuality: 0.81, tool_use_accuracy: 0.68, safety: 0.95, cost_efficiency: 0.74 }, createdAt: new Date('2026-03-18') },
-  { runId: 'r2', version: 'v1.1', scores: { task_completion: 0.76, factuality: 0.83, tool_use_accuracy: 0.71, safety: 0.96, cost_efficiency: 0.77 }, createdAt: new Date('2026-03-19') },
-  { runId: 'r3', version: 'v1.2', scores: { task_completion: 0.80, factuality: 0.85, tool_use_accuracy: 0.75, safety: 0.97, cost_efficiency: 0.80 }, createdAt: new Date('2026-03-20') },
-  { runId: 'r4', version: 'v1.3', scores: { task_completion: 0.78, factuality: 0.82, tool_use_accuracy: 0.73, safety: 0.95, cost_efficiency: 0.79 }, createdAt: new Date('2026-03-21') },
-  { runId: 'r5', version: 'v1.4', scores: { task_completion: 0.82, factuality: 0.87, tool_use_accuracy: 0.79, safety: 0.98, cost_efficiency: 0.83 }, createdAt: new Date('2026-03-22') },
-]
-
-const MOCK_CASES: EvalCase[] = [
-  {
-    id: 'c1',
-    input: { prompt: 'Create a ticket to refactor the payment module', agentId: 'agent-123' },
-    expectedOutput: { action: 'ticket.create', title: 'Refactor payment module', priority: 'medium' },
-    traceId: 'trace-abc',
-  },
-  {
-    id: 'c2',
-    input: { prompt: 'What is the status of ticket #45?', agentId: 'agent-123' },
-    expectedOutput: { response: 'Ticket #45 is currently in_progress, assigned to agent-456' },
-    traceId: 'trace-def',
-  },
-]
-
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 export default function EvalsPage() {
-  const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(MOCK_DATASETS[0])
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null)
   const [selectedCase, setSelectedCase] = useState<EvalCase | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'cases' | 'trends'>('overview')
 
-  const latestRun = MOCK_HISTORY[MOCK_HISTORY.length - 1]
+  // Fetch datasets with case counts
+  const datasetsQuery = trpc.evals.datasetsWithCounts.useQuery()
+
+  // Fetch runs for selected dataset
+  const runsQuery = trpc.evals.runs.useQuery(
+    { datasetId: selectedDatasetId! },
+    { enabled: !!selectedDatasetId },
+  )
+
+  // Fetch cases for selected dataset
+  const casesQuery = trpc.evals.cases.useQuery(
+    { datasetId: selectedDatasetId! },
+    { enabled: !!selectedDatasetId && activeTab === 'cases' },
+  )
+
+  const isLoading = datasetsQuery.isLoading
+
+  if (isLoading) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#6b7280' }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
+          <div style={{ fontSize: 13 }}>Fetching eval datasets</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (datasetsQuery.error) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#f87171' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading eval data</div>
+          <div style={{ fontSize: 13, color: '#9ca3af' }}>{datasetsQuery.error.message}</div>
+        </div>
+      </div>
+    )
+  }
+
+  const datasetsRaw: any[] = datasetsQuery.data ?? []
+  const datasets: Dataset[] = datasetsRaw.map((d: any) => ({
+    id: d.id,
+    name: d.name ?? `Dataset ${d.id.slice(0, 8)}`,
+    description: d.description ?? null,
+    caseCount: d.caseCount ?? 0,
+    createdAt: new Date(d.createdAt),
+  }))
+
+  // Auto-select first dataset if none selected
+  const selectedDataset = datasets.find((d) => d.id === selectedDatasetId) ?? (datasets.length > 0 ? datasets[0] : null)
+  if (selectedDataset && selectedDatasetId !== selectedDataset.id) {
+    // Use effect-like pattern: will re-render with correct ID
+    setTimeout(() => setSelectedDatasetId(selectedDataset.id), 0)
+  }
+
+  const runsRaw: any[] = runsQuery.data ?? []
+  const history: RunHistory[] = runsRaw.map((r: any) => ({
+    id: r.id,
+    version: r.version ?? null,
+    scores: (r.scores as Record<string, number>) ?? {},
+    createdAt: new Date(r.createdAt),
+  }))
+
+  const latestRun = history.length > 0 ? history[history.length - 1] : null
+
+  const casesRaw: any[] = casesQuery.data ?? []
+  const evalCases: EvalCase[] = casesRaw.map((c: any) => ({
+    id: c.id,
+    input: (c.input as Record<string, unknown>) ?? {},
+    expectedOutput: (c.expectedOutput as Record<string, unknown>) ?? null,
+    traceId: c.traceId ?? null,
+  }))
 
   return (
     <div style={styles.page}>
@@ -195,24 +236,27 @@ export default function EvalsPage() {
           <h1 style={styles.pageTitle}>Eval Dashboard</h1>
           <p style={styles.pageSubtitle}>Production-to-eval pipeline · automated regression detection</p>
         </div>
-        <button style={styles.createBtn}>+ Create from Trace</button>
       </div>
 
       <div style={styles.layout}>
         {/* Sidebar — Dataset List */}
         <div style={styles.sidebar}>
           <div style={styles.sidebarHeader}>Datasets</div>
-          {MOCK_DATASETS.map((d) => (
-            <DatasetRow
-              key={d.id}
-              dataset={d}
-              isSelected={selectedDataset?.id === d.id}
-              onSelect={() => {
-                setSelectedDataset(d)
-                setSelectedCase(null)
-              }}
-            />
-          ))}
+          {datasets.length === 0 ? (
+            <div style={{ fontSize: 12, color: '#6b7280', padding: 12 }}>No datasets found</div>
+          ) : (
+            datasets.map((d) => (
+              <DatasetRow
+                key={d.id}
+                dataset={d}
+                isSelected={selectedDataset?.id === d.id}
+                onSelect={() => {
+                  setSelectedDatasetId(d.id)
+                  setSelectedCase(null)
+                }}
+              />
+            ))
+          )}
         </div>
 
         {/* Main Content */}
@@ -244,65 +288,101 @@ export default function EvalsPage() {
                     <div key={dim.key} style={styles.scoreCard}>
                       <div style={styles.scoreCardLabel}>{dim.label}</div>
                       <div style={styles.scoreCardValue}>
-                        {Math.round((latestRun.scores[dim.key] ?? 0) * 100)}%
+                        {Math.round(((latestRun.scores as any)?.[dim.key] ?? 0) * 100)}%
                       </div>
-                      <ScoreBar score={latestRun.scores[dim.key] ?? 0} color={dim.color} />
+                      <ScoreBar score={(latestRun.scores as any)?.[dim.key] ?? 0} color={dim.color} />
                     </div>
                   ))}
                 </div>
               )}
 
+              {activeTab === 'overview' && !latestRun && !runsQuery.isLoading && (
+                <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>
+                  No eval runs yet for this dataset.
+                </div>
+              )}
+
+              {activeTab === 'overview' && runsQuery.isLoading && (
+                <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>
+                  Loading run data...
+                </div>
+              )}
+
               {/* Trends Tab */}
               {activeTab === 'trends' && (
-                <div style={styles.trendsGrid}>
-                  {SCORE_DIMENSIONS.map((dim) => (
-                    <div key={dim.key} style={styles.trendCard}>
-                      <div style={styles.trendLabel}>{dim.label}</div>
-                      <ScoreTrend history={MOCK_HISTORY} dimension={dim} />
-                      <div style={styles.trendRange}>
-                        <span>{MOCK_HISTORY[0]?.createdAt.toLocaleDateString()}</span>
-                        <span>{MOCK_HISTORY[MOCK_HISTORY.length - 1]?.createdAt.toLocaleDateString()}</span>
-                      </div>
+                <div>
+                  {runsQuery.isLoading ? (
+                    <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>Loading trends...</div>
+                  ) : history.length === 0 ? (
+                    <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>No run history available.</div>
+                  ) : (
+                    <div style={styles.trendsGrid}>
+                      {SCORE_DIMENSIONS.map((dim) => (
+                        <div key={dim.key} style={styles.trendCard}>
+                          <div style={styles.trendLabel}>{dim.label}</div>
+                          <ScoreTrend history={history} dimension={dim} />
+                          {history.length >= 2 && (
+                            <div style={styles.trendRange}>
+                              <span>{new Date(history[0]?.createdAt).toLocaleDateString()}</span>
+                              <span>{new Date(history[history.length - 1]?.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
 
               {/* Cases Tab */}
               {activeTab === 'cases' && (
                 <div>
-                  <div style={styles.caseList}>
-                    {MOCK_CASES.map((c) => (
-                      <div
-                        key={c.id}
-                        style={{
-                          ...styles.caseRow,
-                          ...(selectedCase?.id === c.id ? styles.caseRowSelected : {}),
-                        }}
-                        onClick={() => setSelectedCase(selectedCase?.id === c.id ? null : c)}
-                      >
-                        <span style={styles.caseId}>{c.id}</span>
-                        <span style={styles.casePrompt}>
-                          {String((c.input as Record<string, unknown>).prompt ?? '').slice(0, 80)}
-                        </span>
-                        {c.traceId && (
-                          <span style={styles.traceLink}>trace: {c.traceId.slice(0, 10)}</span>
-                        )}
+                  {casesQuery.isLoading ? (
+                    <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>Loading cases...</div>
+                  ) : evalCases.length === 0 ? (
+                    <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>No cases in this dataset.</div>
+                  ) : (
+                    <>
+                      <div style={styles.caseList}>
+                        {evalCases.map((c) => (
+                          <div
+                            key={c.id}
+                            style={{
+                              ...styles.caseRow,
+                              ...(selectedCase?.id === c.id ? styles.caseRowSelected : {}),
+                            }}
+                            onClick={() => setSelectedCase(selectedCase?.id === c.id ? null : c)}
+                          >
+                            <span style={styles.caseId}>{c.id.slice(0, 8)}</span>
+                            <span style={styles.casePrompt}>
+                              {String((c.input as Record<string, unknown>).prompt ?? JSON.stringify(c.input).slice(0, 80))}
+                            </span>
+                            {c.traceId && (
+                              <span style={styles.traceLink}>trace: {c.traceId.slice(0, 10)}</span>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
 
-                  {selectedCase && (
-                    <div style={styles.caseDetail}>
-                      <div style={styles.caseDetailHeader}>
-                        Case {selectedCase.id} — Expected vs. Actual
-                      </div>
-                      <CaseCompare evalCase={selectedCase} />
-                    </div>
+                      {selectedCase && (
+                        <div style={styles.caseDetail}>
+                          <div style={styles.caseDetailHeader}>
+                            Case {selectedCase.id.slice(0, 8)} — Expected vs. Actual
+                          </div>
+                          <CaseCompare evalCase={selectedCase} />
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
             </>
+          )}
+
+          {!selectedDataset && (
+            <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>
+              Select a dataset from the sidebar to view eval results.
+            </div>
           )}
         </div>
       </div>
@@ -317,7 +397,6 @@ const styles = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   pageTitle: { margin: 0, fontSize: 22, fontWeight: 700 },
   pageSubtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  createBtn: { background: '#2563eb', border: 'none', borderRadius: 6, color: '#fff', padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   layout: { display: 'flex', gap: 20 },
   sidebar: { width: 220, flexShrink: 0 },
   sidebarHeader: { fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 },
