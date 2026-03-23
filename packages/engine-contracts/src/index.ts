@@ -83,15 +83,15 @@ export type CreateTicketInput = z.infer<typeof CreateTicketInput>
 export const ApprovalRequestInput = z.object({
   action: z.string(),
   risk: z.enum(['low', 'medium', 'high', 'critical']),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 export type ApprovalRequestInput = z.infer<typeof ApprovalRequestInput>
 
 // === Eval Engine Contract ===
 
 export const EvalCaseInput = z.object({
-  input: z.unknown(),
-  expectedOutput: z.unknown().optional(),
+  input: z.record(z.string(), z.unknown()),
+  expectedOutput: z.record(z.string(), z.unknown()).optional(),
   traceId: z.string().optional(),
   dataset: z.string().optional(),
 })
@@ -143,7 +143,7 @@ export type AgentCard = z.infer<typeof AgentCardSchema>
 export const A2ADelegateInput = z.object({
   agentId: z.string(),
   task: z.string(),
-  context: z.record(z.unknown()).optional(),
+  context: z.record(z.string(), z.unknown()).optional(),
   callbackUrl: z.string().optional(),
 })
 export type A2ADelegateInput = z.infer<typeof A2ADelegateInput>

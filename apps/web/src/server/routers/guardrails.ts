@@ -1,13 +1,14 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { guardrailLogs } from '@solarc/db'
+import type { Database } from '@solarc/db'
 import { eq, desc, and, gte, sql } from 'drizzle-orm'
 import { GuardrailCheckInput } from '@solarc/engine-contracts'
 import { GuardrailEngine } from '../services/guardrails'
 
 let engineInstance: GuardrailEngine | null = null
 
-function getEngine(db: any): GuardrailEngine {
+function getEngine(db: Database): GuardrailEngine {
   if (!engineInstance) {
     engineInstance = new GuardrailEngine(db)
   }

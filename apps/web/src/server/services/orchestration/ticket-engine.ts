@@ -202,7 +202,7 @@ export class TicketExecutionEngine {
     switch (strategy.type) {
       case 'skill_match': {
         // Prefer agents whose skills overlap with ticket metadata
-        const requiredSkills = (ticket.metadata as any)?.requiredSkills as string[] | undefined
+        const requiredSkills = (ticket.metadata as Record<string, unknown> | null)?.requiredSkills as string[] | undefined
         if (requiredSkills?.length) {
           const scored = availableAgents.map((a) => ({
             agent: a,

@@ -8,6 +8,8 @@
  * - Links results to ticket proof record
  */
 
+import type { Database } from '@solarc/db'
+import { GatewayRouter } from '../gateway'
 import type { QARecording, QAVerdict, RecordingAnnotation, RecordingFrame } from './recorder'
 
 export interface ReviewCriteria {
@@ -84,6 +86,13 @@ export interface TicketProof {
 // ── Reviewer ────────────────────────────────────────────────────────────
 
 export class VisualQAReviewer {
+  private gateway: GatewayRouter | null = null
+
+  constructor(opts?: { db?: Database }) {
+    if (opts?.db) {
+      this.gateway = new GatewayRouter(opts.db)
+    }
+  }
   /**
    * Review a completed recording against criteria.
    */

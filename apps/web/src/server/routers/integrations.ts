@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
+import type { Database } from '@solarc/db'
 import { ChannelService, WebhookService, ArtifactService, ModelFallbackService } from '../services/integrations'
 
 let channelSvc: ChannelService | null = null
@@ -7,10 +8,10 @@ let webhookSvc: WebhookService | null = null
 let artifactSvc: ArtifactService | null = null
 let fallbackSvc: ModelFallbackService | null = null
 
-function getChannels(db: any) { return channelSvc ??= new ChannelService(db) }
-function getWebhooks(db: any) { return webhookSvc ??= new WebhookService(db) }
-function getArtifacts(db: any) { return artifactSvc ??= new ArtifactService(db) }
-function getFallbacks(db: any) { return fallbackSvc ??= new ModelFallbackService(db) }
+function getChannels(db: Database) { return channelSvc ??= new ChannelService(db) }
+function getWebhooks(db: Database) { return webhookSvc ??= new WebhookService(db) }
+function getArtifacts(db: Database) { return artifactSvc ??= new ArtifactService(db) }
+function getFallbacks(db: Database) { return fallbackSvc ??= new ModelFallbackService(db) }
 
 export const integrationsRouter = router({
   // === Channels ===

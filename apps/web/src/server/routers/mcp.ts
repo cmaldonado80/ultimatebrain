@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
+import type { Database } from '@solarc/db'
 import { MCPServer, MCPRegistry } from '../services/mcp'
 
 /** Shared registry + server singleton (created lazily per-request in real app) */
-function createMCPStack(db: any) {
+function createMCPStack(db: Database) {
   const registry = new MCPRegistry()
   const server = new MCPServer(db, registry)
   return { registry, server }
