@@ -34,6 +34,7 @@
 
 import { randomUUID } from 'crypto'
 import type { Instinct, EvolutionResult } from './types'
+import type { GatewayRouter } from '../gateway'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -65,6 +66,12 @@ export interface InstinctCluster {
 // ---------------------------------------------------------------------------
 
 export class InstinctEvolver {
+  private gateway: GatewayRouter | null = null
+
+  setGateway(gw: GatewayRouter): void {
+    this.gateway = gw
+  }
+
   // -------------------------------------------------------------------------
   // Public API
   // -------------------------------------------------------------------------

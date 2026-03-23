@@ -215,16 +215,58 @@ export class BrowserAgentStream {
 
   // ── Screenshots ───────────────────────────────────────────────────────
 
+  /** Whether we already logged the playwright-missing warning */
+  private playwrightWarned = false
+
   /**
    * Capture and store a screenshot.
-   * In real impl: calls Playwright page.screenshot(), uploads to S3/local.
+   * Attempts to use Playwright for a real capture; falls back to placeholder URL.
    */
   captureScreenshot(sessionId: string): void {
     const session = this.getSessionOrThrow(sessionId)
     const sequence = session.events.filter((e) => e.type === 'screenshot').length
 
-    // Stub — real impl captures from Playwright
-    const screenshotUrl = `/screenshots/${sessionId}/${sequence}.png`
+    // Default placeholder
+    let screenshotUrl = `/screenshots/${sessionId}/${sequence}.png`
+    let width = 1280
+    let height = 720
+
+    // Try real Playwright capture asynchronously
+    void (async () => {
+      try {
+        const pw = await import('playwright').catch(() => null)
+        if (!pw) {
+          if (!this.playwrightWarned) {
+            console.warn('[BrowserAgentStream] playwright not available — using placeholder screenshot URLs')
+            this.playwrightWarned = true
+          }
+          return
+        }
+
+        const browser = await pw.chromium.launch({ headless: true })
+        const page = await browser.newPage()
+        await page.goto(session.currentUrl, { timeout: 8000 }).catch(() => {})
+        const buf = await page.screenshot({ type: 'png' })
+        await browser.close()
+
+        const base64 = `data:image/png;base64,${buf.toString('base64')}`
+        screenshotUrl = base64
+        const viewport = page.viewportSize()
+        if (viewport) {
+          width = viewport.width
+          height = viewport.height
+        }
+
+        // Update the already-stored record with real data
+        const existing = storedScreenshots.find(
+          (s) => s.sessionId === sessionId && s.sequence === sequence
+        )
+        if (existing) existing.url = screenshotUrl
+        session.latestScreenshot = screenshotUrl
+      } catch {
+        // Capture failed — placeholder URL already set
+      }
+    })()
 
     const stored: StoredScreenshot = {
       sessionId,
@@ -242,8 +284,8 @@ export class BrowserAgentStream {
       timestamp: new Date(),
       data: {
         imageUrl: screenshotUrl,
-        width: 1280,
-        height: 720,
+        width,
+        height,
         sequence,
       } as ScreenshotEvent,
     })

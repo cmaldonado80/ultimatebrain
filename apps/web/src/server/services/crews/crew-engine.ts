@@ -17,6 +17,7 @@
  */
 
 import type { Database } from '@solarc/db'
+import { GatewayRouter } from '../gateway'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -100,7 +101,11 @@ const DEFAULT_MAX_ITERATIONS = 10
 // ── Crew Engine ───────────────────────────────────────────────────────────
 
 export class CrewEngine {
-  constructor(private db: Database) {}
+  private gateway: GatewayRouter
+
+  constructor(private db: Database) {
+    this.gateway = new GatewayRouter(db)
+  }
 
   /**
    * Run a crew on a task. Each agent executes its role via ReAct loop.
@@ -343,15 +348,13 @@ export class CrewEngine {
     userPrompt: string
     iteration: number
   }): Promise<string> {
-    // Stub — real impl calls GatewayRouter.chat() with agent's model preference
-    // Returns a ReAct-formatted response
-    if (params.iteration === 0) {
-      return `Thought: I need to analyze the task and determine the best approach.
-Action: memory_search
-Action Input: {"query": "relevant context for task"}`
-    }
-    return `Thought: I have enough information to provide a final answer.
-Final Answer: Task completed successfully based on available context and tools.`
+    const result = await this.gateway.chat({
+      messages: [
+        { role: 'system', content: params.systemPrompt },
+        { role: 'user', content: params.userPrompt },
+      ],
+    })
+    return result.content
   }
 
   private parseReActResponse(

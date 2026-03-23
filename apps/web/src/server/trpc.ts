@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm'
 export interface TRPCContext {
   db: Database
   session: { userId: string } | null
+  req?: Request
 }
 
 const t = initTRPC.context<TRPCContext>().create({

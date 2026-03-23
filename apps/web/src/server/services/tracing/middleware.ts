@@ -27,7 +27,7 @@ export interface TracedContext extends TRPCContext {
 export function createTracingMiddleware(tracer: Tracer) {
   return middleware(async ({ ctx, next, path, type }) => {
     // Extract incoming traceparent header if present
-    const traceparent = (ctx as any).req?.headers?.['traceparent'] as string | undefined
+    const traceparent = ctx.req?.headers?.get?.('traceparent') as string | undefined
     const parent = traceparent ? require('./tracer').Tracer.fromTraceparent(traceparent) : undefined
 
     // userId might be in session
