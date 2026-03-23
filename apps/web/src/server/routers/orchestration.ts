@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { TicketExecutionEngine, CronEngine, SwarmEngine, ReceiptManager } from '../services/orchestration'
 
 // Lazy singletons
@@ -16,7 +16,7 @@ function getReceiptManager(db: any) { return receiptManager ??= new ReceiptManag
 export const orchestrationRouter = router({
   // === Ticket Execution ===
 
-  readyTickets: publicProcedure
+  readyTickets: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return getTicketEngine(ctx.db).getReadyTickets(input?.workspaceId)
@@ -101,13 +101,13 @@ export const orchestrationRouter = router({
       return getTicketEngine(ctx.db).fail(input.ticketId, input.reason, input.agentId)
     }),
 
-  expiredLeases: publicProcedure.query(async ({ ctx }) => {
+  expiredLeases: protectedProcedure.query(async ({ ctx }) => {
     return getTicketEngine(ctx.db).getExpiredLeases()
   }),
 
   // === Cron Jobs ===
 
-  cronJobs: publicProcedure
+  cronJobs: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return getCronEngine(ctx.db).list(input?.workspaceId)
@@ -144,7 +144,7 @@ export const orchestrationRouter = router({
       return getCronEngine(ctx.db).delete(input.id)
     }),
 
-  dueJobs: publicProcedure.query(async ({ ctx }) => {
+  dueJobs: protectedProcedure.query(async ({ ctx }) => {
     return getCronEngine(ctx.db).getDueJobs()
   }),
 
@@ -175,7 +175,7 @@ export const orchestrationRouter = router({
       return getSwarmEngine(ctx.db).form(input)
     }),
 
-  getSwarm: publicProcedure
+  getSwarm: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getSwarmEngine(ctx.db).get(input.id)
@@ -212,7 +212,7 @@ export const orchestrationRouter = router({
       return getSwarmEngine(ctx.db).removeMember(input.swarmId, input.agentId)
     }),
 
-  activeSwarms: publicProcedure.query(async ({ ctx }) => {
+  activeSwarms: protectedProcedure.query(async ({ ctx }) => {
     return getSwarmEngine(ctx.db).listActive()
   }),
 
@@ -263,13 +263,13 @@ export const orchestrationRouter = router({
       return getReceiptManager(ctx.db).rollback(input.id)
     }),
 
-  receipt: publicProcedure
+  receipt: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getReceiptManager(ctx.db).getFull(input.id)
     }),
 
-  receipts: publicProcedure
+  receipts: protectedProcedure
     .input(z.object({
       agentId: z.string().uuid().optional(),
       ticketId: z.string().uuid().optional(),

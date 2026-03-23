@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { CheckpointManager } from '../services/checkpointing/checkpoint-manager'
 import { TimeTravelEngine } from '../services/checkpointing/time-travel'
 
@@ -45,7 +45,7 @@ export const checkpointingRouter = router({
     }),
 
   /** List all checkpoints for an entity */
-  list: publicProcedure
+  list: protectedProcedure
     .input(
       z.object({
         entityType: z.string(),
@@ -58,7 +58,7 @@ export const checkpointingRouter = router({
     }),
 
   /** Get a single checkpoint by ID */
-  get: publicProcedure
+  get: protectedProcedure
     .input(z.object({ checkpointId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const manager = getCheckpointManager(ctx.db)
@@ -68,7 +68,7 @@ export const checkpointingRouter = router({
     }),
 
   /** Get the latest checkpoint for an entity */
-  getLatest: publicProcedure
+  getLatest: protectedProcedure
     .input(
       z.object({
         entityType: z.string(),
@@ -81,7 +81,7 @@ export const checkpointingRouter = router({
     }),
 
   /** Count checkpoints for an entity */
-  count: publicProcedure
+  count: protectedProcedure
     .input(
       z.object({
         entityType: z.string(),
@@ -106,7 +106,7 @@ export const checkpointingRouter = router({
   // ── Time Travel ───────────────────────────────────────────────────────────
 
   /** Get a visual timeline for an entity */
-  getTimeline: publicProcedure
+  getTimeline: protectedProcedure
     .input(
       z.object({
         entityType: z.string(),
@@ -119,7 +119,7 @@ export const checkpointingRouter = router({
     }),
 
   /** Diff two specific checkpoints */
-  diff: publicProcedure
+  diff: protectedProcedure
     .input(
       z.object({
         checkpointAId: z.string().uuid(),
@@ -132,7 +132,7 @@ export const checkpointingRouter = router({
     }),
 
   /** Diff the latest two checkpoints for an entity */
-  diffLatest: publicProcedure
+  diffLatest: protectedProcedure
     .input(
       z.object({
         entityType: z.string(),

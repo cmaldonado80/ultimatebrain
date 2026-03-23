@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { A2AEngine, AgentCardGenerator, A2ARegistry } from '../services/a2a'
 
 let engine: A2AEngine | null = null
@@ -20,13 +20,13 @@ export const a2aRouter = router({
       return getEngine(ctx.db).registerCard(agentId, card)
     }),
 
-  card: publicProcedure
+  card: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getEngine(ctx.db).getCard(input.agentId)
     }),
 
-  cards: publicProcedure.query(async ({ ctx }) => {
+  cards: protectedProcedure.query(async ({ ctx }) => {
     return getEngine(ctx.db).listCards()
   }),
 
@@ -36,7 +36,7 @@ export const a2aRouter = router({
       return getEngine(ctx.db).removeCard(input.agentId)
     }),
 
-  discover: publicProcedure
+  discover: protectedProcedure
     .input(z.object({ skill: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       return getEngine(ctx.db).discover(input.skill)
@@ -79,13 +79,13 @@ export const a2aRouter = router({
       return getEngine(ctx.db).fail(input.delegationId, input.error)
     }),
 
-  delegationStatus: publicProcedure
+  delegationStatus: protectedProcedure
     .input(z.object({ delegationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getEngine(ctx.db).getStatus(input.delegationId)
     }),
 
-  pendingDelegations: publicProcedure
+  pendingDelegations: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getEngine(ctx.db).pendingFor(input.agentId)
@@ -134,13 +134,13 @@ export const a2aRouter = router({
     }),
 
   /** List all registered external agents */
-  listExternal: publicProcedure.query(async ({ ctx }) => {
+  listExternal: protectedProcedure.query(async ({ ctx }) => {
     const registry = new A2ARegistry(ctx.db)
     return registry.list()
   }),
 
   /** Find external agents by skill */
-  findExternalBySkill: publicProcedure
+  findExternalBySkill: protectedProcedure
     .input(z.object({ skill: z.string() }))
     .query(async ({ ctx, input }) => {
       const registry = new A2ARegistry(ctx.db)

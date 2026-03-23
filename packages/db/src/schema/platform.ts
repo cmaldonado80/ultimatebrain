@@ -7,7 +7,7 @@ export const brainEntities = pgTable('brain_entities', {
   name: text('name').notNull(),
   domain: text('domain'),
   tier: entityTierEnum('tier').notNull(),
-  parentId: uuid('parent_id').references(() => brainEntities.id),
+  parentId: uuid('parent_id').references(() => brainEntities.id, { onDelete: 'set null' }),
   enginesEnabled: text('engines_enabled').array(),
   domainEngines: jsonb('domain_engines'),
   apiKeyHash: text('api_key_hash'),
@@ -22,8 +22,8 @@ export const brainEntities = pgTable('brain_entities', {
 })
 
 export const brainEntityAgents = pgTable('brain_entity_agents', {
-  entityId: uuid('entity_id').references(() => brainEntities.id).notNull(),
-  agentId: uuid('agent_id').references(() => agents.id).notNull(),
+  entityId: uuid('entity_id').references(() => brainEntities.id, { onDelete: 'cascade' }).notNull(),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'cascade' }).notNull(),
   role: entityAgentRoleEnum('role').default('primary').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (t) => [
@@ -32,7 +32,7 @@ export const brainEntityAgents = pgTable('brain_entity_agents', {
 
 export const brainEngineUsage = pgTable('brain_engine_usage', {
   id: uuid('id').primaryKey().defaultRandom(),
-  entityId: uuid('entity_id').references(() => brainEntities.id).notNull(),
+  entityId: uuid('entity_id').references(() => brainEntities.id, { onDelete: 'cascade' }).notNull(),
   engine: text('engine').notNull(),
   requestsCount: integer('requests_count').default(0),
   tokensUsed: integer('tokens_used').default(0),
@@ -47,7 +47,7 @@ export const brainEngineUsage = pgTable('brain_engine_usage', {
 // Debate persistence
 export const debateSessions = pgTable('debate_sessions', {
   id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id').references(() => projects.id),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
   status: debateSessionStatusEnum('status').default('active').notNull(),
   constitutionalRules: jsonb('constitutional_rules'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -56,27 +56,30 @@ export const debateSessions = pgTable('debate_sessions', {
 
 export const debateNodes = pgTable('debate_nodes', {
   id: uuid('id').primaryKey().defaultRandom(),
-  sessionId: uuid('session_id').references(() => debateSessions.id).notNull(),
-  agentId: uuid('agent_id').references(() => agents.id),
+  sessionId: uuid('session_id').references(() => debateSessions.id, { onDelete: 'cascade' }).notNull(),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
   text: text('text').notNull(),
   validity: real('validity'),
-  parentId: uuid('parent_id').references(() => debateNodes.id),
+  parentId: uuid('parent_id').references(() => debateNodes.id, { onDelete: 'set null' }),
   isAxiom: boolean('is_axiom').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (t) => [
   index('debate_nodes_session_id_idx').on(t.sessionId),
 ])
 
 export const debateEdges = pgTable('debate_edges', {
-  fromNodeId: uuid('from_node_id').references(() => debateNodes.id).notNull(),
-  toNodeId: uuid('to_node_id').references(() => debateNodes.id).notNull(),
+  fromNodeId: uuid('from_node_id').references(() => debateNodes.id, { onDelete: 'cascade' }).notNull(),
+  toNodeId: uuid('to_node_id').references(() => debateNodes.id, { onDelete: 'cascade' }).notNull(),
   type: debateEdgeTypeEnum('type').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (t) => [
   primaryKey({ columns: [t.fromNodeId, t.toNodeId] }),
 ])
 
 export const debateElo = pgTable('debate_elo', {
-  agentId: uuid('agent_id').references(() => agents.id).primaryKey(),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'cascade' }).primaryKey(),
   eloRating: integer('elo_rating').default(1200).notNull(),
   matches: integer('matches').default(0),
   wins: integer('wins').default(0),
