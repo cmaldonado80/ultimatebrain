@@ -44,7 +44,7 @@ async function main() {
       console.error(`[Worker] Ticket ${ticketId} failed:`, err)
       try {
         await ticketEngine.transition(ticketId, 'failed')
-      } catch { /* best-effort status update */ }
+      } catch (statusErr) { console.warn(`[Worker] Best-effort status update failed for ticket ${ticketId}:`, statusErr) }
       throw err
     }
   })

@@ -304,7 +304,7 @@ export class MiniBrainFactory {
       // Verify the template directory exists
       try {
         await fs.access(templateDir)
-      } catch {
+      } catch (accessErr) {
         throw new Error(`Template directory not found at ${templateDir}. Available templates: ${TEMPLATES.map((t) => t.id).join(', ')}`)
       }
       // Ensure parent of target exists
@@ -328,8 +328,9 @@ export class MiniBrainFactory {
     // Connect to the default "postgres" database to create the target DB
     const adminUrl = new URL(url)
     adminUrl.pathname = '/postgres'
-    const pgModule = await import(/* webpackIgnore: true */ 'pg' as string) as any
-    const Client = pgModule.default?.Client ?? pgModule.Client
+    // Dynamic import to avoid bundling pg in the Next.js client
+    const pgModule = await import(/* webpackIgnore: true */ 'pg' as string) as { default?: { Client: new (opts: { connectionString: string }) => { connect(): Promise<void>; query(sql: string, params?: unknown[]): Promise<{ rowCount: number }>; end(): Promise<void> } }; Client?: new (opts: { connectionString: string }) => { connect(): Promise<void>; query(sql: string, params?: unknown[]): Promise<{ rowCount: number }>; end(): Promise<void> } }
+    const Client = pgModule.default?.Client ?? pgModule.Client!
     const client = new Client({ connectionString: adminUrl.toString() })
 
     try {
@@ -368,7 +369,7 @@ export class MiniBrainFactory {
     const configPath = path.join(targetDir, 'domain-data.json')
     try {
       await fs.access(configPath)
-    } catch {
+    } catch (_accessErr) {
       // No domain-data.json → nothing to download (many templates don't need external data)
       return
     }

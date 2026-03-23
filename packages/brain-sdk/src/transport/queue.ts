@@ -62,7 +62,8 @@ export class RequestQueue {
       try {
         await this.onDrain(req)
         sent++
-      } catch {
+      } catch (err) {
+        console.warn(`[RequestQueue] Drain failed for ${req.method} ${req.path} (attempt ${req.retries + 1}):`, err)
         req.retries++
         if (req.retries < 3) {
           this.queue.push(req)

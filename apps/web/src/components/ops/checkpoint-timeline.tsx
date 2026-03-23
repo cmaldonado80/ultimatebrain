@@ -58,7 +58,7 @@ function ReplayModal({ checkpoint, onConfirm, onClose }: ReplayModalProps) {
       const overrides = JSON.parse(overridesText)
       setParseError(null)
       onConfirm(overrides)
-    } catch {
+    } catch (_parseErr) {
       setParseError('Invalid JSON — please fix before replaying')
     }
   }

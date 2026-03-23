@@ -174,8 +174,8 @@ export class RecallFlow {
     for (const id of memoryIds) {
       try {
         await this.memoryService.nominateForPromotion(id)
-      } catch {
-        // Promotion is best-effort — don't fail the agent turn
+      } catch (err) {
+        console.warn(`[RecallFlow] Best-effort promotion failed for memory ${id}:`, err)
       }
     }
   }

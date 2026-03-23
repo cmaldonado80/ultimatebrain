@@ -13,7 +13,7 @@ function getCrewEngine(db: Database) { return _crewEngine ??= new CrewEngine(db)
 function getGateway(db: Database) { return _gateway ??= new GatewayRouter(db) }
 
 const realEmbed = async (text: string, db: Database): Promise<number[]> => {
-  try { const result = await getGateway(db).embed(text); return result.embedding } catch { return Array(1536).fill(0) }
+  try { const result = await getGateway(db).embed(text); return result.embedding } catch (err) { console.warn('[Flows] Embedding failed, using zero vector:', err); return Array(1536).fill(0) }
 }
 
 function getRecallFlow(db: Database) {

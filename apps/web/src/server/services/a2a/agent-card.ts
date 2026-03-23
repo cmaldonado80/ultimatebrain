@@ -102,8 +102,8 @@ export class AgentCardGenerator {
     for (const agent of allAgents) {
       try {
         cards[agent.id] = await this.generateForAgent(agent.id, options)
-      } catch {
-        // Skip agents that fail to generate
+      } catch (err) {
+        console.warn(`[AgentCard] Failed to generate card for agent ${agent.id}:`, err)
       }
     }
 

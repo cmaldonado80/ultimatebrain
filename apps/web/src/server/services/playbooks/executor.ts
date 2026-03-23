@@ -337,7 +337,8 @@ export class PlaybookExecutor {
         ],
       })
       return result.content.trim().toLowerCase().startsWith('yes')
-    } catch {
+    } catch (err) {
+      console.warn('[PlaybookExecutor] Verification LLM call failed:', err)
       return false
     }
   }

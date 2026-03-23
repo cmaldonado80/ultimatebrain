@@ -236,7 +236,7 @@ export class AitmplAdapter {
   private adaptSettings(component: AitmplComponent, tier: InstallTier): SettingsRecord {
     const content = component.content ?? '{}'
     let settings: Record<string, unknown> = {}
-    try { settings = JSON.parse(content) } catch { /* ignore */ }
+    try { settings = JSON.parse(content) } catch (err) { console.warn(`[AitmplAdapter] Failed to parse settings for ${component.name}:`, err) }
 
     const scope: SettingsRecord['scope'] =
       tier === 'brain' ? 'brain' :

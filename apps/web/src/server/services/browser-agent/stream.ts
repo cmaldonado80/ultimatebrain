@@ -265,8 +265,8 @@ export class BrowserAgentStream {
         )
         if (existing) existing.url = screenshotUrl
         session.latestScreenshot = screenshotUrl
-      } catch {
-        // Capture failed — placeholder URL already set
+      } catch (err) {
+        console.warn(`[BrowserStream] Screenshot capture failed for session ${sessionId}:`, err)
       }
     })()
 

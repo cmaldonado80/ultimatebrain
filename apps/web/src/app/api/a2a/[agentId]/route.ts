@@ -103,14 +103,14 @@ export async function POST(
     priority: 'medium',
     complexity: 'medium',
     assignedAgentId: agentId,
-    workspaceId: agent.workspaceId ?? undefined,
+    ...(agent.workspaceId ? { workspaceId: agent.workspaceId } : {}),
     metadata: {
       a2a: true,
       taskId,
       context: body.context ?? {},
       callback_url: body.callback_url ?? null,
     },
-  } as any)
+  })
 
   // If streaming requested, return SSE
   if (body.stream || req.headers.get('accept')?.includes('text/event-stream')) {

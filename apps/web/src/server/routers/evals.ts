@@ -4,6 +4,7 @@ import { evalDatasets, evalCases, evalRuns } from '@solarc/db'
 import type { Database } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
 import { EvalRunner, DatasetBuilder, DriftDetector } from '../services/evals'
+import type { ScorerInput } from '../services/evals/scorers'
 
 let runnerInstance: EvalRunner | null = null
 
@@ -116,7 +117,7 @@ export const evalsRouter = router({
         input.input,
         input.expectedOutput,
         input.actualOutput,
-        input.trace as any,
+        input.trace as ScorerInput['trace'],
       )
     }),
 
@@ -144,13 +145,13 @@ export const evalsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const runner = getRunner(ctx.db)
       const outputMap = new Map(
-        input.outputs.map((o) => [o.caseId, { output: o.output, trace: o.trace as any }]),
+        input.outputs.map((o) => [o.caseId, { output: o.output, trace: o.trace as ScorerInput['trace'] }]),
       )
 
       return runner.runDataset(input.datasetId, {
         version: input.version,
         passThreshold: input.passThreshold,
-        outputs: outputMap as any,
+        outputs: outputMap as Map<string, { output: unknown; trace?: ScorerInput['trace'] }>,
       })
     }),
 

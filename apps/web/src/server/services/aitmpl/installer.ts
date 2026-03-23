@@ -130,8 +130,8 @@ export class AitmplInstaller {
       }
       if (content) result.content = content
       return result
-    } catch {
-      // Network error — fall back to stub
+    } catch (err) {
+      console.warn(`[AitmplInstaller] Network error fetching ${category}/${name}, using fallback:`, err)
       return {
         id: `aitmpl-${category}-${name}`,
         name,
@@ -175,7 +175,8 @@ export class AitmplInstaller {
         if (component) components.push(component)
       }
       return components
-    } catch {
+    } catch (err) {
+      console.warn(`[AitmplInstaller] Failed to fetch category ${category}:`, err)
       return []
     }
   }

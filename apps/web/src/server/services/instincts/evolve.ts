@@ -174,7 +174,8 @@ export class InstinctEvolver {
           ],
         })
         skillMdContent = result.content
-      } catch {
+      } catch (err) {
+        console.warn(`[Evolve] LLM skill generation failed for "${cluster.label}", using stub:`, err)
         skillMdContent = this.generateSkillMdStub(cluster, skillId, totalEvidence, avgConfidence)
       }
     } else {
@@ -227,7 +228,8 @@ export class InstinctEvolver {
           ],
         })
         content = result.content
-      } catch {
+      } catch (err) {
+        console.warn(`[Evolve] LLM command generation failed for "${cluster.label}", using stub:`, err)
         content = JSON.stringify(this.generateCommandStub(cluster, commandId), null, 2)
       }
     } else {

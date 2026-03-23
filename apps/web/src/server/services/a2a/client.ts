@@ -197,7 +197,8 @@ export class A2AClient {
       if (cached) cached.lastHealthCheck = new Date()
 
       return true
-    } catch {
+    } catch (err) {
+      console.warn(`[A2AClient] Health check failed for ${agentBaseUrl}:`, err)
       const cached = this.discoveryCache.get(agentBaseUrl)
       if (cached) {
         cached.healthy = false

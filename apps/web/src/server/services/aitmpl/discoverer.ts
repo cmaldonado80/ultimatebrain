@@ -250,7 +250,8 @@ export class AitmplDiscoverer {
         tags: [category],
         updatedAt: new Date(),
       }))
-    } catch {
+    } catch (err) {
+      console.warn(`[AitmplDiscoverer] Failed to discover local components in ${category}:`, err)
       return []
     }
   }

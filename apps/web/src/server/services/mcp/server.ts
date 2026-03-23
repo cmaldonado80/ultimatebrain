@@ -248,8 +248,8 @@ export class MCPServer {
     for (const conn of this.sseConnections.values()) {
       try {
         conn.send('message', data)
-      } catch {
-        // Connection may have closed; remove it
+      } catch (err) {
+        console.warn(`[MCP] SSE send failed for connection ${conn.id}, removing:`, err)
         this.sseConnections.delete(conn.id)
       }
     }
@@ -283,7 +283,8 @@ export class MCPServer {
             const response = await this.handleRequest(parsed)
             process.stdout.write(JSON.stringify(response) + '\n')
           }
-        } catch {
+        } catch (err) {
+          console.warn('[MCP] Stdio JSON parse error:', err)
           const errorResp = this.jsonRpcError(-1, -32700, 'Parse error')
           process.stdout.write(JSON.stringify(errorResp) + '\n')
         }

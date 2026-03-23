@@ -39,7 +39,7 @@ export class HealingEngine {
         try {
           const incident = JSON.parse(event.data) as Incident
           for (const listener of this.listeners) listener(incident)
-        } catch { /* ignore malformed messages */ }
+        } catch (err) { console.warn('[HealingEngine] Malformed WebSocket message:', err) }
       }
       this.ws.onclose = () => {
         this.ws = null
@@ -48,7 +48,8 @@ export class HealingEngine {
           setTimeout(() => this.ensureConnected(), 5000)
         }
       }
-    } catch {
+    } catch (err) {
+      console.warn('[HealingEngine] WebSocket connection failed:', err)
       this.ws = null
     }
   }
