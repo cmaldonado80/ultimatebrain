@@ -1,11 +1,12 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { memories } from '@solarc/db'
+import type { Database } from '@solarc/db'
 import { eq, and } from 'drizzle-orm'
 import { MemoryService } from '../services/memory'
 
 let memService: MemoryService | null = null
-function getMemoryService(db: any) { return memService ??= new MemoryService(db) }
+function getMemoryService(db: Database) { return memService ??= new MemoryService(db) }
 
 export const memoryRouter = router({
   list: protectedProcedure

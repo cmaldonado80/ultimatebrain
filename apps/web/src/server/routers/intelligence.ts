@@ -1,14 +1,15 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
+import type { Database } from '@solarc/db'
 import { CognitionManager, ChatSessionManager, AgentMessagingService } from '../services/intelligence'
 
 let cognition: CognitionManager | null = null
 let chatManager: ChatSessionManager | null = null
 let messaging: AgentMessagingService | null = null
 
-function getCognition(db: any) { return cognition ??= new CognitionManager(db) }
-function getChatManager(db: any) { return chatManager ??= new ChatSessionManager(db) }
-function getMessaging(db: any) { return messaging ??= new AgentMessagingService(db) }
+function getCognition(db: Database) { return cognition ??= new CognitionManager(db) }
+function getChatManager(db: Database) { return chatManager ??= new ChatSessionManager(db) }
+function getMessaging(db: Database) { return messaging ??= new AgentMessagingService(db) }
 
 export const intelligenceRouter = router({
   // === Cognition State ===

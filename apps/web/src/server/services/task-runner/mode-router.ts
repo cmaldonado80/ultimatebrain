@@ -16,6 +16,8 @@
 import type { Database } from '@solarc/db'
 import { tickets } from '@solarc/db'
 import { eq } from 'drizzle-orm'
+import { GatewayRouter } from '../gateway'
+import { WebhookService } from '../integrations'
 
 export type ExecutionMode = 'quick' | 'autonomous' | 'deep_work'
 export type TicketComplexity = 'easy' | 'medium' | 'hard' | 'critical'
@@ -82,7 +84,13 @@ const DEEP_WORK_CHECKIN_STEPS = 5
 const DEEP_WORK_CHECKIN_MS = 5 * 60 * 1000
 
 export class ModeRouter {
-  constructor(private db: Database) {}
+  private gateway: GatewayRouter
+  private webhookService: WebhookService
+
+  constructor(private db: Database) {
+    this.gateway = new GatewayRouter(db)
+    this.webhookService = new WebhookService(db)
+  }
 
   /**
    * Auto-detect the best execution mode for a ticket.
@@ -307,8 +315,19 @@ export class ModeRouter {
   // ── Internal helpers ──────────────────────────────────────────────────────
 
   private async singleLLMCall(prompt: string, context: string): Promise<string> {
-    // Stub — real impl calls GatewayRouter with quick model (haiku)
-    return `[Quick] Responded to: ${prompt.slice(0, 80)} (context: ${context.slice(0, 40)})`
+    try {
+      const result = await this.gateway.chat({
+        model: 'claude-haiku-4-5',
+        messages: [
+          { role: 'system', content: `You are a helpful assistant. Context: ${context}` },
+          { role: 'user', content: prompt },
+        ],
+      })
+      return result.content
+    } catch (err) {
+      console.error('[ModeRouter] Quick LLM call failed, returning fallback:', err)
+      return `[Quick] Responded to: ${prompt.slice(0, 80)} (context: ${context.slice(0, 40)})`
+    }
   }
 
   private async runAutonomousPipeline(

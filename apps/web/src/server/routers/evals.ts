@@ -1,13 +1,14 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { evalDatasets, evalCases, evalRuns } from '@solarc/db'
+import type { Database } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
 import { EvalCaseInput, EvalScores } from '@solarc/engine-contracts'
 import { EvalRunner, DatasetBuilder, DriftDetector } from '../services/evals'
 
 let runnerInstance: EvalRunner | null = null
 
-function getRunner(db: any): EvalRunner {
+function getRunner(db: Database): EvalRunner {
   if (!runnerInstance) {
     runnerInstance = new EvalRunner(db)
   }
