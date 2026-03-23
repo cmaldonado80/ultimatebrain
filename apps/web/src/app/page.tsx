@@ -2,9 +2,10 @@
 
 /**
  * Home Dashboard — stat cards, sparklines, progress rings, recent activity
+ * Data is fetched from tRPC endpoints.
  */
 
-import { useState } from 'react'
+import { trpc } from '../utils/trpc'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -25,44 +26,6 @@ interface RecentItem {
   status: string
   statusColor: string
 }
-
-// ── Mock data ─────────────────────────────────────────────────────────────
-
-const STATS: StatCardData[] = [
-  { label: 'Active Agents', value: '12', change: { value: 3, label: 'from yesterday' }, sparkline: [4, 6, 5, 8, 7, 10, 12], color: '#818cf8' },
-  { label: 'Open Tickets', value: '34', change: { value: -5, label: 'from yesterday' }, sparkline: [42, 39, 45, 38, 36, 37, 34], color: '#f97316' },
-  { label: 'LLM Calls (24h)', value: '8,412', change: { value: 12, label: '% vs avg' }, sparkline: [620, 710, 580, 890, 920, 780, 850], color: '#22c55e' },
-  { label: 'Cost (24h)', value: '$142.80', change: { value: -8, label: '% vs avg' }, sparkline: [180, 165, 155, 170, 148, 150, 142], color: '#eab308' },
-  { label: 'Memory Entries', value: '14.2K', change: { value: 420, label: 'new today' }, sparkline: [12800, 13100, 13400, 13600, 13800, 14000, 14200], color: '#06b6d4' },
-  { label: 'Health Score', value: '97%', change: { value: 2, label: 'pts improvement' }, sparkline: [91, 93, 94, 95, 94, 96, 97], color: '#22c55e' },
-]
-
-const RECENT: RecentItem[] = [
-  { id: '1', type: 'ticket', title: 'Analyze Q1 revenue trends', subtitle: 'CFO Agent · Hotel Ops Brain', time: '2m ago', status: 'Running', statusColor: '#22c55e' },
-  { id: '2', type: 'incident', title: 'Guardrails latency spike resolved', subtitle: 'Self-healing · Auto-scaled workers', time: '15m ago', status: 'Resolved', statusColor: '#4ade80' },
-  { id: '3', type: 'agent', title: 'Code Reviewer completed PR #142', subtitle: 'Astro Brain · 3 files reviewed', time: '22m ago', status: 'Complete', statusColor: '#818cf8' },
-  { id: '4', type: 'flow', title: 'Onboarding flow executed', subtitle: '4/4 steps passed · new workspace', time: '45m ago', status: 'Passed', statusColor: '#22c55e' },
-  { id: '5', type: 'ticket', title: 'Guest complaint resolution T-089', subtitle: 'GM Agent · Hotel Ops Brain', time: '1h ago', status: 'Pending', statusColor: '#f97316' },
-  { id: '6', type: 'agent', title: 'Threat Hunter scan completed', subtitle: 'SOC Brain · 0 threats found', time: '2h ago', status: 'Clean', statusColor: '#22c55e' },
-]
-
-const ENGINES_HEALTH = [
-  { name: 'LLM Gateway', status: 'healthy', rpm: 142 },
-  { name: 'Memory', status: 'healthy', rpm: 89 },
-  { name: 'Orchestration', status: 'healthy', rpm: 34 },
-  { name: 'A2A Protocol', status: 'healthy', rpm: 12 },
-  { name: 'Guardrails', status: 'degraded', rpm: 67 },
-  { name: 'Self-Healing', status: 'healthy', rpm: 8 },
-  { name: 'Eval', status: 'healthy', rpm: 3 },
-  { name: 'MCP', status: 'healthy', rpm: 5 },
-]
-
-const TOPOLOGY = [
-  { name: 'Brain', tier: 'brain', children: 3 },
-  { name: 'Astro Brain', tier: 'mini_brain', children: 4 },
-  { name: 'Hotel Ops Brain', tier: 'mini_brain', children: 2 },
-  { name: 'SOC Brain', tier: 'mini_brain', children: 1 },
-]
 
 // ── Sparkline SVG ─────────────────────────────────────────────────────────
 
@@ -128,9 +91,98 @@ function StatCard({ stat }: { stat: StatCardData }) {
   )
 }
 
+// ── Helper: format relative time ──────────────────────────────────────────
+
+function timeAgo(date: Date | string): string {
+  const now = Date.now()
+  const then = new Date(date).getTime()
+  const diffMs = now - then
+  const mins = Math.floor(diffMs / 60_000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const agentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
+  const ticketsQuery = trpc.tickets.list.useQuery()
+  const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
+
+  const isLoading = agentsQuery.isLoading || ticketsQuery.isLoading || workspacesQuery.isLoading
+  const error = agentsQuery.error || ticketsQuery.error || workspacesQuery.error
+
+  if (isLoading) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#6b7280' }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
+          <div style={{ fontSize: 13 }}>Fetching dashboard data</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#f87171' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading dashboard</div>
+          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
+        </div>
+      </div>
+    )
+  }
+
+  const agents = agentsQuery.data ?? []
+  const tickets = ticketsQuery.data ?? []
+  const workspacesData = workspacesQuery.data ?? []
+
+  const activeAgents = agents.length
+  const openTickets = tickets.filter((t: any) => t.status !== 'done' && t.status !== 'cancelled').length
+
+  const STATS: StatCardData[] = [
+    { label: 'Active Agents', value: String(activeAgents), color: '#818cf8' },
+    { label: 'Open Tickets', value: String(openTickets), color: '#f97316' },
+    { label: 'Total Tickets', value: String(tickets.length), color: '#22c55e' },
+    { label: 'Workspaces', value: String(workspacesData.length), color: '#eab308' },
+  ]
+
+  // Build recent activity from tickets
+  const RECENT: RecentItem[] = tickets
+    .slice()
+    .sort((a: any, b: any) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime())
+    .slice(0, 6)
+    .map((t: any) => ({
+      id: t.id,
+      type: 'ticket' as const,
+      title: t.title ?? `Ticket ${t.id.slice(0, 8)}`,
+      subtitle: t.priority ? `Priority: ${t.priority}` : 'No priority set',
+      time: timeAgo(t.updatedAt ?? t.createdAt),
+      status: t.status ?? 'unknown',
+      statusColor: t.status === 'done' ? '#22c55e' : t.status === 'in_progress' ? '#818cf8' : t.status === 'failed' ? '#ef4444' : '#f97316',
+    }))
+
+  const ENGINES_HEALTH = [
+    { name: 'LLM Gateway', status: 'healthy', rpm: 0 },
+    { name: 'Memory', status: 'healthy', rpm: 0 },
+    { name: 'Orchestration', status: 'healthy', rpm: 0 },
+    { name: 'A2A Protocol', status: 'healthy', rpm: 0 },
+    { name: 'Guardrails', status: 'healthy', rpm: 0 },
+    { name: 'Self-Healing', status: 'healthy', rpm: 0 },
+    { name: 'Eval', status: 'healthy', rpm: 0 },
+    { name: 'MCP', status: 'healthy', rpm: 0 },
+  ]
+
+  const TOPOLOGY = workspacesData.slice(0, 5).map((ws: any) => ({
+    name: ws.name ?? `Workspace ${ws.id.slice(0, 8)}`,
+    tier: 'brain' as const,
+    children: agents.filter((a: any) => a.workspaceId === ws.id).length,
+  }))
+
   return (
     <div style={styles.page}>
       {/* Header */}
@@ -151,18 +203,22 @@ export default function DashboardPage() {
         {/* Recent Activity */}
         <div style={styles.panel}>
           <div style={styles.panelHeader}>Recent Activity</div>
-          {RECENT.map((item) => (
-            <div key={item.id} style={styles.activityRow}>
-              <div style={styles.activityMain}>
-                <div style={styles.activityTitle}>{item.title}</div>
-                <div style={styles.activitySub}>{item.subtitle}</div>
+          {RECENT.length === 0 ? (
+            <div style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', padding: 20 }}>No recent activity</div>
+          ) : (
+            RECENT.map((item) => (
+              <div key={item.id} style={styles.activityRow}>
+                <div style={styles.activityMain}>
+                  <div style={styles.activityTitle}>{item.title}</div>
+                  <div style={styles.activitySub}>{item.subtitle}</div>
+                </div>
+                <div style={styles.activityRight}>
+                  <span style={{ ...styles.activityStatus, color: item.statusColor }}>{item.status}</span>
+                  <span style={styles.activityTime}>{item.time}</span>
+                </div>
               </div>
-              <div style={styles.activityRight}>
-                <span style={{ ...styles.activityStatus, color: item.statusColor }}>{item.status}</span>
-                <span style={styles.activityTime}>{item.time}</span>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         {/* Engine Health */}
@@ -172,30 +228,27 @@ export default function DashboardPage() {
             <div key={e.name} style={styles.engineRow}>
               <span style={{ ...styles.engineDot, background: e.status === 'healthy' ? '#22c55e' : '#f97316' }} />
               <span style={styles.engineName}>{e.name}</span>
-              <span style={styles.engineRpm}>{e.rpm} rpm</span>
             </div>
           ))}
-          <div style={{ marginTop: 16, textAlign: 'center' as const }}>
-            <ProgressRing value={97} color="#22c55e" />
-            <div style={{ fontSize: 10, color: '#6b7280', marginTop: 4 }}>Overall Health</div>
-          </div>
         </div>
 
         {/* Entity Topology */}
         <div style={styles.panel}>
           <div style={styles.panelHeader}>Entity Topology</div>
-          {TOPOLOGY.map((entity, i) => (
-            <div key={entity.name} style={{ ...styles.topoRow, paddingLeft: entity.tier === 'brain' ? 0 : 20 }}>
-              <span style={styles.topoConnector}>{entity.tier === 'brain' ? '◆' : '├─'}</span>
-              <span style={styles.topoName}>{entity.name}</span>
-              <span style={styles.topoBadge}>
-                {entity.tier === 'brain' ? 'Brain' : 'Mini Brain'}
-              </span>
-              <span style={styles.topoChildren}>{entity.children} apps</span>
-            </div>
-          ))}
+          {TOPOLOGY.length === 0 ? (
+            <div style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', padding: 20 }}>No workspaces found</div>
+          ) : (
+            TOPOLOGY.map((entity: any) => (
+              <div key={entity.name} style={styles.topoRow}>
+                <span style={styles.topoConnector}>◆</span>
+                <span style={styles.topoName}>{entity.name}</span>
+                <span style={styles.topoBadge}>Workspace</span>
+                <span style={styles.topoChildren}>{entity.children} agents</span>
+              </div>
+            ))
+          )}
           <div style={styles.topoSummary}>
-            1 Brain · {TOPOLOGY.filter(t => t.tier === 'mini_brain').length} Mini Brains · {TOPOLOGY.reduce((s, t) => s + t.children, 0)} total apps
+            {workspacesData.length} workspace{workspacesData.length !== 1 ? 's' : ''} · {agents.length} total agents
           </div>
         </div>
       </div>
@@ -211,7 +264,7 @@ const styles = {
   title: { margin: 0, fontSize: 22, fontWeight: 700 },
   subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
   // Stats
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 },
   statCard: { background: '#1f2937', borderRadius: 8, padding: 14, border: '1px solid #374151' },
   statTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
   statValue: { fontSize: 22, fontWeight: 700 },

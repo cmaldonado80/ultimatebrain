@@ -63,7 +63,9 @@ export const debateNodes = pgTable('debate_nodes', {
   parentId: uuid('parent_id').references(() => debateNodes.id),
   isAxiom: boolean('is_axiom').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (t) => [
+  index('debate_nodes_session_id_idx').on(t.sessionId),
+])
 
 export const debateEdges = pgTable('debate_edges', {
   fromNodeId: uuid('from_node_id').references(() => debateNodes.id).notNull(),
@@ -94,7 +96,9 @@ export const tokenLedger = pgTable('token_ledger', {
   period: timestamp('period').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow(),
-})
+}, (t) => [
+  index('token_ledger_entity_id_idx').on(t.entityId),
+])
 
 export const tokenBudgets = pgTable('token_budgets', {
   entityId: uuid('entity_id').references(() => brainEntities.id).primaryKey(),
