@@ -1,19 +1,24 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
+import type { Database } from '@solarc/db'
 import { CrewEngine } from '../services/crews/crew-engine'
 import { RecallFlow } from '../services/memory/recall-flow'
+import { GatewayRouter } from '../services/gateway'
 
 let _crewEngine: CrewEngine | null = null
 let _recallFlow: RecallFlow | null = null
+let _gateway: GatewayRouter | null = null
 
-function getCrewEngine(db: any) { return _crewEngine ??= new CrewEngine(db) }
-function getRecallFlow(db: any, embed: (text: string) => Promise<number[]>) {
-  return _recallFlow ??= new RecallFlow(db, embed)
+function getCrewEngine(db: Database) { return _crewEngine ??= new CrewEngine(db) }
+function getGateway(db: Database) { return _gateway ??= new GatewayRouter(db) }
+
+const realEmbed = async (text: string, db: Database): Promise<number[]> => {
+  try { return await getGateway(db).embed(text) } catch { return Array(1536).fill(0) }
 }
 
-// Stub embed function — real impl calls GatewayRouter embed endpoint
-const stubEmbed = async (_text: string): Promise<number[]> =>
-  new Array(1536).fill(0).map(() => Math.random() - 0.5)
+function getRecallFlow(db: Database) {
+  return _recallFlow ??= new RecallFlow(db, (text: string) => realEmbed(text, db))
+}
 
 const agentDefinitionSchema = z.object({
   id: z.string(),
@@ -83,21 +88,21 @@ export const flowsRouter = router({
   recall: protectedProcedure
     .input(recallQuerySchema)
     .query(async ({ ctx, input }) => {
-      return getRecallFlow(ctx.db, stubEmbed).search(input)
+      return getRecallFlow(ctx.db).search(input)
     }),
 
   /** Search memory and return a formatted context block for agent injection */
   recallAndInject: protectedProcedure
     .input(recallQuerySchema)
     .query(async ({ ctx, input }) => {
-      return getRecallFlow(ctx.db, stubEmbed).searchAndInject(input)
+      return getRecallFlow(ctx.db).searchAndInject(input)
     }),
 
   /** Promote memory IDs that were useful in an agent turn */
   promoteMemories: protectedProcedure
     .input(z.object({ memoryIds: z.array(z.string().uuid()) }))
     .mutation(async ({ ctx, input }) => {
-      await getRecallFlow(ctx.db, stubEmbed).promoteUsedMemories(input.memoryIds)
+      await getRecallFlow(ctx.db).promoteUsedMemories(input.memoryIds)
       return { promoted: input.memoryIds.length }
     }),
 })

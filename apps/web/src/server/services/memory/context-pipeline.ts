@@ -8,6 +8,12 @@
  * Autonomous/Deep Work: full pipeline with relevance scoring and fallback.
  */
 
+import type { Database } from '@solarc/db'
+import { GatewayRouter } from '../gateway'
+import { MemoryService } from './memory-service'
+import { RecallFlow, type RecallQuery } from './recall-flow'
+import type { EmbedFunction } from './memory-service'
+
 export interface ContextSource {
   name: string
   type: 'rag' | 'memory' | 'web' | 'tools'
@@ -47,6 +53,20 @@ export interface PipelineOptions {
 
 export class ContextPipeline {
   private defaultThreshold = 0.5
+  private gateway: GatewayRouter | null = null
+  private memoryService: MemoryService | null = null
+  private recallFlow: RecallFlow | null = null
+
+  constructor(opts?: { db?: Database; embedFn?: EmbedFunction }) {
+    if (opts?.db) {
+      this.gateway = new GatewayRouter(opts.db)
+      this.memoryService = new MemoryService(opts.db)
+      if (opts.embedFn) {
+        this.memoryService.setEmbedFunction(opts.embedFn)
+        this.recallFlow = new RecallFlow(opts.db, opts.embedFn)
+      }
+    }
+  }
 
   /**
    * Run the full context pipeline for a query.
@@ -124,15 +144,21 @@ export class ContextPipeline {
   }
 
   private async gatherFromRAG(query: string): Promise<ContextSource[]> {
-    // Stub — real impl: pgvector similarity search on document embeddings
-    return [
-      {
-        name: 'rag-doc-1',
-        type: 'rag',
-        content: `RAG result for: "${query.slice(0, 50)}"`,
-        rawScore: 0.85,
-      },
-    ]
+    // Use MemoryService vector search for document context
+    try {
+      if (this.memoryService) {
+        const results = await this.memoryService.search(query, { tier: 'core', limit: 5 })
+        return results.map((r) => ({
+          name: `rag-${r.id}`,
+          type: 'rag' as const,
+          content: r.content,
+          rawScore: r.score,
+        }))
+      }
+    } catch (err) {
+      console.error('[ContextPipeline] RAG search failed, returning empty:', err)
+    }
+    return []
   }
 
   private async gatherFromMemory(query: string): Promise<ContextSource[]> {

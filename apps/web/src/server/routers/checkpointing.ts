@@ -1,14 +1,15 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
+import type { Database } from '@solarc/db'
 import { CheckpointManager } from '../services/checkpointing/checkpoint-manager'
 import { TimeTravelEngine } from '../services/checkpointing/time-travel'
 
 let _checkpointMgr: CheckpointManager | null = null
 let _timeTravelEngine: TimeTravelEngine | null = null
 
-function getCheckpointManager(db: any) { return _checkpointMgr ??= new CheckpointManager(db) }
-function getTimeTravelEngine(db: any) { return _timeTravelEngine ??= new TimeTravelEngine(db) }
+function getCheckpointManager(db: Database) { return _checkpointMgr ??= new CheckpointManager(db) }
+function getTimeTravelEngine(db: Database) { return _timeTravelEngine ??= new TimeTravelEngine(db) }
 
 export const checkpointingRouter = router({
   // ── Checkpoint CRUD ──────────────────────────────────────────────────────
