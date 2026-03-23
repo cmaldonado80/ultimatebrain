@@ -9,7 +9,7 @@
  * - "Create eval from trace" button in header
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { trpc } from '../../../utils/trpc'
 
 // ── Types (mirroring server types for client use) ─────────────────────────
@@ -203,12 +203,14 @@ export default function EvalsPage() {
     createdAt: new Date(d.createdAt),
   }))
 
-  // Auto-select first dataset if none selected
   const selectedDataset = datasets.find((d) => d.id === selectedDatasetId) ?? (datasets.length > 0 ? datasets[0] : null)
-  if (selectedDataset && selectedDatasetId !== selectedDataset.id) {
-    // Use effect-like pattern: will re-render with correct ID
-    setTimeout(() => setSelectedDatasetId(selectedDataset.id), 0)
-  }
+
+  // Auto-select first dataset if none selected
+  useEffect(() => {
+    if (selectedDataset && selectedDatasetId !== selectedDataset.id) {
+      setSelectedDatasetId(selectedDataset.id)
+    }
+  }, [selectedDataset, selectedDatasetId])
 
   const runsRaw: any[] = runsQuery.data ?? []
   const history: RunHistory[] = runsRaw.map((r: any) => ({

@@ -202,6 +202,7 @@ export default function PlaybooksPage() {
       { id: runTarget.id, parameterValues: params },
       {
         onSuccess: () => {
+          utils.playbooks.list.invalidate()
           setLastRunResult(`Playbook "${runTarget.name}" executed successfully.`)
           setTimeout(() => setLastRunResult(null), 5000)
         },
