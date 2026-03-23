@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, real, index } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, real, numeric, date, index, pgEnum } from 'drizzle-orm/pg-core'
 import { agents, guardrailLayerEnum, instinctScopeEnum } from './core'
 
 // Feature #1: Checkpointing
@@ -141,4 +141,67 @@ export const instinctObservations = pgTable('instinct_observations', {
   eventType: text('event_type').notNull(),
   payload: jsonb('payload'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// Debate persistence (from ECC debate_sidebar.js redesign)
+export const debateStatusEnum = pgEnum('debate_status', ['active', 'completed', 'cancelled'])
+export const debateEdgeTypeEnum = pgEnum('debate_edge_type', ['support', 'attack', 'rebuttal'])
+
+export const debateSessions = pgTable('debate_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id'),
+  status: debateStatusEnum('status').default('active').notNull(),
+  constitutionalRules: jsonb('constitutional_rules'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const debateNodes = pgTable('debate_nodes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sessionId: uuid('session_id').references(() => debateSessions.id).notNull(),
+  agentId: uuid('agent_id'),
+  text: text('text').notNull(),
+  validity: real('validity'),
+  parentId: uuid('parent_id'),
+  isAxiom: boolean('is_axiom').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const debateEdges = pgTable('debate_edges', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fromNodeId: uuid('from_node_id').references(() => debateNodes.id).notNull(),
+  toNodeId: uuid('to_node_id').references(() => debateNodes.id).notNull(),
+  type: debateEdgeTypeEnum('type').notNull(),
+})
+
+export const debateElo = pgTable('debate_elo', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id').notNull(),
+  eloRating: integer('elo_rating').default(1200).notNull(),
+  matches: integer('matches').default(0).notNull(),
+  wins: integer('wins').default(0).notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// Token accounting (from ECC cognition layer)
+export const tokenLedger = pgTable('token_ledger', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  entityId: uuid('entity_id'),
+  agentId: uuid('agent_id'),
+  model: text('model').notNull(),
+  provider: text('provider').notNull(),
+  tokensIn: integer('tokens_in').default(0).notNull(),
+  tokensOut: integer('tokens_out').default(0).notNull(),
+  costUsd: numeric('cost_usd', { precision: 10, scale: 6 }).default('0').notNull(),
+  period: date('period').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const tokenBudgets = pgTable('token_budgets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  entityId: uuid('entity_id').notNull(),
+  dailyLimitUsd: numeric('daily_limit_usd', { precision: 10, scale: 2 }),
+  monthlyLimitUsd: numeric('monthly_limit_usd', { precision: 10, scale: 2 }),
+  alertThreshold: real('alert_threshold').default(0.8),
+  enforce: boolean('enforce').default(true),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
