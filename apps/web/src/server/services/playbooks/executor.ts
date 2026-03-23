@@ -9,6 +9,7 @@
  */
 
 import type { Database } from '@solarc/db'
+import { GatewayRouter } from '../gateway'
 import type { PlaybookStep, SavedPlaybook } from './recorder'
 
 export type StepStatus = 'pending' | 'running' | 'passed' | 'failed' | 'skipped' | 'awaiting_hitl'
@@ -69,7 +70,11 @@ export interface ExecuteOptions {
 const runStore = new Map<string, PlaybookRunResult>()
 
 export class PlaybookExecutor {
-  constructor(private db: Database) {}
+  private gateway: GatewayRouter
+
+  constructor(private db: Database) {
+    this.gateway = new GatewayRouter(db)
+  }
 
   /**
    * Execute a playbook with given parameter values.
@@ -315,7 +320,22 @@ export class PlaybookExecutor {
 
   private async verifyOutcome(step: PlaybookStep, output: unknown): Promise<boolean> {
     if (!step.expectedOutcome) return false
-    // Stub — real impl does LLM-as-judge comparison of actual vs expected outcome
-    return false
+    try {
+      const result = await this.gateway.chat({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a verification judge. Compare actual output against expected outcome. Answer with exactly "yes" if they match or "no" if they do not.',
+          },
+          {
+            role: 'user',
+            content: `Expected outcome: ${step.expectedOutcome}\n\nActual result: ${JSON.stringify(output)}\n\nDoes this result match the expected outcome? Answer yes or no.`,
+          },
+        ],
+      })
+      return result.content.trim().toLowerCase().startsWith('yes')
+    } catch {
+      return false
+    }
   }
 }

@@ -229,9 +229,30 @@ export class AitmplDiscoverer {
   // ── Internal ──────────────────────────────────────────────────────────
 
   private async fetchCategoryListing(category: ComponentCategory): Promise<CatalogEntry[]> {
-    // Stub — real impl: GitHub API → list directory contents
-    // GET /repos/aitmpl/marketplace/contents/{category}
-    return []
+    try {
+      const res = await fetch(`https://api.github.com/repos/aitmpl/marketplace/contents/${category}`, {
+        headers: { 'Accept': 'application/vnd.github.v3+json' },
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (!res.ok) return []
+
+      const entries = (await res.json()) as Array<{ name: string; type: string; path: string }>
+      const dirs = entries.filter((e) => e.type === 'dir')
+
+      return dirs.map((dir) => ({
+        id: `aitmpl-${category}-${dir.name}`,
+        name: dir.name,
+        category,
+        version: '1.0.0',
+        author: 'unknown',
+        description: `${category} component: ${dir.name}`,
+        downloads: 0,
+        tags: [category],
+        updatedAt: new Date(),
+      }))
+    } catch {
+      return []
+    }
   }
 
   private recordInstall(component: AitmplComponent, tier: InstallTier, entity: string): void {

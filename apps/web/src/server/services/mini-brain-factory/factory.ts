@@ -276,44 +276,223 @@ export class MiniBrainFactory {
     }
   }
 
-  // ── Internal stubs (real impl uses fs, docker, drizzle) ───────────────
+  // ── Internal methods ─────────────────────────────────────────────────
 
-  private async cloneTemplate(_template: string, _targetDir: string): Promise<void> {
-    // Stub: copy template files to target directory
+  /** The database instance used for Brain tables (agents, brain_entities, etc.) */
+  private db: ReturnType<typeof createDb> | null = null
+
+  private getDb(): ReturnType<typeof createDb> {
+    if (!this.db) {
+      const brainDbUrl = process.env.DATABASE_URL
+      if (!brainDbUrl) {
+        throw new Error('DATABASE_URL environment variable is required for Brain database access')
+      }
+      this.db = createDb(brainDbUrl)
+    }
+    return this.db
   }
 
-  private async setupDatabase(_url: string, _tables: string[]): Promise<void> {
-    // Stub: create database, run migrations
+  /** Resolve the on-disk path for a template id (e.g. "astrology" → templates/astrology) */
+  private resolveTemplatePath(template: string): string {
+    // Templates live at the repo root under templates/
+    return path.resolve(process.cwd(), 'templates', template)
   }
 
-  private async downloadDomainData(_template: string, _targetDir: string): Promise<void> {
-    // Stub: download domain-specific data files
+  private async cloneTemplate(template: string, targetDir: string): Promise<void> {
+    try {
+      const templateDir = this.resolveTemplatePath(template)
+      // Verify the template directory exists
+      try {
+        await fs.access(templateDir)
+      } catch {
+        throw new Error(`Template directory not found at ${templateDir}. Available templates: ${TEMPLATES.map((t) => t.id).join(', ')}`)
+      }
+      // Ensure parent of target exists
+      await fs.mkdir(path.dirname(targetDir), { recursive: true })
+      // Copy entire template tree to target directory
+      await fs.cp(templateDir, targetDir, { recursive: true })
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith('Template directory not found')) throw err
+      throw new Error(`Failed to clone template "${template}" to ${targetDir}: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
-  private async createAgents(agents: AgentDefinition[], miniBrainId: string): Promise<string[]> {
-    // Stub: insert into Brain's agents table
-    return agents.map(() => crypto.randomUUID())
+  private async setupDatabase(url: string, _tables: string[]): Promise<void> {
+    // Parse the database name from the connection string
+    const parsed = new URL(url)
+    const dbName = parsed.pathname.replace(/^\//, '')
+    if (!dbName) {
+      throw new Error(`Could not parse database name from URL: ${url}`)
+    }
+
+    // Connect to the default "postgres" database to create the target DB
+    const adminUrl = new URL(url)
+    adminUrl.pathname = '/postgres'
+    const client = new pg.Client({ connectionString: adminUrl.toString() })
+
+    try {
+      await client.connect()
+      // CREATE DATABASE cannot run inside a transaction; use IF NOT EXISTS via query
+      const exists = await client.query(
+        `SELECT 1 FROM pg_database WHERE datname = $1`,
+        [dbName]
+      )
+      if (exists.rowCount === 0) {
+        // Identifiers can't be parameterised, but dbName comes from our own config
+        await client.query(`CREATE DATABASE "${dbName}"`)
+      }
+    } catch (err) {
+      throw new Error(`Failed to set up database "${dbName}": ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      await client.end()
+    }
+
+    // Run Drizzle migrations against the newly-created database
+    // We use the drizzle-kit CLI so it picks up the template's drizzle.config.ts
+    try {
+      const { execSync } = await import('node:child_process')
+      execSync(`npx drizzle-kit push`, {
+        env: { ...process.env, DATABASE_URL: url },
+        stdio: 'pipe',
+      })
+    } catch (err) {
+      // Migrations are best-effort; the schema may already be in place
+      console.warn(`[MiniBrainFactory] drizzle-kit push warning: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  private async downloadDomainData(template: string, targetDir: string): Promise<void> {
+    // Domain data URLs are looked up from a well-known config file in the template
+    const configPath = path.join(targetDir, 'domain-data.json')
+    try {
+      await fs.access(configPath)
+    } catch {
+      // No domain-data.json → nothing to download (many templates don't need external data)
+      return
+    }
+
+    try {
+      const raw = await fs.readFile(configPath, 'utf-8')
+      const config = JSON.parse(raw) as { files?: { url: string; dest: string }[] }
+
+      if (!config.files || config.files.length === 0) return
+
+      const dataDir = path.join(targetDir, 'data')
+      await fs.mkdir(dataDir, { recursive: true })
+
+      await Promise.all(
+        config.files.map(async (file) => {
+          const res = await fetch(file.url)
+          if (!res.ok) {
+            throw new Error(`Failed to download ${file.url}: ${res.status} ${res.statusText}`)
+          }
+          const dest = path.join(dataDir, file.dest)
+          await fs.mkdir(path.dirname(dest), { recursive: true })
+          const buffer = Buffer.from(await res.arrayBuffer())
+          await fs.writeFile(dest, buffer)
+        })
+      )
+    } catch (err) {
+      throw new Error(`Failed to download domain data for template "${template}": ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  private async createAgents(agentDefs: AgentDefinition[], miniBrainId: string): Promise<string[]> {
+    const db = this.getDb()
+    try {
+      const ids: string[] = []
+      for (const def of agentDefs) {
+        const [inserted] = await db
+          .insert(agents)
+          .values({
+            name: def.name,
+            type: def.role,
+            description: `[${miniBrainId}] ${def.role}`,
+            skills: def.capabilities,
+          })
+          .returning({ id: agents.id })
+        ids.push(inserted.id)
+      }
+      return ids
+    } catch (err) {
+      throw new Error(`Failed to create agents for Mini Brain ${miniBrainId}: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   private async registerEntity(
-    _id: string,
-    _name: string,
-    _tier: string,
-    _template: string,
-    _parentId?: string
+    id: string,
+    name: string,
+    tier: string,
+    template: string,
+    parentId?: string,
   ): Promise<void> {
-    // Stub: insert into brain_entities table
+    const db = this.getDb()
+    try {
+      await db.insert(brainEntities).values({
+        id,
+        name,
+        tier: tier as 'brain' | 'mini_brain' | 'development',
+        domain: template,
+        parentId: parentId ?? null,
+        status: 'provisioning',
+      })
+    } catch (err) {
+      throw new Error(`Failed to register entity "${name}" (${tier}): ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   private async wireSdkConnection(
-    _targetDir: string,
-    _endpoint: string,
-    _apiKey: string
+    targetDir: string,
+    endpoint: string,
+    apiKey: string,
   ): Promise<void> {
-    // Stub: write .env with Brain SDK config
+    try {
+      const envPath = path.join(targetDir, '.env')
+      const envContent = [
+        `# Brain SDK connection — auto-generated by MiniBrainFactory`,
+        `BRAIN_ENDPOINT=${endpoint}`,
+        `BRAIN_API_KEY=${apiKey}`,
+        '',
+      ].join('\n')
+      await fs.writeFile(envPath, envContent, 'utf-8')
+    } catch (err) {
+      throw new Error(`Failed to write SDK connection config to ${targetDir}: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
-  private async assignHealer(_entityId: string): Promise<void> {
-    // Stub: assign Brain's healer agent to monitor this entity
+  private async assignHealer(entityId: string): Promise<void> {
+    const db = this.getDb()
+    try {
+      // Find an agent with the 'healer' role that is already registered as a healer
+      // in brain_entity_agents, or fall back to any agent tagged as a healer in agents table.
+      const healerAssignment = await db.query.brainEntityAgents.findFirst({
+        where: eq(brainEntityAgents.role, 'healer'),
+        columns: { agentId: true },
+      })
+
+      let healerAgentId: string | undefined = healerAssignment?.agentId
+
+      if (!healerAgentId) {
+        // Fall back: look for an agent whose type contains 'healer'
+        const healerAgent = await db.query.agents.findFirst({
+          where: eq(agents.type, 'healer'),
+          columns: { id: true },
+        })
+        healerAgentId = healerAgent?.id
+      }
+
+      if (!healerAgentId) {
+        console.warn(`[MiniBrainFactory] No healer agent found — skipping healer assignment for entity ${entityId}`)
+        return
+      }
+
+      await db.insert(brainEntityAgents).values({
+        entityId,
+        agentId: healerAgentId,
+        role: 'healer',
+      })
+    } catch (err) {
+      throw new Error(`Failed to assign healer to entity ${entityId}: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 }

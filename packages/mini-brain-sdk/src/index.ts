@@ -1,12 +1,45 @@
 // @solarc/mini-brain-sdk — Developments connect UP to Mini Brains
 // Auto-generated client from Mini Brain tRPC router types
 
+import { createTRPCClient, httpBatchLink } from '@trpc/client'
+import superjson from 'superjson'
+
 export interface MiniBrainClientConfig {
-  apiKey: string
-  endpoint: string
+  /** The Mini Brain's base URL (e.g. http://localhost:3100) */
+  url: string
+  /** API key issued by the Mini Brain Factory */
+  apiKey?: string
 }
 
-export function createMiniBrainClient(_config: MiniBrainClientConfig) {
-  // TODO: Phase 17B — auto-generate from Mini Brain tRPC router types
-  throw new Error('@solarc/mini-brain-sdk: Not yet implemented. Build Mini Brain Factory first (Phase 17B).')
+/**
+ * Create a tRPC client that connects a Development app to its parent Mini Brain.
+ *
+ * Usage:
+ * ```ts
+ * import { createMiniBrainClient } from '@solarc/mini-brain-sdk'
+ *
+ * const brain = createMiniBrainClient({
+ *   url: process.env.BRAIN_ENDPOINT!,
+ *   apiKey: process.env.BRAIN_API_KEY,
+ * })
+ * ```
+ */
+export function createMiniBrainClient(config: MiniBrainClientConfig) {
+  if (!config.url) {
+    throw new Error('@solarc/mini-brain-sdk: "url" is required in MiniBrainClientConfig')
+  }
+
+  const client = createTRPCClient<any>({
+    links: [
+      httpBatchLink({
+        url: `${config.url}/api/trpc`,
+        transformer: superjson,
+        headers: config.apiKey
+          ? { Authorization: `Bearer ${config.apiKey}` }
+          : undefined,
+      }),
+    ],
+  })
+
+  return client
 }
