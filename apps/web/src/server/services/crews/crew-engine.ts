@@ -188,9 +188,9 @@ export class CrewEngine {
       finalAnswer,
       iterationsUsed: iteration + 1,
       toolsUsed: Array.from(toolsUsed),
-      delegationsMode: delegations,
+      delegationsMade: delegations,
       durationMs: Date.now() - start,
-    } as AgentRunResult
+    }
   }
 
   // ── ReAct Step ────────────────────────────────────────────────────────
