@@ -121,7 +121,7 @@ function ScoreTrend({ history, dimension }: { history: RunHistory[]; dimension: 
       />
       {values.map((v, i) => (
         <circle
-          key={i}
+          key={`${dimension.key}-${i}`}
           cx={(i / (values.length - 1)) * width}
           cy={height - (v / max) * height}
           r={3}

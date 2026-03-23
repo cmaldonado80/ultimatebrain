@@ -1,11 +1,11 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { traces } from '@solarc/db'
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm'
 
 export const tracesRouter = router({
   /** Get spans for a specific trace */
-  byTraceId: publicProcedure
+  byTraceId: protectedProcedure
     .input(z.object({ traceId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.db
@@ -16,7 +16,7 @@ export const tracesRouter = router({
     }),
 
   /** Get recent traces (root spans only) */
-  recent: publicProcedure
+  recent: protectedProcedure
     .input(z.object({
       limit: z.number().min(1).max(500).optional(),
       service: z.string().optional(),
@@ -36,7 +36,7 @@ export const tracesRouter = router({
     }),
 
   /** Get traces for an agent */
-  byAgent: publicProcedure
+  byAgent: protectedProcedure
     .input(z.object({
       agentId: z.string().uuid(),
       limit: z.number().min(1).max(500).optional(),
@@ -51,7 +51,7 @@ export const tracesRouter = router({
     }),
 
   /** Get traces for a ticket */
-  byTicket: publicProcedure
+  byTicket: protectedProcedure
     .input(z.object({
       ticketId: z.string().uuid(),
       limit: z.number().min(1).max(500).optional(),
@@ -66,7 +66,7 @@ export const tracesRouter = router({
     }),
 
   /** Get latency percentiles for a service/operation */
-  latencyStats: publicProcedure
+  latencyStats: protectedProcedure
     .input(z.object({
       service: z.string().optional(),
       operation: z.string().optional(),

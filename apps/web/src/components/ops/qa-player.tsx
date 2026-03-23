@@ -320,8 +320,8 @@ export default function QAPlayer({
           {review.suggestedFixes.length > 0 && (
             <div style={styles.section}>
               <div style={styles.sectionHeader}>Suggested Fixes</div>
-              {review.suggestedFixes.map((fix, i) => (
-                <FixRow key={i} fix={fix} />
+              {review.suggestedFixes.map((fix) => (
+                <FixRow key={`${fix.category}-${fix.priority}-${fix.description}`} fix={fix} />
               ))}
             </div>
           )}

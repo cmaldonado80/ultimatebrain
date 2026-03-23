@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { brainEntities } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
 export const entitiesRouter = router({
-  list: publicProcedure
+  list: protectedProcedure
     .input(z.object({
       limit: z.number().min(1).max(100).default(50),
       offset: z.number().min(0).default(0),
@@ -15,12 +15,12 @@ export const entitiesRouter = router({
         offset: input.offset,
       })
     }),
-  byTier: publicProcedure
+  byTier: protectedProcedure
     .input(z.object({ tier: z.enum(['brain', 'mini_brain', 'development']) }))
     .query(async ({ ctx, input }) => {
       return ctx.db.query.brainEntities.findMany({ where: eq(brainEntities.tier, input.tier) })
     }),
-  topology: publicProcedure.query(async ({ ctx }) => {
+  topology: protectedProcedure.query(async ({ ctx }) => {
     const all = await ctx.db.query.brainEntities.findMany()
     const brain = all.filter((e) => e.tier === 'brain')
     const miniBrains = all.filter((e) => e.tier === 'mini_brain')
