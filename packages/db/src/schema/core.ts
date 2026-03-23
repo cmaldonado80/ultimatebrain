@@ -39,7 +39,7 @@ export const agents = pgTable('agents', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   type: text('type'),
-  workspaceId: uuid('workspace_id').references(() => workspaces.id),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'restrict' }),
   status: agentStatusEnum('status').default('idle').notNull(),
   model: text('model'),
   color: text('color'),
@@ -70,17 +70,20 @@ export const projects = pgTable('projects', {
 })
 
 export const projectWorkspaces = pgTable('project_workspaces', {
-  projectId: uuid('project_id').references(() => projects.id).notNull(),
-  workspaceId: uuid('workspace_id').references(() => workspaces.id).notNull(),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (t) => [
   primaryKey({ columns: [t.projectId, t.workspaceId] }),
 ])
 
 export const projectLog = pgTable('project_log', {
   id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id').references(() => projects.id).notNull(),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   workspaceId: uuid('workspace_id'),
   agentId: uuid('agent_id'),
+  updatedAt: timestamp('updated_at').defaultNow(),
   reply: text('reply'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (t) => [
@@ -95,9 +98,9 @@ export const tickets = pgTable('tickets', {
   priority: ticketPriorityEnum('priority').default('medium').notNull(),
   complexity: ticketComplexityEnum('complexity').default('medium').notNull(),
   executionMode: executionModeEnum('execution_mode').default('autonomous'),
-  workspaceId: uuid('workspace_id').references(() => workspaces.id),
-  assignedAgentId: uuid('assigned_agent_id').references(() => agents.id),
-  projectId: uuid('project_id').references(() => projects.id),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
+  assignedAgentId: uuid('assigned_agent_id').references(() => agents.id, { onDelete: 'set null' }),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
   dagId: text('dag_id'),
   dagNodeType: text('dag_node_type'),
   metadata: jsonb('metadata'),
