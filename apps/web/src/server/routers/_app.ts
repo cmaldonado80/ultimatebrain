@@ -20,6 +20,7 @@ import { platformRouter } from './platform'
 import { a2aRouter } from './a2a'
 import { healingRouter } from './healing'
 import { integrationsRouter } from './integrations'
+import { mcpRouter } from './mcp'
 
 export const appRouter = router({
   workspaces: workspacesRouter,
@@ -43,6 +44,7 @@ export const appRouter = router({
   taskRunner: taskRunnerRouter,
   flows: flowsRouter,
   playbooks: playbooksRouter,
+  mcp: mcpRouter,
 })
 
 export type AppRouter = typeof appRouter
