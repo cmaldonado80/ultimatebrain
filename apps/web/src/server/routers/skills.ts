@@ -1,3 +1,9 @@
+/**
+ * Skills Router — skill marketplace and capability discovery.
+ *
+ * Manages the skill marketplace where agents discover, compose, and acquire
+ * reusable capabilities for dynamic tool and behavior extension.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { SkillMarketplace } from '../services/skills/marketplace'

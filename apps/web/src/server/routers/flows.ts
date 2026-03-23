@@ -1,3 +1,9 @@
+/**
+ * Flows Router — deterministic orchestration of crew execution.
+ *
+ * Flows handle the WHEN — invoking crews with memory recall and gateway integration.
+ * Coordinates agent definitions, recall queries, and crew engine execution.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'

@@ -1,3 +1,9 @@
+/**
+ * Evals Router — dataset-based testing and scoring framework.
+ *
+ * Manages evaluation datasets, test cases, and run results for measuring
+ * agent accuracy, detecting drift, and benchmarking model performance.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { evalDatasets, evalCases, evalRuns } from '@solarc/db'

@@ -1,3 +1,9 @@
+/**
+ * Task Runner Router — tiered execution mode routing.
+ *
+ * Routes tasks through execution pipelines (instant, standard, deep) based on
+ * complexity and resource requirements via the ModeRouter service.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'

@@ -1,3 +1,9 @@
+/**
+ * Approvals Router — CRUD for approval gates in workflows.
+ *
+ * Approval gates act as human-in-the-loop checkpoints that pause execution
+ * until explicitly approved or rejected, enforcing authorization boundaries.
+ */
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'

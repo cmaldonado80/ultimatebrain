@@ -1,3 +1,9 @@
+/**
+ * MCP Router — Model Context Protocol server and tool registry.
+ *
+ * Manages MCP server instances with lazy initialization, and the tool registry
+ * for discovering and invoking MCP-compliant tools from agents.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'

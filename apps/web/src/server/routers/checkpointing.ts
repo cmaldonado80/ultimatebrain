@@ -1,3 +1,9 @@
+/**
+ * Checkpointing Router — state snapshots and time-travel execution.
+ *
+ * Creates, restores, and manages execution checkpoints for rollback and replay.
+ * Enables deterministic re-execution from any saved state.
+ */
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'

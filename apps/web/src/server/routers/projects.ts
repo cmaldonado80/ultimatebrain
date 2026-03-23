@@ -1,3 +1,9 @@
+/**
+ * Projects Router — CRUD for workspace project organization.
+ *
+ * Projects group related agents, tickets, and resources within a workspace
+ * for scoped management and access control.
+ */
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'

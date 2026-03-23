@@ -1,3 +1,9 @@
+/**
+ * Platform Router — cross-cutting platform services.
+ *
+ * Provides debate engine for multi-perspective reasoning, token ledger for
+ * usage accounting, and entity management for platform-wide resources.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'

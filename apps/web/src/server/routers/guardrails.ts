@@ -1,3 +1,9 @@
+/**
+ * Guardrails Router — safety enforcement and compliance monitoring.
+ *
+ * Runs guardrail checks against agent outputs, logs violations, and provides
+ * analytics on guardrail trigger rates and compliance trends.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { guardrailLogs } from '@solarc/db'

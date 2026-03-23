@@ -1,3 +1,9 @@
+/**
+ * Playbooks Router — workflow recording, distillation, and replay.
+ *
+ * Records agent execution traces into reusable playbooks, distills them into
+ * optimized step sequences, and replays them for automated workflow execution.
+ */
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'

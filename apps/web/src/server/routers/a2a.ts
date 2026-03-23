@@ -1,3 +1,9 @@
+/**
+ * A2A Router — Agent-to-Agent communication and registry.
+ *
+ * Manages A2A engine instances, agent card generation, and the agent registry
+ * for cross-agent discovery and inter-agent message routing.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'

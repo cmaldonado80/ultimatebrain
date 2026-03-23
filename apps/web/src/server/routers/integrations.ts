@@ -1,3 +1,9 @@
+/**
+ * Integrations Router — external service connectors and fallback management.
+ *
+ * Manages communication channels, webhooks, artifact storage, and model fallback
+ * chains for resilient external system integration.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'

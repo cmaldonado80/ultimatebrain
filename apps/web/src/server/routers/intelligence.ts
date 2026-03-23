@@ -1,3 +1,9 @@
+/**
+ * Intelligence Router — cognition, chat sessions, and agent messaging.
+ *
+ * Manages conversational AI sessions, cognitive processing pipelines,
+ * and inter-agent messaging for collaborative reasoning.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'

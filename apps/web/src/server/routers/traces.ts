@@ -1,3 +1,9 @@
+/**
+ * Traces Router — observability and execution trace querying.
+ *
+ * Queries trace and span data for debugging, performance analysis, and
+ * end-to-end visibility into agent execution pipelines.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { traces } from '@solarc/db'

@@ -1,3 +1,9 @@
+/**
+ * Workspaces Router — CRUD for multi-tenant workspace isolation.
+ *
+ * Workspaces are the top-level organizational unit providing tenant isolation,
+ * resource scoping, and access control boundaries.
+ */
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'

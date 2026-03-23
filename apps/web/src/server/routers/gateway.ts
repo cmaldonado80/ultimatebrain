@@ -1,3 +1,9 @@
+/**
+ * Gateway Router — LLM gateway with routing, cost tracking, and metrics.
+ *
+ * Central nervous system for all LLM calls. Provides chat and embedding endpoints,
+ * request cost tracking, per-model metrics, and health checks.
+ */
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, publicProcedure, protectedProcedure } from '../trpc'

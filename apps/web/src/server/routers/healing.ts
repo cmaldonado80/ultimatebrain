@@ -1,3 +1,9 @@
+/**
+ * Healing Router — self-healing error recovery for agent workflows.
+ *
+ * Detects failures in agent execution and applies corrective strategies
+ * (retry, fallback, prompt repair) to recover without human intervention.
+ */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
