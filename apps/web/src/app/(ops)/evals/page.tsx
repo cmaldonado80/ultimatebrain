@@ -97,7 +97,7 @@ function ScoreBar({ score, color }: { score: number; color: string }) {
 function ScoreTrend({ history, dimension }: { history: RunHistory[]; dimension: ScoreDimension }) {
   if (history.length < 2) return <span style={styles.noData}>Not enough runs</span>
 
-  const values = history.map((h) => (h.scores as any)?.[dimension.key] ?? 0)
+  const values = history.map((h) => (h.scores as Record<string, number>)?.[dimension.key] ?? 0)
   const max = Math.max(...values, 1)
   const width = 200
   const height = 48
@@ -320,9 +320,9 @@ export default function EvalsPage() {
                     <div key={dim.key} style={styles.scoreCard}>
                       <div style={styles.scoreCardLabel}>{dim.label}</div>
                       <div style={styles.scoreCardValue}>
-                        {Math.round(((latestRun.scores as any)?.[dim.key] ?? 0) * 100)}%
+                        {Math.round(((latestRun.scores as Record<string, number>)?.[dim.key] ?? 0) * 100)}%
                       </div>
-                      <ScoreBar score={(latestRun.scores as any)?.[dim.key] ?? 0} color={dim.color} />
+                      <ScoreBar score={(latestRun.scores as Record<string, number>)?.[dim.key] ?? 0} color={dim.color} />
                     </div>
                   ))}
                 </div>

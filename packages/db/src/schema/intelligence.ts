@@ -29,7 +29,7 @@ export const memoryVectors = pgTable('memory_vectors', {
 
 export const chatSessions = pgTable('chat_sessions', {
   id: uuid('id').primaryKey().defaultRandom(),
-  agentId: uuid('agent_id').references(() => agents.id),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => [
@@ -38,17 +38,18 @@ export const chatSessions = pgTable('chat_sessions', {
 
 export const chatMessages = pgTable('chat_messages', {
   id: uuid('id').primaryKey().defaultRandom(),
-  sessionId: uuid('session_id').references(() => chatSessions.id).notNull(),
+  sessionId: uuid('session_id').references(() => chatSessions.id, { onDelete: 'cascade' }).notNull(),
   role: text('role').notNull(),
   text: text('text').notNull(),
   attachment: jsonb('attachment'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const agentMessages = pgTable('agent_messages', {
   id: uuid('id').primaryKey().defaultRandom(),
-  fromAgentId: uuid('from_agent_id').references(() => agents.id).notNull(),
-  toAgentId: uuid('to_agent_id').references(() => agents.id).notNull(),
+  fromAgentId: uuid('from_agent_id').references(() => agents.id, { onDelete: 'cascade' }).notNull(),
+  toAgentId: uuid('to_agent_id').references(() => agents.id, { onDelete: 'cascade' }).notNull(),
   text: text('text').notNull(),
   read: boolean('read').default(false),
   ackStatus: text('ack_status'),
@@ -79,7 +80,7 @@ export const cognitionState = pgTable('cognition_state', {
 
 export const promptOverlays = pgTable('prompt_overlays', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id').references(() => workspaces.id),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
   content: text('content').notNull(),
   active: boolean('active').default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),

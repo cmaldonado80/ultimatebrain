@@ -9,6 +9,25 @@
 import { useParams } from 'next/navigation'
 import { trpc } from '../../../../utils/trpc'
 
+/** Row shape returned by `trpc.agents.byId` (drizzle `agents` table select) */
+interface AgentRecord {
+  id: string
+  name: string
+  type: string | null
+  workspaceId: string | null
+  status: string
+  model: string | null
+  color: string | null
+  bg: string | null
+  description: string | null
+  tags: string[] | null
+  skills: string[] | null
+  isWsOrchestrator: boolean | null
+  triggerMode: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
 function HealthRing({ score }: { score: number }) {
   const pct = Math.round(score * 100)
   const color = pct >= 90 ? '#22c55e' : pct >= 70 ? '#f97316' : '#ef4444'
@@ -59,12 +78,13 @@ export default function AppDetailPage() {
     )
   }
 
-  const agentName = (app as any).name ?? `Agent ${appId.slice(0, 8)}`
-  const agentType = (app as any).type ?? 'agent'
-  const agentDescription = (app as any).description ?? ''
-  const agentModel = (app as any).model ?? 'N/A'
-  const agentSkills: string[] = (app as any).skills ?? []
-  const agentTags: string[] = (app as any).tags ?? []
+  const agent = app as AgentRecord
+  const agentName = agent.name ?? `Agent ${appId.slice(0, 8)}`
+  const agentType = agent.type ?? 'agent'
+  const agentDescription = agent.description ?? ''
+  const agentModel = agent.model ?? 'N/A'
+  const agentSkills: string[] = agent.skills ?? []
+  const agentTags: string[] = agent.tags ?? []
 
   return (
     <div style={styles.page}>

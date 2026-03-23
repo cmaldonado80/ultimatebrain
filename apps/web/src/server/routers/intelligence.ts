@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { CognitionManager, ChatSessionManager, AgentMessagingService } from '../services/intelligence'
 
 let cognition: CognitionManager | null = null
@@ -13,27 +13,27 @@ function getMessaging(db: any) { return messaging ??= new AgentMessagingService(
 export const intelligenceRouter = router({
   // === Cognition State ===
 
-  features: publicProcedure.query(async ({ ctx }) => {
+  features: protectedProcedure.query(async ({ ctx }) => {
     return getCognition(ctx.db).getFeatures()
   }),
 
-  setFeature: publicProcedure
+  setFeature: protectedProcedure
     .input(z.object({ name: z.string().min(1), enabled: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return getCognition(ctx.db).setFeature(input.name, input.enabled)
     }),
 
-  isFeatureEnabled: publicProcedure
+  isFeatureEnabled: protectedProcedure
     .input(z.object({ name: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       return getCognition(ctx.db).isFeatureEnabled(input.name)
     }),
 
-  policies: publicProcedure.query(async ({ ctx }) => {
+  policies: protectedProcedure.query(async ({ ctx }) => {
     return getCognition(ctx.db).getPolicies()
   }),
 
-  setPolicy: publicProcedure
+  setPolicy: protectedProcedure
     .input(z.object({
       name: z.string().min(1),
       value: z.union([z.string(), z.number(), z.boolean()]),
@@ -42,25 +42,25 @@ export const intelligenceRouter = router({
       return getCognition(ctx.db).setPolicy(input.name, input.value)
     }),
 
-  removePolicy: publicProcedure
+  removePolicy: protectedProcedure
     .input(z.object({ name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       return getCognition(ctx.db).removePolicy(input.name)
     }),
 
-  cognitionState: publicProcedure.query(async ({ ctx }) => {
+  cognitionState: protectedProcedure.query(async ({ ctx }) => {
     return getCognition(ctx.db).getState()
   }),
 
   // === Prompt Overlays ===
 
-  overlays: publicProcedure
+  overlays: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return getCognition(ctx.db).getActiveOverlays(input?.workspaceId)
     }),
 
-  createOverlay: publicProcedure
+  createOverlay: protectedProcedure
     .input(z.object({
       content: z.string().min(1),
       workspaceId: z.string().uuid().optional(),
@@ -69,19 +69,19 @@ export const intelligenceRouter = router({
       return getCognition(ctx.db).createOverlay(input.content, input.workspaceId)
     }),
 
-  toggleOverlay: publicProcedure
+  toggleOverlay: protectedProcedure
     .input(z.object({ id: z.string().uuid(), active: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return getCognition(ctx.db).toggleOverlay(input.id, input.active)
     }),
 
-  deleteOverlay: publicProcedure
+  deleteOverlay: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getCognition(ctx.db).deleteOverlay(input.id)
     }),
 
-  buildPromptOverlay: publicProcedure
+  buildPromptOverlay: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid().optional() }).optional())
     .query(async ({ ctx, input }) => {
       return getCognition(ctx.db).buildPromptOverlay(input?.workspaceId)
@@ -89,13 +89,13 @@ export const intelligenceRouter = router({
 
   // === Agent Trust Scores ===
 
-  trustScore: publicProcedure
+  trustScore: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getCognition(ctx.db).getTrustScore(input.agentId)
     }),
 
-  updateTrustScore: publicProcedure
+  updateTrustScore: protectedProcedure
     .input(z.object({
       agentId: z.string().uuid(),
       score: z.number().min(0).max(1),
@@ -111,7 +111,7 @@ export const intelligenceRouter = router({
       return getCognition(ctx.db).updateTrustScore(input.agentId, input.score, input.factors)
     }),
 
-  recalculateTrust: publicProcedure
+  recalculateTrust: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getCognition(ctx.db).recalculateTrust(input.agentId)
@@ -119,25 +119,25 @@ export const intelligenceRouter = router({
 
   // === Chat Sessions ===
 
-  chatSessions: publicProcedure
+  chatSessions: protectedProcedure
     .input(z.object({ agentId: z.string().uuid().optional(), limit: z.number().min(1).max(100).optional() }).optional())
     .query(async ({ ctx, input }) => {
       return getChatManager(ctx.db).listSessions(input?.agentId, input?.limit)
     }),
 
-  chatSession: publicProcedure
+  chatSession: protectedProcedure
     .input(z.object({ id: z.string().uuid(), messageLimit: z.number().min(1).max(500).optional() }))
     .query(async ({ ctx, input }) => {
       return getChatManager(ctx.db).getSession(input.id, input.messageLimit)
     }),
 
-  createChatSession: publicProcedure
+  createChatSession: protectedProcedure
     .input(z.object({ agentId: z.string().uuid().optional() }).optional())
     .mutation(async ({ ctx, input }) => {
       return getChatManager(ctx.db).createSession(input?.agentId)
     }),
 
-  addChatMessage: publicProcedure
+  addChatMessage: protectedProcedure
     .input(z.object({
       sessionId: z.string().uuid(),
       role: z.string().min(1),
@@ -148,13 +148,13 @@ export const intelligenceRouter = router({
       return getChatManager(ctx.db).addMessage(input.sessionId, input.role, input.text, input.attachment)
     }),
 
-  chatContextWindow: publicProcedure
+  chatContextWindow: protectedProcedure
     .input(z.object({ sessionId: z.string().uuid(), windowSize: z.number().min(1).max(500).optional() }))
     .query(async ({ ctx, input }) => {
       return getChatManager(ctx.db).getContextWindow(input.sessionId, input.windowSize)
     }),
 
-  compactChat: publicProcedure
+  compactChat: protectedProcedure
     .input(z.object({
       sessionId: z.string().uuid(),
       summary: z.string().min(1),
@@ -164,7 +164,7 @@ export const intelligenceRouter = router({
       return getChatManager(ctx.db).compact(input.sessionId, input.summary, input.keepRecent)
     }),
 
-  deleteChatSession: publicProcedure
+  deleteChatSession: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getChatManager(ctx.db).deleteSession(input.id)
@@ -172,7 +172,7 @@ export const intelligenceRouter = router({
 
   // === Agent Messaging ===
 
-  sendMessage: publicProcedure
+  sendMessage: protectedProcedure
     .input(z.object({
       fromAgentId: z.string().uuid(),
       toAgentId: z.string().uuid(),
@@ -182,7 +182,7 @@ export const intelligenceRouter = router({
       return getMessaging(ctx.db).send(input)
     }),
 
-  broadcastMessage: publicProcedure
+  broadcastMessage: protectedProcedure
     .input(z.object({
       fromAgentId: z.string().uuid(),
       workspaceId: z.string().uuid(),
@@ -192,19 +192,19 @@ export const intelligenceRouter = router({
       return getMessaging(ctx.db).broadcast(input.fromAgentId, input.workspaceId, input.text)
     }),
 
-  agentInbox: publicProcedure
+  agentInbox: protectedProcedure
     .input(z.object({ agentId: z.string().uuid(), limit: z.number().min(1).max(200).optional() }))
     .query(async ({ ctx, input }) => {
       return getMessaging(ctx.db).inbox(input.agentId, input.limit)
     }),
 
-  agentMessageHistory: publicProcedure
+  agentMessageHistory: protectedProcedure
     .input(z.object({ agentId: z.string().uuid(), limit: z.number().min(1).max(500).optional() }))
     .query(async ({ ctx, input }) => {
       return getMessaging(ctx.db).history(input.agentId, input.limit)
     }),
 
-  messageThread: publicProcedure
+  messageThread: protectedProcedure
     .input(z.object({
       agentA: z.string().uuid(),
       agentB: z.string().uuid(),
@@ -214,19 +214,19 @@ export const intelligenceRouter = router({
       return getMessaging(ctx.db).thread(input.agentA, input.agentB, input.limit)
     }),
 
-  markMessagesRead: publicProcedure
+  markMessagesRead: protectedProcedure
     .input(z.object({ messageIds: z.array(z.string().uuid()).min(1) }))
     .mutation(async ({ ctx, input }) => {
       return getMessaging(ctx.db).markRead(input.messageIds)
     }),
 
-  markAllRead: publicProcedure
+  markAllRead: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getMessaging(ctx.db).markAllRead(input.agentId)
     }),
 
-  acknowledgeMessage: publicProcedure
+  acknowledgeMessage: protectedProcedure
     .input(z.object({
       messageId: z.string().uuid(),
       status: z.enum(['pending', 'received', 'processed', 'failed']),
@@ -235,7 +235,7 @@ export const intelligenceRouter = router({
       return getMessaging(ctx.db).acknowledge(input.messageId, input.status)
     }),
 
-  unreadCount: publicProcedure
+  unreadCount: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getMessaging(ctx.db).unreadCount(input.agentId)
