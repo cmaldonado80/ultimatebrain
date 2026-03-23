@@ -161,7 +161,7 @@ export const debateNodes = pgTable('debate_nodes', {
   agentId: uuid('agent_id'),
   text: text('text').notNull(),
   validity: real('validity'),
-  parentId: uuid('parent_id'),
+  parentId: uuid('parent_id').references((): any => debateNodes.id),
   isAxiom: boolean('is_axiom').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })

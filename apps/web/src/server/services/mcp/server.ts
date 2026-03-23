@@ -247,7 +247,12 @@ export class MCPServer {
     const notification: JsonRpcNotification = { jsonrpc: '2.0', method, params }
     const data = JSON.stringify(notification)
     for (const conn of this.sseConnections.values()) {
-      conn.send('message', data)
+      try {
+        conn.send('message', data)
+      } catch {
+        // Connection may have closed; remove it
+        this.sseConnections.delete(conn.id)
+      }
     }
   }
 
@@ -280,7 +285,7 @@ export class MCPServer {
             process.stdout.write(JSON.stringify(response) + '\n')
           }
         } catch {
-          const errorResp = this.jsonRpcError(null as unknown as string, -32700, 'Parse error')
+          const errorResp = this.jsonRpcError(-1, -32700, 'Parse error')
           process.stdout.write(JSON.stringify(errorResp) + '\n')
         }
       }

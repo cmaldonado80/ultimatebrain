@@ -291,13 +291,19 @@ export class FlowRunner {
   }
 
   private async executeConditional(step: FlowStep, ctx: FlowContext): Promise<FlowContext> {
-    const passed = await step.condition!(ctx)
-    const branchFn = passed ? step.branches!.pass : step.branches!.fail
+    if (!step.condition || !step.branches) {
+      throw new Error(`Conditional step "${step.name}" missing condition or branches`)
+    }
+    const passed = await step.condition(ctx)
+    const branchFn = passed ? step.branches.pass : step.branches.fail
     return branchFn(ctx)
   }
 
   private async executeLoop(step: FlowStep, ctx: FlowContext): Promise<FlowContext> {
-    const { condition, maxIterations = 100 } = step.loopOptions!
+    if (!step.loopOptions) {
+      throw new Error(`Loop step "${step.name}" missing loopOptions`)
+    }
+    const { condition, maxIterations = 100 } = step.loopOptions
     let current = ctx
     let iterations = 0
 

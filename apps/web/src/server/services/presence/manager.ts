@@ -73,7 +73,9 @@ export class PresenceManager {
 
   constructor() {
     // Start periodic cleanup of stale entries
-    this.cleanupInterval = setInterval(() => this.cleanStale(), DISCONNECT_TIMEOUT_MS)
+    this.cleanupInterval = setInterval(() => {
+      try { this.cleanStale() } catch { /* prevent interval crash */ }
+    }, DISCONNECT_TIMEOUT_MS)
   }
 
   /** Shut down the manager */

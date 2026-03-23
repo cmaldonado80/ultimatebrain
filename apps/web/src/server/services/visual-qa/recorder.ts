@@ -160,7 +160,7 @@ export class VisualQARecorder {
       label,
       type,
       verdict: options.verdict,
-      screenshotIndex: recording.frames.length - 1,
+      screenshotIndex: Math.max(0, recording.frames.length - 1),
       details: options.details,
     })
   }

@@ -57,8 +57,11 @@ export class LLMEngine {
       }>
     })
 
-    for (const chunk of (response as { chunks: string[] }).chunks) {
-      yield chunk
+    const data = response as { chunks?: string[] }
+    if (data.chunks) {
+      for (const chunk of data.chunks) {
+        yield chunk
+      }
     }
   }
 

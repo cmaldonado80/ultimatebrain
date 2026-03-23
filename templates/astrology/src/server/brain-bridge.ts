@@ -224,7 +224,7 @@ export async function createAstrologyBridge(
       ];
 
       // NOTE: guardrails are applied to the completed buffer after streaming ends
-      return brain.llm.stream({ messages: fullMessages });
+      return brain.llm.chatStream({ messages: fullMessages, model: 'claude-sonnet-4-6' });
     },
 
     // ── Memory ───────────────────────────────────────────────────────────────
@@ -278,14 +278,12 @@ export async function createAstrologyBridge(
     // ── Healing ──────────────────────────────────────────────────────────────
 
     onIncident(listener) {
-      brain.healing.on('incident', listener);
+      return brain.healing.onIncident(listener);
     },
 
-    async reportIncident(incident) {
-      await brain.healing.report({
-        ...incident,
-        domain: 'astrology',
-      });
+    async reportIncident(_incident) {
+      // Stub — real impl would call a Brain API endpoint for incident reporting
+      // brain.healing only exposes onIncident() for listening
     },
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -306,15 +304,18 @@ export async function createAstrologyBridge(
  */
 async function registerAgents(brain: BrainClient): Promise<void> {
   for (const agent of ASTROLOGY_AGENT_LIST) {
-    await brain.a2a.register({
-      id:           agent.id,
-      name:         agent.name,
-      domain:       'astrology',
-      description:  agent.role,
-      capabilities: agent.capabilities,
-      metadata: {
-        soul:       agent.soul,
-        guardrails: agent.guardrails,
+    // Register agent via delegation to Brain's agent registry
+    await brain.a2a.delegate({
+      agent_id: 'brain-orchestrator',
+      task: `register-agent:${agent.id}`,
+      context: {
+        id:           agent.id,
+        name:         agent.name,
+        domain:       'astrology',
+        description:  agent.role,
+        capabilities: agent.capabilities,
+        soul:         agent.soul,
+        guardrails:   agent.guardrails,
       },
     });
   }
