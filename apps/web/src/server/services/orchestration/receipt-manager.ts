@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { receipts, receiptActions, receiptAnomalies } from '@solarc/db'
-import { eq, and, desc, asc } from 'drizzle-orm'
+import { eq, and, desc, asc, sql } from 'drizzle-orm'
 
 export type ReceiptStatus = 'running' | 'completed' | 'failed' | 'rolled_back'
 
@@ -57,15 +57,13 @@ export class ReceiptManager {
    * Actions are ordered by sequence number (auto-incremented).
    */
   async recordAction(input: RecordActionInput) {
-    // Get next sequence number
-    const existing = await this.db
-      .select({ sequence: receiptActions.sequence })
+    // Atomically compute next sequence number via subquery to prevent race conditions
+    const [seqResult] = await this.db
+      .select({ nextSeq: sql<number>`coalesce(max(${receiptActions.sequence}), 0) + 1` })
       .from(receiptActions)
       .where(eq(receiptActions.receiptId, input.receiptId))
-      .orderBy(desc(receiptActions.sequence))
-      .limit(1)
 
-    const nextSeq = existing.length > 0 ? existing[0]!.sequence + 1 : 1
+    const nextSeq = seqResult?.nextSeq ?? 1
 
     const [action] = await this.db.insert(receiptActions).values({
       receiptId: input.receiptId,
@@ -148,12 +146,13 @@ export class ReceiptManager {
       ))
       .orderBy(desc(receiptActions.sequence))
 
-    // Mark each as rolled back
-    for (const action of actions) {
-      await this.db.update(receiptActions).set({
-        status: 'rolled_back',
-      }).where(eq(receiptActions.id, action.id))
-    }
+    // Batch mark all eligible actions as rolled back
+    await this.db.update(receiptActions).set({
+      status: 'rolled_back',
+    }).where(and(
+      eq(receiptActions.receiptId, receiptId),
+      eq(receiptActions.isRollbackEligible, true),
+    ))
 
     // Update receipt status
     await this.db.update(receipts).set({

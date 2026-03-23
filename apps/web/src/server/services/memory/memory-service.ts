@@ -204,8 +204,10 @@ export class MemoryService {
    * Delete a memory and its vector.
    */
   async delete(id: string): Promise<void> {
-    await this.db.delete(memoryVectors).where(eq(memoryVectors.memoryId, id))
-    await this.db.delete(memories).where(eq(memories.id, id))
+    await this.db.transaction(async (tx) => {
+      await tx.delete(memoryVectors).where(eq(memoryVectors.memoryId, id))
+      await tx.delete(memories).where(eq(memories.id, id))
+    })
   }
 
   /**

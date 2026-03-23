@@ -279,9 +279,9 @@ export class TicketExecutionEngine {
           leaseUntil: null,
         }).where(eq(ticketExecution.ticketId, ticketId))
 
-        // Set agent back to idle
+        // Set agent back to idle only if currently in execution
         await tx.update(agents).set({ status: 'idle', updatedAt: new Date() })
-          .where(eq(agents.id, agentId))
+          .where(and(eq(agents.id, agentId), eq(agents.status, 'in_execution')))
       }
     })
   }
@@ -317,7 +317,7 @@ export class TicketExecutionEngine {
         }).where(eq(ticketExecution.ticketId, ticketId))
 
         await tx.update(agents).set({ status: 'idle', updatedAt: new Date() })
-          .where(eq(agents.id, agentId))
+          .where(and(eq(agents.id, agentId), eq(agents.status, 'in_execution')))
       }
     })
   }
