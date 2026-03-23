@@ -1,0 +1,274 @@
+/**
+ * A2A Protocol HTTP + SSE Endpoint
+ *
+ * POST /api/a2a/[agentId]
+ * Accepts: { task, context, callback_url? }
+ * Returns:
+ *   - Immediate: { status: 'accepted', task_id }
+ *   - SSE stream: progress events
+ *   - Final: { status: 'completed', result, artifacts }
+ *
+ * GET /api/a2a/[agentId]/tasks/[taskId]  (poll)
+ * Returns current task status
+ */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@solarc/db'
+import { agents, tickets } from '@solarc/db'
+import { eq } from 'drizzle-orm'
+
+interface A2ARequest {
+  task: string
+  context?: Record<string, unknown>
+  callback_url?: string
+  stream?: boolean
+}
+
+/** In-memory task store (production: use Redis or DB) */
+const taskStore = new Map<
+  string,
+  {
+    agentId: string
+    task: string
+    status: 'accepted' | 'running' | 'completed' | 'failed'
+    result?: unknown
+    artifacts?: unknown[]
+    error?: string
+    progress?: number
+    createdAt: Date
+    updatedAt: Date
+  }
+>()
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ agentId: string }> }
+) {
+  const { agentId } = await params
+
+  // Verify agent exists
+  const agent = await db.query.agents.findFirst({
+    where: eq(agents.id, agentId),
+  })
+
+  if (!agent) {
+    return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
+  }
+
+  // Parse request body
+  let body: A2ARequest
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  if (!body.task) {
+    return NextResponse.json({ error: 'task is required' }, { status: 400 })
+  }
+
+  const taskId = crypto.randomUUID()
+
+  // Register task
+  taskStore.set(taskId, {
+    agentId,
+    task: body.task,
+    status: 'accepted',
+    progress: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  })
+
+  // Create internal ticket assigned to the agent
+  await db.insert(tickets).values({
+    title: `[A2A] ${body.task.slice(0, 200)}`,
+    description: body.task,
+    status: 'queued',
+    priority: 'medium',
+    complexity: 'medium',
+    assignedAgentId: agentId,
+    workspaceId: agent.workspaceId ?? undefined,
+    metadata: {
+      a2a: true,
+      taskId,
+      context: body.context ?? {},
+      callback_url: body.callback_url ?? null,
+    },
+  } as Record<string, unknown>)
+
+  // If streaming requested, return SSE
+  if (body.stream || req.headers.get('accept')?.includes('text/event-stream')) {
+    return streamTaskProgress(taskId, agentId, body)
+  }
+
+  // Start background execution (fire-and-forget)
+  executeTaskInBackground(taskId, agentId, body)
+
+  return NextResponse.json(
+    {
+      status: 'accepted',
+      task_id: taskId,
+      agent: agent.name,
+      poll_url: `/api/a2a/${agentId}/tasks/${taskId}`,
+    },
+    { status: 202 }
+  )
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ agentId: string }> }
+) {
+  const { agentId } = await params
+  const url = new URL(req.url)
+
+  // List all tasks for this agent
+  const tasks = Array.from(taskStore.entries())
+    .filter(([, t]) => t.agentId === agentId)
+    .map(([id, t]) => ({ task_id: id, ...t }))
+
+  return NextResponse.json({ tasks })
+}
+
+// ── SSE Streaming ─────────────────────────────────────────────────────────
+
+function streamTaskProgress(
+  taskId: string,
+  agentId: string,
+  body: A2ARequest
+): Response {
+  const encoder = new TextEncoder()
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      function send(event: string, data: unknown) {
+        const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
+        controller.enqueue(encoder.encode(payload))
+      }
+
+      send('accepted', { task_id: taskId, status: 'accepted' })
+
+      // Simulate execution with progress events
+      // Real impl: subscribe to ticket status changes via pg-boss or polling
+      const steps = [
+        { progress: 10, message: 'Analyzing task...' },
+        { progress: 30, message: 'Retrieving relevant memory...' },
+        { progress: 50, message: 'Executing with tools...' },
+        { progress: 75, message: 'Validating results...' },
+        { progress: 90, message: 'Preparing output...' },
+      ]
+
+      for (const step of steps) {
+        await new Promise((r) => setTimeout(r, 500))
+        const task = taskStore.get(taskId)
+        if (!task || task.status === 'failed') break
+
+        taskStore.set(taskId, { ...task, status: 'running', progress: step.progress, updatedAt: new Date() })
+        send('progress', { task_id: taskId, progress: step.progress, message: step.message })
+      }
+
+      // Final result
+      const finalResult = {
+        summary: `Task completed by agent ${agentId}`,
+        task: body.task,
+        context: body.context,
+      }
+
+      const task = taskStore.get(taskId)
+      if (task) {
+        taskStore.set(taskId, {
+          ...task,
+          status: 'completed',
+          result: finalResult,
+          progress: 100,
+          updatedAt: new Date(),
+        })
+      }
+
+      send('completed', {
+        task_id: taskId,
+        status: 'completed',
+        result: finalResult,
+        artifacts: [],
+      })
+
+      // Deliver callback if provided
+      if (body.callback_url) {
+        deliverCallback(body.callback_url, taskId, finalResult)
+      }
+
+      controller.close()
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Task-ID': taskId,
+    },
+  })
+}
+
+// ── Background Execution ──────────────────────────────────────────────────
+
+async function executeTaskInBackground(
+  taskId: string,
+  agentId: string,
+  body: A2ARequest
+): Promise<void> {
+  const task = taskStore.get(taskId)
+  if (!task) return
+
+  taskStore.set(taskId, { ...task, status: 'running', progress: 10, updatedAt: new Date() })
+
+  try {
+    // Simulate work — real impl delegates to ModeRouter/CrewEngine
+    await new Promise((r) => setTimeout(r, 2000))
+
+    const result = {
+      summary: `Task completed by agent ${agentId}`,
+      task: body.task,
+      completedAt: new Date().toISOString(),
+    }
+
+    taskStore.set(taskId, {
+      ...task,
+      status: 'completed',
+      result,
+      progress: 100,
+      updatedAt: new Date(),
+    })
+
+    if (body.callback_url) {
+      await deliverCallback(body.callback_url, taskId, result)
+    }
+  } catch (err) {
+    taskStore.set(taskId, {
+      ...task,
+      status: 'failed',
+      error: err instanceof Error ? err.message : String(err),
+      updatedAt: new Date(),
+    })
+  }
+}
+
+// ── Callback Delivery ─────────────────────────────────────────────────────
+
+async function deliverCallback(
+  callbackUrl: string,
+  taskId: string,
+  result: unknown
+): Promise<void> {
+  try {
+    await fetch(callbackUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_id: taskId, status: 'completed', result }),
+      signal: AbortSignal.timeout(5000),
+    })
+  } catch {
+    // Callback delivery is best-effort
+  }
+}

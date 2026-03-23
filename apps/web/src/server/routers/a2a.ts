@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { router, publicProcedure } from '../trpc'
-import { A2AEngine } from '../services/a2a'
+import { A2AEngine, AgentCardGenerator, A2ARegistry } from '../services/a2a'
 
 let engine: A2AEngine | null = null
 function getEngine(db: any) { return engine ??= new A2AEngine(db) }
@@ -89,5 +89,76 @@ export const a2aRouter = router({
     .input(z.object({ agentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getEngine(ctx.db).pendingFor(input.agentId)
+    }),
+
+  // === Phase 9: Agent Card Generation ===
+
+  /** Generate well-known card for a single agent */
+  generateCard: publicProcedure
+    .input(z.object({
+      agentId: z.string().uuid(),
+      baseUrl: z.string().url(),
+      version: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const generator = new AgentCardGenerator(ctx.db)
+      const card = await generator.generateForAgent(input.agentId, {
+        baseUrl: input.baseUrl,
+        authType: 'bearer',
+        version: input.version,
+      })
+      await generator.persistCard(input.agentId, card)
+      return card
+    }),
+
+  /** Generate and persist cards for all active agents */
+  generateAllCards: publicProcedure
+    .input(z.object({ baseUrl: z.string().url(), version: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const generator = new AgentCardGenerator(ctx.db)
+      const cards = await generator.generateAll({ baseUrl: input.baseUrl, version: input.version })
+      for (const [agentId, card] of Object.entries(cards)) {
+        await generator.persistCard(agentId, card)
+      }
+      return { generated: Object.keys(cards).length, cards }
+    }),
+
+  // === Phase 9: External Agent Registry ===
+
+  /** Register an external agent by its base URL */
+  registerExternal: publicProcedure
+    .input(z.object({ agentBaseUrl: z.string().url() }))
+    .mutation(async ({ ctx, input }) => {
+      const registry = new A2ARegistry(ctx.db)
+      return registry.register(input.agentBaseUrl)
+    }),
+
+  /** List all registered external agents */
+  listExternal: publicProcedure.query(async ({ ctx }) => {
+    const registry = new A2ARegistry(ctx.db)
+    return registry.list()
+  }),
+
+  /** Find external agents by skill */
+  findExternalBySkill: publicProcedure
+    .input(z.object({ skill: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const registry = new A2ARegistry(ctx.db)
+      return registry.findBySkill(input.skill)
+    }),
+
+  /** Run health checks on all registered external agents */
+  healthCheckAll: publicProcedure.mutation(async ({ ctx }) => {
+    const registry = new A2ARegistry(ctx.db)
+    return registry.runHealthChecks()
+  }),
+
+  /** Deregister an external agent */
+  deregisterExternal: publicProcedure
+    .input(z.object({ agentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const registry = new A2ARegistry(ctx.db)
+      await registry.deregister(input.agentId)
+      return { success: true }
     }),
 })

@@ -1,1 +1,7 @@
 export { A2AEngine, type DelegationStatus, type DelegationResult } from './a2a-engine'
+export { AgentCardGenerator } from './agent-card'
+export type { WellKnownAgentCard, AgentCardGeneratorOptions } from './agent-card'
+export { A2AClient } from './client'
+export type { A2ATaskRequest, A2ATaskResponse, A2AArtifact, DiscoveredAgent } from './client'
+export { A2ARegistry } from './registry'
+export type { ExternalAgentRecord } from './registry'
