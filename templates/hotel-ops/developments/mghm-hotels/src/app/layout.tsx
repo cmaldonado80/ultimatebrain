@@ -18,6 +18,9 @@ const NAV_ITEMS = [
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <style>{`.nav-link:hover { background: #1f2937 !important; color: #f9fafb !important; }`}</style>
+      </head>
       <body style={{ margin: 0, padding: 0, background: '#0f172a', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
         <div style={{ display: 'flex', minHeight: '100vh' }}>
           {/* Sidebar */}
@@ -71,14 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     fontWeight: 500,
                     transition: 'background 0.15s, color 0.15s',
                   }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLAnchorElement).style.background = '#1f2937';
-                    (e.currentTarget as HTMLAnchorElement).style.color = '#f9fafb';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLAnchorElement).style.background = 'transparent';
-                    (e.currentTarget as HTMLAnchorElement).style.color = '#9ca3af';
-                  }}
+                  className="nav-link"
                 >
                   <span style={{ fontSize: '16px', width: '20px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
                   {item.label}

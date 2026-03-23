@@ -202,8 +202,10 @@ export async function createAstrologyBridge(
         ...messages,
       ];
 
-      const result = await brain.llm.chat({ messages: fullMessages });
-      const rawText = typeof result === 'string' ? result : (result as { text: string }).text;
+      const result = await brain.llm.chat({ messages: fullMessages, model: 'claude-sonnet-4-6' });
+      const rawText = typeof result === 'object' && result !== null && 'content' in result
+        ? (result as { content: string }).content
+        : String(result);
 
       // Run domain guardrails
       const guardrailResult = runGuardrails(rawText, { agentId });

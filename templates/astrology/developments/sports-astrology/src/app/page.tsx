@@ -119,11 +119,12 @@ const STAT_CARDS: StatCard[] = [
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 function TransitRow({ t }: { t: TransitAspect }) {
-  const colors = {
+  const colorMap: Record<string, { dot: string; badge: string; badgeBg: string }> = {
     harmonious: { dot: SUCCESS, badge: SUCCESS, badgeBg: '#0d2b1e' },
     challenging: { dot: DANGER, badge: DANGER, badgeBg: '#2d0f0f' },
     neutral: { dot: MUTED, badge: MUTED, badgeBg: '#1a1f2e' },
-  }[t.influence];
+  };
+  const colors = colorMap[t.influence] ?? colorMap.neutral;
 
   return (
     <div
