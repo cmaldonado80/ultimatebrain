@@ -8,13 +8,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@solarc/db'
-import { AgentCardGenerator } from '../../../server/services/a2a/agent-card'
-import { env } from '../../../../env'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
+  const { createDb } = await import('@solarc/db')
+  const { AgentCardGenerator } = await import('../../../../server/services/a2a/agent-card')
+
+  const db = createDb(process.env.DATABASE_URL!)
   const host = req.headers.get('host') ?? 'localhost:3000'
-  const protocol = env.NODE_ENV === 'production' ? 'https' : 'http'
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
   const baseUrl = `${protocol}://${host}`
 
   const generator = new AgentCardGenerator(db)
@@ -24,13 +27,13 @@ export async function GET(req: NextRequest) {
       baseUrl,
       authType: 'bearer',
       tokenUrl: `${baseUrl}/api/auth/token`,
-      version: env.BRAIN_VERSION,
+      version: process.env.BRAIN_VERSION ?? '1.0.0',
     })
 
     return NextResponse.json(
       {
-        brain: env.BRAIN_NAME,
-        version: env.BRAIN_VERSION,
+        brain: process.env.BRAIN_NAME ?? 'UltimateBrain',
+        version: process.env.BRAIN_VERSION ?? '1.0.0',
         base_url: baseUrl,
         agents: Object.values(cards),
         total: Object.keys(cards).length,
