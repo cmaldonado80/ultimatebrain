@@ -2,9 +2,11 @@ import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { appRouter } from '../../../../server/routers/_app'
 import type { TRPCContext } from '../../../../server/trpc'
 
+declare global { var __db: import('@solarc/db').Database }
+
 function createContext(): TRPCContext {
   return {
-    db: (globalThis as any).__db,
+    db: globalThis.__db,
     session: null,
   }
 }

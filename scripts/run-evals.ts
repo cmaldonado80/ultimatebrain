@@ -16,6 +16,7 @@
  *   - fails PR if exit code != 0
  */
 
+import type { Database } from '@solarc/db'
 import { DriftDetector } from '../apps/web/src/server/services/evals/drift-detector'
 import { DatasetBuilder } from '../apps/web/src/server/services/evals/dataset-builder'
 
@@ -57,16 +58,16 @@ async function main() {
   if (DATASET_FILTER) console.log(`   Filter: ${DATASET_FILTER}`)
   console.log()
 
-  let db: Awaited<ReturnType<typeof getDb>>
+  let db: Database
   try {
-    db = await getDb()
+    db = await getDb() as Database
   } catch (err) {
     console.error('❌ Failed to connect to database:', err)
     process.exit(1)
   }
 
-  const detector = new DriftDetector(db as any, THRESHOLD)
-  const builder = new DatasetBuilder(db as any)
+  const detector = new DriftDetector(db, THRESHOLD)
+  const builder = new DatasetBuilder(db)
 
   // List datasets
   const datasets = await builder.listDatasets()

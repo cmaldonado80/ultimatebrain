@@ -1,9 +1,11 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { SkillMarketplace } from '../services/skills/marketplace'
+import type { SkillCapability } from '../services/skills/marketplace'
+import type { Database } from '@solarc/db'
 
 let marketplace: SkillMarketplace | null = null
-function getMarketplace(db: any) { return marketplace ??= new SkillMarketplace(db) }
+function getMarketplace(db: Database) { return marketplace ??= new SkillMarketplace(db) }
 
 export const skillsRouter = router({
   browse: protectedProcedure
@@ -38,7 +40,7 @@ export const skillsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const mp = getMarketplace(ctx.db)
-      return mp.install(input.skillId, input.approvedPermissions as any)
+      return mp.install(input.skillId, input.approvedPermissions as SkillCapability[])
     }),
 
   uninstall: protectedProcedure
