@@ -1,14 +1,15 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
+import type { Database } from '@solarc/db'
 import { DebateEngine, TokenLedgerService, EntityManager } from '../services/platform'
 
 let debate: DebateEngine | null = null
 let ledger: TokenLedgerService | null = null
 let entities: EntityManager | null = null
 
-function getDebate(db: any) { return debate ??= new DebateEngine(db) }
-function getLedger(db: any) { return ledger ??= new TokenLedgerService(db) }
-function getEntities(db: any) { return entities ??= new EntityManager(db) }
+function getDebate(db: Database) { return debate ??= new DebateEngine(db) }
+function getLedger(db: Database) { return ledger ??= new TokenLedgerService(db) }
+function getEntities(db: Database) { return entities ??= new EntityManager(db) }
 
 export const platformRouter = router({
   // === Debate Engine ===

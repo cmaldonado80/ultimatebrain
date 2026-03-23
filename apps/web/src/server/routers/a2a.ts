@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
+import type { Database } from '@solarc/db'
 import { A2AEngine, AgentCardGenerator, A2ARegistry } from '../services/a2a'
 
 let engine: A2AEngine | null = null
-function getEngine(db: any) { return engine ??= new A2AEngine(db) }
+function getEngine(db: Database) { return engine ??= new A2AEngine(db) }
 
 export const a2aRouter = router({
   // === Agent Card Registry ===

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
+import type { Database } from '@solarc/db'
 import { TicketExecutionEngine, CronEngine, SwarmEngine, ReceiptManager } from '../services/orchestration'
 
 // Lazy singletons
@@ -8,10 +9,10 @@ let cronEngine: CronEngine | null = null
 let swarmEngine: SwarmEngine | null = null
 let receiptManager: ReceiptManager | null = null
 
-function getTicketEngine(db: any) { return ticketEngine ??= new TicketExecutionEngine(db) }
-function getCronEngine(db: any) { return cronEngine ??= new CronEngine(db) }
-function getSwarmEngine(db: any) { return swarmEngine ??= new SwarmEngine(db) }
-function getReceiptManager(db: any) { return receiptManager ??= new ReceiptManager(db) }
+function getTicketEngine(db: Database) { return ticketEngine ??= new TicketExecutionEngine(db) }
+function getCronEngine(db: Database) { return cronEngine ??= new CronEngine(db) }
+function getSwarmEngine(db: Database) { return swarmEngine ??= new SwarmEngine(db) }
+function getReceiptManager(db: Database) { return receiptManager ??= new ReceiptManager(db) }
 
 export const orchestrationRouter = router({
   // === Ticket Execution ===

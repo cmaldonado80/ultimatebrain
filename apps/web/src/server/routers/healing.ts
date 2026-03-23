@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
+import type { Database } from '@solarc/db'
 import { HealingEngine } from '../services/healing'
 
 let engine: HealingEngine | null = null
-function getEngine(db: any) { return engine ??= new HealingEngine(db) }
+function getEngine(db: Database) { return engine ??= new HealingEngine(db) }
 
 export const healingRouter = router({
   /** Run full system diagnostic */

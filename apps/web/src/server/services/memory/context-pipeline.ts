@@ -194,11 +194,62 @@ export class ContextPipeline {
     sources: ContextSource[],
     threshold: number
   ): Promise<EvaluatedSource[]> {
-    // Stub — real impl: send each source + query to fast LLM (Haiku)
-    // Prompt: "Rate the relevance of this source to the query on a scale of 0-1"
+    // Try LLM-based reranking if gateway is available
+    if (this.gateway && sources.length > 0) {
+      try {
+        const sourceSummaries = sources
+          .map((s, i) => `[${i}] (${s.type}/${s.name}) ${s.content.slice(0, 200)}`)
+          .join('\n')
+
+        const result = await this.gateway.chat({
+          model: 'claude-haiku-4-5',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a relevance evaluator. Rate each source for relevance to the query. ' +
+                'Respond with one line per source in the format: INDEX SCORE (0.0-1.0). Nothing else.',
+            },
+            {
+              role: 'user',
+              content: `Query: "${query}"\n\nSources:\n${sourceSummaries}`,
+            },
+          ],
+        })
+
+        const lines = result.content.trim().split('\n')
+        return sources.map((source, i) => {
+          const line = lines[i]
+          const scoreMatch = line?.match(/(\d+)\s+([\d.]+)/)
+          const relevanceScore = scoreMatch ? parseFloat(scoreMatch[2]) : (source.rawScore ?? 0.5)
+          return {
+            ...source,
+            relevanceScore,
+            included: relevanceScore >= threshold,
+          }
+        })
+      } catch (err) {
+        console.error('[ContextPipeline] LLM reranking failed, falling back to keyword scoring:', err)
+      }
+    }
+
+    // Fallback: keyword overlap scoring (similar to memory-service.keywordSearch)
+    const queryTokens = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2)
+
     return sources.map((source) => {
-      // Simulate relevance scoring based on raw score
-      const relevanceScore = source.rawScore ?? Math.random() * 0.5 + 0.3
+      if (queryTokens.length === 0) {
+        const fallbackScore = source.rawScore ?? 0.5
+        return { ...source, relevanceScore: fallbackScore, included: fallbackScore >= threshold }
+      }
+
+      const contentLower = source.content.toLowerCase()
+      const matchCount = queryTokens.filter((token) => contentLower.includes(token)).length
+      const keywordScore = matchCount / queryTokens.length
+      // Blend keyword score with raw score if available
+      const relevanceScore = source.rawScore != null
+        ? (source.rawScore * 0.6 + keywordScore * 0.4)
+        : keywordScore
+
       return {
         ...source,
         relevanceScore,
@@ -209,16 +260,12 @@ export class ContextPipeline {
 
   // ── Stage 3: Fallback ─────────────────────────────────────────────────
 
-  private async webSearchFallback(query: string): Promise<ContextSource[]> {
-    // Stub — real impl: Brave Search or DuckDuckGo via MCP
-    return [
-      {
-        name: 'web-search',
-        type: 'web',
-        content: `Web search results for: "${query.slice(0, 50)}"`,
-        rawScore: 0.6,
-      },
-    ]
+  private async webSearchFallback(_query: string): Promise<ContextSource[]> {
+    // Web search requires MCP integration (e.g., Brave Search or DuckDuckGo MCP server).
+    // This cannot be implemented as a direct gateway call — it needs an MCP tool invocation.
+    // Wire this when MCP tool execution is available in the pipeline.
+    console.warn('[ContextPipeline] Web search fallback requires MCP integration — returning empty results')
+    return []
   }
 
   // ── Stage 4: Synthesize ───────────────────────────────────────────────
