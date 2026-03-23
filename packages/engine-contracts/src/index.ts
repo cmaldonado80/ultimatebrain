@@ -5,7 +5,11 @@ import { z } from 'zod'
 export const LlmChatInput = z.object({
   model: z.string().optional(),
   messages: z.array(z.object({ role: z.string(), content: z.string() })),
-  tools: z.array(z.unknown()).optional(),
+  tools: z.array(z.object({
+    name: z.string(),
+    description: z.string().optional(),
+    inputSchema: z.record(z.unknown()).optional(),
+  })).optional(),
   stream: z.boolean().optional(),
   agentId: z.string().uuid().optional(),
   ticketId: z.string().uuid().optional(),
@@ -196,5 +200,6 @@ export function resolveModel(tier: ModelTier): string {
     case 'opus': return 'claude-opus-4-6'
     case 'sonnet': return 'claude-sonnet-4-6'
     case 'haiku': return 'claude-haiku-4-5'
+    default: return 'claude-sonnet-4-6'
   }
 }
