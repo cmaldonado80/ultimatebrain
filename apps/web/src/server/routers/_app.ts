@@ -12,6 +12,7 @@ import { tracesRouter } from './traces'
 import { guardrailsRouter } from './guardrails'
 import { orchestrationRouter } from './orchestration'
 import { intelligenceRouter } from './intelligence'
+import { platformRouter } from './platform'
 
 export const appRouter = router({
   workspaces: workspacesRouter,
@@ -27,6 +28,7 @@ export const appRouter = router({
   guardrails: guardrailsRouter,
   orchestration: orchestrationRouter,
   intelligence: intelligenceRouter,
+  platform: platformRouter,
 })
 
 export type AppRouter = typeof appRouter
