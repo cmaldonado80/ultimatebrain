@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { CrewEngine } from '../services/crews/crew-engine'
 import { RecallFlow } from '../services/memory/recall-flow'
 
