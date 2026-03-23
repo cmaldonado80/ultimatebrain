@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "../..",
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": [
+    "src",
+    "../web/src/server/services/orchestration/ticket-engine.ts",
+    "../web/src/server/services/orchestration/cron-engine.ts",
+    "../web/src/server/services/memory/memory-service.ts",
+    "../web/src/server/services/evals/runner.ts",
+    "../web/src/server/services/evals/scorers.ts",
+    "../web/src/server/services/evals/scorers/*.ts",
+    "../web/src/server/services/healing/healing-engine.ts",
+    "../web/src/server/services/instincts/observer.ts",
+    "../web/src/server/services/instincts/types.ts",
+    "../web/src/server/services/task-runner/mode-router.ts",
+    "../web/src/server/services/gateway/*.ts",
+    "../web/src/server/services/integrations/*.ts"
+  ]
+}
