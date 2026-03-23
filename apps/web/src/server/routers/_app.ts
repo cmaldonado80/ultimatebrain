@@ -13,6 +13,9 @@ import { guardrailsRouter } from './guardrails'
 import { orchestrationRouter } from './orchestration'
 import { intelligenceRouter } from './intelligence'
 import { platformRouter } from './platform'
+import { a2aRouter } from './a2a'
+import { healingRouter } from './healing'
+import { integrationsRouter } from './integrations'
 
 export const appRouter = router({
   workspaces: workspacesRouter,
@@ -29,6 +32,9 @@ export const appRouter = router({
   orchestration: orchestrationRouter,
   intelligence: intelligenceRouter,
   platform: platformRouter,
+  a2a: a2aRouter,
+  healing: healingRouter,
+  integrations: integrationsRouter,
 })
 
 export type AppRouter = typeof appRouter
