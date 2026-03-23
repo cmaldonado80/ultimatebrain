@@ -162,27 +162,29 @@ export class ContextPipeline {
   }
 
   private async gatherFromMemory(query: string): Promise<ContextSource[]> {
-    // Stub — real impl: tiered memory search (working → episodic → archival)
-    return [
-      {
-        name: 'memory-recall',
-        type: 'memory',
-        content: `Memory recall for: "${query.slice(0, 50)}"`,
-        rawScore: 0.92,
-      },
-    ]
+    // Tiered memory search via RecallFlow (core → recall → archival)
+    try {
+      if (this.recallFlow) {
+        const tieredResult = await this.recallFlow.search({ query })
+        return tieredResult.results.map((r) => ({
+          name: `memory-${r.id}`,
+          type: 'memory' as const,
+          content: r.content,
+          rawScore: r.score,
+        }))
+      }
+    } catch (err) {
+      console.error('[ContextPipeline] Memory recall failed, returning empty:', err)
+    }
+    return []
   }
 
-  private async gatherFromTools(query: string): Promise<ContextSource[]> {
-    // Stub — real impl: tool output cache, recent tool results
-    return [
-      {
-        name: 'tool-output',
-        type: 'tools',
-        content: `Recent tool output relevant to: "${query.slice(0, 50)}"`,
-        rawScore: 0.71,
-      },
-    ]
+  private async gatherFromTools(_query: string): Promise<ContextSource[]> {
+    // Tool context is populated by the caller (e.g., the agent orchestration layer)
+    // at the gather() level or injected into the pipeline result after the fact.
+    // This method intentionally returns empty — tool outputs are not stored in a
+    // searchable index but are instead passed directly from the tool execution cache.
+    return []
   }
 
   // ── Stage 2: Evaluate ─────────────────────────────────────────────────

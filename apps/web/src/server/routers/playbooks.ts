@@ -1,15 +1,16 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
+import type { Database } from '@solarc/db'
 import { PlaybookRecorder, PlaybookDistiller, PlaybookExecutor } from '../services/playbooks'
 
 let _recorder: PlaybookRecorder | null = null
 let _distiller: PlaybookDistiller | null = null
 let _executor: PlaybookExecutor | null = null
 
-function getRecorder(db: any) { return _recorder ??= new PlaybookRecorder(db) }
+function getRecorder(db: Database) { return _recorder ??= new PlaybookRecorder(db) }
 function getDistiller() { return _distiller ??= new PlaybookDistiller() }
-function getExecutor(db: any) { return _executor ??= new PlaybookExecutor(db) }
+function getExecutor(db: Database) { return _executor ??= new PlaybookExecutor(db) }
 
 const playbookStepSchema = z.object({
   index: z.number().int().min(0),

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { gatewayMetrics } from '@solarc/db'
+import type { Database } from '@solarc/db'
 import { LlmChatInput, LlmEmbedInput } from '@solarc/engine-contracts'
 import { GatewayRouter, GatewayError, CostTracker } from '../services/gateway'
 
@@ -11,7 +12,7 @@ import { GatewayRouter, GatewayError, CostTracker } from '../services/gateway'
  */
 let gatewayInstance: GatewayRouter | null = null
 
-function getGateway(db: any): GatewayRouter {
+function getGateway(db: Database): GatewayRouter {
   if (!gatewayInstance) {
     gatewayInstance = new GatewayRouter(db)
   }

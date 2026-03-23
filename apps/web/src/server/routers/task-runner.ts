@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
+import type { Database } from '@solarc/db'
 import { ModeRouter } from '../services/task-runner/mode-router'
 
 let _modeRouter: ModeRouter | null = null
-function getModeRouter(db: any) { return _modeRouter ??= new ModeRouter(db) }
+function getModeRouter(db: Database) { return _modeRouter ??= new ModeRouter(db) }
 
 const planStepSchema = z.object({
   index: z.number().int().min(0),
