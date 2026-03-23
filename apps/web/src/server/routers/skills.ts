@@ -1,12 +1,12 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { SkillMarketplace } from '../services/skills/marketplace'
 
 let marketplace: SkillMarketplace | null = null
 function getMarketplace(db: any) { return marketplace ??= new SkillMarketplace(db) }
 
 export const skillsRouter = router({
-  browse: publicProcedure
+  browse: protectedProcedure
     .input(z.object({
       category: z.string().optional(),
       search: z.string().optional(),
@@ -26,12 +26,12 @@ export const skillsRouter = router({
       return list
     }),
 
-  installed: publicProcedure.query(async ({ ctx }) => {
+  installed: protectedProcedure.query(async ({ ctx }) => {
     const mp = getMarketplace(ctx.db)
     return mp.getInstalled()
   }),
 
-  install: publicProcedure
+  install: protectedProcedure
     .input(z.object({
       skillId: z.string(),
       approvedPermissions: z.array(z.string()),
@@ -41,7 +41,7 @@ export const skillsRouter = router({
       return mp.install(input.skillId, input.approvedPermissions as any)
     }),
 
-  uninstall: publicProcedure
+  uninstall: protectedProcedure
     .input(z.object({ skillId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const mp = getMarketplace(ctx.db)

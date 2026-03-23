@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { MCPServer, MCPRegistry } from '../services/mcp'
 
 /** Shared registry + server singleton (created lazily per-request in real app) */
@@ -12,7 +12,7 @@ function createMCPStack(db: any) {
 export const mcpRouter = router({
   // ── Server Info ─────────────────────────────────────────────────────
 
-  serverInfo: publicProcedure.query(async ({ ctx }) => {
+  serverInfo: protectedProcedure.query(async ({ ctx }) => {
     const { server } = createMCPStack(ctx.db)
     return server.getServerInfo()
   }),
@@ -20,7 +20,7 @@ export const mcpRouter = router({
   // ── Tool Catalog ──────────────────────────────────────────────────────
 
   /** List all registered MCP tools */
-  listTools: publicProcedure.query(async ({ ctx }) => {
+  listTools: protectedProcedure.query(async ({ ctx }) => {
     const { registry, server } = createMCPStack(ctx.db)
     await server.registerPlatformTools()
     await registry.discoverAll()
@@ -28,7 +28,7 @@ export const mcpRouter = router({
   }),
 
   /** Search tools by query */
-  searchTools: publicProcedure
+  searchTools: protectedProcedure
     .input(z.object({ query: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       const { registry, server } = createMCPStack(ctx.db)
@@ -43,7 +43,7 @@ export const mcpRouter = router({
     }),
 
   /** Get registry stats */
-  stats: publicProcedure.query(async ({ ctx }) => {
+  stats: protectedProcedure.query(async ({ ctx }) => {
     const { registry, server } = createMCPStack(ctx.db)
     await server.registerPlatformTools()
     await registry.discoverAll()
@@ -85,7 +85,7 @@ export const mcpRouter = router({
   // ── External Server Management ────────────────────────────────────────
 
   /** List configured external MCP servers */
-  listExternalServers: publicProcedure.query(async ({ ctx }) => {
+  listExternalServers: protectedProcedure.query(async ({ ctx }) => {
     const { registry } = createMCPStack(ctx.db)
     return registry.listExternalServers()
   }),

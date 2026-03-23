@@ -133,8 +133,8 @@ function NarrationSidebar({ entries }: { entries: NarrationEntry[] }) {
         {entries.length === 0 && (
           <div style={styles.emptyNarration}>Waiting for events...</div>
         )}
-        {entries.map((entry, i) => (
-          <div key={i} style={{ ...styles.narrationEntry, ...(entry.isError ? styles.narrationError : {}) }}>
+        {entries.map((entry) => (
+          <div key={`${entry.timestamp.getTime()}-${entry.type}-${entry.message}`} style={{ ...styles.narrationEntry, ...(entry.isError ? styles.narrationError : {}) }}>
             <span style={styles.narrationTime}>{formatTime(entry.timestamp)}</span>
             <span style={styles.narrationBadge}>{entry.type}</span>
             <span style={styles.narrationMsg}>{entry.message}</span>

@@ -80,14 +80,14 @@ export const flowsRouter = router({
   // ── Recall Flow ───────────────────────────────────────────────────────
 
   /** Tiered memory search with confidence-based early exit */
-  recall: publicProcedure
+  recall: protectedProcedure
     .input(recallQuerySchema)
     .query(async ({ ctx, input }) => {
       return getRecallFlow(ctx.db, stubEmbed).search(input)
     }),
 
   /** Search memory and return a formatted context block for agent injection */
-  recallAndInject: publicProcedure
+  recallAndInject: protectedProcedure
     .input(recallQuerySchema)
     .query(async ({ ctx, input }) => {
       return getRecallFlow(ctx.db, stubEmbed).searchAndInject(input)

@@ -9,7 +9,7 @@
  * - "Run": execute playbook with parameter form
  */
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { trpc } from '../../../utils/trpc'
 import type { SavedPlaybook, PlaybookStep } from '../../../server/services/playbooks/recorder'
 
@@ -142,6 +142,16 @@ export default function PlaybooksPage() {
   const utils = trpc.useUtils()
 
   const [recordingSessionId, setRecordingSessionId] = useState<string | null>(null)
+  const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clear timeout on unmount to prevent setState on unmounted component
+  useEffect(() => {
+    return () => {
+      if (resultTimeoutRef.current) {
+        clearTimeout(resultTimeoutRef.current)
+      }
+    }
+  }, [])
 
   if (isLoading) {
     return (
@@ -204,11 +214,13 @@ export default function PlaybooksPage() {
         onSuccess: () => {
           utils.playbooks.list.invalidate()
           setLastRunResult(`Playbook "${runTarget.name}" executed successfully.`)
-          setTimeout(() => setLastRunResult(null), 5000)
+          if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current)
+          resultTimeoutRef.current = setTimeout(() => setLastRunResult(null), 5000)
         },
         onError: (err) => {
           setLastRunResult(`Error: ${err.message}`)
-          setTimeout(() => setLastRunResult(null), 5000)
+          if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current)
+          resultTimeoutRef.current = setTimeout(() => setLastRunResult(null), 5000)
         },
       },
     )

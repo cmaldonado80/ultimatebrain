@@ -1,5 +1,8 @@
-import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, real, index } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, real, index, pgEnum } from 'drizzle-orm/pg-core'
 import { agents, guardrailLayerEnum, instinctScopeEnum } from './core'
+
+// === Enums ===
+export const flowStatusEnum = pgEnum('flow_status', ['draft', 'active', 'paused', 'archived'])
 
 // Feature #1: Checkpointing
 export const checkpoints = pgTable('checkpoints', {
@@ -62,7 +65,7 @@ export const evalDatasets = pgTable('eval_datasets', {
 
 export const evalCases = pgTable('eval_cases', {
   id: uuid('id').primaryKey().defaultRandom(),
-  datasetId: uuid('dataset_id').references(() => evalDatasets.id).notNull(),
+  datasetId: uuid('dataset_id').references(() => evalDatasets.id, { onDelete: 'cascade' }).notNull(),
   input: jsonb('input').notNull(),
   expectedOutput: jsonb('expected_output'),
   traceId: text('trace_id'),
@@ -74,7 +77,7 @@ export const evalCases = pgTable('eval_cases', {
 
 export const evalRuns = pgTable('eval_runs', {
   id: uuid('id').primaryKey().defaultRandom(),
-  datasetId: uuid('dataset_id').references(() => evalDatasets.id).notNull(),
+  datasetId: uuid('dataset_id').references(() => evalDatasets.id, { onDelete: 'cascade' }).notNull(),
   version: text('version'),
   scores: jsonb('scores'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -85,7 +88,7 @@ export const evalRuns = pgTable('eval_runs', {
 
 // Feature #7: A2A
 export const agentCards = pgTable('agent_cards', {
-  agentId: uuid('agent_id').references(() => agents.id).primaryKey(),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'cascade' }).primaryKey(),
   capabilities: jsonb('capabilities'),
   authRequirements: jsonb('auth_requirements'),
   endpoint: text('endpoint'),
@@ -98,7 +101,7 @@ export const flows = pgTable('flows', {
   name: text('name').notNull(),
   description: text('description'),
   steps: jsonb('steps').notNull(),
-  status: text('status').default('draft').notNull(),
+  status: flowStatusEnum('status').default('draft').notNull(),
   createdBy: text('created_by'),
   version: integer('version').default(1),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -131,6 +134,7 @@ export const gatewayMetrics = pgTable('gateway_metrics', {
   cached: boolean('cached').default(false),
   error: text('error'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => [
   index('gateway_metrics_provider_created_idx').on(table.provider, table.createdAt),
   index('gateway_metrics_agent_created_idx').on(table.agentId, table.createdAt),
@@ -165,10 +169,11 @@ export const instincts = pgTable('instincts', {
 
 export const instinctObservations = pgTable('instinct_observations', {
   id: uuid('id').primaryKey().defaultRandom(),
-  instinctId: uuid('instinct_id').references(() => instincts.id).notNull(),
+  instinctId: uuid('instinct_id').references(() => instincts.id, { onDelete: 'cascade' }).notNull(),
   eventType: text('event_type').notNull(),
   payload: jsonb('payload'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 // NOTE: Debate tables (debateSessions, debateNodes, debateEdges, debateElo)

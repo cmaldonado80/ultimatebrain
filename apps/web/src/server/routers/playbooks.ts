@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import { router, publicProcedure } from '../trpc'
+import { router, protectedProcedure } from '../trpc'
 import { PlaybookRecorder, PlaybookDistiller, PlaybookExecutor } from '../services/playbooks'
 
 let _recorder: PlaybookRecorder | null = null
@@ -24,12 +24,12 @@ const playbookStepSchema = z.object({
 export const playbooksRouter = router({
   // ── Playbook CRUD ─────────────────────────────────────────────────────
 
-  list: publicProcedure.query(async ({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     const recorder = getRecorder(ctx.db)
     return recorder.list()
   }),
 
-  get: publicProcedure
+  get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
@@ -38,7 +38,7 @@ export const playbooksRouter = router({
       return pb
     }),
 
-  save: publicProcedure
+  save: protectedProcedure
     .input(z.object({
       name: z.string().min(1),
       steps: z.array(playbookStepSchema),
@@ -55,7 +55,7 @@ export const playbooksRouter = router({
       })
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
@@ -66,7 +66,7 @@ export const playbooksRouter = router({
   // ── Recording Session ─────────────────────────────────────────────────
 
   /** Start a recording session */
-  startRecording: publicProcedure
+  startRecording: protectedProcedure
     .input(z.object({ context: z.record(z.unknown()).optional() }))
     .mutation(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
@@ -75,7 +75,7 @@ export const playbooksRouter = router({
     }),
 
   /** Record an event into an active session */
-  recordEvent: publicProcedure
+  recordEvent: protectedProcedure
     .input(z.object({
       sessionId: z.string().uuid(),
       type: z.enum(['click', 'decision', 'transformation', 'navigation', 'form_submit', 'api_call', 'custom']),
@@ -102,7 +102,7 @@ export const playbooksRouter = router({
     }),
 
   /** End recording and get raw steps */
-  endRecording: publicProcedure
+  endRecording: protectedProcedure
     .input(z.object({ sessionId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
@@ -112,7 +112,7 @@ export const playbooksRouter = router({
   // ── Distillation ──────────────────────────────────────────────────────
 
   /** Distill raw steps into a parameterized playbook */
-  distill: publicProcedure
+  distill: protectedProcedure
     .input(z.object({
       steps: z.array(playbookStepSchema),
       suggestedName: z.string().optional(),
@@ -129,7 +129,7 @@ export const playbooksRouter = router({
     }),
 
   /** Generate SKILL.md doc for a saved playbook */
-  generateSkillDoc: publicProcedure
+  generateSkillDoc: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
@@ -143,7 +143,7 @@ export const playbooksRouter = router({
   // ── Execution ─────────────────────────────────────────────────────────
 
   /** Run a playbook with parameter values */
-  run: publicProcedure
+  run: protectedProcedure
     .input(z.object({
       id: z.string().uuid(),
       parameterValues: z.record(z.unknown()).optional(),
@@ -161,7 +161,7 @@ export const playbooksRouter = router({
     }),
 
   /** Get a run result by ID */
-  getRun: publicProcedure
+  getRun: protectedProcedure
     .input(z.object({ runId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const executor = getExecutor(ctx.db)
@@ -171,7 +171,7 @@ export const playbooksRouter = router({
     }),
 
   /** A/B test two playbooks */
-  abTest: publicProcedure
+  abTest: protectedProcedure
     .input(z.object({
       originalId: z.string().uuid(),
       modifiedId: z.string().uuid(),
