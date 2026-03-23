@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { gatewayMetrics } from '@solarc/db'
 import { LlmChatInput, LlmEmbedInput } from '@solarc/engine-contracts'
@@ -27,7 +28,7 @@ export const gatewayRouter = router({
         return await gw.chat(input)
       } catch (err) {
         if (err instanceof GatewayError) {
-          throw new Error(`[${err.code}] ${err.message}`)
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `[${err.code}] ${err.message}` })
         }
         throw err
       }
@@ -67,6 +68,7 @@ export const gatewayRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const [metric] = await ctx.db.insert(gatewayMetrics).values(input).returning()
+      if (!metric) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to record metric' })
       return metric
     }),
 

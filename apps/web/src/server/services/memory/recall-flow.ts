@@ -49,7 +49,8 @@ export class RecallFlow {
     private db: Database,
     private embed: EmbedFunction
   ) {
-    this.memoryService = new MemoryService(db, embed)
+    this.memoryService = new MemoryService(db)
+    this.memoryService.setEmbedFunction(embed)
   }
 
   /**
@@ -172,7 +173,7 @@ export class RecallFlow {
   async promoteUsedMemories(memoryIds: string[]): Promise<void> {
     for (const id of memoryIds) {
       try {
-        await this.memoryService.promote(id)
+        await this.memoryService.nominateForPromotion(id)
       } catch {
         // Promotion is best-effort — don't fail the agent turn
       }

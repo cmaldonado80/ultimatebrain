@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 import { router, publicProcedure } from '../trpc'
 import { agents } from '@solarc/db'
 import { eq } from 'drizzle-orm'
@@ -43,6 +44,7 @@ export const agentsRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const [agent] = await ctx.db.insert(agents).values(input).returning()
+      if (!agent) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create agent' })
       return agent
     }),
 })

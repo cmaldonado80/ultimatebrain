@@ -63,8 +63,23 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  if (!body.task) {
+  if (!body.task || typeof body.task !== 'string') {
     return NextResponse.json({ error: 'task is required' }, { status: 400 })
+  }
+
+  if (body.task.length > 10000) {
+    return NextResponse.json({ error: 'task exceeds maximum length of 10000 characters' }, { status: 400 })
+  }
+
+  if (body.callback_url) {
+    try {
+      const cbUrl = new URL(body.callback_url)
+      if (!['http:', 'https:'].includes(cbUrl.protocol)) {
+        return NextResponse.json({ error: 'callback_url must use http or https' }, { status: 400 })
+      }
+    } catch {
+      return NextResponse.json({ error: 'callback_url is not a valid URL' }, { status: 400 })
+    }
   }
 
   const taskId = crypto.randomUUID()
@@ -101,8 +116,10 @@ export async function POST(
     return streamTaskProgress(taskId, agentId, body)
   }
 
-  // Start background execution (fire-and-forget)
-  executeTaskInBackground(taskId, agentId, body)
+  // Start background execution
+  executeTaskInBackground(taskId, agentId, body).catch((err) => {
+    console.error(`[A2A] Background execution failed for task ${taskId}:`, err)
+  })
 
   return NextResponse.json(
     {
@@ -268,7 +285,7 @@ async function deliverCallback(
       body: JSON.stringify({ task_id: taskId, status: 'completed', result }),
       signal: AbortSignal.timeout(5000),
     })
-  } catch {
-    // Callback delivery is best-effort
+  } catch (err) {
+    console.error(`[A2A] Callback delivery failed for task ${taskId}:`, err)
   }
 }

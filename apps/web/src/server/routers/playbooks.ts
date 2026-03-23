@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 import { router, publicProcedure } from '../trpc'
 import { PlaybookRecorder, PlaybookDistiller, PlaybookExecutor } from '../services/playbooks'
 
@@ -33,7 +34,7 @@ export const playbooksRouter = router({
     .query(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
       const pb = await recorder.get(input.id)
-      if (!pb) throw new Error('Playbook not found')
+      if (!pb) throw new TRPCError({ code: 'NOT_FOUND', message: 'Playbook not found' })
       return pb
     }),
 
@@ -133,7 +134,7 @@ export const playbooksRouter = router({
     .query(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
       const pb = await recorder.get(input.id)
-      if (!pb) throw new Error('Playbook not found')
+      if (!pb) throw new TRPCError({ code: 'NOT_FOUND', message: 'Playbook not found' })
       const distiller = getDistiller()
       const doc = distiller.generateSkillDocForPlaybook(pb)
       return { doc }
@@ -151,7 +152,7 @@ export const playbooksRouter = router({
     .mutation(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
       const pb = await recorder.get(input.id)
-      if (!pb) throw new Error('Playbook not found')
+      if (!pb) throw new TRPCError({ code: 'NOT_FOUND', message: 'Playbook not found' })
       const executor = getExecutor(ctx.db)
       return executor.execute(pb, {
         parameterValues: input.parameterValues,
@@ -165,7 +166,7 @@ export const playbooksRouter = router({
     .query(async ({ ctx, input }) => {
       const executor = getExecutor(ctx.db)
       const run = executor.getRun(input.runId)
-      if (!run) throw new Error('Run not found')
+      if (!run) throw new TRPCError({ code: 'NOT_FOUND', message: 'Run not found' })
       return run
     }),
 
@@ -182,8 +183,8 @@ export const playbooksRouter = router({
         recorder.get(input.originalId),
         recorder.get(input.modifiedId),
       ])
-      if (!original) throw new Error('Original playbook not found')
-      if (!modified) throw new Error('Modified playbook not found')
+      if (!original) throw new TRPCError({ code: 'NOT_FOUND', message: 'Original playbook not found' })
+      if (!modified) throw new TRPCError({ code: 'NOT_FOUND', message: 'Modified playbook not found' })
       const executor = getExecutor(ctx.db)
       return executor.abTest(original, modified, input.parameterValues)
     }),
