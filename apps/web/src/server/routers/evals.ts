@@ -3,7 +3,7 @@ import { router, publicProcedure } from '../trpc'
 import { evalDatasets, evalCases, evalRuns } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
 import { EvalCaseInput, EvalScores } from '@solarc/engine-contracts'
-import { EvalRunner } from '../services/evals'
+import { EvalRunner, DatasetBuilder, DriftDetector } from '../services/evals'
 
 let runnerInstance: EvalRunner | null = null
 
@@ -163,5 +163,79 @@ export const evalsRouter = router({
     .query(async ({ ctx, input }) => {
       const runner = getRunner(ctx.db)
       return runner.compareRuns(input.runIdA, input.runIdB)
+    }),
+
+  // === Dataset Builder (Phase 7) ===
+
+  /** List all datasets with case counts */
+  datasetsWithCounts: publicProcedure.query(async ({ ctx }) => {
+    const builder = new DatasetBuilder(ctx.db)
+    return builder.listDatasets()
+  }),
+
+  /** Save a production trace as an eval case */
+  saveFromTrace: publicProcedure
+    .input(z.object({
+      traceId: z.string(),
+      datasetName: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const builder = new DatasetBuilder(ctx.db)
+      const caseId = await builder.saveFromTrace(input.traceId, input.datasetName)
+      return { caseId }
+    }),
+
+  /** Auto-generate cases from failed tickets */
+  autoGenerateFromFailures: publicProcedure
+    .input(z.object({
+      datasetName: z.string().optional(),
+      limit: z.number().min(1).max(500).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const builder = new DatasetBuilder(ctx.db)
+      const added = await builder.autoGenerateFromFailedTickets(input.datasetName, input.limit)
+      return { added }
+    }),
+
+  /** Auto-generate cases from successful traces */
+  autoGenerateFromSuccesses: publicProcedure
+    .input(z.object({
+      datasetName: z.string().optional(),
+      limit: z.number().min(1).max(500).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const builder = new DatasetBuilder(ctx.db)
+      const added = await builder.autoGenerateFromSuccessfulTraces(input.datasetName, input.limit)
+      return { added }
+    }),
+
+  // === Drift Detector (Phase 7) ===
+
+  /** Check a dataset for score regression vs. previous run */
+  detectDrift: publicProcedure
+    .input(z.object({
+      datasetId: z.string().uuid(),
+      threshold: z.number().min(0).max(1).optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const detector = new DriftDetector(ctx.db, input.threshold)
+      return detector.detectForDataset(input.datasetId)
+    }),
+
+  /** Check all datasets for regression */
+  detectDriftAll: publicProcedure.query(async ({ ctx }) => {
+    const detector = new DriftDetector(ctx.db)
+    return detector.detectAll()
+  }),
+
+  /** Get score trend history for a dataset */
+  scoreHistory: publicProcedure
+    .input(z.object({
+      datasetId: z.string().uuid(),
+      limit: z.number().min(1).max(100).optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const detector = new DriftDetector(ctx.db)
+      return detector.getHistory(input.datasetId, input.limit)
     }),
 })

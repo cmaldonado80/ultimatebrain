@@ -1,3 +1,7 @@
 export { EvalRunner, type EvalCaseResult, type EvalRunResult, type RunOptions } from './runner'
 export { ALL_SCORERS, taskCompletionScorer, factualityScorer, toolUseAccuracyScorer, safetyScorer, costEfficiencyScorer } from './scorers'
 export type { Scorer, ScorerInput } from './scorers'
+export { DatasetBuilder } from './dataset-builder'
+export type { TraceSnapshot, EvalCaseInput as EvalCaseCreateInput, DatasetSummary, DatasetPreset } from './dataset-builder'
+export { DriftDetector } from './drift-detector'
+export type { DriftReport, RegressionDetail, DriftAlert } from './drift-detector'
