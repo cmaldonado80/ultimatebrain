@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer, jsonb, pgEnum, uuid, real } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, integer, jsonb, pgEnum, uuid, real, primaryKey } from 'drizzle-orm/pg-core'
 
 // === Enums ===
 
@@ -70,7 +70,9 @@ export const projects = pgTable('projects', {
 export const projectWorkspaces = pgTable('project_workspaces', {
   projectId: uuid('project_id').references(() => projects.id).notNull(),
   workspaceId: uuid('workspace_id').references(() => workspaces.id).notNull(),
-})
+}, (t) => [
+  primaryKey({ columns: [t.projectId, t.workspaceId] }),
+])
 
 export const projectLog = pgTable('project_log', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -130,7 +132,9 @@ export const ticketComments = pgTable('ticket_comments', {
 export const ticketDependencies = pgTable('ticket_dependencies', {
   ticketId: uuid('ticket_id').references(() => tickets.id).notNull(),
   blockedByTicketId: uuid('blocked_by_ticket_id').references(() => tickets.id).notNull(),
-})
+}, (t) => [
+  primaryKey({ columns: [t.ticketId, t.blockedByTicketId] }),
+])
 
 export const ticketProof = pgTable('ticket_proof', {
   ticketId: uuid('ticket_id').references(() => tickets.id).primaryKey(),

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { ChannelService, WebhookService, ArtifactService, ModelFallbackService } from '../services/integrations'
 
 let channelSvc: ChannelService | null = null
@@ -15,7 +15,7 @@ function getFallbacks(db: any) { return fallbackSvc ??= new ModelFallbackService
 export const integrationsRouter = router({
   // === Channels ===
 
-  createChannel: publicProcedure
+  createChannel: protectedProcedure
     .input(z.object({
       type: z.string().min(1),
       config: z.record(z.unknown()).optional(),
@@ -31,13 +31,13 @@ export const integrationsRouter = router({
       return getChannels(ctx.db).list(input?.enabledOnly)
     }),
 
-  toggleChannel: publicProcedure
+  toggleChannel: protectedProcedure
     .input(z.object({ id: z.string().uuid(), enabled: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return getChannels(ctx.db).toggle(input.id, input.enabled)
     }),
 
-  deleteChannel: publicProcedure
+  deleteChannel: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getChannels(ctx.db).delete(input.id)
@@ -45,7 +45,7 @@ export const integrationsRouter = router({
 
   // === Webhooks ===
 
-  createWebhook: publicProcedure
+  createWebhook: protectedProcedure
     .input(z.object({
       source: z.string().optional(),
       url: z.string().url(),
@@ -62,19 +62,19 @@ export const integrationsRouter = router({
       return getWebhooks(ctx.db).list(input?.enabledOnly)
     }),
 
-  toggleWebhook: publicProcedure
+  toggleWebhook: protectedProcedure
     .input(z.object({ id: z.string().uuid(), enabled: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       return getWebhooks(ctx.db).toggle(input.id, input.enabled)
     }),
 
-  deleteWebhook: publicProcedure
+  deleteWebhook: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getWebhooks(ctx.db).delete(input.id)
     }),
 
-  dispatchWebhook: publicProcedure
+  dispatchWebhook: protectedProcedure
     .input(z.object({
       type: z.string().min(1),
       payload: z.unknown(),
@@ -89,7 +89,7 @@ export const integrationsRouter = router({
 
   // === Artifacts ===
 
-  createArtifact: publicProcedure
+  createArtifact: protectedProcedure
     .input(z.object({
       name: z.string().min(1),
       content: z.string().optional(),
@@ -119,7 +119,7 @@ export const integrationsRouter = router({
       return getArtifacts(ctx.db).listByAgent(input.agentId)
     }),
 
-  deleteArtifact: publicProcedure
+  deleteArtifact: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getArtifacts(ctx.db).delete(input.id)
@@ -127,7 +127,7 @@ export const integrationsRouter = router({
 
   // === Model Fallbacks ===
 
-  setFallbackChain: publicProcedure
+  setFallbackChain: protectedProcedure
     .input(z.object({
       agentId: z.string().uuid(),
       chain: z.array(z.string()).min(1),
@@ -155,7 +155,7 @@ export const integrationsRouter = router({
       return getFallbacks(ctx.db).resolveNext(input.agentId, input.failedModel)
     }),
 
-  deleteFallbackChain: publicProcedure
+  deleteFallbackChain: protectedProcedure
     .input(z.object({ agentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getFallbacks(ctx.db).delete(input.agentId)

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { MCPServer, MCPRegistry } from '../services/mcp'
 
 /** Shared registry + server singleton (created lazily per-request in real app) */
@@ -53,7 +53,7 @@ export const mcpRouter = router({
   // ── Tool Execution ────────────────────────────────────────────────────
 
   /** Call a tool by name */
-  callTool: publicProcedure
+  callTool: protectedProcedure
     .input(z.object({
       name: z.string().min(1),
       arguments: z.record(z.unknown()).optional(),
@@ -68,7 +68,7 @@ export const mcpRouter = router({
   // ── JSON-RPC Passthrough ──────────────────────────────────────────────
 
   /** Handle raw JSON-RPC request (for HTTP transport) */
-  jsonRpc: publicProcedure
+  jsonRpc: protectedProcedure
     .input(z.object({
       jsonrpc: z.literal('2.0'),
       id: z.union([z.string(), z.number()]),
@@ -91,7 +91,7 @@ export const mcpRouter = router({
   }),
 
   /** Add an external MCP server */
-  addExternalServer: publicProcedure
+  addExternalServer: protectedProcedure
     .input(z.object({
       name: z.string().min(1),
       url: z.string().url(),
@@ -111,7 +111,7 @@ export const mcpRouter = router({
     }),
 
   /** Remove an external MCP server */
-  removeExternalServer: publicProcedure
+  removeExternalServer: protectedProcedure
     .input(z.object({ name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const { registry } = createMCPStack(ctx.db)
@@ -120,7 +120,7 @@ export const mcpRouter = router({
     }),
 
   /** Re-discover tools from all external servers */
-  refreshDiscovery: publicProcedure.mutation(async ({ ctx }) => {
+  refreshDiscovery: protectedProcedure.mutation(async ({ ctx }) => {
     const { registry, server } = createMCPStack(ctx.db)
     await server.registerPlatformTools()
     const stats = await registry.discoverAll()

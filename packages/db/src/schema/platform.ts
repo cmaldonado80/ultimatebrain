@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, real } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, real, primaryKey } from 'drizzle-orm/pg-core'
 import { agents, entityTierEnum, entityStatusEnum, entityAgentRoleEnum, debateSessionStatusEnum, debateEdgeTypeEnum, projects } from './core'
 
 // Brain entity hierarchy
@@ -7,7 +7,7 @@ export const brainEntities = pgTable('brain_entities', {
   name: text('name').notNull(),
   domain: text('domain'),
   tier: entityTierEnum('tier').notNull(),
-  parentId: uuid('parent_id'),
+  parentId: uuid('parent_id').references(() => brainEntities.id),
   enginesEnabled: text('engines_enabled').array(),
   domainEngines: jsonb('domain_engines'),
   apiKeyHash: text('api_key_hash'),
@@ -26,7 +26,9 @@ export const brainEntityAgents = pgTable('brain_entity_agents', {
   agentId: uuid('agent_id').references(() => agents.id).notNull(),
   role: entityAgentRoleEnum('role').default('primary').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+}, (t) => [
+  primaryKey({ columns: [t.entityId, t.agentId] }),
+])
 
 export const brainEngineUsage = pgTable('brain_engine_usage', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -54,7 +56,7 @@ export const debateNodes = pgTable('debate_nodes', {
   agentId: uuid('agent_id').references(() => agents.id),
   text: text('text').notNull(),
   validity: real('validity'),
-  parentId: uuid('parent_id'),
+  parentId: uuid('parent_id').references(() => debateNodes.id),
   isAxiom: boolean('is_axiom').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
@@ -63,7 +65,9 @@ export const debateEdges = pgTable('debate_edges', {
   fromNodeId: uuid('from_node_id').references(() => debateNodes.id).notNull(),
   toNodeId: uuid('to_node_id').references(() => debateNodes.id).notNull(),
   type: debateEdgeTypeEnum('type').notNull(),
-})
+}, (t) => [
+  primaryKey({ columns: [t.fromNodeId, t.toNodeId] }),
+])
 
 export const debateElo = pgTable('debate_elo', {
   agentId: uuid('agent_id').references(() => agents.id).primaryKey(),

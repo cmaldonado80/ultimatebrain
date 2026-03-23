@@ -1,7 +1,19 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { CrewEngine } from '../services/crews/crew-engine'
 import { RecallFlow } from '../services/memory/recall-flow'
+
+let _crewEngine: CrewEngine | null = null
+let _recallFlow: RecallFlow | null = null
+
+function getCrewEngine(db: any) { return _crewEngine ??= new CrewEngine(db) }
+function getRecallFlow(db: any, embed: (text: string) => Promise<number[]>) {
+  return _recallFlow ??= new RecallFlow(db, embed)
+}
+
+// Stub embed function — real impl calls GatewayRouter embed endpoint
+const stubEmbed = async (_text: string): Promise<number[]> =>
+  new Array(1536).fill(0).map(() => Math.random() - 0.5)
 
 const agentDefinitionSchema = z.object({
   id: z.string(),
@@ -33,11 +45,10 @@ export const flowsRouter = router({
   // ── Crew Execution ────────────────────────────────────────────────────
 
   /** Run a crew on a task (ReAct loop, auto-delegation) */
-  runCrew: publicProcedure
+  runCrew: protectedProcedure
     .input(crewDefinitionSchema)
     .mutation(async ({ ctx, input }) => {
-      const engine = new CrewEngine(ctx.db)
-      return engine.run({
+      return getCrewEngine(ctx.db).run({
         name: input.name,
         task: input.task,
         verbose: input.verbose,
@@ -49,7 +60,7 @@ export const flowsRouter = router({
     }),
 
   /** Run a single agent through the ReAct loop */
-  runAgent: publicProcedure
+  runAgent: protectedProcedure
     .input(
       z.object({
         agent: agentDefinitionSchema,
@@ -58,8 +69,7 @@ export const flowsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const engine = new CrewEngine(ctx.db)
-      return engine.runAgent(
+      return getCrewEngine(ctx.db).runAgent(
         { ...input.agent, tools: [] },
         input.task,
         input.crewId ?? crypto.randomUUID(),
@@ -73,32 +83,21 @@ export const flowsRouter = router({
   recall: publicProcedure
     .input(recallQuerySchema)
     .query(async ({ ctx, input }) => {
-      // Stub embed function — real impl calls GatewayRouter embed endpoint
-      const stubEmbed = async (_text: string): Promise<number[]> =>
-        new Array(1536).fill(0).map(() => Math.random() - 0.5)
-
-      const recallFlow = new RecallFlow(ctx.db, stubEmbed)
-      return recallFlow.search(input)
+      return getRecallFlow(ctx.db, stubEmbed).search(input)
     }),
 
   /** Search memory and return a formatted context block for agent injection */
   recallAndInject: publicProcedure
     .input(recallQuerySchema)
     .query(async ({ ctx, input }) => {
-      const stubEmbed = async (_text: string): Promise<number[]> =>
-        new Array(1536).fill(0).map(() => Math.random() - 0.5)
-
-      const recallFlow = new RecallFlow(ctx.db, stubEmbed)
-      return recallFlow.searchAndInject(input)
+      return getRecallFlow(ctx.db, stubEmbed).searchAndInject(input)
     }),
 
   /** Promote memory IDs that were useful in an agent turn */
-  promoteMemories: publicProcedure
+  promoteMemories: protectedProcedure
     .input(z.object({ memoryIds: z.array(z.string().uuid()) }))
     .mutation(async ({ ctx, input }) => {
-      const stubEmbed = async (_text: string): Promise<number[]> => []
-      const recallFlow = new RecallFlow(ctx.db, stubEmbed)
-      await recallFlow.promoteUsedMemories(input.memoryIds)
+      await getRecallFlow(ctx.db, stubEmbed).promoteUsedMemories(input.memoryIds)
       return { promoted: input.memoryIds.length }
     }),
 })

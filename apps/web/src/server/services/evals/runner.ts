@@ -191,8 +191,10 @@ export class EvalRunner {
 
     if (!runA || !runB) throw new Error('One or both runs not found')
 
-    const scoresA = (runA.scores as any)?.averageScores as EvalScores
-    const scoresB = (runB.scores as any)?.averageScores as EvalScores
+    const runAScores = runA.scores as Record<string, unknown> | null
+    const runBScores = runB.scores as Record<string, unknown> | null
+    const scoresA = runAScores?.averageScores as EvalScores | undefined
+    const scoresB = runBScores?.averageScores as EvalScores | undefined
 
     if (!scoresA || !scoresB) throw new Error('Runs missing average scores')
 

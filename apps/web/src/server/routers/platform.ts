@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { DebateEngine, TokenLedgerService, EntityManager } from '../services/platform'
 
 let debate: DebateEngine | null = null
@@ -13,7 +13,7 @@ function getEntities(db: any) { return entities ??= new EntityManager(db) }
 export const platformRouter = router({
   // === Debate Engine ===
 
-  createDebate: publicProcedure
+  createDebate: protectedProcedure
     .input(z.object({
       projectId: z.string().uuid().optional(),
       rules: z.array(z.object({
@@ -26,7 +26,7 @@ export const platformRouter = router({
       return getDebate(ctx.db).createSession(input.projectId, input.rules)
     }),
 
-  submitArgument: publicProcedure
+  submitArgument: protectedProcedure
     .input(z.object({
       sessionId: z.string().uuid(),
       agentId: z.string().uuid(),
@@ -43,7 +43,7 @@ export const platformRouter = router({
       })
     }),
 
-  addDebateEdge: publicProcedure
+  addDebateEdge: protectedProcedure
     .input(z.object({
       fromNodeId: z.string().uuid(),
       toNodeId: z.string().uuid(),
@@ -53,13 +53,13 @@ export const platformRouter = router({
       return getDebate(ctx.db).addEdge(input.fromNodeId, input.toNodeId, input.type)
     }),
 
-  scoreArgument: publicProcedure
+  scoreArgument: protectedProcedure
     .input(z.object({ nodeId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getDebate(ctx.db).scoreArgument(input.nodeId)
     }),
 
-  scoreDebateSession: publicProcedure
+  scoreDebateSession: protectedProcedure
     .input(z.object({ sessionId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const scores = await getDebate(ctx.db).scoreSession(input.sessionId)
@@ -72,7 +72,7 @@ export const platformRouter = router({
       return getDebate(ctx.db).getSession(input.id)
     }),
 
-  completeDebate: publicProcedure
+  completeDebate: protectedProcedure
     .input(z.object({
       sessionId: z.string().uuid(),
       winnerId: z.string().uuid().optional(),
@@ -82,7 +82,7 @@ export const platformRouter = router({
       return getDebate(ctx.db).completeSession(input.sessionId, input.winnerId, input.loserId)
     }),
 
-  cancelDebate: publicProcedure
+  cancelDebate: protectedProcedure
     .input(z.object({ sessionId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getDebate(ctx.db).cancelSession(input.sessionId)
@@ -102,7 +102,7 @@ export const platformRouter = router({
 
   // === Token Ledger ===
 
-  recordUsage: publicProcedure
+  recordUsage: protectedProcedure
     .input(z.object({
       entityId: z.string().uuid().optional(),
       agentId: z.string().uuid().optional(),
@@ -122,7 +122,7 @@ export const platformRouter = router({
       return getLedger(ctx.db).checkBudget(input.entityId)
     }),
 
-  setBudget: publicProcedure
+  setBudget: protectedProcedure
     .input(z.object({
       entityId: z.string().uuid(),
       dailyLimitUsd: z.number().min(0).optional(),
@@ -165,7 +165,7 @@ export const platformRouter = router({
 
   // === Brain Entities ===
 
-  createEntity: publicProcedure
+  createEntity: protectedProcedure
     .input(z.object({
       name: z.string().min(1),
       domain: z.string().optional(),
@@ -180,13 +180,13 @@ export const platformRouter = router({
       return getEntities(ctx.db).create(input)
     }),
 
-  activateEntity: publicProcedure
+  activateEntity: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).activate(input.id)
     }),
 
-  suspendEntity: publicProcedure
+  suspendEntity: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).suspend(input.id)
@@ -210,7 +210,7 @@ export const platformRouter = router({
       return getEntities(ctx.db).getHierarchy(input.id)
     }),
 
-  assignEntityAgent: publicProcedure
+  assignEntityAgent: protectedProcedure
     .input(z.object({
       entityId: z.string().uuid(),
       agentId: z.string().uuid(),
@@ -220,7 +220,7 @@ export const platformRouter = router({
       return getEntities(ctx.db).assignAgent(input.entityId, input.agentId, input.role)
     }),
 
-  removeEntityAgent: publicProcedure
+  removeEntityAgent: protectedProcedure
     .input(z.object({
       entityId: z.string().uuid(),
       agentId: z.string().uuid(),
@@ -241,7 +241,7 @@ export const platformRouter = router({
       return getEntities(ctx.db).getHealth(input.id)
     }),
 
-  recordHealthCheck: publicProcedure
+  recordHealthCheck: protectedProcedure
     .input(z.object({
       entityId: z.string().uuid(),
       status: z.enum(['active', 'suspended', 'degraded', 'provisioning']),
@@ -252,7 +252,7 @@ export const platformRouter = router({
 
   // === Strategy Runs ===
 
-  createStrategy: publicProcedure
+  createStrategy: protectedProcedure
     .input(z.object({
       plan: z.string().min(1),
       workspaceId: z.string().uuid().optional(),
@@ -262,7 +262,7 @@ export const platformRouter = router({
       return getEntities(ctx.db).createStrategyRun(input.plan, input.workspaceId, input.agentId)
     }),
 
-  startStrategy: publicProcedure
+  startStrategy: protectedProcedure
     .input(z.object({
       runId: z.string().uuid(),
       ticketIds: z.array(z.string().uuid()),
@@ -271,7 +271,7 @@ export const platformRouter = router({
       return getEntities(ctx.db).startStrategyRun(input.runId, input.ticketIds)
     }),
 
-  completeStrategy: publicProcedure
+  completeStrategy: protectedProcedure
     .input(z.object({ runId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).completeStrategyRun(input.runId)
@@ -285,7 +285,7 @@ export const platformRouter = router({
 
   // === Cross-Workspace Routing ===
 
-  addRoute: publicProcedure
+  addRoute: protectedProcedure
     .input(z.object({
       fromWorkspace: z.string().uuid(),
       toWorkspace: z.string().uuid(),
@@ -302,7 +302,7 @@ export const platformRouter = router({
       return getEntities(ctx.db).getRoutes(input?.fromWorkspace)
     }),
 
-  deleteRoute: publicProcedure
+  deleteRoute: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).deleteRoute(input.id)

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { TicketExecutionEngine, CronEngine, SwarmEngine, ReceiptManager } from '../services/orchestration'
 
 // Lazy singletons
@@ -22,7 +22,7 @@ export const orchestrationRouter = router({
       return getTicketEngine(ctx.db).getReadyTickets(input?.workspaceId)
     }),
 
-  acquireLock: publicProcedure
+  acquireLock: protectedProcedure
     .input(z.object({
       ticketId: z.string().uuid(),
       agentId: z.string().uuid(),
@@ -32,13 +32,13 @@ export const orchestrationRouter = router({
       return getTicketEngine(ctx.db).acquireLock(input.ticketId, input.agentId, input.leaseSeconds)
     }),
 
-  releaseLock: publicProcedure
+  releaseLock: protectedProcedure
     .input(z.object({ ticketId: z.string().uuid(), agentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getTicketEngine(ctx.db).releaseLock(input.ticketId, input.agentId)
     }),
 
-  renewLease: publicProcedure
+  renewLease: protectedProcedure
     .input(z.object({
       ticketId: z.string().uuid(),
       agentId: z.string().uuid(),
@@ -48,7 +48,7 @@ export const orchestrationRouter = router({
       return getTicketEngine(ctx.db).renewLease(input.ticketId, input.agentId, input.leaseSeconds)
     }),
 
-  transition: publicProcedure
+  transition: protectedProcedure
     .input(z.object({
       ticketId: z.string().uuid(),
       status: z.enum(['backlog', 'queued', 'in_progress', 'review', 'done', 'failed', 'cancelled']),
@@ -58,7 +58,7 @@ export const orchestrationRouter = router({
       return getTicketEngine(ctx.db).transition(input.ticketId, input.status, input.agentId)
     }),
 
-  assignAgent: publicProcedure
+  assignAgent: protectedProcedure
     .input(z.object({
       ticketId: z.string().uuid(),
       strategy: z.enum(['round_robin', 'least_loaded', 'skill_match', 'affinity']).optional(),
@@ -72,7 +72,7 @@ export const orchestrationRouter = router({
       )
     }),
 
-  addDependency: publicProcedure
+  addDependency: protectedProcedure
     .input(z.object({
       ticketId: z.string().uuid(),
       blockedByTicketId: z.string().uuid(),
@@ -81,7 +81,7 @@ export const orchestrationRouter = router({
       return getTicketEngine(ctx.db).addDependency(input.ticketId, input.blockedByTicketId)
     }),
 
-  completeTicket: publicProcedure
+  completeTicket: protectedProcedure
     .input(z.object({
       ticketId: z.string().uuid(),
       result: z.string(),
@@ -91,7 +91,7 @@ export const orchestrationRouter = router({
       return getTicketEngine(ctx.db).complete(input.ticketId, input.result, input.agentId)
     }),
 
-  failTicket: publicProcedure
+  failTicket: protectedProcedure
     .input(z.object({
       ticketId: z.string().uuid(),
       reason: z.string(),
@@ -113,7 +113,7 @@ export const orchestrationRouter = router({
       return getCronEngine(ctx.db).list(input?.workspaceId)
     }),
 
-  createCronJob: publicProcedure
+  createCronJob: protectedProcedure
     .input(z.object({
       name: z.string().min(1),
       schedule: z.string().min(9), // min "* * * * *"
@@ -126,19 +126,19 @@ export const orchestrationRouter = router({
       return getCronEngine(ctx.db).createJob(input)
     }),
 
-  pauseCronJob: publicProcedure
+  pauseCronJob: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getCronEngine(ctx.db).pause(input.id)
     }),
 
-  resumeCronJob: publicProcedure
+  resumeCronJob: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getCronEngine(ctx.db).resume(input.id)
     }),
 
-  deleteCronJob: publicProcedure
+  deleteCronJob: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getCronEngine(ctx.db).delete(input.id)
@@ -148,13 +148,13 @@ export const orchestrationRouter = router({
     return getCronEngine(ctx.db).getDueJobs()
   }),
 
-  recordJobSuccess: publicProcedure
+  recordJobSuccess: protectedProcedure
     .input(z.object({ id: z.string().uuid(), result: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       return getCronEngine(ctx.db).recordSuccess(input.id, input.result)
     }),
 
-  recordJobFailure: publicProcedure
+  recordJobFailure: protectedProcedure
     .input(z.object({ id: z.string().uuid(), error: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return getCronEngine(ctx.db).recordFailure(input.id, input.error)
@@ -162,7 +162,7 @@ export const orchestrationRouter = router({
 
   // === Ephemeral Swarms ===
 
-  formSwarm: publicProcedure
+  formSwarm: protectedProcedure
     .input(z.object({
       task: z.string().min(1),
       requiredSkills: z.array(z.string()).optional(),
@@ -181,19 +181,19 @@ export const orchestrationRouter = router({
       return getSwarmEngine(ctx.db).get(input.id)
     }),
 
-  completeSwarm: publicProcedure
+  completeSwarm: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getSwarmEngine(ctx.db).complete(input.id)
     }),
 
-  disbandSwarm: publicProcedure
+  disbandSwarm: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getSwarmEngine(ctx.db).disband(input.id)
     }),
 
-  addSwarmMember: publicProcedure
+  addSwarmMember: protectedProcedure
     .input(z.object({
       swarmId: z.string().uuid(),
       agentId: z.string().uuid(),
@@ -203,7 +203,7 @@ export const orchestrationRouter = router({
       return getSwarmEngine(ctx.db).addMember(input.swarmId, input.agentId, input.role)
     }),
 
-  removeSwarmMember: publicProcedure
+  removeSwarmMember: protectedProcedure
     .input(z.object({
       swarmId: z.string().uuid(),
       agentId: z.string().uuid(),
@@ -218,7 +218,7 @@ export const orchestrationRouter = router({
 
   // === Receipts ===
 
-  startReceipt: publicProcedure
+  startReceipt: protectedProcedure
     .input(z.object({
       agentId: z.string().uuid().optional(),
       ticketId: z.string().uuid().optional(),
@@ -230,7 +230,7 @@ export const orchestrationRouter = router({
       return getReceiptManager(ctx.db).start(input)
     }),
 
-  recordAction: publicProcedure
+  recordAction: protectedProcedure
     .input(z.object({
       receiptId: z.string().uuid(),
       type: z.string().min(1),
@@ -245,19 +245,19 @@ export const orchestrationRouter = router({
       return getReceiptManager(ctx.db).recordAction(input)
     }),
 
-  completeReceipt: publicProcedure
+  completeReceipt: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getReceiptManager(ctx.db).complete(input.id)
     }),
 
-  failReceipt: publicProcedure
+  failReceipt: protectedProcedure
     .input(z.object({ id: z.string().uuid(), reason: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       return getReceiptManager(ctx.db).fail(input.id, input.reason)
     }),
 
-  rollbackReceipt: publicProcedure
+  rollbackReceipt: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getReceiptManager(ctx.db).rollback(input.id)
@@ -280,7 +280,7 @@ export const orchestrationRouter = router({
       return getReceiptManager(ctx.db).list(input ?? undefined)
     }),
 
-  recordAnomaly: publicProcedure
+  recordAnomaly: protectedProcedure
     .input(z.object({
       receiptId: z.string().uuid(),
       description: z.string().min(1),

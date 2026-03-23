@@ -16,7 +16,7 @@ function getEngine(db: any): GuardrailEngine {
 
 export const guardrailsRouter = router({
   /** Check content against guardrails (input layer) */
-  checkInput: publicProcedure
+  checkInput: protectedProcedure
     .input(GuardrailCheckInput)
     .mutation(async ({ ctx, input }) => {
       const engine = getEngine(ctx.db)
@@ -24,7 +24,7 @@ export const guardrailsRouter = router({
     }),
 
   /** Check content against guardrails (output layer) */
-  checkOutput: publicProcedure
+  checkOutput: protectedProcedure
     .input(GuardrailCheckInput)
     .mutation(async ({ ctx, input }) => {
       const engine = getEngine(ctx.db)
@@ -32,7 +32,7 @@ export const guardrailsRouter = router({
     }),
 
   /** Check tool call JSON against guardrails */
-  checkTool: publicProcedure
+  checkTool: protectedProcedure
     .input(z.object({
       content: z.string(),
       agentId: z.string().uuid().optional(),
@@ -43,7 +43,7 @@ export const guardrailsRouter = router({
     }),
 
   /** Check content against specific layer with optional policy filter */
-  check: publicProcedure
+  check: protectedProcedure
     .input(z.object({
       content: z.string(),
       layer: z.enum(['input', 'output', 'tool']),

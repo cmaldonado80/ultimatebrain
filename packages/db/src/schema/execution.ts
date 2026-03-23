@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer, jsonb, uuid } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, integer, jsonb, uuid, primaryKey } from 'drizzle-orm/pg-core'
 import { agents, workspaces, tickets, projects, cronJobStatusEnum, receiptStatusEnum, approvalStatusEnum } from './core'
 
 export const cronJobs = pgTable('cron_jobs', {
@@ -31,14 +31,16 @@ export const swarmAgents = pgTable('swarm_agents', {
   swarmId: uuid('swarm_id').references(() => ephemeralSwarms.id).notNull(),
   agentId: uuid('agent_id').references(() => agents.id).notNull(),
   role: text('role'),
-})
+}, (t) => [
+  primaryKey({ columns: [t.swarmId, t.agentId] }),
+])
 
 export const receipts = pgTable('receipts', {
   id: uuid('id').primaryKey().defaultRandom(),
   agentId: uuid('agent_id').references(() => agents.id),
   ticketId: uuid('ticket_id').references(() => tickets.id),
   projectId: uuid('project_id').references(() => projects.id),
-  workspaceId: uuid('workspace_id'),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id),
   trigger: text('trigger'),
   status: receiptStatusEnum('status').default('running').notNull(),
   startedAt: timestamp('started_at').defaultNow().notNull(),

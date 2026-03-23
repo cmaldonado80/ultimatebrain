@@ -299,7 +299,7 @@ export class GatewayRouter {
           const result = await adapter.chat({
             model: targetModel,
             messages,
-            tools: input.tools as unknown[],
+            tools: input.tools,
             apiKey: apiKey ?? undefined,
           })
 

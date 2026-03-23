@@ -122,7 +122,7 @@ export class A2AEngine {
     // Search agent cards (check if capabilities JSON contains the skill)
     const allCards = await this.listCards()
     for (const card of allCards) {
-      const caps = card.capabilities as any
+      const caps = card.capabilities as Record<string, unknown> | null
       if (caps && JSON.stringify(caps).toLowerCase().includes(skill.toLowerCase())) {
         // Avoid duplicates
         if (!results.find((r) => r.agentId === card.agentId)) {

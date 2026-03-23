@@ -1,6 +1,9 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc'
+import { router, publicProcedure, protectedProcedure } from '../trpc'
 import { ModeRouter } from '../services/task-runner/mode-router'
+
+let _modeRouter: ModeRouter | null = null
+function getModeRouter(db: any) { return _modeRouter ??= new ModeRouter(db) }
 
 const planStepSchema = z.object({
   index: z.number().int().min(0),
@@ -27,22 +30,22 @@ export const taskRunnerRouter = router({
   detectMode: publicProcedure
     .input(z.object({ ticketId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const router = new ModeRouter(ctx.db)
+      const router = getModeRouter(ctx.db)
       const mode = await router.detectMode(input.ticketId)
       return { mode }
     }),
 
   /** Manually set execution mode on a ticket */
-  setMode: publicProcedure
+  setMode: protectedProcedure
     .input(z.object({ ticketId: z.string().uuid(), mode: modeEnum }))
     .mutation(async ({ ctx, input }) => {
-      const router = new ModeRouter(ctx.db)
+      const router = getModeRouter(ctx.db)
       await router.setMode(input.ticketId, input.mode)
       return { success: true }
     }),
 
   /** Route a ticket to the correct pipeline (auto-detects mode unless forced) */
-  route: publicProcedure
+  route: protectedProcedure
     .input(
       z.object({
         ticketId: z.string().uuid(),
@@ -54,7 +57,7 @@ export const taskRunnerRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const router = new ModeRouter(ctx.db)
+      const router = getModeRouter(ctx.db)
       return router.route(input.ticketId, input.prompt, {
         forceMode: input.forceMode,
         agentId: input.agentId,
@@ -72,7 +75,7 @@ export const taskRunnerRouter = router({
     }),
 
   /** Execute quick mode directly */
-  executeQuick: publicProcedure
+  executeQuick: protectedProcedure
     .input(
       z.object({
         ticketId: z.string().uuid(),
@@ -81,12 +84,12 @@ export const taskRunnerRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const router = new ModeRouter(ctx.db)
+      const router = getModeRouter(ctx.db)
       return router.executeQuick(input.ticketId, input.prompt, { agentId: input.agentId })
     }),
 
   /** Execute autonomous mode directly */
-  executeAutonomous: publicProcedure
+  executeAutonomous: protectedProcedure
     .input(
       z.object({
         ticketId: z.string().uuid(),
@@ -95,7 +98,7 @@ export const taskRunnerRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const router = new ModeRouter(ctx.db)
+      const router = getModeRouter(ctx.db)
       return router.executeAutonomous(input.ticketId, {
         agentId: input.agentId,
         traceId: input.traceId,
@@ -103,7 +106,7 @@ export const taskRunnerRouter = router({
     }),
 
   /** Start deep work — generates plan and awaits approval */
-  startDeepWork: publicProcedure
+  startDeepWork: protectedProcedure
     .input(
       z.object({
         ticketId: z.string().uuid(),
@@ -111,12 +114,12 @@ export const taskRunnerRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const router = new ModeRouter(ctx.db)
+      const router = getModeRouter(ctx.db)
       return router.startDeepWork(input.ticketId, { agentId: input.agentId })
     }),
 
   /** Execute an approved deep work plan */
-  executeDeepWork: publicProcedure
+  executeDeepWork: protectedProcedure
     .input(
       z.object({
         ticketId: z.string().uuid(),
@@ -125,7 +128,7 @@ export const taskRunnerRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const router = new ModeRouter(ctx.db)
+      const router = getModeRouter(ctx.db)
       return router.executeDeepWork(
         input.ticketId,
         {
