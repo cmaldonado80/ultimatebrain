@@ -142,6 +142,7 @@ export default function SettingsPage() {
                 <option value="anthropic">Anthropic</option>
                 <option value="openai">OpenAI</option>
                 <option value="google">Google</option>
+                <option value="ollama">Ollama (Cloud)</option>
               </select>
               <input
                 style={{
