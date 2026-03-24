@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, primaryKey, uuid, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, primaryKey, uuid } from 'drizzle-orm/pg-core'
 import type { AdapterAccountType } from '@auth/core/adapters'
 
 // === NextAuth Tables (required by @auth/drizzle-adapter) ===
