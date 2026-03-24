@@ -16,14 +16,17 @@ function getDb() {
 }
 
 /**
- * Lazy adapter — returns undefined during Next.js static page collection
- * when DATABASE_URL is not yet available. NextAuth works without an adapter
- * for JWT-only sessions; the adapter is only needed for DB-backed user lookup.
+ * Adapter is only used for OAuth providers (account linking, user creation).
+ * Credentials sign-in bypasses the adapter — user lookup/creation happens
+ * directly in the authorize callback. With JWT strategy, session storage
+ * is cookie-based and does not need the adapter at all.
  */
 const adapter = process.env.DATABASE_URL ? DrizzleAdapter(getDb()) : undefined
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter,
+  // Only attach adapter when OAuth providers are active — Credentials-only
+  // setups work better without it as the adapter can interfere with JWT creation.
+  adapter: process.env.AUTH_GITHUB_ID || process.env.AUTH_GOOGLE_ID ? adapter : undefined,
   trustHost: true,
   session: { strategy: 'jwt' },
   pages: {
@@ -56,24 +59,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         const email = credentials?.email as string | undefined
         if (!email) return null
-        const db = getDb()
-        const existing = await db.query.users.findFirst({
-          where: (users, { eq }) => eq(users.email, email),
-        })
-        if (existing) return { id: existing.id, email: existing.email, name: existing.name }
-        // Auto-provision user on first sign-in
-        const { users } = await import('@solarc/db')
-        const [created] = await db
-          .insert(users)
-          .values({ email, name: email.split('@')[0] })
-          .returning()
-        return created ? { id: created.id, email: created.email, name: created.name } : null
+
+        // Try DB lookup/creation, fall back to email-based identity if DB is unavailable.
+        // With JWT strategy the session lives in the cookie, so DB is not required.
+        try {
+          if (process.env.DATABASE_URL) {
+            const db = getDb()
+            const existing = await db.query.users.findFirst({
+              where: (users, { eq }) => eq(users.email, email),
+            })
+            if (existing) return { id: existing.id, email: existing.email, name: existing.name }
+            // Auto-provision user on first sign-in
+            const { users } = await import('@solarc/db')
+            const [created] = await db
+              .insert(users)
+              .values({ email, name: email.split('@')[0] })
+              .returning()
+            if (created) return { id: created.id, email: created.email, name: created.name }
+          }
+        } catch {
+          // DB unavailable — fall through to email-based identity
+        }
+
+        // Fallback: use email as identity (works without DB)
+        return { id: email, email, name: email.split('@')[0] }
       },
     }),
   ],
   callbacks: {
     jwt({ token, user }) {
       if (user?.id) token.userId = user.id
+      if (user?.email) token.email = user.email
       return token
     },
     session({ session, token }) {
