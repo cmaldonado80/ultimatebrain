@@ -12,14 +12,20 @@ import { eq, and } from 'drizzle-orm'
 import { MemoryService } from '../services/memory'
 
 let memService: MemoryService | null = null
-function getMemoryService(db: Database) { return memService ??= new MemoryService(db) }
+function getMemoryService(db: Database) {
+  return (memService ??= new MemoryService(db))
+}
 
 export const memoryRouter = router({
   list: protectedProcedure
-    .input(z.object({
-      tier: z.enum(['core', 'recall', 'archival']).optional(),
-      workspaceId: z.string().uuid().optional(),
-    }).optional())
+    .input(
+      z
+        .object({
+          tier: z.enum(['core', 'recall', 'archival']).optional(),
+          workspaceId: z.string().uuid().optional(),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       const conditions = []
       if (input?.tier) conditions.push(eq(memories.tier, input.tier))
@@ -36,25 +42,29 @@ export const memoryRouter = router({
     }),
 
   store: protectedProcedure
-    .input(z.object({
-      key: z.string().min(1),
-      content: z.string().min(1),
-      tier: z.enum(['core', 'recall', 'archival']).optional(),
-      workspaceId: z.string().uuid().optional(),
-      sourceAgentId: z.string().uuid().optional(),
-      confidence: z.number().min(0).max(1).optional(),
-    }))
+    .input(
+      z.object({
+        key: z.string().min(1),
+        content: z.string().min(1),
+        tier: z.enum(['core', 'recall', 'archival']).optional(),
+        workspaceId: z.string().uuid().optional(),
+        sourceAgentId: z.string().uuid().optional(),
+        confidence: z.number().min(0).max(1).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getMemoryService(ctx.db).store(input)
     }),
 
   search: protectedProcedure
-    .input(z.object({
-      query: z.string().min(1),
-      tier: z.enum(['core', 'recall', 'archival']).optional(),
-      workspaceId: z.string().uuid().optional(),
-      limit: z.number().min(1).max(100).optional(),
-    }))
+    .input(
+      z.object({
+        query: z.string().min(1),
+        tier: z.enum(['core', 'recall', 'archival']).optional(),
+        workspaceId: z.string().uuid().optional(),
+        limit: z.number().min(1).max(100).optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       return getMemoryService(ctx.db).search(input.query, {
         tier: input.tier,
@@ -64,19 +74,23 @@ export const memoryRouter = router({
     }),
 
   updateTier: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      tier: z.enum(['core', 'recall', 'archival']),
-    }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        tier: z.enum(['core', 'recall', 'archival']),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getMemoryService(ctx.db).updateTier(input.id, input.tier)
     }),
 
   updateConfidence: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      confidence: z.number().min(0).max(1),
-    }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        confidence: z.number().min(0).max(1),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getMemoryService(ctx.db).updateConfidence(input.id, input.confidence)
     }),
@@ -93,12 +107,16 @@ export const memoryRouter = router({
       return getMemoryService(ctx.db).nominateForPromotion(input.memoryId)
     }),
 
-  processPromotions: protectedProcedure
-    .mutation(async ({ ctx }) => {
-      return getMemoryService(ctx.db).processPromotions()
-    }),
+  processPromotions: protectedProcedure.mutation(async ({ ctx }) => {
+    return getMemoryService(ctx.db).processPromotions()
+  }),
 
   tierStats: protectedProcedure.query(async ({ ctx }) => {
     return getMemoryService(ctx.db).tierStats()
+  }),
+
+  /** Run temporal confidence decay on stale memories */
+  decayConfidence: protectedProcedure.mutation(async ({ ctx }) => {
+    return getMemoryService(ctx.db).decayConfidence()
   }),
 })
