@@ -39,7 +39,16 @@ interface LiveCursorsProps {
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 const CURSOR_COLORS: Record<string, string> = {}
-const COLOR_PALETTE = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#eab308', '#ef4444', '#06b6d4']
+const COLOR_PALETTE = [
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+  '#f97316',
+  '#14b8a6',
+  '#eab308',
+  '#ef4444',
+  '#06b6d4',
+]
 
 function getCursorColor(id: string): string {
   if (!CURSOR_COLORS[id]) {
@@ -113,9 +122,7 @@ const AgentHighlight = memo(function AgentHighlight({
         animation: isExecuting ? 'agentPulse 2s ease-in-out infinite' : 'none',
       }}
     >
-      <span style={{ ...styles.agentLabel, background: cursor.color }}>
-        {cursor.name}
-      </span>
+      <span style={{ ...styles.agentLabel, background: cursor.color }}>{cursor.name}</span>
     </div>
   )
 })
@@ -137,9 +144,7 @@ const RemoteCursorView = memo(function RemoteCursorView({ cursor }: { cursor: Re
       }}
     >
       <CursorIcon color={cursor.color} />
-      <span style={{ ...styles.cursorLabel, background: cursor.color }}>
-        {cursor.name}
-      </span>
+      <span style={{ ...styles.cursorLabel, background: cursor.color }}>{cursor.name}</span>
     </div>
   )
 })
@@ -152,6 +157,7 @@ export default function LiveCursors({
   currentUserId,
   onCursorMove,
 }: LiveCursorsProps) {
+  const isDemo = entries === MOCK_ENTRIES
   const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
   const throttleRef = useRef<number>(0)
@@ -159,10 +165,7 @@ export default function LiveCursors({
   // Build remote cursors from presence entries on the same location
   useEffect(() => {
     const filtered = entries.filter(
-      (e) =>
-        e.location === currentLocation &&
-        e.id !== currentUserId &&
-        e.cursor
+      (e) => e.location === currentLocation && e.id !== currentUserId && e.cursor,
     )
 
     setRemoteCursors(
@@ -175,7 +178,7 @@ export default function LiveCursors({
         isExecuting: e.isExecuting,
         displayX: e.cursor!.x,
         displayY: e.cursor!.y,
-      }))
+      })),
     )
   }, [entries, currentLocation, currentUserId])
 
@@ -197,15 +200,25 @@ export default function LiveCursors({
         target: (e.target as HTMLElement)?.dataset?.presenceTarget,
       })
     },
-    [onCursorMove]
+    [onCursorMove],
   )
 
   return (
-    <div
-      ref={containerRef}
-      style={styles.overlay}
-      onMouseMove={handleMouseMove}
-    >
+    <div ref={containerRef} style={styles.overlay} onMouseMove={handleMouseMove}>
+      {isDemo && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 4,
+            right: 4,
+            fontSize: 9,
+            color: '#818cf8',
+            opacity: 0.7,
+          }}
+        >
+          (demo cursors)
+        </div>
+      )}
       {remoteCursors.map((cursor) => (
         <RemoteCursorView key={cursor.id} cursor={cursor} />
       ))}

@@ -45,9 +45,28 @@ const MOCK_SESSIONS: SessionSummary[] = [
     currentUrl: 'https://example.com/products?page=3',
     eventCount: 42,
     events: [
-      { type: 'navigation', sessionId: 'sess-001', timestamp: new Date(Date.now() - 60000), data: { from: '/products?page=2', to: '/products?page=3', statusCode: 200 } },
-      { type: 'action', sessionId: 'sess-001', timestamp: new Date(Date.now() - 30000), data: { action: 'click', description: 'Clicked "Next Page" button', selector: '.pagination-next' } },
-      { type: 'screenshot', sessionId: 'sess-001', timestamp: new Date(Date.now() - 2000), data: { imageUrl: '', width: 1280, height: 720, sequence: 21 } },
+      {
+        type: 'navigation',
+        sessionId: 'sess-001',
+        timestamp: new Date(Date.now() - 60000),
+        data: { from: '/products?page=2', to: '/products?page=3', statusCode: 200 },
+      },
+      {
+        type: 'action',
+        sessionId: 'sess-001',
+        timestamp: new Date(Date.now() - 30000),
+        data: {
+          action: 'click',
+          description: 'Clicked "Next Page" button',
+          selector: '.pagination-next',
+        },
+      },
+      {
+        type: 'screenshot',
+        sessionId: 'sess-001',
+        timestamp: new Date(Date.now() - 2000),
+        data: { imageUrl: '', width: 1280, height: 720, sequence: 21 },
+      },
     ],
   },
   {
@@ -59,8 +78,23 @@ const MOCK_SESSIONS: SessionSummary[] = [
     currentUrl: 'https://app.example.com/settings/profile',
     eventCount: 15,
     events: [
-      { type: 'action', sessionId: 'sess-002', timestamp: new Date(Date.now() - 90000), data: { action: 'type', description: 'Filled email field', selector: '#email', value: 'user@example.com' } },
-      { type: 'status', sessionId: 'sess-002', timestamp: new Date(Date.now() - 10000), data: { status: 'paused', reason: 'Awaiting human approval' } },
+      {
+        type: 'action',
+        sessionId: 'sess-002',
+        timestamp: new Date(Date.now() - 90000),
+        data: {
+          action: 'type',
+          description: 'Filled email field',
+          selector: '#email',
+          value: 'user@example.com',
+        },
+      },
+      {
+        type: 'status',
+        sessionId: 'sess-002',
+        timestamp: new Date(Date.now() - 10000),
+        data: { status: 'paused', reason: 'Awaiting human approval' },
+      },
     ],
   },
   {
@@ -72,21 +106,25 @@ const MOCK_SESSIONS: SessionSummary[] = [
     currentUrl: 'https://status.example.com/dashboard',
     eventCount: 78,
     events: [
-      { type: 'navigation', sessionId: 'sess-003', timestamp: new Date(Date.now() - 5000), data: { from: '/dashboard', to: '/dashboard', statusCode: 200 } },
-      { type: 'screenshot', sessionId: 'sess-003', timestamp: new Date(Date.now() - 2000), data: { imageUrl: '', width: 1280, height: 720, sequence: 39 } },
+      {
+        type: 'navigation',
+        sessionId: 'sess-003',
+        timestamp: new Date(Date.now() - 5000),
+        data: { from: '/dashboard', to: '/dashboard', statusCode: 200 },
+      },
+      {
+        type: 'screenshot',
+        sessionId: 'sess-003',
+        timestamp: new Date(Date.now() - 2000),
+        data: { imageUrl: '', width: 1280, height: 720, sequence: 39 },
+      },
     ],
   },
 ]
 
 // ── Sub-components ────────────────────────────────────────────────────────
 
-function SessionCard({
-  session,
-  onClick,
-}: {
-  session: SessionSummary
-  onClick: () => void
-}) {
+function SessionCard({ session, onClick }: { session: SessionSummary; onClick: () => void }) {
   const elapsed = Math.round((Date.now() - session.startedAt.getTime()) / 60_000)
   const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
     running: { bg: '#052e16', text: '#4ade80', dot: '#22c55e' },
@@ -130,6 +168,7 @@ export default function ActiveSessionsPanel({
   onTakeover,
   onStop,
 }: ActiveSessionsPanelProps) {
+  const isDemo = sessions === MOCK_SESSIONS
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const expandedSession = sessions.find((s) => s.id === expandedId)
 
@@ -140,7 +179,9 @@ export default function ActiveSessionsPanel({
   if (expandedSession) {
     return (
       <div style={styles.fullWrapper}>
-        <button style={styles.closeBtn} onClick={() => setExpandedId(null)}>← Back to sessions</button>
+        <button style={styles.closeBtn} onClick={() => setExpandedId(null)}>
+          ← Back to sessions
+        </button>
         <LiveViewport
           sessionId={expandedSession.id}
           agentName={expandedSession.agentName}
@@ -160,6 +201,22 @@ export default function ActiveSessionsPanel({
 
   return (
     <div style={styles.panel}>
+      {isDemo && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            color: '#818cf8',
+            fontSize: 11,
+            fontWeight: 600,
+            padding: '4px 12px',
+            borderRadius: 4,
+            marginBottom: 8,
+            display: 'inline-block',
+          }}
+        >
+          Demo Sessions — connect browser agent service for real data
+        </div>
+      )}
       <div style={styles.panelHeader}>
         <h3 style={styles.panelTitle}>Active Browser Sessions</h3>
         <div style={styles.panelStats}>
@@ -190,7 +247,12 @@ export default function ActiveSessionsPanel({
 // ── Styles ────────────────────────────────────────────────────────────────
 
 const styles = {
-  panel: { background: '#111827', borderRadius: 8, border: '1px solid #1f2937', overflow: 'hidden' },
+  panel: {
+    background: '#111827',
+    borderRadius: 8,
+    border: '1px solid #1f2937',
+    overflow: 'hidden',
+  },
   panelHeader: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -231,7 +293,12 @@ const styles = {
   },
   thumbPlaceholder: { fontSize: 20, opacity: 0.3 },
   cardInfo: { flex: 1, minWidth: 0 },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   cardAgent: { fontSize: 13, fontWeight: 600, color: '#f9fafb' },
   cardStatus: {
     display: 'inline-flex',

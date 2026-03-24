@@ -145,12 +145,8 @@ function Avatar({
           <div style={styles.tooltipName}>{entry.name}</div>
           <div style={styles.tooltipType}>{isAgent ? 'Agent' : 'User'}</div>
           <div style={styles.tooltipLocation}>{formatLocation(entry.location)}</div>
-          {entry.ticketId && (
-            <div style={styles.tooltipMeta}>Working on {entry.ticketId}</div>
-          )}
-          {isPulsing && (
-            <div style={styles.tooltipExecuting}>Executing...</div>
-          )}
+          {entry.ticketId && <div style={styles.tooltipMeta}>Working on {entry.ticketId}</div>}
+          {isPulsing && <div style={styles.tooltipExecuting}>Executing...</div>}
         </div>
       )}
     </div>
@@ -169,6 +165,7 @@ export default function PresenceAvatars({
   entries = MOCK_ENTRIES,
   maxVisible = 5,
 }: PresenceAvatarsProps) {
+  const isDemo = entries === MOCK_ENTRIES
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   const visible = entries.slice(0, maxVisible)
@@ -179,6 +176,9 @@ export default function PresenceAvatars({
 
   return (
     <div style={styles.container}>
+      {isDemo && (
+        <span style={{ fontSize: 9, color: '#818cf8', marginRight: 6, opacity: 0.7 }}>(demo)</span>
+      )}
       {/* Avatar stack */}
       <div style={styles.stack}>
         {visible.map((entry) => (
@@ -190,16 +190,18 @@ export default function PresenceAvatars({
             onLeave={() => setHoveredId(null)}
           />
         ))}
-        {overflow > 0 && (
-          <div style={styles.overflow}>+{overflow}</div>
-        )}
+        {overflow > 0 && <div style={styles.overflow}>+{overflow}</div>}
       </div>
 
       {/* Summary */}
       <div style={styles.summary}>
-        <span style={styles.summaryCount}>{users} user{users !== 1 ? 's' : ''}</span>
+        <span style={styles.summaryCount}>
+          {users} user{users !== 1 ? 's' : ''}
+        </span>
         <span style={styles.summarySep}>·</span>
-        <span style={styles.summaryCount}>{agents} agent{agents !== 1 ? 's' : ''}</span>
+        <span style={styles.summaryCount}>
+          {agents} agent{agents !== 1 ? 's' : ''}
+        </span>
       </div>
 
       {/* Inline keyframes for pulse animation */}

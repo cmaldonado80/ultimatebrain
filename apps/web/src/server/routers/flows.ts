@@ -15,15 +15,25 @@ let _crewEngine: CrewEngine | null = null
 let _recallFlow: RecallFlow | null = null
 let _gateway: GatewayRouter | null = null
 
-function getCrewEngine(db: Database) { return _crewEngine ??= new CrewEngine(db) }
-function getGateway(db: Database) { return _gateway ??= new GatewayRouter(db) }
+function getCrewEngine(db: Database) {
+  return (_crewEngine ??= new CrewEngine(db))
+}
+function getGateway(db: Database) {
+  return (_gateway ??= new GatewayRouter(db))
+}
 
 const realEmbed = async (text: string, db: Database): Promise<number[]> => {
-  try { const result = await getGateway(db).embed(text); return result.embedding } catch (err) { console.warn('[Flows] Embedding failed, using zero vector:', err); return Array(1536).fill(0) }
+  try {
+    const result = await getGateway(db).embed(text)
+    return result.embedding
+  } catch (err) {
+    console.warn('[Flows] Embedding failed, using zero vector:', err)
+    return Array(1536).fill(0)
+  }
 }
 
 function getRecallFlow(db: Database) {
-  return _recallFlow ??= new RecallFlow(db, (text: string) => realEmbed(text, db))
+  return (_recallFlow ??= new RecallFlow(db, (text: string) => realEmbed(text, db)))
 }
 
 const agentDefinitionSchema = z.object({
@@ -53,22 +63,27 @@ const recallQuerySchema = z.object({
 })
 
 export const flowsRouter = router({
+  /** List saved flow definitions */
+  list: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.query.flows.findMany({ limit: 100 })
+  }),
+
   // ── Crew Execution ────────────────────────────────────────────────────
 
   /** Run a crew on a task (ReAct loop, auto-delegation) */
-  runCrew: protectedProcedure
-    .input(crewDefinitionSchema)
-    .mutation(async ({ ctx, input }) => {
-      return getCrewEngine(ctx.db).run({
-        name: input.name,
-        task: input.task,
-        verbose: input.verbose,
-        agents: input.agents.map((a): AgentDefinition => ({
+  runCrew: protectedProcedure.input(crewDefinitionSchema).mutation(async ({ ctx, input }) => {
+    return getCrewEngine(ctx.db).run({
+      name: input.name,
+      task: input.task,
+      verbose: input.verbose,
+      agents: input.agents.map(
+        (a): AgentDefinition => ({
           ...a,
           tools: [], // tools injected server-side in full impl
-        })),
-      })
-    }),
+        }),
+      ),
+    })
+  }),
 
   /** Run a single agent through the ReAct loop */
   runAgent: protectedProcedure
@@ -77,32 +92,28 @@ export const flowsRouter = router({
         agent: agentDefinitionSchema,
         task: z.string(),
         crewId: z.string().uuid().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       return getCrewEngine(ctx.db).runAgent(
         { ...input.agent, tools: [] } as AgentDefinition,
         input.task,
         input.crewId ?? crypto.randomUUID(),
-        []
+        [],
       )
     }),
 
   // ── Recall Flow ───────────────────────────────────────────────────────
 
   /** Tiered memory search with confidence-based early exit */
-  recall: protectedProcedure
-    .input(recallQuerySchema)
-    .query(async ({ ctx, input }) => {
-      return getRecallFlow(ctx.db).search(input as RecallQuery)
-    }),
+  recall: protectedProcedure.input(recallQuerySchema).query(async ({ ctx, input }) => {
+    return getRecallFlow(ctx.db).search(input as RecallQuery)
+  }),
 
   /** Search memory and return a formatted context block for agent injection */
-  recallAndInject: protectedProcedure
-    .input(recallQuerySchema)
-    .query(async ({ ctx, input }) => {
-      return getRecallFlow(ctx.db).searchAndInject(input as RecallQuery)
-    }),
+  recallAndInject: protectedProcedure.input(recallQuerySchema).query(async ({ ctx, input }) => {
+    return getRecallFlow(ctx.db).searchAndInject(input as RecallQuery)
+  }),
 
   /** Promote memory IDs that were useful in an agent turn */
   promoteMemories: protectedProcedure
