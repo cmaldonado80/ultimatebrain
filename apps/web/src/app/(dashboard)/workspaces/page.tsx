@@ -56,6 +56,7 @@ export default function WorkspacesPage() {
   const [name, setName] = useState('')
   const [type, setType] = useState('')
   const [goal, setGoal] = useState('')
+  const [search, setSearch] = useState('')
   const { data, isLoading, error } = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
   const utils = trpc.useUtils()
   const createMut = trpc.workspaces.create.useMutation({
@@ -87,13 +88,16 @@ export default function WorkspacesPage() {
     )
   }
 
-  const workspaces: Workspace[] = (data as Workspace[]) ?? []
+  const allWorkspaces: Workspace[] = (data as Workspace[]) ?? []
+  const workspaces = search
+    ? allWorkspaces.filter((w) => w.name.toLowerCase().includes(search.toLowerCase()))
+    : allWorkspaces
 
   return (
     <div style={styles.page}>
       <div style={styles.header}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Workspaces</h2>
+          <h2 style={styles.title}>Workspaces ({allWorkspaces.length})</h2>
           <button
             style={{
               background: '#818cf8',
@@ -114,6 +118,23 @@ export default function WorkspacesPage() {
           Lifecycle-managed organizational units with bindings, goals, and execution boundaries.
         </p>
       </div>
+
+      <input
+        style={{
+          width: '100%',
+          background: '#1f2937',
+          color: '#f9fafb',
+          border: '1px solid #374151',
+          borderRadius: 6,
+          padding: '8px 12px',
+          fontSize: 13,
+          boxSizing: 'border-box' as const,
+          marginBottom: 16,
+        }}
+        placeholder="Search workspaces..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
       {showForm && (
         <div

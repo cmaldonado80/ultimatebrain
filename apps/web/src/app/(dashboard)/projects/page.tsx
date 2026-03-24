@@ -32,6 +32,7 @@ export default function ProjectsPage() {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [goal, setGoal] = useState('')
+  const [search, setSearch] = useState('')
   const { data, isLoading, error } = trpc.projects.list.useQuery({ limit: 100, offset: 0 })
   const utils = trpc.useUtils()
   const createMut = trpc.projects.create.useMutation({
@@ -62,13 +63,16 @@ export default function ProjectsPage() {
     )
   }
 
-  const projects: Project[] = (data as Project[]) ?? []
+  const allProjects: Project[] = (data as Project[]) ?? []
+  const projects = search
+    ? allProjects.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+    : allProjects
 
   return (
     <div style={styles.page}>
       <div style={styles.header}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Projects</h2>
+          <h2 style={styles.title}>Projects ({allProjects.length})</h2>
           <button
             style={{
               background: '#818cf8',
@@ -89,6 +93,23 @@ export default function ProjectsPage() {
           Organize agents, tickets, and resources into scoped project groups.
         </p>
       </div>
+
+      <input
+        style={{
+          width: '100%',
+          background: '#1f2937',
+          color: '#f9fafb',
+          border: '1px solid #374151',
+          borderRadius: 6,
+          padding: '8px 12px',
+          fontSize: 13,
+          boxSizing: 'border-box' as const,
+          marginBottom: 16,
+        }}
+        placeholder="Search projects..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
       {showForm && (
         <div
