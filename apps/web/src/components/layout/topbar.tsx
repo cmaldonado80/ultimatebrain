@@ -4,13 +4,23 @@
  * Topbar — 64px bar with breadcrumb, health badge, presence avatars, and user menu
  */
 
+import { usePathname } from 'next/navigation'
+import { trpc } from '../../utils/trpc'
 import PresenceAvatars from './presence-avatars'
 
 // ── Health Badge ────────────────────────────────────────────────────────
 
 function HealthBadge() {
-  // In real impl: computed from traces + gateway metrics
-  const score = 97
+  const { data } = trpc.healing.healthCheck.useQuery(undefined, {
+    refetchInterval: 30_000,
+    retry: false,
+  })
+
+  const checks = data?.checks ?? []
+  const okCount = checks.filter(
+    (c: { status: string }) => c.status === 'pass' || c.status === 'ok',
+  ).length
+  const score = checks.length > 0 ? Math.round((okCount / checks.length) * 100) : 100
   const color = score >= 90 ? '#22c55e' : score >= 70 ? '#f97316' : '#ef4444'
   const label = score >= 90 ? 'Healthy' : score >= 70 ? 'Degraded' : 'Unhealthy'
 
@@ -25,13 +35,60 @@ function HealthBadge() {
 
 // ── Breadcrumb ──────────────────────────────────────────────────────────
 
+const SEGMENT_LABELS: Record<string, string> = {
+  '': 'Dashboard',
+  agents: 'Agents',
+  tickets: 'Tickets',
+  workspaces: 'Workspaces',
+  projects: 'Projects',
+  chat: 'Chat',
+  canvas: 'Feature Flags',
+  memory: 'Memory',
+  flows: 'Flows',
+  playbooks: 'Playbooks',
+  skills: 'Skills',
+  settings: 'Settings',
+  engines: 'Engines',
+  apps: 'Apps',
+  integrations: 'Integrations',
+  qa: 'QA',
+  ops: 'Ops Center',
+  approvals: 'Approvals',
+  checkpoints: 'Checkpoints',
+  dlq: 'DLQ',
+  evals: 'Evals',
+  gateway: 'Gateway',
+  guardrails: 'Guardrails',
+  traces: 'Traces',
+}
+
 function Breadcrumb() {
-  // In real impl: derived from router pathname
+  const pathname = usePathname()
+  const segments = pathname.split('/').filter(Boolean)
+
+  if (segments.length === 0) {
+    return (
+      <div style={styles.breadcrumb}>
+        <span style={styles.breadcrumbItem}>Brain</span>
+        <span style={styles.breadcrumbSep}>/</span>
+        <span style={styles.breadcrumbCurrent}>Dashboard</span>
+      </div>
+    )
+  }
+
   return (
     <div style={styles.breadcrumb}>
       <span style={styles.breadcrumbItem}>Brain</span>
-      <span style={styles.breadcrumbSep}>/</span>
-      <span style={styles.breadcrumbCurrent}>Dashboard</span>
+      {segments.map((seg, i) => {
+        const isLast = i === segments.length - 1
+        const label = SEGMENT_LABELS[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1)
+        return (
+          <span key={i}>
+            <span style={styles.breadcrumbSep}>/</span>
+            <span style={isLast ? styles.breadcrumbCurrent : styles.breadcrumbItem}>{label}</span>
+          </span>
+        )
+      })}
     </div>
   )
 }
@@ -101,14 +158,6 @@ const styles = {
   healthScore: { fontSize: 11, color: '#6b7280', fontFamily: 'monospace' },
   divider: { width: 1, height: 24, background: '#1f2937' },
   userMenu: { display: 'flex', alignItems: 'center', gap: 8 },
-  userName: {
-    fontSize: 12,
-    color: '#9ca3af',
-    maxWidth: 120,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-  },
   signOutBtn: {
     fontSize: 11,
     color: '#6b7280',

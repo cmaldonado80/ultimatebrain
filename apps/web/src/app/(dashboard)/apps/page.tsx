@@ -93,7 +93,14 @@ export default function AppsPage() {
     type: a.type ?? 'agent',
     description: a.description ?? '',
     model: a.model ?? '',
-    status: 'running' as const,
+    status: (a.status === 'idle' ||
+    a.status === 'planning' ||
+    a.status === 'executing' ||
+    a.status === 'reviewing'
+      ? 'running'
+      : a.status === 'error'
+        ? 'degraded'
+        : 'offline') as 'running' | 'degraded' | 'offline',
     tags: a.tags ?? [],
     skills: a.skills ?? [],
     createdAt: new Date(a.createdAt),

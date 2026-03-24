@@ -28,7 +28,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Tickets', href: '/tickets', icon: '▤' },
       { label: 'Projects', href: '/projects', icon: '◈' },
       { label: 'Chat', href: '/chat', icon: '◉' },
-      { label: 'Canvas', href: '/canvas', icon: '◧' },
+      { label: 'Feature Flags', href: '/canvas', icon: '◧' },
     ],
   },
   {
@@ -99,12 +99,7 @@ const SpotlightSearch = memo(function SpotlightSearch({
         />
         <div style={styles.spotlightResults}>
           {filtered.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              style={styles.spotlightItem}
-              onClick={onClose}
-            >
+            <a key={item.href} href={item.href} style={styles.spotlightItem} onClick={onClose}>
               <span style={styles.spotlightIcon}>{item.icon}</span>
               <span>{item.label}</span>
             </a>
@@ -156,9 +151,7 @@ export default function Sidebar() {
         <nav style={styles.nav}>
           {NAV_SECTIONS.map((section, si) => (
             <div key={si}>
-              {section.title && (
-                <div style={styles.sectionTitle}>{section.title}</div>
-              )}
+              {section.title && <div style={styles.sectionTitle}>{section.title}</div>}
               {section.items.map((item) => (
                 <a key={item.href} href={item.href} style={styles.navItem}>
                   <span style={styles.navIcon}>{item.icon}</span>
@@ -213,7 +206,13 @@ const styles = {
   },
   searchIcon: { fontSize: 14 },
   searchLabel: { flex: 1, textAlign: 'left' as const },
-  searchKbd: { fontSize: 10, background: '#1f2937', padding: '1px 5px', borderRadius: 3, color: '#4b5563' },
+  searchKbd: {
+    fontSize: 10,
+    background: '#1f2937',
+    padding: '1px 5px',
+    borderRadius: 3,
+    color: '#4b5563',
+  },
   nav: { flex: 1, overflowY: 'auto' as const },
   sectionTitle: {
     fontSize: 10,

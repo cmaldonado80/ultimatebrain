@@ -9,6 +9,13 @@ import {
   evalCases,
   channels,
   brainEntities,
+  guardrailLogs,
+  chatSessions,
+  chatMessages,
+  cognitionState,
+  traces,
+  projects,
+  flows,
 } from './schema/index'
 
 async function seed() {
@@ -134,7 +141,8 @@ async function seed() {
           },
           {
             title: 'Add retry logic to tool executor',
-            description: 'Implement exponential backoff and circuit-breaker for external tool calls',
+            description:
+              'Implement exponential backoff and circuit-breaker for external tool calls',
             status: 'failed',
             priority: 'critical',
             complexity: 'medium',
@@ -146,7 +154,8 @@ async function seed() {
           },
           {
             title: 'Review checkpoint restore implementation',
-            description: 'Verify checkpoint save/restore handles partial state and edge cases correctly',
+            description:
+              'Verify checkpoint save/restore handles partial state and edge cases correctly',
             status: 'review',
             priority: 'medium',
             complexity: 'medium',
@@ -201,7 +210,8 @@ async function seed() {
         .values([
           {
             key: 'project.architecture',
-            content: 'The system uses a monorepo with turborepo. Core packages: api, db, ui, shared.',
+            content:
+              'The system uses a monorepo with turborepo. Core packages: api, db, ui, shared.',
             source: planner.id,
             confidence: 0.95,
             workspaceId: workspace.id,
@@ -217,7 +227,8 @@ async function seed() {
           },
           {
             key: 'task.agent-bus.progress',
-            content: 'Agent message bus implementation is 60% complete. PubSub layer done, direct messaging pending.',
+            content:
+              'Agent message bus implementation is 60% complete. PubSub layer done, direct messaging pending.',
             source: executor.id,
             confidence: 0.8,
             workspaceId: workspace.id,
@@ -225,7 +236,8 @@ async function seed() {
           },
           {
             key: 'incident.tool-registry-outage',
-            content: 'Tool registry service experienced 15min outage due to connection pool exhaustion. Resolved by increasing pool size.',
+            content:
+              'Tool registry service experienced 15min outage due to connection pool exhaustion. Resolved by increasing pool size.',
             source: executor.id,
             confidence: 0.7,
             workspaceId: workspace.id,
@@ -233,7 +245,8 @@ async function seed() {
           },
           {
             key: 'decision.checkpoint-format',
-            content: 'Team decided to use JSON-based checkpoints over protobuf for easier debugging during development phase.',
+            content:
+              'Team decided to use JSON-based checkpoints over protobuf for easier debugging during development phase.',
             source: planner.id,
             confidence: 0.6,
             workspaceId: workspace.id,
@@ -272,7 +285,10 @@ async function seed() {
           domain: 'development',
           tier: 'development',
           enginesEnabled: ['planning', 'execution', 'review'],
-          domainEngines: { planning: { model: 'claude-sonnet-4-20250514' }, execution: { model: 'claude-sonnet-4-20250514' } },
+          domainEngines: {
+            planning: { model: 'claude-sonnet-4-20250514' },
+            execution: { model: 'claude-sonnet-4-20250514' },
+          },
           endpoint: 'http://localhost:4000',
           healthEndpoint: 'http://localhost:4000/health',
           status: 'active',
@@ -282,6 +298,138 @@ async function seed() {
         .returning()
 
       console.log(`  ✓ Brain entity: ${brain.id}`)
+
+      // -------------------------------------------------------
+      // 8. Second workspace (paused)
+      // -------------------------------------------------------
+      await tx.insert(workspaces).values({
+        name: 'Staging Workspace',
+        type: 'staging',
+        goal: 'Pre-production testing and validation',
+        color: '#f59e0b',
+        icon: 'shield',
+        autonomyLevel: 2,
+        lifecycleState: 'paused',
+        settings: { notifications: false, autoAssign: false },
+      })
+      console.log('  ✓ Second workspace (paused)')
+
+      // -------------------------------------------------------
+      // 9. Project with health score
+      // -------------------------------------------------------
+      const [project] = await tx
+        .insert(projects)
+        .values({
+          name: 'Brain v1.0 Launch',
+          goal: 'Ship production-ready agent orchestration platform',
+          status: 'active',
+          healthScore: 78,
+          healthDiagnosis: '3 tickets in progress, 1 failed — retry logic blocker',
+        })
+        .returning()
+      console.log(`  ✓ Project: ${project.id}`)
+
+      // -------------------------------------------------------
+      // 10. Guardrail logs (2 pass, 1 fail)
+      // -------------------------------------------------------
+      await tx.insert(guardrailLogs).values([
+        { layer: 'input', agentId: executor.id, ruleName: 'pii_detector', passed: true },
+        { layer: 'output', agentId: executor.id, ruleName: 'content_safety', passed: true },
+        {
+          layer: 'tool',
+          agentId: executor.id,
+          ruleName: 'shell_command_validator',
+          passed: false,
+          violationDetail: 'Attempted rm -rf / — blocked by guardrail',
+        },
+      ])
+      console.log('  ✓ Guardrail logs: 3')
+
+      // -------------------------------------------------------
+      // 11. Chat session with messages
+      // -------------------------------------------------------
+      const [session] = await tx
+        .insert(chatSessions)
+        .values({
+          agentId: planner.id,
+        })
+        .returning()
+
+      await tx.insert(chatMessages).values([
+        { sessionId: session.id, role: 'user', text: 'What is the current project status?' },
+        {
+          sessionId: session.id,
+          role: 'assistant',
+          text: 'The Brain v1.0 project is 78% healthy. 3 tickets are in progress, 1 has failed due to a tool registry connection issue.',
+        },
+        { sessionId: session.id, role: 'user', text: 'Can you retry the failed ticket?' },
+        {
+          sessionId: session.id,
+          role: 'assistant',
+          text: 'I have requeued ticket "Add retry logic to tool executor" for another attempt. The executor agent will pick it up shortly.',
+        },
+      ])
+      console.log(`  ✓ Chat session: ${session.id} with 4 messages`)
+
+      // -------------------------------------------------------
+      // 12. Cognition state with feature flags
+      // -------------------------------------------------------
+      await tx.insert(cognitionState).values({
+        features: {
+          auto_heal: true,
+          memory_promotion: true,
+          debate_engine: false,
+        },
+        policies: {
+          max_autonomy_level: 4,
+          require_approval_above_risk: 'high',
+          default_execution_mode: 'autonomous',
+        },
+      })
+      console.log('  ✓ Cognition state with 3 feature flags')
+
+      // -------------------------------------------------------
+      // 13. Traces
+      // -------------------------------------------------------
+      const traceId = crypto.randomUUID()
+      await tx.insert(traces).values([
+        {
+          traceId,
+          spanId: crypto.randomUUID(),
+          operation: 'ticket.execute',
+          service: 'orchestration',
+          agentId: executor.id,
+          durationMs: 1250,
+          status: 'ok',
+        },
+        {
+          traceId,
+          spanId: crypto.randomUUID(),
+          operation: 'llm.chat',
+          service: 'gateway',
+          agentId: executor.id,
+          durationMs: 890,
+          status: 'ok',
+          parentSpanId: traceId,
+        },
+      ])
+      console.log('  ✓ Traces: 2 spans')
+
+      // -------------------------------------------------------
+      // 14. Flow definition
+      // -------------------------------------------------------
+      await tx.insert(flows).values({
+        name: 'Code Review Pipeline',
+        description: 'Multi-agent review: plan → execute → review → approve',
+        steps: [
+          { agent: 'planner', action: 'decompose', input: 'ticket' },
+          { agent: 'executor', action: 'implement', input: 'plan' },
+          { agent: 'reviewer', action: 'review', input: 'implementation' },
+        ],
+        status: 'active',
+        createdBy: 'system',
+      })
+      console.log('  ✓ Flow: Code Review Pipeline')
 
       console.log('\nSeed complete.')
     })
