@@ -1,11 +1,39 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+interface Providers {
+  github: boolean
+  google: boolean
+  credentials: boolean
+}
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
-  const isDev = process.env.NODE_ENV !== 'production'
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [providers, setProviders] = useState<Providers | null>(null)
+
+  useEffect(() => {
+    fetch('/api/auth/providers')
+      .then((r) => r.json())
+      .then(setProviders)
+      .catch(() => setProviders({ github: false, google: false, credentials: true }))
+  }, [])
+
+  const handleCredentials = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    const result = await signIn('credentials', { email, redirect: false })
+    if (result?.error) {
+      setError('Sign in failed. Please try again.')
+      setLoading(false)
+    } else {
+      window.location.href = new URLSearchParams(window.location.search).get('callbackUrl') || '/'
+    }
+  }
 
   return (
     <div style={styles.container}>
@@ -13,37 +41,49 @@ export default function SignInPage() {
         <h1 style={styles.title}>Solarc Brain</h1>
         <p style={styles.subtitle}>Sign in to continue</p>
 
-        <div style={styles.providers}>
-          <button onClick={() => signIn('github', { callbackUrl: '/' })} style={styles.oauthBtn}>
-            Sign in with GitHub
-          </button>
-          <button onClick={() => signIn('google', { callbackUrl: '/' })} style={styles.oauthBtn}>
-            Sign in with Google
-          </button>
-        </div>
-
-        {isDev && (
+        {!providers ? (
+          <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 13 }}>Loading...</p>
+        ) : (
           <>
-            <div style={styles.divider}>
-              <span style={styles.dividerText}>DEV ONLY</span>
-            </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                signIn('credentials', { email, callbackUrl: '/' })
-              }}
-              style={styles.devForm}
-            >
+            {(providers.github || providers.google) && (
+              <div style={styles.providers}>
+                {providers.github && (
+                  <button
+                    onClick={() => signIn('github', { callbackUrl: '/' })}
+                    style={styles.oauthBtn}
+                  >
+                    Sign in with GitHub
+                  </button>
+                )}
+                {providers.google && (
+                  <button
+                    onClick={() => signIn('google', { callbackUrl: '/' })}
+                    style={styles.oauthBtn}
+                  >
+                    Sign in with Google
+                  </button>
+                )}
+              </div>
+            )}
+
+            {(providers.github || providers.google) && (
+              <div style={styles.divider}>
+                <span style={styles.dividerText}>OR</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCredentials} style={styles.form}>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="dev@solarc.dev"
+                placeholder="you@example.com"
                 required
                 style={styles.input}
               />
-              <button type="submit" style={styles.devBtn}>
-                Dev Login
+              {error && <p style={styles.error}>{error}</p>}
+              <button type="submit" disabled={loading} style={styles.submitBtn}>
+                {loading ? 'Signing in...' : 'Sign in with Email'}
               </button>
             </form>
           </>
@@ -109,11 +149,11 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#111827',
     padding: '0 12px',
     fontSize: 11,
-    color: '#f59e0b',
+    color: '#6b7280',
     fontWeight: 600,
     letterSpacing: 1,
   },
-  devForm: {
+  form: {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
@@ -125,11 +165,17 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 8,
     color: '#f9fafb',
     fontSize: 14,
+    outline: 'none',
   },
-  devBtn: {
+  error: {
+    color: '#ef4444',
+    fontSize: 13,
+    margin: 0,
+  },
+  submitBtn: {
     padding: '10px 16px',
-    background: '#f59e0b',
-    color: '#0f172a',
+    background: '#6366f1',
+    color: '#fff',
     border: 'none',
     borderRadius: 8,
     fontSize: 14,

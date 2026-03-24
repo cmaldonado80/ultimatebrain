@@ -46,34 +46,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }),
         ]
       : []),
-    // Dev-only credentials provider for local development / testing
-    ...(process.env.NODE_ENV !== 'production'
-      ? [
-          Credentials({
-            name: 'Dev Login',
-            credentials: {
-              email: { label: 'Email', type: 'email', placeholder: 'dev@solarc.dev' },
-            },
-            async authorize(credentials) {
-              const email = credentials?.email as string | undefined
-              if (!email) return null
-              // In development, auto-create or return a user by email
-              const db = getDb()
-              const existing = await db.query.users.findFirst({
-                where: (users, { eq }) => eq(users.email, email),
-              })
-              if (existing) return { id: existing.id, email: existing.email, name: existing.name }
-              // Auto-provision dev user
-              const { users } = await import('@solarc/db')
-              const [created] = await db
-                .insert(users)
-                .values({ email, name: email.split('@')[0] })
-                .returning()
-              return created ? { id: created.id, email: created.email, name: created.name } : null
-            },
-          }),
-        ]
-      : []),
+    // Email credentials — always available as a fallback sign-in method
+    Credentials({
+      name: 'Email',
+      credentials: {
+        email: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
+      },
+      async authorize(credentials) {
+        const email = credentials?.email as string | undefined
+        if (!email) return null
+        const db = getDb()
+        const existing = await db.query.users.findFirst({
+          where: (users, { eq }) => eq(users.email, email),
+        })
+        if (existing) return { id: existing.id, email: existing.email, name: existing.name }
+        // Auto-provision user on first sign-in
+        const { users } = await import('@solarc/db')
+        const [created] = await db
+          .insert(users)
+          .values({ email, name: email.split('@')[0] })
+          .returning()
+        return created ? { id: created.id, email: created.email, name: created.name } : null
+      },
+    }),
   ],
   callbacks: {
     jwt({ token, user }) {
