@@ -7,7 +7,8 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, publicProcedure, protectedProcedure } from '../trpc'
-import { gatewayMetrics } from '@solarc/db'
+import { gatewayMetrics, ollamaModels } from '@solarc/db'
+import { eq } from 'drizzle-orm'
 import type { Database } from '@solarc/db'
 import { LlmChatInput, LlmEmbedInput } from '@solarc/engine-contracts'
 import { GatewayRouter, GatewayError, CostTracker } from '../services/gateway'
@@ -27,27 +28,23 @@ function getGateway(db: Database): GatewayRouter {
 
 export const gatewayRouter = router({
   /** Send a chat request through the AI gateway */
-  chat: protectedProcedure
-    .input(LlmChatInput)
-    .mutation(async ({ ctx, input }) => {
-      const gw = getGateway(ctx.db)
-      try {
-        return await gw.chat(input)
-      } catch (err) {
-        if (err instanceof GatewayError) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: `[${err.code}] ${err.message}` })
-        }
-        throw err
+  chat: protectedProcedure.input(LlmChatInput).mutation(async ({ ctx, input }) => {
+    const gw = getGateway(ctx.db)
+    try {
+      return await gw.chat(input)
+    } catch (err) {
+      if (err instanceof GatewayError) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: `[${err.code}] ${err.message}` })
       }
-    }),
+      throw err
+    }
+  }),
 
   /** Generate an embedding */
-  embed: protectedProcedure
-    .input(LlmEmbedInput)
-    .mutation(async ({ ctx, input }) => {
-      const gw = getGateway(ctx.db)
-      return gw.embed(input.text, input.model)
-    }),
+  embed: protectedProcedure.input(LlmEmbedInput).mutation(async ({ ctx, input }) => {
+    const gw = getGateway(ctx.db)
+    return gw.embed(input.text, input.model)
+  }),
 
   /** Get recent gateway metrics (paginated) */
   metrics: protectedProcedure
@@ -61,21 +58,24 @@ export const gatewayRouter = router({
 
   /** Record a metric manually (for external providers or testing) */
   record: protectedProcedure
-    .input(z.object({
-      provider: z.string(),
-      model: z.string(),
-      agentId: z.string().uuid().optional(),
-      ticketId: z.string().uuid().optional(),
-      tokensIn: z.number().optional(),
-      tokensOut: z.number().optional(),
-      latencyMs: z.number().optional(),
-      costUsd: z.number().optional(),
-      cached: z.boolean().optional(),
-      error: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        provider: z.string(),
+        model: z.string(),
+        agentId: z.string().uuid().optional(),
+        ticketId: z.string().uuid().optional(),
+        tokensIn: z.number().optional(),
+        tokensOut: z.number().optional(),
+        latencyMs: z.number().optional(),
+        costUsd: z.number().optional(),
+        cached: z.boolean().optional(),
+        error: z.string().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const [metric] = await ctx.db.insert(gatewayMetrics).values(input).returning()
-      if (!metric) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to record metric' })
+      if (!metric)
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to record metric' })
       return metric
     }),
 
@@ -103,12 +103,14 @@ export const gatewayRouter = router({
 
   /** Set budget for an agent */
   setBudget: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid(),
-      softLimitUsd: z.number().positive(),
-      hardLimitUsd: z.number().positive(),
-      period: z.enum(['daily', 'weekly', 'monthly']),
-    }))
+    .input(
+      z.object({
+        agentId: z.string().uuid(),
+        softLimitUsd: z.number().positive(),
+        hardLimitUsd: z.number().positive(),
+        period: z.enum(['daily', 'weekly', 'monthly']),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const gw = getGateway(ctx.db)
       gw.costTracker.setBudget(input.agentId, {
@@ -121,11 +123,13 @@ export const gatewayRouter = router({
 
   /** Set rate limit for an agent */
   setRateLimit: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid(),
-      maxTokens: z.number().positive(),
-      refillRatePerSecond: z.number().positive(),
-    }))
+    .input(
+      z.object({
+        agentId: z.string().uuid(),
+        maxTokens: z.number().positive(),
+        refillRatePerSecond: z.number().positive(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const gw = getGateway(ctx.db)
       gw.rateLimiter.setAgentLimit(input.agentId, {
@@ -145,10 +149,12 @@ export const gatewayRouter = router({
 
   /** Store an API key (encrypted) */
   storeKey: protectedProcedure
-    .input(z.object({
-      provider: z.string(),
-      apiKey: z.string().min(1),
-    }))
+    .input(
+      z.object({
+        provider: z.string(),
+        apiKey: z.string().min(1),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const gw = getGateway(ctx.db)
       await gw.keyVault.storeKey(input.provider, input.apiKey)
@@ -157,10 +163,12 @@ export const gatewayRouter = router({
 
   /** Rotate an API key */
   rotateKey: protectedProcedure
-    .input(z.object({
-      provider: z.string(),
-      newApiKey: z.string().min(1),
-    }))
+    .input(
+      z.object({
+        provider: z.string(),
+        newApiKey: z.string().min(1),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const gw = getGateway(ctx.db)
       await gw.keyVault.rotateKey(input.provider, input.newApiKey)
@@ -193,4 +201,32 @@ export const gatewayRouter = router({
     const pruned = await gw.cache.prune()
     return { pruned }
   }),
+
+  /** List configured Ollama Cloud models */
+  ollamaModels: protectedProcedure.query(async ({ ctx }) => {
+    try {
+      return await ctx.db.select().from(ollamaModels).orderBy(ollamaModels.addedAt)
+    } catch {
+      return []
+    }
+  }),
+
+  /** Add an Ollama Cloud model */
+  addOllamaModel: protectedProcedure
+    .input(z.object({ name: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const [row] = await ctx.db
+        .insert(ollamaModels)
+        .values({ name: input.name.trim() })
+        .returning()
+      return row
+    }),
+
+  /** Remove an Ollama Cloud model */
+  removeOllamaModel: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.delete(ollamaModels).where(eq(ollamaModels.id, input.id))
+      return { success: true }
+    }),
 })

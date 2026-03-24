@@ -59,6 +59,12 @@ export const modelFallbacks = pgTable('model_fallbacks', {
   updatedAt: timestamp('updated_at').defaultNow(),
 })
 
+export const ollamaModels = pgTable('ollama_models', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  addedAt: timestamp('added_at').defaultNow().notNull(),
+})
+
 export const orchestratorRoutes = pgTable('orchestrator_routes', {
   id: uuid('id').primaryKey().defaultRandom(),
   fromWorkspace: uuid('from_workspace').references(() => workspaces.id, { onDelete: 'cascade' }),

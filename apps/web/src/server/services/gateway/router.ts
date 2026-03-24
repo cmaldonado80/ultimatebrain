@@ -344,13 +344,26 @@ class OpenAIAdapter implements ProviderAdapter {
 }
 
 class OllamaAdapter implements ProviderAdapter {
+  /** Resolved Ollama Cloud URL (set by GatewayRouter before use) */
+  resolvedUrl: string | null = null
+
+  private getBaseUrl(): string {
+    return this.resolvedUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'
+  }
+
+  private buildHeaders(apiKey?: string): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
+    return headers
+  }
+
   async chat(params: {
     model: string
     messages: Array<{ role: string; content: string }>
     tools?: unknown[]
     apiKey?: string
   }) {
-    const baseUrl = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'
+    const baseUrl = this.getBaseUrl()
     const body = {
       model: params.model.replace('ollama/', ''),
       messages: params.messages.map((m) => ({
@@ -359,11 +372,9 @@ class OllamaAdapter implements ProviderAdapter {
       })),
       stream: false,
     }
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (params.apiKey) headers['Authorization'] = `Bearer ${params.apiKey}`
     const res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
-      headers,
+      headers: this.buildHeaders(params.apiKey),
       body: JSON.stringify(body),
     })
     if (!res.ok) {
@@ -379,6 +390,52 @@ class OllamaAdapter implements ProviderAdapter {
       content: data.message.content,
       tokensIn: data.prompt_eval_count ?? 0,
       tokensOut: data.eval_count ?? 0,
+    }
+  }
+
+  async *chatStream(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    apiKey?: string
+  }): AsyncGenerator<string, void, unknown> {
+    const baseUrl = this.getBaseUrl()
+    const body = {
+      model: params.model.replace('ollama/', ''),
+      messages: params.messages.map((m) => ({
+        role: m.role === 'agent' ? 'assistant' : m.role,
+        content: m.content,
+      })),
+      stream: true,
+    }
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: this.buildHeaders(params.apiKey),
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Ollama API error ${res.status}: ${err}`)
+    }
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.trim()) continue
+        try {
+          const chunk = JSON.parse(line) as { message?: { content?: string }; done?: boolean }
+          if (chunk.message?.content) yield chunk.message.content
+          if (chunk.done) return
+        } catch {
+          /* skip malformed lines */
+        }
+      }
     }
   }
 }
@@ -541,6 +598,13 @@ export class GatewayRouter {
         try {
           const apiKey = await this.keyVault.getKey(provider)
 
+          // Resolve Ollama Cloud URL from vault
+          if (provider === 'ollama') {
+            const ollamaAdapter = adapter as OllamaAdapter
+            const storedUrl = await this.keyVault.getKey('ollama_url')
+            if (storedUrl) ollamaAdapter.resolvedUrl = storedUrl
+          }
+
           const result = await adapter.chat({
             model: targetModel,
             messages,
@@ -644,6 +708,13 @@ export class GatewayRouter {
 
       try {
         const apiKey = await this.keyVault.getKey(provider)
+
+        // Resolve Ollama Cloud URL from vault if applicable
+        if (provider === 'ollama') {
+          const ollamaAdapter = adapter as OllamaAdapter
+          const storedUrl = await this.keyVault.getKey('ollama_url')
+          if (storedUrl) ollamaAdapter.resolvedUrl = storedUrl
+        }
 
         if (adapter.chatStream) {
           yield* adapter.chatStream({
