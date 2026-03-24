@@ -26,12 +26,22 @@ export default function SignInPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const result = await signIn('credentials', { email, redirect: false })
-    if (result?.error) {
-      setError('Sign in failed. Please try again.')
+    try {
+      const result = await signIn('credentials', { email, redirect: false })
+      if (result?.error || !result?.ok) {
+        setError(
+          result?.error === 'CredentialsSignin'
+            ? 'Invalid email. Please try again.'
+            : `Sign in failed: ${result?.error || 'unknown error'}`,
+        )
+        setLoading(false)
+      } else {
+        // Use relative path to avoid cross-domain redirect issues with preview URLs
+        window.location.href = '/'
+      }
+    } catch (err) {
+      setError('Network error. Please try again.')
       setLoading(false)
-    } else {
-      window.location.href = new URLSearchParams(window.location.search).get('callbackUrl') || '/'
     }
   }
 

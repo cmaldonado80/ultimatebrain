@@ -24,6 +24,7 @@ const adapter = process.env.DATABASE_URL ? DrizzleAdapter(getDb()) : undefined
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter,
+  trustHost: true,
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/auth/signin',
