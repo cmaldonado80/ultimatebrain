@@ -88,20 +88,38 @@ interface RecentItem {
 
 // ── Sparkline SVG ─────────────────────────────────────────────────────────
 
-function Sparkline({ data, color, width = 80, height = 24 }: { data: number[]; color: string; width?: number; height?: number }) {
+function Sparkline({
+  data,
+  color,
+  width = 80,
+  height = 24,
+}: {
+  data: number[]
+  color: string
+  width?: number
+  height?: number
+}) {
   if (data.length < 2) return null
   const min = Math.min(...data)
   const max = Math.max(...data)
   const range = max - min || 1
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * width
-    const y = height - ((v - min) / range) * height
-    return `${x},${y}`
-  }).join(' ')
+  const points = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * width
+      const y = height - ((v - min) / range) * height
+      return `${x},${y}`
+    })
+    .join(' ')
 
   return (
     <svg width={width} height={height} style={{ display: 'block' }}>
-      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
@@ -123,7 +141,9 @@ function StatCard({ stat }: { stat: StatCardData }) {
         {stat.sparkline && <Sparkline data={stat.sparkline} color={stat.color} />}
       </div>
       {stat.change && (
-        <div style={{ ...styles.statChange, color: stat.change.value >= 0 ? '#4ade80' : '#f87171' }}>
+        <div
+          style={{ ...styles.statChange, color: stat.change.value >= 0 ? '#4ade80' : '#f87171' }}
+        >
           {stat.change.value >= 0 ? '↑' : '↓'} {Math.abs(stat.change.value)} {stat.change.label}
         </div>
       )}
@@ -151,13 +171,27 @@ export default function DashboardPage() {
   const agentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
   const ticketsQuery = trpc.tickets.list.useQuery()
   const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
+  const healthQuery = trpc.healing.healthCheck.useQuery()
 
-  const isLoading = agentsQuery.isLoading || ticketsQuery.isLoading || workspacesQuery.isLoading
-  const error = agentsQuery.error || ticketsQuery.error || workspacesQuery.error
+  const isLoading =
+    agentsQuery.isLoading ||
+    ticketsQuery.isLoading ||
+    workspacesQuery.isLoading ||
+    healthQuery.isLoading
+  const error =
+    agentsQuery.error || ticketsQuery.error || workspacesQuery.error || healthQuery.error
 
   if (isLoading) {
     return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <div
+        style={{
+          ...styles.page,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+        }}
+      >
         <div style={{ textAlign: 'center', color: '#6b7280' }}>
           <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
           <div style={{ fontSize: 13 }}>Fetching dashboard data</div>
@@ -168,9 +202,19 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <div
+        style={{
+          ...styles.page,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+        }}
+      >
         <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading dashboard</div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+            Error loading dashboard
+          </div>
           <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
         </div>
       </div>
@@ -182,7 +226,9 @@ export default function DashboardPage() {
   const workspacesData = workspacesQuery.data ?? []
 
   const activeAgents = agents.length
-  const openTickets = tickets.filter((t: Ticket) => t.status !== 'done' && t.status !== 'cancelled').length
+  const openTickets = tickets.filter(
+    (t: Ticket) => t.status !== 'done' && t.status !== 'cancelled',
+  ).length
 
   const STATS: StatCardData[] = [
     { label: 'Active Agents', value: String(activeAgents), color: '#818cf8' },
@@ -194,7 +240,11 @@ export default function DashboardPage() {
   // Build recent activity from tickets
   const RECENT: RecentItem[] = tickets
     .slice()
-    .sort((a: Ticket, b: Ticket) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime())
+    .sort(
+      (a: Ticket, b: Ticket) =>
+        new Date(b.updatedAt ?? b.createdAt).getTime() -
+        new Date(a.updatedAt ?? a.createdAt).getTime(),
+    )
     .slice(0, 6)
     .map((t: Ticket) => ({
       id: t.id,
@@ -203,19 +253,35 @@ export default function DashboardPage() {
       subtitle: t.priority ? `Priority: ${t.priority}` : 'No priority set',
       time: timeAgo(t.updatedAt ?? t.createdAt),
       status: t.status ?? 'unknown',
-      statusColor: t.status === 'done' ? '#22c55e' : t.status === 'in_progress' ? '#818cf8' : t.status === 'failed' ? '#ef4444' : '#f97316',
+      statusColor:
+        t.status === 'done'
+          ? '#22c55e'
+          : t.status === 'in_progress'
+            ? '#818cf8'
+            : t.status === 'failed'
+              ? '#ef4444'
+              : '#f97316',
     }))
 
-  const ENGINES_HEALTH = [
-    { name: 'LLM Gateway', status: 'healthy', rpm: 0 },
-    { name: 'Memory', status: 'healthy', rpm: 0 },
-    { name: 'Orchestration', status: 'healthy', rpm: 0 },
-    { name: 'A2A Protocol', status: 'healthy', rpm: 0 },
-    { name: 'Guardrails', status: 'healthy', rpm: 0 },
-    { name: 'Self-Healing', status: 'healthy', rpm: 0 },
-    { name: 'Eval', status: 'healthy', rpm: 0 },
-    { name: 'MCP', status: 'healthy', rpm: 0 },
-  ]
+  const healthData = healthQuery.data as
+    | { status?: string; checks?: Record<string, { status: string }> }
+    | undefined
+  const ENGINES_HEALTH = healthData?.checks
+    ? Object.entries(healthData.checks).map(([name, check]) => ({
+        name,
+        status: check.status === 'ok' ? 'healthy' : check.status,
+        rpm: 0,
+      }))
+    : [
+        { name: 'LLM Gateway', status: healthData?.status || 'unknown', rpm: 0 },
+        { name: 'Memory', status: healthData?.status || 'unknown', rpm: 0 },
+        { name: 'Orchestration', status: healthData?.status || 'unknown', rpm: 0 },
+        { name: 'A2A Protocol', status: healthData?.status || 'unknown', rpm: 0 },
+        { name: 'Guardrails', status: healthData?.status || 'unknown', rpm: 0 },
+        { name: 'Self-Healing', status: healthData?.status || 'unknown', rpm: 0 },
+        { name: 'Eval', status: healthData?.status || 'unknown', rpm: 0 },
+        { name: 'MCP', status: healthData?.status || 'unknown', rpm: 0 },
+      ]
 
   const TOPOLOGY: TopologyEntry[] = workspacesData.slice(0, 5).map((ws: Workspace) => ({
     name: ws.name ?? `Workspace ${ws.id.slice(0, 8)}`,
@@ -244,7 +310,9 @@ export default function DashboardPage() {
         <div style={styles.panel}>
           <div style={styles.panelHeader}>Recent Activity</div>
           {RECENT.length === 0 ? (
-            <div style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', padding: 20 }}>No recent activity</div>
+            <div style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', padding: 20 }}>
+              No recent activity
+            </div>
           ) : (
             RECENT.map((item) => (
               <div key={item.id} style={styles.activityRow}>
@@ -253,7 +321,9 @@ export default function DashboardPage() {
                   <div style={styles.activitySub}>{item.subtitle}</div>
                 </div>
                 <div style={styles.activityRight}>
-                  <span style={{ ...styles.activityStatus, color: item.statusColor }}>{item.status}</span>
+                  <span style={{ ...styles.activityStatus, color: item.statusColor }}>
+                    {item.status}
+                  </span>
                   <span style={styles.activityTime}>{item.time}</span>
                 </div>
               </div>
@@ -266,7 +336,12 @@ export default function DashboardPage() {
           <div style={styles.panelHeader}>Engine Health</div>
           {ENGINES_HEALTH.map((e) => (
             <div key={e.name} style={styles.engineRow}>
-              <span style={{ ...styles.engineDot, background: e.status === 'healthy' ? '#22c55e' : '#f97316' }} />
+              <span
+                style={{
+                  ...styles.engineDot,
+                  background: e.status === 'healthy' ? '#22c55e' : '#f97316',
+                }}
+              />
               <span style={styles.engineName}>{e.name}</span>
             </div>
           ))}
@@ -276,7 +351,9 @@ export default function DashboardPage() {
         <div style={styles.panel}>
           <div style={styles.panelHeader}>Entity Topology</div>
           {TOPOLOGY.length === 0 ? (
-            <div style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', padding: 20 }}>No workspaces found</div>
+            <div style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', padding: 20 }}>
+              No workspaces found
+            </div>
           ) : (
             TOPOLOGY.map((entity: TopologyEntry) => (
               <div key={entity.name} style={styles.topoRow}>
@@ -288,7 +365,8 @@ export default function DashboardPage() {
             ))
           )}
           <div style={styles.topoSummary}>
-            {workspacesData.length} workspace{workspacesData.length !== 1 ? 's' : ''} · {agents.length} total agents
+            {workspacesData.length} workspace{workspacesData.length !== 1 ? 's' : ''} ·{' '}
+            {agents.length} total agents
           </div>
         </div>
       </div>
@@ -306,20 +384,43 @@ const styles = {
   // Stats
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 },
   statCard: { background: '#1f2937', borderRadius: 8, padding: 14, border: '1px solid #374151' },
-  statTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
+  statTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
   statValue: { fontSize: 22, fontWeight: 700 },
   statLabel: { fontSize: 11, color: '#6b7280', marginTop: 2 },
   statChange: { fontSize: 11 },
   // Bottom
   bottomGrid: { display: 'grid', gridTemplateColumns: '1fr 280px 280px', gap: 12 },
   panel: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
-  panelHeader: { fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 12 },
+  panelHeader: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#6b7280',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
   // Activity
-  activityRow: { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #111827', gap: 12 },
+  activityRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '8px 0',
+    borderBottom: '1px solid #111827',
+    gap: 12,
+  },
   activityMain: { flex: 1 },
   activityTitle: { fontSize: 13, fontWeight: 600 },
   activitySub: { fontSize: 11, color: '#6b7280', marginTop: 2 },
-  activityRight: { display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', flexShrink: 0 },
+  activityRight: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'flex-end',
+    flexShrink: 0,
+  },
   activityStatus: { fontSize: 11, fontWeight: 600 },
   activityTime: { fontSize: 10, color: '#4b5563' },
   // Engines
@@ -331,7 +432,13 @@ const styles = {
   topoRow: { display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', fontSize: 12 },
   topoConnector: { color: '#4b5563', fontFamily: 'monospace', width: 20 },
   topoName: { flex: 1, fontWeight: 600 },
-  topoBadge: { fontSize: 10, background: '#1e3a5f', color: '#93c5fd', padding: '1px 5px', borderRadius: 4 },
+  topoBadge: {
+    fontSize: 10,
+    background: '#1e3a5f',
+    color: '#93c5fd',
+    padding: '1px 5px',
+    borderRadius: 4,
+  },
   topoChildren: { fontSize: 10, color: '#6b7280' },
   topoSummary: { marginTop: 12, fontSize: 11, color: '#4b5563', textAlign: 'center' as const },
 }

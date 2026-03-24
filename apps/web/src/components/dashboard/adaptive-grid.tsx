@@ -13,16 +13,96 @@ import type { RankedPanel, PanelId } from '../../server/services/adaptive/layout
 // ── Mock ranked panels ────────────────────────────────────────────────────
 
 const MOCK_PANELS: RankedPanel[] = [
-  { id: 'ticket_board', label: 'Ticket Board', description: 'Active tickets and their status', score: 42.5, isPinned: true, isVisible: true, breakdown: { behavior: 8.2, role: 10, timeOfDay: 10, context: 0, pin: 100 } },
-  { id: 'agent_status', label: 'Agent Status', description: 'Running agents and their current tasks', score: 35.1, isPinned: false, isVisible: true, breakdown: { behavior: 6.1, role: 8, timeOfDay: 8, context: 4.5, pin: 0 } },
-  { id: 'ops_health', label: 'Ops Health', description: 'System health, uptime, and alerts', score: 30.8, isPinned: false, isVisible: true, breakdown: { behavior: 3.2, role: 8, timeOfDay: 0, context: 9, pin: 0 } },
-  { id: 'approvals', label: 'Approvals', description: 'Pending approval requests from agents', score: 28.4, isPinned: false, isVisible: true, breakdown: { behavior: 4.0, role: 6, timeOfDay: 6, context: 4, pin: 0 } },
-  { id: 'recent_activity', label: 'Recent Activity', description: 'Latest actions across the platform', score: 22.0, isPinned: false, isVisible: false, breakdown: { behavior: 5.5, role: 7, timeOfDay: 0, context: 0, pin: 0 } },
-  { id: 'standup_summary', label: 'Standup Summary', description: 'Daily overview', score: 18.3, isPinned: false, isVisible: false, breakdown: { behavior: 2.0, role: 0, timeOfDay: 5, context: 0, pin: 0 } },
-  { id: 'metrics', label: 'Metrics', description: 'Key performance metrics and trends', score: 16.0, isPinned: false, isVisible: false, breakdown: { behavior: 3.0, role: 0, timeOfDay: 0, context: 0, pin: 0 } },
-  { id: 'active_flows', label: 'Active Flows', description: 'Running orchestration flows', score: 14.5, isPinned: false, isVisible: false, breakdown: { behavior: 1.5, role: 6, timeOfDay: 7, context: 0, pin: 0 } },
-  { id: 'dlq', label: 'Dead Letter Queue', description: 'Failed messages awaiting review', score: 12.2, isPinned: false, isVisible: false, breakdown: { behavior: 0.5, role: 9, timeOfDay: 0, context: 0, pin: 0 } },
-  { id: 'security', label: 'Security', description: 'Guardrail violations and security events', score: 10.0, isPinned: false, isVisible: false, breakdown: { behavior: 0.2, role: 10, timeOfDay: 0, context: 0, pin: 0 } },
+  {
+    id: 'ticket_board',
+    label: 'Ticket Board',
+    description: 'Active tickets and their status',
+    score: 42.5,
+    isPinned: true,
+    isVisible: true,
+    breakdown: { behavior: 8.2, role: 10, timeOfDay: 10, context: 0, pin: 100 },
+  },
+  {
+    id: 'agent_status',
+    label: 'Agent Status',
+    description: 'Running agents and their current tasks',
+    score: 35.1,
+    isPinned: false,
+    isVisible: true,
+    breakdown: { behavior: 6.1, role: 8, timeOfDay: 8, context: 4.5, pin: 0 },
+  },
+  {
+    id: 'ops_health',
+    label: 'Ops Health',
+    description: 'System health, uptime, and alerts',
+    score: 30.8,
+    isPinned: false,
+    isVisible: true,
+    breakdown: { behavior: 3.2, role: 8, timeOfDay: 0, context: 9, pin: 0 },
+  },
+  {
+    id: 'approvals',
+    label: 'Approvals',
+    description: 'Pending approval requests from agents',
+    score: 28.4,
+    isPinned: false,
+    isVisible: true,
+    breakdown: { behavior: 4.0, role: 6, timeOfDay: 6, context: 4, pin: 0 },
+  },
+  {
+    id: 'recent_activity',
+    label: 'Recent Activity',
+    description: 'Latest actions across the platform',
+    score: 22.0,
+    isPinned: false,
+    isVisible: false,
+    breakdown: { behavior: 5.5, role: 7, timeOfDay: 0, context: 0, pin: 0 },
+  },
+  {
+    id: 'standup_summary',
+    label: 'Standup Summary',
+    description: 'Daily overview',
+    score: 18.3,
+    isPinned: false,
+    isVisible: false,
+    breakdown: { behavior: 2.0, role: 0, timeOfDay: 5, context: 0, pin: 0 },
+  },
+  {
+    id: 'metrics',
+    label: 'Metrics',
+    description: 'Key performance metrics and trends',
+    score: 16.0,
+    isPinned: false,
+    isVisible: false,
+    breakdown: { behavior: 3.0, role: 0, timeOfDay: 0, context: 0, pin: 0 },
+  },
+  {
+    id: 'active_flows',
+    label: 'Active Flows',
+    description: 'Running orchestration flows',
+    score: 14.5,
+    isPinned: false,
+    isVisible: false,
+    breakdown: { behavior: 1.5, role: 6, timeOfDay: 7, context: 0, pin: 0 },
+  },
+  {
+    id: 'dlq',
+    label: 'Dead Letter Queue',
+    description: 'Failed messages awaiting review',
+    score: 12.2,
+    isPinned: false,
+    isVisible: false,
+    breakdown: { behavior: 0.5, role: 9, timeOfDay: 0, context: 0, pin: 0 },
+  },
+  {
+    id: 'security',
+    label: 'Security',
+    description: 'Guardrail violations and security events',
+    score: 10.0,
+    isPinned: false,
+    isVisible: false,
+    breakdown: { behavior: 0.2, role: 10, timeOfDay: 0, context: 0, pin: 0 },
+  },
 ]
 
 // ── Sub-components ────────────────────────────────────────────────────────
@@ -89,11 +169,7 @@ function PanelCard({
           >
             📌
           </button>
-          <button
-            style={styles.iconBtn}
-            onClick={onToggleExpand}
-            title="Show score breakdown"
-          >
+          <button style={styles.iconBtn} onClick={onToggleExpand} title="Show score breakdown">
             {expanded ? '▲' : '▼'}
           </button>
         </div>
@@ -122,11 +198,8 @@ interface AdaptiveGridProps {
   onReset?: () => void
 }
 
-export default function AdaptiveGrid({
-  panels = MOCK_PANELS,
-  onPin,
-  onReset,
-}: AdaptiveGridProps) {
+export default function AdaptiveGrid({ panels = MOCK_PANELS, onPin, onReset }: AdaptiveGridProps) {
+  const isDemo = panels === MOCK_PANELS
   const [expandedPanel, setExpandedPanel] = useState<PanelId | null>(null)
   const [showCollapsed, setShowCollapsed] = useState(false)
 
@@ -137,25 +210,38 @@ export default function AdaptiveGrid({
     (panelId: PanelId) => {
       onPin?.(panelId)
     },
-    [onPin]
+    [onPin],
   )
 
   return (
     <div style={styles.container}>
+      {isDemo && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            color: '#818cf8',
+            fontSize: 11,
+            fontWeight: 600,
+            padding: '4px 12px',
+            borderRadius: 4,
+            marginBottom: 8,
+            display: 'inline-block',
+          }}
+        >
+          Demo Data — connect to adaptive layout engine for real panels
+        </div>
+      )}
       {/* Header */}
       <div style={styles.header}>
         <div>
           <h2 style={styles.title}>Dashboard</h2>
           <p style={styles.subtitle}>
-            Showing {visiblePanels.length} panels · {collapsedPanels.length} collapsed · Ranked by relevance
+            Showing {visiblePanels.length} panels · {collapsedPanels.length} collapsed · Ranked by
+            relevance
           </p>
         </div>
         <div style={styles.headerActions}>
-          <button
-            style={styles.resetBtn}
-            onClick={onReset}
-            title="Clear all learned preferences"
-          >
+          <button style={styles.resetBtn} onClick={onReset} title="Clear all learned preferences">
             Reset Layout
           </button>
         </div>
@@ -169,9 +255,7 @@ export default function AdaptiveGrid({
             panel={panel}
             onPin={() => handlePin(panel.id)}
             expanded={expandedPanel === panel.id}
-            onToggleExpand={() =>
-              setExpandedPanel(expandedPanel === panel.id ? null : panel.id)
-            }
+            onToggleExpand={() => setExpandedPanel(expandedPanel === panel.id ? null : panel.id)}
           />
         ))}
       </div>
@@ -179,10 +263,7 @@ export default function AdaptiveGrid({
       {/* Collapsed panels */}
       {collapsedPanels.length > 0 && (
         <div style={styles.collapsedSection}>
-          <button
-            style={styles.collapsedToggle}
-            onClick={() => setShowCollapsed(!showCollapsed)}
-          >
+          <button style={styles.collapsedToggle} onClick={() => setShowCollapsed(!showCollapsed)}>
             {showCollapsed ? '▲ Hide' : '▼ Show'} {collapsedPanels.length} more panels
           </button>
 
@@ -211,7 +292,12 @@ export default function AdaptiveGrid({
 
 const styles = {
   container: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
   title: { margin: 0, fontSize: 22, fontWeight: 700 },
   subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
   headerActions: { display: 'flex', gap: 8 },
@@ -240,11 +326,30 @@ const styles = {
   },
   cardCollapsed: { opacity: 0.7 },
   cardPinned: { borderColor: '#f97316', borderWidth: 2 },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   cardLeft: { display: 'flex', alignItems: 'center', gap: 6 },
   cardLabel: { fontSize: 14, fontWeight: 700 },
-  pinBadge: { fontSize: 10, background: '#7c2d12', color: '#fed7aa', padding: '1px 5px', borderRadius: 4, fontWeight: 600 },
-  scoreBadge: { fontSize: 10, background: '#1e3a5f', color: '#93c5fd', padding: '1px 5px', borderRadius: 4, fontFamily: 'monospace' },
+  pinBadge: {
+    fontSize: 10,
+    background: '#7c2d12',
+    color: '#fed7aa',
+    padding: '1px 5px',
+    borderRadius: 4,
+    fontWeight: 600,
+  },
+  scoreBadge: {
+    fontSize: 10,
+    background: '#1e3a5f',
+    color: '#93c5fd',
+    padding: '1px 5px',
+    borderRadius: 4,
+    fontFamily: 'monospace',
+  },
   cardActions: { display: 'flex', gap: 4 },
   iconBtn: {
     background: 'transparent',
@@ -274,9 +379,21 @@ const styles = {
   },
   breakdownRow: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 },
   breakdownLabel: { fontSize: 10, color: '#6b7280', width: 55 },
-  breakdownBarBg: { flex: 1, height: 4, background: '#111827', borderRadius: 2, overflow: 'hidden' },
+  breakdownBarBg: {
+    flex: 1,
+    height: 4,
+    background: '#111827',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
   breakdownBarFill: { height: '100%', borderRadius: 2 },
-  breakdownValue: { fontSize: 10, color: '#9ca3af', width: 28, textAlign: 'right' as const, fontFamily: 'monospace' },
+  breakdownValue: {
+    fontSize: 10,
+    color: '#9ca3af',
+    width: 28,
+    textAlign: 'right' as const,
+    fontFamily: 'monospace',
+  },
   // Collapsed section
   collapsedSection: { borderTop: '1px solid #1f2937', paddingTop: 12 },
   collapsedToggle: {
