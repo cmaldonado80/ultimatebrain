@@ -3,12 +3,16 @@ import GitHub from 'next-auth/providers/github'
 import Google from 'next-auth/providers/google'
 import Credentials from 'next-auth/providers/credentials'
 import { DrizzleAdapter } from '@auth/drizzle-adapter'
-import { createDb } from '@solarc/db'
+import { createDb, type Database } from '@solarc/db'
 
+let _db: Database | undefined
 function getDb() {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL is not set')
-  return createDb(url)
+  if (!_db) {
+    const url = process.env.DATABASE_URL
+    if (!url) throw new Error('DATABASE_URL is not set')
+    _db = createDb(url)
+  }
+  return _db
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
