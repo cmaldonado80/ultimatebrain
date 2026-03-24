@@ -468,6 +468,28 @@ export class GatewayRouter {
     this.adapters.set('anthropic', new AnthropicAdapter())
     this.adapters.set('openai', new OpenAIAdapter())
     this.adapters.set('ollama', new OllamaAdapter())
+
+    // Wire OpenClaw adapter if daemon URL is configured
+    this.initOpenClawAdapter().catch(() => {})
+  }
+
+  /** Lazily connect the OpenClaw adapter (non-blocking, startup continues). */
+  private async initOpenClawAdapter(): Promise<void> {
+    try {
+      const { env } = await import('../../../env')
+      if (!env.OPENCLAW_WS) return
+
+      const { initOpenClaw, getOpenClawProviders } =
+        await import('../../adapters/openclaw/bootstrap')
+      await initOpenClaw()
+      const ocProviders = getOpenClawProviders()
+      if (ocProviders) {
+        this.adapters.set('openclaw', ocProviders)
+        console.warn('[Gateway] OpenClaw adapter registered')
+      }
+    } catch (err) {
+      console.warn('[Gateway] OpenClaw adapter not available:', err)
+    }
   }
 
   /** Attach a tracer after construction (e.g. when wiring DI) */

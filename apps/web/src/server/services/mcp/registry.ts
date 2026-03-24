@@ -82,7 +82,7 @@ export class MCPRegistry {
   search(query: string): RegisteredTool[] {
     const q = query.toLowerCase()
     return this.listAll().filter(
-      (t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
+      (t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
     )
   }
 
@@ -121,57 +121,77 @@ export class MCPRegistry {
     return Array.from(this.externalServers.values())
   }
 
-  // ── OpenClaw Skill Discovery ──────────────────────────────────────────
+  // ── OpenClaw Skill & MCP Discovery ───────────────────────────────────
 
   /**
-   * Scan OpenClaw skill definitions and register as tools.
-   * Each skill becomes a callable tool: `openclaw_{skillName}(params)`.
+   * Discover OpenClaw skills and MCP tools, registering them as callable tools.
+   * Uses live discovery from the OpenClaw daemon when connected, falls back to
+   * cached results when disconnected.
    */
-  async discoverOpenClawSkills(_skillsDir?: string): Promise<number> {
-    // Stub — real impl scans SKILL.md files in the skills directory
-    // and converts each to a RegisteredTool with an appropriate handler.
+  async discoverOpenClawSkills(): Promise<number> {
+    let count = 0
 
-    const mockSkills: Array<Omit<RegisteredTool, 'source' | 'handler'>> = [
-      {
-        name: 'openclaw_web_search',
-        description: 'Search the web using OpenClaw browser agent',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            query: { type: 'string', description: 'Search query' },
-            maxResults: { type: 'number', description: 'Max results to return' },
-          },
-          required: ['query'],
-        },
-      },
-      {
-        name: 'openclaw_code_review',
-        description: 'Review code changes using OpenClaw analysis',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            diff: { type: 'string', description: 'Git diff or code to review' },
-            focus: { type: 'string', description: 'What to focus on (security, perf, style)' },
-          },
-          required: ['diff'],
-        },
-      },
-    ]
+    try {
+      const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+      const client = getOpenClawClient()
+      if (!client || !client.isConnected()) return 0
 
-    for (const skill of mockSkills) {
-      this.register({
-        ...skill,
-        source: 'openclaw',
-        handler: async (params) => ({
-          status: 'completed',
-          tool: skill.name,
-          params,
-          result: `OpenClaw skill "${skill.name}" executed`,
-        }),
-      })
+      // Discover skills
+      const { OpenClawSkills } = await import('../../adapters/openclaw/skills')
+      const skillsAdapter = new OpenClawSkills(client)
+      const skills = await skillsAdapter.discoverSkills()
+
+      for (const skill of skills) {
+        const toolName = `openclaw_${skill.name.replace(/[^a-zA-Z0-9_]/g, '_')}`
+        this.register({
+          name: toolName,
+          description: skill.description,
+          source: 'openclaw',
+          inputSchema: {
+            type: 'object',
+            properties: Object.fromEntries(
+              Object.entries(skill.params ?? {}).map(([k, v]) => [
+                k,
+                { type: v.type, description: v.description },
+              ]),
+            ),
+            required: Object.entries(skill.params ?? {})
+              .filter(([, v]) => v.required)
+              .map(([k]) => k),
+          },
+          handler: async (params) => skillsAdapter.invokeSkill(skill.name, params),
+        })
+        count++
+      }
+
+      // Discover MCP tools
+      const { OpenClawMcp } = await import('../../adapters/openclaw/mcp')
+      const mcpAdapter = new OpenClawMcp(client)
+      const tools = await mcpAdapter.discoverTools()
+
+      for (const tool of tools) {
+        const toolName = `openclaw_mcp_${tool.server}_${tool.name}`.replace(/[^a-zA-Z0-9_]/g, '_')
+        this.register({
+          name: toolName,
+          description: `[MCP: ${tool.server}] ${tool.description}`,
+          source: 'openclaw',
+          inputSchema: {
+            type: 'object',
+            properties: (tool.inputSchema?.properties ?? {}) as Record<
+              string,
+              { type: string; description?: string }
+            >,
+            required: (tool.inputSchema?.required ?? []) as string[],
+          },
+          handler: async (params) => mcpAdapter.invokeTool(tool.server, tool.name, params),
+        })
+        count++
+      }
+    } catch (err) {
+      console.warn('[MCPRegistry] OpenClaw discovery failed:', err)
     }
 
-    return mockSkills.length
+    return count
   }
 
   // ── External MCP Server Discovery ─────────────────────────────────────

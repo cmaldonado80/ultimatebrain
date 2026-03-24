@@ -11,10 +11,12 @@ import { eq } from 'drizzle-orm'
 
 export const entitiesRouter = router({
   list: protectedProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(100).default(50),
-      offset: z.number().min(0).default(0),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        offset: z.number().min(0).default(0),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       return ctx.db.query.brainEntities.findMany({
         limit: input.limit,
@@ -24,7 +26,10 @@ export const entitiesRouter = router({
   byTier: protectedProcedure
     .input(z.object({ tier: z.enum(['brain', 'mini_brain', 'development']) }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.query.brainEntities.findMany({ where: eq(brainEntities.tier, input.tier), limit: 200 })
+      return ctx.db.query.brainEntities.findMany({
+        where: eq(brainEntities.tier, input.tier),
+        limit: 200,
+      })
     }),
   topology: protectedProcedure.query(async ({ ctx }) => {
     const all = await ctx.db.query.brainEntities.findMany({ limit: 500 })
@@ -32,5 +37,11 @@ export const entitiesRouter = router({
     const miniBrains = all.filter((e) => e.tier === 'mini_brain')
     const developments = all.filter((e) => e.tier === 'development')
     return { brain, miniBrains, developments }
+  }),
+
+  /** Get OpenClaw daemon status (connection, version, capability counts). */
+  openclawHealth: protectedProcedure.query(async () => {
+    const { getOpenClawStatus } = await import('../adapters/openclaw/bootstrap')
+    return getOpenClawStatus()
   }),
 })

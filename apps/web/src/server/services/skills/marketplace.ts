@@ -75,20 +75,205 @@ export interface SkillConfig {
   usageStats: { totalRuns: number; lastUsed?: string; avgDurationMs: number }
 }
 
-// ── Built-in OpenClaw Skills (sample) ───────────────────────────────────
+// ── OpenClaw Skill Catalog (live discovery with static fallback) ─────────
 
-const OPENCLAW_SKILLS: Omit<SkillListing, 'installed' | 'assignedAgents' | 'usageStats'>[] = [
-  { id: 'oc-web-search', name: 'Web Search', description: 'Search the web and extract structured results', author: 'OpenClaw', category: 'data', source: 'openclaw', sourceUrl: 'openclaw://skills/web-search', version: '1.2.0', installCount: 4520, rating: 4.7, permissions: [{ capability: 'network:fetch', reason: 'Fetch search results from web' }] },
-  { id: 'oc-code-review', name: 'Code Review', description: 'Analyze code diffs for bugs, security issues, and style', author: 'OpenClaw', category: 'coding', source: 'openclaw', sourceUrl: 'openclaw://skills/code-review', version: '2.0.1', installCount: 3890, rating: 4.8, permissions: [{ capability: 'file:read', reason: 'Read source files' }, { capability: 'llm:invoke', reason: 'LLM analysis of code' }] },
-  { id: 'oc-screenshot', name: 'Screenshot Capture', description: 'Take screenshots of web pages and annotate them', author: 'OpenClaw', category: 'media', source: 'openclaw', sourceUrl: 'openclaw://skills/screenshot', version: '1.0.3', installCount: 2100, rating: 4.3, permissions: [{ capability: 'browser:navigate', reason: 'Navigate to target page' }, { capability: 'browser:screenshot', reason: 'Capture screenshot' }] },
-  { id: 'oc-csv-transform', name: 'CSV Transform', description: 'Parse, filter, and transform CSV/Excel data', author: 'OpenClaw', category: 'data', source: 'openclaw', sourceUrl: 'openclaw://skills/csv-transform', version: '1.1.0', installCount: 1750, rating: 4.5, permissions: [{ capability: 'file:read', reason: 'Read input files' }, { capability: 'file:write', reason: 'Write transformed output' }] },
-  { id: 'oc-slack-notify', name: 'Slack Notify', description: 'Send formatted messages and alerts to Slack channels', author: 'OpenClaw', category: 'integrations', source: 'openclaw', sourceUrl: 'openclaw://skills/slack-notify', version: '1.3.2', installCount: 3200, rating: 4.6, permissions: [{ capability: 'network:fetch', reason: 'Send webhook requests' }] },
-  { id: 'oc-git-ops', name: 'Git Operations', description: 'Clone, branch, commit, and push to Git repositories', author: 'OpenClaw', category: 'coding', source: 'openclaw', sourceUrl: 'openclaw://skills/git-ops', version: '2.1.0', installCount: 2900, rating: 4.4, permissions: [{ capability: 'shell:execute', reason: 'Run git commands' }, { capability: 'file:read', reason: 'Read repo files' }, { capability: 'file:write', reason: 'Write changes' }] },
-  { id: 'oc-email-draft', name: 'Email Drafting', description: 'Draft professional emails with tone and context awareness', author: 'OpenClaw', category: 'productivity', source: 'openclaw', sourceUrl: 'openclaw://skills/email-draft', version: '1.0.0', installCount: 1200, rating: 4.2, permissions: [{ capability: 'llm:invoke', reason: 'Generate email content' }] },
-  { id: 'oc-pdf-extract', name: 'PDF Extract', description: 'Extract text, tables, and images from PDF documents', author: 'OpenClaw', category: 'data', source: 'openclaw', sourceUrl: 'openclaw://skills/pdf-extract', version: '1.4.1', installCount: 2650, rating: 4.6, permissions: [{ capability: 'file:read', reason: 'Read PDF files' }] },
-  { id: 'oc-api-test', name: 'API Tester', description: 'Test REST and GraphQL APIs with assertions', author: 'OpenClaw', category: 'coding', source: 'openclaw', sourceUrl: 'openclaw://skills/api-test', version: '1.2.0', installCount: 1800, rating: 4.3, permissions: [{ capability: 'network:fetch', reason: 'Make API requests' }] },
-  { id: 'oc-summarize', name: 'Text Summarizer', description: 'Summarize long documents, articles, and threads', author: 'OpenClaw', category: 'productivity', source: 'openclaw', sourceUrl: 'openclaw://skills/summarize', version: '1.1.0', installCount: 3600, rating: 4.7, permissions: [{ capability: 'llm:invoke', reason: 'LLM summarization' }] },
+/** Static fallback catalog — used when OpenClaw daemon is not connected. */
+const FALLBACK_OPENCLAW_SKILLS: Omit<
+  SkillListing,
+  'installed' | 'assignedAgents' | 'usageStats'
+>[] = [
+  {
+    id: 'oc-web-search',
+    name: 'Web Search',
+    description: 'Search the web and extract structured results',
+    author: 'OpenClaw',
+    category: 'data',
+    source: 'openclaw',
+    sourceUrl: 'openclaw://skills/web-search',
+    version: '1.2.0',
+    installCount: 4520,
+    rating: 4.7,
+    permissions: [{ capability: 'network:fetch', reason: 'Fetch search results from web' }],
+  },
+  {
+    id: 'oc-code-review',
+    name: 'Code Review',
+    description: 'Analyze code diffs for bugs, security issues, and style',
+    author: 'OpenClaw',
+    category: 'coding',
+    source: 'openclaw',
+    sourceUrl: 'openclaw://skills/code-review',
+    version: '2.0.1',
+    installCount: 3890,
+    rating: 4.8,
+    permissions: [
+      { capability: 'file:read', reason: 'Read source files' },
+      { capability: 'llm:invoke', reason: 'LLM analysis of code' },
+    ],
+  },
+  {
+    id: 'oc-screenshot',
+    name: 'Screenshot Capture',
+    description: 'Take screenshots of web pages and annotate them',
+    author: 'OpenClaw',
+    category: 'media',
+    source: 'openclaw',
+    sourceUrl: 'openclaw://skills/screenshot',
+    version: '1.0.3',
+    installCount: 2100,
+    rating: 4.3,
+    permissions: [
+      { capability: 'browser:navigate', reason: 'Navigate to target page' },
+      { capability: 'browser:screenshot', reason: 'Capture screenshot' },
+    ],
+  },
+  {
+    id: 'oc-csv-transform',
+    name: 'CSV Transform',
+    description: 'Parse, filter, and transform CSV/Excel data',
+    author: 'OpenClaw',
+    category: 'data',
+    source: 'openclaw',
+    sourceUrl: 'openclaw://skills/csv-transform',
+    version: '1.1.0',
+    installCount: 1750,
+    rating: 4.5,
+    permissions: [
+      { capability: 'file:read', reason: 'Read input files' },
+      { capability: 'file:write', reason: 'Write transformed output' },
+    ],
+  },
+  {
+    id: 'oc-slack-notify',
+    name: 'Slack Notify',
+    description: 'Send formatted messages and alerts to Slack channels',
+    author: 'OpenClaw',
+    category: 'integrations',
+    source: 'openclaw',
+    sourceUrl: 'openclaw://skills/slack-notify',
+    version: '1.3.2',
+    installCount: 3200,
+    rating: 4.6,
+    permissions: [{ capability: 'network:fetch', reason: 'Send webhook requests' }],
+  },
+  {
+    id: 'oc-git-ops',
+    name: 'Git Operations',
+    description: 'Clone, branch, commit, and push to Git repositories',
+    author: 'OpenClaw',
+    category: 'coding',
+    source: 'openclaw',
+    sourceUrl: 'openclaw://skills/git-ops',
+    version: '2.1.0',
+    installCount: 2900,
+    rating: 4.4,
+    permissions: [
+      { capability: 'shell:execute', reason: 'Run git commands' },
+      { capability: 'file:read', reason: 'Read repo files' },
+      { capability: 'file:write', reason: 'Write changes' },
+    ],
+  },
+  {
+    id: 'oc-email-draft',
+    name: 'Email Drafting',
+    description: 'Draft professional emails with tone and context awareness',
+    author: 'OpenClaw',
+    category: 'productivity',
+    source: 'openclaw',
+    sourceUrl: 'openclaw://skills/email-draft',
+    version: '1.0.0',
+    installCount: 1200,
+    rating: 4.2,
+    permissions: [{ capability: 'llm:invoke', reason: 'Generate email content' }],
+  },
+  {
+    id: 'oc-pdf-extract',
+    name: 'PDF Extract',
+    description: 'Extract text, tables, and images from PDF documents',
+    author: 'OpenClaw',
+    category: 'data',
+    source: 'openclaw',
+    sourceUrl: 'openclaw://skills/pdf-extract',
+    version: '1.4.1',
+    installCount: 2650,
+    rating: 4.6,
+    permissions: [{ capability: 'file:read', reason: 'Read PDF files' }],
+  },
+  {
+    id: 'oc-api-test',
+    name: 'API Tester',
+    description: 'Test REST and GraphQL APIs with assertions',
+    author: 'OpenClaw',
+    category: 'coding',
+    source: 'openclaw',
+    sourceUrl: 'openclaw://skills/api-test',
+    version: '1.2.0',
+    installCount: 1800,
+    rating: 4.3,
+    permissions: [{ capability: 'network:fetch', reason: 'Make API requests' }],
+  },
+  {
+    id: 'oc-summarize',
+    name: 'Text Summarizer',
+    description: 'Summarize long documents, articles, and threads',
+    author: 'OpenClaw',
+    category: 'productivity',
+    source: 'openclaw',
+    sourceUrl: 'openclaw://skills/summarize',
+    version: '1.1.0',
+    installCount: 3600,
+    rating: 4.7,
+    permissions: [{ capability: 'llm:invoke', reason: 'LLM summarization' }],
+  },
 ]
+
+/** Cached live skill catalog from OpenClaw daemon. */
+let liveSkillCache: typeof FALLBACK_OPENCLAW_SKILLS | null = null
+let liveCacheTimestamp: number | null = null
+const LIVE_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+/**
+ * Get the OpenClaw skill catalog — live from daemon if connected, fallback otherwise.
+ * Results are cached for 5 minutes to avoid hammering the daemon.
+ */
+async function getOpenClawSkills(): Promise<typeof FALLBACK_OPENCLAW_SKILLS> {
+  // Return cached if fresh
+  if (liveSkillCache && liveCacheTimestamp && Date.now() - liveCacheTimestamp < LIVE_CACHE_TTL_MS) {
+    return liveSkillCache
+  }
+
+  try {
+    const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+    const client = getOpenClawClient()
+    if (!client || !client.isConnected()) return liveSkillCache ?? FALLBACK_OPENCLAW_SKILLS
+
+    const { OpenClawSkills } = await import('../../adapters/openclaw/skills')
+    const adapter = new OpenClawSkills(client)
+    const skills = await adapter.discoverSkills()
+
+    // Map live skills to the SkillListing format
+    liveSkillCache = skills.map((s) => ({
+      id: `oc-${s.name}`,
+      name: s.name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+      description: s.description,
+      author: 'OpenClaw',
+      category: (s.category as SkillCategory) ?? 'other',
+      source: 'openclaw' as const,
+      sourceUrl: `openclaw://skills/${s.name}`,
+      version: '0.0.0', // version comes from daemon
+      installCount: 0,
+      rating: 0,
+      permissions: (s.permissions ?? []).map((p) => ({
+        capability: p as SkillCapability,
+        reason: `Required by ${s.name}`,
+      })),
+    }))
+    liveCacheTimestamp = Date.now()
+    return liveSkillCache
+  } catch {
+    return liveSkillCache ?? FALLBACK_OPENCLAW_SKILLS
+  }
+}
 
 // ── Marketplace Service ─────────────────────────────────────────────────
 
@@ -98,15 +283,17 @@ export class SkillMarketplace {
   // ── Browse & Search ───────────────────────────────────────────────────
 
   /** Get all available skills (merged: catalog + installed state) */
-  async browse(options: {
-    category?: SkillCategory
-    source?: SkillSource
-    search?: string
-  } = {}): Promise<SkillListing[]> {
+  async browse(
+    options: {
+      category?: SkillCategory
+      source?: SkillSource
+      search?: string
+    } = {},
+  ): Promise<SkillListing[]> {
     const installed = await this.getInstalled()
     const installedMap = new Map(installed.map((s) => [s.name, s]))
 
-    let catalog = [...OPENCLAW_SKILLS]
+    let catalog = [...(await getOpenClawSkills())]
 
     // Filter by category
     if (options.category) {
@@ -125,7 +312,7 @@ export class SkillMarketplace {
         (s) =>
           s.name.toLowerCase().includes(q) ||
           s.description.toLowerCase().includes(q) ||
-          s.author.toLowerCase().includes(q)
+          s.author.toLowerCase().includes(q),
       )
     }
 
@@ -139,7 +326,9 @@ export class SkillMarketplace {
         usageStats: config?.usageStats
           ? {
               totalRuns: config.usageStats.totalRuns,
-              lastUsed: config.usageStats.lastUsed ? new Date(config.usageStats.lastUsed) : undefined,
+              lastUsed: config.usageStats.lastUsed
+                ? new Date(config.usageStats.lastUsed)
+                : undefined,
               avgDurationMs: config.usageStats.avgDurationMs,
             }
           : undefined,
@@ -172,11 +361,9 @@ export class SkillMarketplace {
   // ── Install / Uninstall ───────────────────────────────────────────────
 
   /** Install a skill from the catalog */
-  async install(
-    skillId: string,
-    approvedPermissions: SkillCapability[]
-  ): Promise<InstalledSkill> {
-    const listing = OPENCLAW_SKILLS.find((s) => s.id === skillId)
+  async install(skillId: string, approvedPermissions: SkillCapability[]): Promise<InstalledSkill> {
+    const openClawSkills = await getOpenClawSkills()
+    const listing = openClawSkills.find((s) => s.id === skillId)
     if (!listing) throw new Error(`Skill not found: ${skillId}`)
 
     // Verify all required permissions are approved
@@ -187,9 +374,7 @@ export class SkillMarketplace {
     }
 
     const config: SkillConfig = {
-      permissions: listing.permissions.filter((p) =>
-        approvedPermissions.includes(p.capability)
-      ),
+      permissions: listing.permissions.filter((p) => approvedPermissions.includes(p.capability)),
       assignedAgents: [],
       enabled: true,
       category: listing.category,
@@ -242,10 +427,7 @@ export class SkillMarketplace {
       config.assignedAgents.push(agentId)
     }
 
-    await this.db
-      .update(skillsMarketplace)
-      .set({ config })
-      .where(eq(skillsMarketplace.id, skillId))
+    await this.db.update(skillsMarketplace).set({ config }).where(eq(skillsMarketplace.id, skillId))
   }
 
   /** Remove a skill from an agent */
@@ -258,10 +440,7 @@ export class SkillMarketplace {
     const config = (row.config as SkillConfig) ?? { assignedAgents: [] }
     config.assignedAgents = config.assignedAgents.filter((a) => a !== agentId)
 
-    await this.db
-      .update(skillsMarketplace)
-      .set({ config })
-      .where(eq(skillsMarketplace.id, skillId))
+    await this.db.update(skillsMarketplace).set({ config }).where(eq(skillsMarketplace.id, skillId))
   }
 
   /** Toggle enabled/disabled for an installed skill */
@@ -274,10 +453,7 @@ export class SkillMarketplace {
     const config = (row.config as SkillConfig) ?? { enabled: true }
     config.enabled = !config.enabled
 
-    await this.db
-      .update(skillsMarketplace)
-      .set({ config })
-      .where(eq(skillsMarketplace.id, skillId))
+    await this.db.update(skillsMarketplace).set({ config }).where(eq(skillsMarketplace.id, skillId))
 
     return config.enabled
   }
