@@ -1,5 +1,7 @@
 import { pgTable, text, timestamp, integer, primaryKey, uuid } from 'drizzle-orm/pg-core'
-import type { AdapterAccountType } from '@auth/core/adapters'
+
+/** OAuth account types as defined by Auth.js — inlined to avoid @auth/core dep in db package */
+type AdapterAccountType = 'oauth' | 'oidc' | 'email' | 'webauthn'
 
 // === NextAuth Tables (required by @auth/drizzle-adapter) ===
 

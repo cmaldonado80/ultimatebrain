@@ -16,7 +16,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@auth/core": "^0.34.3",
     "drizzle-orm": "^0.38.0",
     "pg": "^8.13.0",
     "pgvector": "^0.2.0"
