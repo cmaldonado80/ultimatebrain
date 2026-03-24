@@ -1,0 +1,101 @@
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+import { createDb, type Database } from '@solarc/db'
+import { chatSessions, chatMessages } from '@solarc/db'
+import { eq, desc } from 'drizzle-orm'
+import { GatewayRouter } from '../../../../server/services/gateway'
+
+let _db: Database | undefined
+function getDb(): Database {
+  if (!_db) {
+    const url = process.env.DATABASE_URL
+    if (!url) throw new Error('DATABASE_URL is not set')
+    _db = createDb(url)
+  }
+  return _db
+}
+
+let _gateway: GatewayRouter | undefined
+function getGateway(): GatewayRouter {
+  return (_gateway ??= new GatewayRouter(getDb()))
+}
+
+const CONTEXT_WINDOW = 50
+
+export async function POST(req: Request) {
+  const body = (await req.json()) as { sessionId: string; text: string }
+  if (!body.sessionId || !body.text) {
+    return new Response('Missing sessionId or text', { status: 400 })
+  }
+
+  const db = getDb()
+  const gateway = getGateway()
+
+  // 1. Store user message
+  await db.insert(chatMessages).values({
+    sessionId: body.sessionId,
+    role: 'user',
+    text: body.text,
+  })
+  await db
+    .update(chatSessions)
+    .set({ updatedAt: new Date() })
+    .where(eq(chatSessions.id, body.sessionId))
+
+  // 2. Load conversation history
+  const msgs = await db.query.chatMessages.findMany({
+    where: eq(chatMessages.sessionId, body.sessionId),
+    orderBy: desc(chatMessages.createdAt),
+    limit: CONTEXT_WINDOW,
+  })
+  const history = msgs.reverse().map((m) => ({ role: m.role, content: m.text }))
+
+  // 3. Stream response via SSE
+  const encoder = new TextEncoder()
+  let fullContent = ''
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const gen = gateway.chatStream({
+          messages: [
+            { role: 'system', content: 'You are a helpful AI assistant. Be concise and direct.' },
+            ...history,
+          ],
+        })
+
+        for await (const chunk of gen) {
+          fullContent += chunk
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`))
+        }
+
+        // 4. Store complete assistant message
+        await db.insert(chatMessages).values({
+          sessionId: body.sessionId,
+          role: 'assistant',
+          text: fullContent,
+        })
+        await db
+          .update(chatSessions)
+          .set({ updatedAt: new Date() })
+          .where(eq(chatSessions.id, body.sessionId))
+
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
+        controller.close()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`))
+        controller.close()
+      }
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  })
+}

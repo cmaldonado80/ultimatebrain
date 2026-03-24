@@ -4,7 +4,7 @@
  * Chat — interactive chat interface for communicating with agents.
  */
 
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { trpc } from '../../../utils/trpc'
 
 interface ChatSession {
@@ -23,6 +23,10 @@ interface ChatMessage {
 export default function ChatPage() {
   const [selectedSession, setSelectedSession] = useState<string | null>(null)
   const [newMessage, setNewMessage] = useState('')
+  const [streaming, setStreaming] = useState(false)
+  const [streamText, setStreamText] = useState('')
+  const [streamError, setStreamError] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const sessionsQuery = trpc.intelligence.chatSessions.useQuery()
   const sessionQuery = trpc.intelligence.chatSession.useQuery(
@@ -30,7 +34,6 @@ export default function ChatPage() {
     { enabled: !!selectedSession },
   )
   const createSessionMut = trpc.intelligence.createChatSession.useMutation()
-  const sendMessageMut = trpc.intelligence.sendChatMessage.useMutation()
   const utils = trpc.useUtils()
 
   const handleNewSession = async () => {
@@ -39,16 +42,71 @@ export default function ChatPage() {
     if (session) setSelectedSession(session.id)
   }
 
-  const handleSend = async () => {
-    if (!selectedSession || !newMessage.trim() || sendMessageMut.isPending) return
+  const handleSend = useCallback(async () => {
+    if (!selectedSession || !newMessage.trim() || streaming) return
     const text = newMessage.trim()
     setNewMessage('')
-    await sendMessageMut.mutateAsync({
-      sessionId: selectedSession,
-      text,
-    })
-    utils.intelligence.chatSession.invalidate({ id: selectedSession })
-  }
+    setStreaming(true)
+    setStreamText('')
+    setStreamError(null)
+
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    try {
+      const res = await fetch('/api/chat/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: selectedSession, text }),
+        signal: controller.signal,
+      })
+
+      if (!res.ok) {
+        setStreamError(`Error: ${res.status}`)
+        setStreaming(false)
+        return
+      }
+
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const event = JSON.parse(line.slice(6)) as {
+              text?: string
+              done?: boolean
+              error?: string
+            }
+            if (event.error) {
+              setStreamError(event.error)
+              break
+            }
+            if (event.text) setStreamText((prev) => prev + event.text)
+            if (event.done) break
+          } catch {
+            /* skip */
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        setStreamError((err as Error).message)
+      }
+    } finally {
+      setStreaming(false)
+      setStreamText('')
+      abortRef.current = null
+      utils.intelligence.chatSession.invalidate({ id: selectedSession })
+    }
+  }, [selectedSession, newMessage, streaming, utils])
 
   if (sessionsQuery.isLoading) {
     return (
@@ -135,18 +193,35 @@ export default function ChatPage() {
           ) : (
             <>
               <div style={styles.messages}>
-                {messages.length === 0 ? (
+                {messages.length === 0 && !streaming ? (
                   <div style={styles.noSession}>No messages yet. Send one below.</div>
                 ) : (
-                  messages.map((m) => (
-                    <div key={m.id} style={m.role === 'user' ? styles.msgUser : styles.msgAgent}>
-                      <div style={styles.msgRole}>{m.role}</div>
-                      <div style={styles.msgText}>{m.text}</div>
-                    </div>
-                  ))
+                  <>
+                    {messages.map((m) => (
+                      <div key={m.id} style={m.role === 'user' ? styles.msgUser : styles.msgAgent}>
+                        <div style={styles.msgRole}>{m.role}</div>
+                        <div style={styles.msgText}>{m.text}</div>
+                      </div>
+                    ))}
+                    {streaming && streamText && (
+                      <div style={styles.msgAgent}>
+                        <div style={styles.msgRole}>assistant</div>
+                        <div style={styles.msgText}>
+                          {streamText}
+                          <span style={{ opacity: 0.4 }}>|</span>
+                        </div>
+                      </div>
+                    )}
+                    {streaming && !streamText && (
+                      <div style={styles.msgAgent}>
+                        <div style={styles.msgRole}>assistant</div>
+                        <div style={{ ...styles.msgText, color: '#6b7280' }}>Thinking...</div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
-              {sendMessageMut.error && (
+              {streamError && (
                 <div
                   style={{
                     padding: '8px 16px',
@@ -155,7 +230,7 @@ export default function ChatPage() {
                     fontSize: 12,
                   }}
                 >
-                  {sendMessageMut.error.message}
+                  {streamError}
                 </div>
               )}
               <div style={styles.inputBar}>
@@ -166,12 +241,8 @@ export default function ChatPage() {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 />
-                <button
-                  style={styles.sendBtn}
-                  onClick={handleSend}
-                  disabled={sendMessageMut.isPending}
-                >
-                  {sendMessageMut.isPending ? 'Thinking...' : 'Send'}
+                <button style={styles.sendBtn} onClick={handleSend} disabled={streaming}>
+                  {streaming ? 'Streaming...' : 'Send'}
                 </button>
               </div>
             </>

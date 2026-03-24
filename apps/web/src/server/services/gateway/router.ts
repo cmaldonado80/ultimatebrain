@@ -127,6 +127,12 @@ export interface ProviderAdapter {
     tokensOut: number
   }>
 
+  chatStream?(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    apiKey?: string
+  }): AsyncGenerator<string, void, unknown>
+
   embed?(params: { text: string; model?: string; apiKey?: string }): Promise<{
     embedding: number[]
     dimensions: number
@@ -195,6 +201,63 @@ class AnthropicAdapter implements ProviderAdapter {
       .join('')
     return { content: text, tokensIn: data.usage.input_tokens, tokensOut: data.usage.output_tokens }
   }
+
+  async *chatStream(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    apiKey?: string
+  }): AsyncGenerator<string, void, unknown> {
+    const apiKey = params.apiKey ?? process.env.ANTHROPIC_API_KEY
+    if (!apiKey) throw new Error('No Anthropic API key available')
+    const systemMsg = params.messages.find((m) => m.role === 'system')
+    const nonSystemMsgs = params.messages.filter((m) => m.role !== 'system')
+    const body: Record<string, unknown> = {
+      model: params.model,
+      max_tokens: 4096,
+      stream: true,
+      messages: nonSystemMsgs.map((m) => ({
+        role: m.role === 'agent' ? 'assistant' : m.role,
+        content: m.content,
+      })),
+    }
+    if (systemMsg) body.system = systemMsg.content
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error(`Anthropic API error ${res.status}: ${await res.text()}`)
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const json = line.slice(6)
+        if (json === '[DONE]') return
+        try {
+          const event = JSON.parse(json) as {
+            type: string
+            delta?: { type: string; text?: string }
+          }
+          if (event.type === 'content_block_delta' && event.delta?.text) {
+            yield event.delta.text
+          }
+        } catch {
+          /* skip malformed */
+        }
+      }
+    }
+  }
 }
 
 class OpenAIAdapter implements ProviderAdapter {
@@ -232,6 +295,52 @@ class OpenAIAdapter implements ProviderAdapter {
       tokensOut: data.usage.completion_tokens,
     }
   }
+
+  async *chatStream(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    apiKey?: string
+  }): AsyncGenerator<string, void, unknown> {
+    const apiKey = params.apiKey ?? process.env.OPENAI_API_KEY
+    if (!apiKey) throw new Error('No OpenAI API key available')
+    const body = {
+      model: params.model,
+      stream: true,
+      messages: params.messages.map((m) => ({
+        role: m.role === 'agent' ? 'assistant' : m.role,
+        content: m.content,
+      })),
+    }
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error(`OpenAI API error ${res.status}: ${await res.text()}`)
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const json = line.slice(6)
+        if (json === '[DONE]') return
+        try {
+          const event = JSON.parse(json) as { choices: Array<{ delta?: { content?: string } }> }
+          if (event.choices?.[0]?.delta?.content) {
+            yield event.choices[0].delta.content
+          }
+        } catch {
+          /* skip malformed */
+        }
+      }
+    }
+  }
 }
 
 class OllamaAdapter implements ProviderAdapter {
@@ -250,9 +359,11 @@ class OllamaAdapter implements ProviderAdapter {
       })),
       stream: false,
     }
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (params.apiKey) headers['Authorization'] = `Bearer ${params.apiKey}`
     const res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
     })
     if (!res.ok) {
@@ -512,6 +623,57 @@ export class GatewayRouter {
     } finally {
       await rootSpan?.end()
     }
+  }
+
+  /**
+   * Stream an LLM chat response. Yields text chunks as they arrive.
+   * Falls back to non-streaming chat() if the adapter doesn't support streaming.
+   */
+  async *chatStream(input: LlmChatInput): AsyncGenerator<string, void, unknown> {
+    const model = input.model ?? this.config.defaultModel
+    const resolved = resolveProvider(model)
+    const providers = this.buildProviderChain(resolved.provider, model)
+
+    let lastError: Error | null = null
+
+    for (const { provider, targetModel } of providers) {
+      if (!this.circuitBreaker.canRequest(provider)) continue
+
+      const adapter = this.adapters.get(provider)
+      if (!adapter) continue
+
+      try {
+        const apiKey = await this.keyVault.getKey(provider)
+
+        if (adapter.chatStream) {
+          yield* adapter.chatStream({
+            model: targetModel,
+            messages: input.messages,
+            apiKey: apiKey ?? undefined,
+          })
+          this.circuitBreaker.recordSuccess(provider)
+          return
+        }
+
+        // Fallback: non-streaming
+        const result = await adapter.chat({
+          model: targetModel,
+          messages: input.messages,
+          apiKey: apiKey ?? undefined,
+        })
+        this.circuitBreaker.recordSuccess(provider)
+        yield result.content
+        return
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err))
+        this.circuitBreaker.recordFailure(provider)
+      }
+    }
+
+    throw new GatewayError(
+      'ALL_PROVIDERS_FAILED',
+      `All providers failed for streaming model ${model}. Last error: ${lastError?.message}`,
+    )
   }
 
   /**
