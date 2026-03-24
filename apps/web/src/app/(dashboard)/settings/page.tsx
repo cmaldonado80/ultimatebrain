@@ -4,13 +4,25 @@
  * Settings — configure brain identity, feature flags, API keys, and system preferences.
  */
 
+import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
 
 export default function SettingsPage() {
+  const [showKeyForm, setShowKeyForm] = useState(false)
+  const [keyProvider, setKeyProvider] = useState('anthropic')
+  const [apiKey, setApiKey] = useState('')
   const featuresQuery = trpc.intelligence.features.useQuery()
   const policiesQuery = trpc.intelligence.policies.useQuery()
   const cognitionQuery = trpc.intelligence.cognitionState.useQuery()
   const providersQuery = trpc.gateway.listProviders.useQuery()
+  const utils = trpc.useUtils()
+  const storeKeyMut = trpc.gateway.storeKey.useMutation({
+    onSuccess: () => {
+      utils.gateway.listProviders.invalidate()
+      setShowKeyForm(false)
+      setApiKey('')
+    },
+  })
 
   const isLoading =
     featuresQuery.isLoading ||
@@ -78,7 +90,104 @@ export default function SettingsPage() {
       )}
 
       <div style={styles.section}>
-        <div style={styles.sectionTitle}>LLM Providers</div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 10,
+          }}
+        >
+          <div style={styles.sectionTitle}>LLM Providers</div>
+          <button
+            style={{
+              background: '#818cf8',
+              color: '#f9fafb',
+              border: 'none',
+              borderRadius: 6,
+              padding: '4px 12px',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            onClick={() => setShowKeyForm(!showKeyForm)}
+          >
+            {showKeyForm ? 'Cancel' : '+ Add API Key'}
+          </button>
+        </div>
+
+        {showKeyForm && (
+          <div
+            style={{
+              background: '#111827',
+              borderRadius: 8,
+              padding: 14,
+              border: '1px solid #374151',
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+              <select
+                style={{
+                  background: '#1f2937',
+                  color: '#f9fafb',
+                  border: '1px solid #374151',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  fontSize: 12,
+                }}
+                value={keyProvider}
+                onChange={(e) => setKeyProvider(e.target.value)}
+              >
+                <option value="anthropic">Anthropic</option>
+                <option value="openai">OpenAI</option>
+                <option value="google">Google</option>
+              </select>
+              <input
+                style={{
+                  background: '#1f2937',
+                  color: '#f9fafb',
+                  border: '1px solid #374151',
+                  borderRadius: 6,
+                  padding: '8px 12px',
+                  fontSize: 13,
+                  fontFamily: 'monospace',
+                }}
+                type="password"
+                placeholder="sk-... or API key"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+              />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  style={{
+                    background: '#22c55e',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() =>
+                    apiKey.trim() &&
+                    storeKeyMut.mutate({ provider: keyProvider, apiKey: apiKey.trim() })
+                  }
+                  disabled={storeKeyMut.isPending || !apiKey.trim()}
+                >
+                  {storeKeyMut.isPending ? 'Storing...' : 'Store Key (Encrypted)'}
+                </button>
+                {storeKeyMut.error && (
+                  <span style={{ color: '#fca5a5', fontSize: 11 }}>
+                    {storeKeyMut.error.message}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {providers && providers.length > 0 ? (
           <div style={styles.providerList}>
             {providers.map((p) => (
@@ -98,7 +207,7 @@ export default function SettingsPage() {
           </div>
         ) : (
           <div style={styles.empty}>
-            No providers configured. Add ANTHROPIC_API_KEY or OPENAI_API_KEY to .env.
+            No providers configured. Click "+ Add API Key" above to get started.
           </div>
         )}
       </div>

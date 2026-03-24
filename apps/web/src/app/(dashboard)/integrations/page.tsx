@@ -4,6 +4,7 @@
  * Integrations — manage channels and webhooks.
  */
 
+import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
 
 interface Channel {
@@ -24,10 +25,17 @@ interface Webhook {
 }
 
 export default function IntegrationsPage() {
+  const [showChannelForm, setShowChannelForm] = useState(false)
+  const [showWebhookForm, setShowWebhookForm] = useState(false)
+  const [channelType, setChannelType] = useState('')
+  const [webhookUrl, setWebhookUrl] = useState('')
+  const [webhookSource, setWebhookSource] = useState('')
   const channelsQuery = trpc.integrations.channels.useQuery()
   const webhooksQuery = trpc.integrations.webhooks.useQuery()
   const toggleChannelMut = trpc.integrations.toggleChannel.useMutation()
   const toggleWebhookMut = trpc.integrations.toggleWebhook.useMutation()
+  const createChannelMut = trpc.integrations.createChannel.useMutation()
+  const createWebhookMut = trpc.integrations.createWebhook.useMutation()
   const utils = trpc.useUtils()
 
   const isLoading = channelsQuery.isLoading || webhooksQuery.isLoading
@@ -97,7 +105,99 @@ export default function IntegrationsPage() {
       )}
 
       <div style={styles.section}>
-        <div style={styles.sectionTitle}>Channels ({channels.length})</div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 10,
+          }}
+        >
+          <div style={styles.sectionTitle}>Channels ({channels.length})</div>
+          <button
+            style={{
+              background: '#818cf8',
+              color: '#f9fafb',
+              border: 'none',
+              borderRadius: 6,
+              padding: '4px 12px',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            onClick={() => setShowChannelForm(!showChannelForm)}
+          >
+            {showChannelForm ? 'Cancel' : '+ Add Channel'}
+          </button>
+        </div>
+
+        {showChannelForm && (
+          <div
+            style={{
+              background: '#111827',
+              borderRadius: 8,
+              padding: 14,
+              border: '1px solid #374151',
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select
+                style={{
+                  background: '#1f2937',
+                  color: '#f9fafb',
+                  border: '1px solid #374151',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  fontSize: 12,
+                }}
+                value={channelType}
+                onChange={(e) => setChannelType(e.target.value)}
+              >
+                <option value="">Select type...</option>
+                <option value="slack">Slack</option>
+                <option value="discord">Discord</option>
+                <option value="github">GitHub</option>
+                <option value="jira">Jira</option>
+                <option value="webhook">Webhook</option>
+              </select>
+              <button
+                style={{
+                  background: '#22c55e',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  if (!channelType) return
+                  createChannelMut.mutate(
+                    { type: channelType, enabled: true },
+                    {
+                      onSuccess: () => {
+                        utils.integrations.channels.invalidate()
+                        setShowChannelForm(false)
+                        setChannelType('')
+                      },
+                    },
+                  )
+                }}
+                disabled={createChannelMut.isPending || !channelType}
+              >
+                {createChannelMut.isPending ? 'Adding...' : 'Add'}
+              </button>
+              {createChannelMut.error && (
+                <span style={{ color: '#fca5a5', fontSize: 11 }}>
+                  {createChannelMut.error.message}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {channels.length === 0 ? (
           <div style={styles.empty}>No channels configured.</div>
         ) : (
@@ -121,7 +221,118 @@ export default function IntegrationsPage() {
       </div>
 
       <div style={styles.section}>
-        <div style={styles.sectionTitle}>Webhooks ({webhooks.length})</div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 10,
+          }}
+        >
+          <div style={styles.sectionTitle}>Webhooks ({webhooks.length})</div>
+          <button
+            style={{
+              background: '#818cf8',
+              color: '#f9fafb',
+              border: 'none',
+              borderRadius: 6,
+              padding: '4px 12px',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            onClick={() => setShowWebhookForm(!showWebhookForm)}
+          >
+            {showWebhookForm ? 'Cancel' : '+ Add Webhook'}
+          </button>
+        </div>
+
+        {showWebhookForm && (
+          <div
+            style={{
+              background: '#111827',
+              borderRadius: 8,
+              padding: 14,
+              border: '1px solid #374151',
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  style={{
+                    background: '#1f2937',
+                    color: '#f9fafb',
+                    border: '1px solid #374151',
+                    borderRadius: 6,
+                    padding: '6px 10px',
+                    fontSize: 12,
+                    flex: 1,
+                  }}
+                  placeholder="Source (e.g. github, custom)..."
+                  value={webhookSource}
+                  onChange={(e) => setWebhookSource(e.target.value)}
+                />
+                <input
+                  style={{
+                    background: '#1f2937',
+                    color: '#f9fafb',
+                    border: '1px solid #374151',
+                    borderRadius: 6,
+                    padding: '6px 10px',
+                    fontSize: 12,
+                    flex: 2,
+                    fontFamily: 'monospace',
+                  }}
+                  placeholder="https://..."
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  style={{
+                    background: '#22c55e',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => {
+                    if (!webhookUrl.trim()) return
+                    createWebhookMut.mutate(
+                      {
+                        url: webhookUrl.trim(),
+                        source: webhookSource.trim() || undefined,
+                        enabled: true,
+                      },
+                      {
+                        onSuccess: () => {
+                          utils.integrations.webhooks.invalidate()
+                          setShowWebhookForm(false)
+                          setWebhookUrl('')
+                          setWebhookSource('')
+                        },
+                      },
+                    )
+                  }}
+                  disabled={createWebhookMut.isPending || !webhookUrl.trim()}
+                >
+                  {createWebhookMut.isPending ? 'Adding...' : 'Add Webhook'}
+                </button>
+                {createWebhookMut.error && (
+                  <span style={{ color: '#fca5a5', fontSize: 11 }}>
+                    {createWebhookMut.error.message}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {webhooks.length === 0 ? (
           <div style={styles.empty}>No webhooks configured.</div>
         ) : (

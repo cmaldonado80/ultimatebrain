@@ -30,7 +30,7 @@ export default function ChatPage() {
     { enabled: !!selectedSession },
   )
   const createSessionMut = trpc.intelligence.createChatSession.useMutation()
-  const addMessageMut = trpc.intelligence.addChatMessage.useMutation()
+  const sendMessageMut = trpc.intelligence.sendChatMessage.useMutation()
   const utils = trpc.useUtils()
 
   const handleNewSession = async () => {
@@ -40,13 +40,13 @@ export default function ChatPage() {
   }
 
   const handleSend = async () => {
-    if (!selectedSession || !newMessage.trim()) return
-    await addMessageMut.mutateAsync({
-      sessionId: selectedSession,
-      role: 'user',
-      text: newMessage.trim(),
-    })
+    if (!selectedSession || !newMessage.trim() || sendMessageMut.isPending) return
+    const text = newMessage.trim()
     setNewMessage('')
+    await sendMessageMut.mutateAsync({
+      sessionId: selectedSession,
+      text,
+    })
     utils.intelligence.chatSession.invalidate({ id: selectedSession })
   }
 
@@ -146,6 +146,18 @@ export default function ChatPage() {
                   ))
                 )}
               </div>
+              {sendMessageMut.error && (
+                <div
+                  style={{
+                    padding: '8px 16px',
+                    background: '#7f1d1d',
+                    color: '#fca5a5',
+                    fontSize: 12,
+                  }}
+                >
+                  {sendMessageMut.error.message}
+                </div>
+              )}
               <div style={styles.inputBar}>
                 <input
                   style={styles.input}
@@ -157,9 +169,9 @@ export default function ChatPage() {
                 <button
                   style={styles.sendBtn}
                   onClick={handleSend}
-                  disabled={addMessageMut.isPending}
+                  disabled={sendMessageMut.isPending}
                 >
-                  {addMessageMut.isPending ? '...' : 'Send'}
+                  {sendMessageMut.isPending ? 'Thinking...' : 'Send'}
                 </button>
               </div>
             </>

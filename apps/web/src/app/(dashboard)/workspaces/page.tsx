@@ -4,6 +4,7 @@
  * Workspaces — lifecycle-managed organizational units with bindings and goals.
  */
 
+import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
 
 interface Workspace {
@@ -51,7 +52,21 @@ const BINDING_ICONS: Record<string, string> = {
 }
 
 export default function WorkspacesPage() {
+  const [showForm, setShowForm] = useState(false)
+  const [name, setName] = useState('')
+  const [type, setType] = useState('')
+  const [goal, setGoal] = useState('')
   const { data, isLoading, error } = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
+  const utils = trpc.useUtils()
+  const createMut = trpc.workspaces.create.useMutation({
+    onSuccess: () => {
+      utils.workspaces.list.invalidate()
+      setShowForm(false)
+      setName('')
+      setType('')
+      setGoal('')
+    },
+  })
 
   if (isLoading) {
     return (
@@ -77,11 +92,118 @@ export default function WorkspacesPage() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h2 style={styles.title}>Workspaces</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={styles.title}>Workspaces</h2>
+          <button
+            style={{
+              background: '#818cf8',
+              color: '#f9fafb',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? 'Cancel' : '+ New Workspace'}
+          </button>
+        </div>
         <p style={styles.subtitle}>
           Lifecycle-managed organizational units with bindings, goals, and execution boundaries.
         </p>
       </div>
+
+      {showForm && (
+        <div
+          style={{
+            background: '#1f2937',
+            borderRadius: 8,
+            padding: 16,
+            border: '1px solid #374151',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            <input
+              style={{
+                background: '#111827',
+                color: '#f9fafb',
+                border: '1px solid #374151',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+              }}
+              placeholder="Workspace name..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select
+                style={{
+                  background: '#111827',
+                  color: '#f9fafb',
+                  border: '1px solid #374151',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  fontSize: 12,
+                  flex: 1,
+                }}
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                <option value="">Type (optional)</option>
+                <option value="development">Development</option>
+                <option value="research">Research</option>
+                <option value="operations">Operations</option>
+                <option value="creative">Creative</option>
+              </select>
+            </div>
+            <input
+              style={{
+                background: '#111827',
+                color: '#f9fafb',
+                border: '1px solid #374151',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+              }}
+              placeholder="Goal (optional)..."
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+            />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                style={{
+                  background: '#22c55e',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onClick={() =>
+                  name.trim() &&
+                  createMut.mutate({
+                    name: name.trim(),
+                    type: type || undefined,
+                    goal: goal.trim() || undefined,
+                  })
+                }
+                disabled={createMut.isPending || !name.trim()}
+              >
+                {createMut.isPending ? 'Creating...' : 'Create Workspace'}
+              </button>
+              {createMut.error && (
+                <span style={{ color: '#fca5a5', fontSize: 11 }}>{createMut.error.message}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div

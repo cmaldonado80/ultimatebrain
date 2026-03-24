@@ -27,10 +27,24 @@ const TIER_COLORS: Record<string, string> = {
 
 export default function MemoryPage() {
   const [filterTier, setFilterTier] = useState<string | undefined>(undefined)
+  const [showForm, setShowForm] = useState(false)
+  const [memKey, setMemKey] = useState('')
+  const [memContent, setMemContent] = useState('')
+  const [memTier, setMemTier] = useState<'core' | 'recall' | 'archival'>('recall')
   const listQuery = trpc.memory.list.useQuery(
     filterTier ? { tier: filterTier as 'core' | 'recall' | 'archival' } : undefined,
   )
   const statsQuery = trpc.memory.tierStats.useQuery()
+  const utils = trpc.useUtils()
+  const storeMut = trpc.memory.store.useMutation({
+    onSuccess: () => {
+      utils.memory.list.invalidate()
+      utils.memory.tierStats.invalidate()
+      setShowForm(false)
+      setMemKey('')
+      setMemContent('')
+    },
+  })
 
   const isLoading = listQuery.isLoading || statsQuery.isLoading
   const error = listQuery.error || statsQuery.error
@@ -60,11 +74,112 @@ export default function MemoryPage() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h2 style={styles.title}>Memory Graph</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={styles.title}>Memory Graph</h2>
+          <button
+            style={{
+              background: '#818cf8',
+              color: '#f9fafb',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? 'Cancel' : '+ Store Memory'}
+          </button>
+        </div>
         <p style={styles.subtitle}>
           Explore the brain's memory tiers — core, recall, and archival — with vector search.
         </p>
       </div>
+
+      {showForm && (
+        <div
+          style={{
+            background: '#1f2937',
+            borderRadius: 8,
+            padding: 16,
+            border: '1px solid #374151',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            <input
+              style={{
+                background: '#111827',
+                color: '#f9fafb',
+                border: '1px solid #374151',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+              }}
+              placeholder="Memory key (e.g. project.architecture)..."
+              value={memKey}
+              onChange={(e) => setMemKey(e.target.value)}
+            />
+            <textarea
+              style={{
+                background: '#111827',
+                color: '#f9fafb',
+                border: '1px solid #374151',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+                minHeight: 80,
+                resize: 'vertical' as const,
+              }}
+              placeholder="Memory content..."
+              value={memContent}
+              onChange={(e) => setMemContent(e.target.value)}
+            />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select
+                style={{
+                  background: '#111827',
+                  color: '#f9fafb',
+                  border: '1px solid #374151',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  fontSize: 12,
+                }}
+                value={memTier}
+                onChange={(e) => setMemTier(e.target.value as 'core' | 'recall' | 'archival')}
+              >
+                <option value="core">Core</option>
+                <option value="recall">Recall</option>
+                <option value="archival">Archival</option>
+              </select>
+              <button
+                style={{
+                  background: '#22c55e',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onClick={() =>
+                  memKey.trim() &&
+                  memContent.trim() &&
+                  storeMut.mutate({ key: memKey.trim(), content: memContent.trim(), tier: memTier })
+                }
+                disabled={storeMut.isPending || !memKey.trim() || !memContent.trim()}
+              >
+                {storeMut.isPending ? 'Storing...' : 'Store'}
+              </button>
+              {storeMut.error && (
+                <span style={{ color: '#fca5a5', fontSize: 11 }}>{storeMut.error.message}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div

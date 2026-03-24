@@ -77,4 +77,13 @@ export const ticketsRouter = router({
         .returning()
       return updated
     }),
+  delete: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.tickets.findFirst({ where: eq(tickets.id, input.id) })
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Ticket not found' })
+      await ctx.db.delete(ticketStatusHistory).where(eq(ticketStatusHistory.ticketId, input.id))
+      await ctx.db.delete(tickets).where(eq(tickets.id, input.id))
+      return { deleted: true }
+    }),
 })

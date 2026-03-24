@@ -115,6 +115,35 @@ export class ChatSessionManager {
   }
 
   /**
+   * Send a user message and generate an AI response.
+   * Stores both messages and returns them.
+   */
+  async sendAndReply(
+    sessionId: string,
+    userText: string,
+    gateway: GatewayRouter,
+  ): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage }> {
+    // 1. Store user message
+    const userMessage = await this.addMessage(sessionId, 'user', userText)
+
+    // 2. Get conversation history for context
+    const history = await this.getContextWindow(sessionId)
+
+    // 3. Call LLM
+    const result = await gateway.chat({
+      messages: [
+        { role: 'system', content: 'You are a helpful AI assistant. Be concise and direct.' },
+        ...history,
+      ],
+    })
+
+    // 4. Store assistant response
+    const assistantMessage = await this.addMessage(sessionId, 'assistant', result.content)
+
+    return { userMessage, assistantMessage }
+  }
+
+  /**
    * Get the context window for a session: the last N messages
    * formatted for LLM consumption.
    */

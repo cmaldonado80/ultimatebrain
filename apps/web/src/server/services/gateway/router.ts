@@ -41,7 +41,7 @@ const MODEL_TO_PROVIDER: Record<string, ProviderName> = {
   'gpt-4.1': 'openai',
   'gpt-4.1-mini': 'openai',
   'gpt-4.1-nano': 'openai',
-  'o3': 'openai',
+  o3: 'openai',
   'o3-mini': 'openai',
   'o4-mini': 'openai',
   // Google
@@ -127,11 +127,7 @@ export interface ProviderAdapter {
     tokensOut: number
   }>
 
-  embed?(params: {
-    text: string
-    model?: string
-    apiKey?: string
-  }): Promise<{
+  embed?(params: { text: string; model?: string; apiKey?: string }): Promise<{
     embedding: number[]
     dimensions: number
   }>
@@ -154,6 +150,130 @@ const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
   cacheEnabled: true,
 }
 
+// === Built-in Provider Adapters ===
+
+class AnthropicAdapter implements ProviderAdapter {
+  async chat(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    tools?: unknown[]
+    apiKey?: string
+  }) {
+    const apiKey = params.apiKey ?? process.env.ANTHROPIC_API_KEY
+    if (!apiKey) throw new Error('No Anthropic API key available')
+    const systemMsg = params.messages.find((m) => m.role === 'system')
+    const nonSystemMsgs = params.messages.filter((m) => m.role !== 'system')
+    const body: Record<string, unknown> = {
+      model: params.model,
+      max_tokens: 4096,
+      messages: nonSystemMsgs.map((m) => ({
+        role: m.role === 'agent' ? 'assistant' : m.role,
+        content: m.content,
+      })),
+    }
+    if (systemMsg) body.system = systemMsg.content
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Anthropic API error ${res.status}: ${err}`)
+    }
+    const data = (await res.json()) as {
+      content: Array<{ type: string; text?: string }>
+      usage: { input_tokens: number; output_tokens: number }
+    }
+    const text = data.content
+      .filter((c: { type: string }) => c.type === 'text')
+      .map((c: { text?: string }) => c.text ?? '')
+      .join('')
+    return { content: text, tokensIn: data.usage.input_tokens, tokensOut: data.usage.output_tokens }
+  }
+}
+
+class OpenAIAdapter implements ProviderAdapter {
+  async chat(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    tools?: unknown[]
+    apiKey?: string
+  }) {
+    const apiKey = params.apiKey ?? process.env.OPENAI_API_KEY
+    if (!apiKey) throw new Error('No OpenAI API key available')
+    const body: Record<string, unknown> = {
+      model: params.model,
+      messages: params.messages.map((m) => ({
+        role: m.role === 'agent' ? 'assistant' : m.role,
+        content: m.content,
+      })),
+    }
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`OpenAI API error ${res.status}: ${err}`)
+    }
+    const data = (await res.json()) as {
+      choices: Array<{ message: { content: string } }>
+      usage: { prompt_tokens: number; completion_tokens: number }
+    }
+    return {
+      content: data.choices[0]?.message?.content ?? '',
+      tokensIn: data.usage.prompt_tokens,
+      tokensOut: data.usage.completion_tokens,
+    }
+  }
+}
+
+class OllamaAdapter implements ProviderAdapter {
+  async chat(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    tools?: unknown[]
+    apiKey?: string
+  }) {
+    const baseUrl = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'
+    const body = {
+      model: params.model.replace('ollama/', ''),
+      messages: params.messages.map((m) => ({
+        role: m.role === 'agent' ? 'assistant' : m.role,
+        content: m.content,
+      })),
+      stream: false,
+    }
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Ollama API error ${res.status}: ${err}`)
+    }
+    const data = (await res.json()) as {
+      message: { content: string }
+      prompt_eval_count?: number
+      eval_count?: number
+    }
+    return {
+      content: data.message.content,
+      tokensIn: data.prompt_eval_count ?? 0,
+      tokensOut: data.eval_count ?? 0,
+    }
+  }
+}
+
+// === Gateway Router ===
+
 export class GatewayRouter {
   readonly circuitBreaker: CircuitBreakerRegistry
   readonly costTracker: CostTracker
@@ -164,11 +284,7 @@ export class GatewayRouter {
   private config: GatewayConfig
   private tracer?: Tracer
 
-  constructor(
-    _db: Database,
-    config?: Partial<GatewayConfig>,
-    tracer?: Tracer,
-  ) {
+  constructor(_db: Database, config?: Partial<GatewayConfig>, tracer?: Tracer) {
     this.config = { ...DEFAULT_GATEWAY_CONFIG, ...config }
     this.circuitBreaker = new CircuitBreakerRegistry()
     this.costTracker = new CostTracker(_db)
@@ -176,6 +292,14 @@ export class GatewayRouter {
     this.cache = new SemanticCache(_db)
     this.keyVault = new KeyVault(_db)
     this.tracer = tracer
+    this.initAdapters()
+  }
+
+  /** Register built-in provider adapters so the gateway works out of the box. */
+  private initAdapters(): void {
+    this.adapters.set('anthropic', new AnthropicAdapter())
+    this.adapters.set('openai', new OpenAIAdapter())
+    this.adapters.set('ollama', new OllamaAdapter())
   }
 
   /** Attach a tracer after construction (e.g. when wiring DI) */
@@ -225,15 +349,23 @@ export class GatewayRouter {
       if (input.agentId) {
         const budget = await this.costTracker.checkBudget(input.agentId)
         if (!budget.allowed) {
-          throw new GatewayError('BUDGET_EXCEEDED', `Agent budget exceeded. Remaining: $${budget.remainingUsd.toFixed(2)}`)
+          throw new GatewayError(
+            'BUDGET_EXCEEDED',
+            `Agent budget exceeded. Remaining: $${budget.remainingUsd.toFixed(2)}`,
+          )
         }
       }
 
       // 3. Check semantic cache (skip for streaming / tool-use)
-      if (this.config.cacheEnabled && !shouldSkipCache({ stream: input.stream, tools: input.tools, messages })) {
+      if (
+        this.config.cacheEnabled &&
+        !shouldSkipCache({ stream: input.stream, tools: input.tools, messages })
+      ) {
         const cacheSpan = this.tracer?.start('gateway.cache.lookup', {
           service: 'gateway',
-          parent: rootSpan ? { traceId: rootSpan.traceId, parentSpanId: rootSpan.spanId } : undefined,
+          parent: rootSpan
+            ? { traceId: rootSpan.traceId, parentSpanId: rootSpan.spanId }
+            : undefined,
         })
         const cached = await this.cache.lookup(model, messages)
         cacheSpan?.setAttribute('cache.hit', !!cached)
@@ -288,7 +420,9 @@ export class GatewayRouter {
           service: 'gateway',
           agentId: input.agentId,
           ticketId: input.ticketId,
-          parent: rootSpan ? { traceId: rootSpan.traceId, parentSpanId: rootSpan.spanId } : undefined,
+          parent: rootSpan
+            ? { traceId: rootSpan.traceId, parentSpanId: rootSpan.spanId }
+            : undefined,
         })
         providerSpan?.setAttribute('llm.provider', provider)
         providerSpan?.setAttribute('llm.model', targetModel)
@@ -328,8 +462,13 @@ export class GatewayRouter {
           rootSpan?.setStatus('ok')
 
           // Store in cache (async, don't block response)
-          if (this.config.cacheEnabled && !shouldSkipCache({ stream: input.stream, tools: input.tools, messages })) {
-            this.cache.store(targetModel, messages, result.content, result.tokensIn, result.tokensOut).catch(() => {})
+          if (
+            this.config.cacheEnabled &&
+            !shouldSkipCache({ stream: input.stream, tools: input.tools, messages })
+          ) {
+            this.cache
+              .store(targetModel, messages, result.content, result.tokensIn, result.tokensOut)
+              .catch(() => {})
           }
 
           return {
@@ -378,7 +517,10 @@ export class GatewayRouter {
   /**
    * Embed text — routes to embedding provider with fallback.
    */
-  async embed(text: string, model?: string): Promise<{ embedding: number[]; model: string; dimensions: number }> {
+  async embed(
+    text: string,
+    model?: string,
+  ): Promise<{ embedding: number[]; model: string; dimensions: number }> {
     const embedModel = model ?? 'text-embedding-3-small'
     const providers: ProviderName[] = ['openai', 'anthropic', 'google']
 
@@ -433,7 +575,13 @@ export class GatewayRouter {
   /** Health check: return circuit breaker states for all providers */
   getHealth(): Record<string, { state: string; failures: number }> {
     const health: Record<string, { state: string; failures: number }> = {}
-    for (const provider of ['anthropic', 'openai', 'google', 'ollama', 'openclaw'] as ProviderName[]) {
+    for (const provider of [
+      'anthropic',
+      'openai',
+      'google',
+      'ollama',
+      'openclaw',
+    ] as ProviderName[]) {
       const state = this.circuitBreaker.getState(provider)
       health[provider] = { state: state.state, failures: state.failures }
     }
@@ -443,7 +591,11 @@ export class GatewayRouter {
 
 // === Error Types ===
 
-export type GatewayErrorCode = 'RATE_LIMITED' | 'BUDGET_EXCEEDED' | 'ALL_PROVIDERS_FAILED' | 'CIRCUIT_OPEN'
+export type GatewayErrorCode =
+  | 'RATE_LIMITED'
+  | 'BUDGET_EXCEEDED'
+  | 'ALL_PROVIDERS_FAILED'
+  | 'CIRCUIT_OPEN'
 
 export class GatewayError extends Error {
   constructor(

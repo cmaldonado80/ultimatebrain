@@ -4,6 +4,7 @@
  * Projects — list all projects from the database.
  */
 
+import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
 
 interface Project {
@@ -28,7 +29,19 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function ProjectsPage() {
+  const [showForm, setShowForm] = useState(false)
+  const [name, setName] = useState('')
+  const [goal, setGoal] = useState('')
   const { data, isLoading, error } = trpc.projects.list.useQuery({ limit: 100, offset: 0 })
+  const utils = trpc.useUtils()
+  const createMut = trpc.projects.create.useMutation({
+    onSuccess: () => {
+      utils.projects.list.invalidate()
+      setShowForm(false)
+      setName('')
+      setGoal('')
+    },
+  })
 
   if (isLoading) {
     return (
@@ -54,11 +67,93 @@ export default function ProjectsPage() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h2 style={styles.title}>Projects</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={styles.title}>Projects</h2>
+          <button
+            style={{
+              background: '#818cf8',
+              color: '#f9fafb',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? 'Cancel' : '+ New Project'}
+          </button>
+        </div>
         <p style={styles.subtitle}>
           Organize agents, tickets, and resources into scoped project groups.
         </p>
       </div>
+
+      {showForm && (
+        <div
+          style={{
+            background: '#1f2937',
+            borderRadius: 8,
+            padding: 16,
+            border: '1px solid #374151',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            <input
+              style={{
+                background: '#111827',
+                color: '#f9fafb',
+                border: '1px solid #374151',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+              }}
+              placeholder="Project name..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <input
+              style={{
+                background: '#111827',
+                color: '#f9fafb',
+                border: '1px solid #374151',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+              }}
+              placeholder="Goal (optional)..."
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+            />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                style={{
+                  background: '#22c55e',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onClick={() =>
+                  name.trim() &&
+                  createMut.mutate({ name: name.trim(), goal: goal.trim() || undefined })
+                }
+                disabled={createMut.isPending || !name.trim()}
+              >
+                {createMut.isPending ? 'Creating...' : 'Create Project'}
+              </button>
+              {createMut.error && (
+                <span style={{ color: '#fca5a5', fontSize: 11 }}>{createMut.error.message}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div
