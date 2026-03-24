@@ -1,49 +1,24 @@
 'use client'
 
-import { signIn } from 'next-auth/react'
 import { useState, useEffect } from 'react'
-
-interface Providers {
-  github: boolean
-  google: boolean
-  credentials: boolean
-}
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
+  const [csrfToken, setCsrfToken] = useState('')
   const [loading, setLoading] = useState(false)
-  const [providers, setProviders] = useState<Providers | null>(null)
 
   useEffect(() => {
-    fetch('/api/auth/providers')
+    // Fetch CSRF token required by NextAuth
+    fetch('/api/auth/csrf')
       .then((r) => r.json())
-      .then(setProviders)
-      .catch(() => setProviders({ github: false, google: false, credentials: true }))
-  }, [])
+      .then((data) => setCsrfToken(data.csrfToken))
+      .catch(() => setError('Failed to load. Please refresh.'))
 
-  const handleCredentials = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    try {
-      const result = await signIn('credentials', { email, redirect: false })
-      if (result?.error || !result?.ok) {
-        setError(
-          result?.error === 'CredentialsSignin'
-            ? 'Invalid email or sign-in failed.'
-            : `Sign in failed: ${result?.error || result?.status || 'unknown error'}`,
-        )
-        setLoading(false)
-        return
-      }
-      // Cookie was set by the response — navigate to dashboard
-      window.location.href = '/'
-    } catch (err) {
-      setError(`Network error: ${err instanceof Error ? err.message : 'please try again'}`)
-      setLoading(false)
-    }
-  }
+    // Show error from URL params (NextAuth redirects here with ?error= on failure)
+    const err = new URLSearchParams(window.location.search).get('error')
+    if (err) setError(err === 'CredentialsSignin' ? 'Sign in failed.' : `Error: ${err}`)
+  }, [])
 
   return (
     <div style={styles.container}>
@@ -51,53 +26,33 @@ export default function SignInPage() {
         <h1 style={styles.title}>Solarc Brain</h1>
         <p style={styles.subtitle}>Sign in to continue</p>
 
-        {!providers ? (
-          <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 13 }}>Loading...</p>
-        ) : (
-          <>
-            {(providers.github || providers.google) && (
-              <div style={styles.providers}>
-                {providers.github && (
-                  <button
-                    onClick={() => signIn('github', { callbackUrl: '/' })}
-                    style={styles.oauthBtn}
-                  >
-                    Sign in with GitHub
-                  </button>
-                )}
-                {providers.google && (
-                  <button
-                    onClick={() => signIn('google', { callbackUrl: '/' })}
-                    style={styles.oauthBtn}
-                  >
-                    Sign in with Google
-                  </button>
-                )}
-              </div>
-            )}
-
-            {(providers.github || providers.google) && (
-              <div style={styles.divider}>
-                <span style={styles.dividerText}>OR</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCredentials} style={styles.form}>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                style={styles.input}
-              />
-              {error && <p style={styles.error}>{error}</p>}
-              <button type="submit" disabled={loading} style={styles.submitBtn}>
-                {loading ? 'Signing in...' : 'Sign in with Email'}
-              </button>
-            </form>
-          </>
-        )}
+        {/*
+          Direct form POST to NextAuth callback endpoint.
+          This is more reliable than the signIn() client function because
+          the browser handles the Set-Cookie headers natively from the redirect.
+        */}
+        <form
+          method="post"
+          action="/api/auth/callback/credentials"
+          style={styles.form}
+          onSubmit={() => setLoading(true)}
+        >
+          <input type="hidden" name="csrfToken" value={csrfToken} />
+          <input type="hidden" name="callbackUrl" value="/" />
+          <input
+            type="email"
+            name="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+            style={styles.input}
+          />
+          {error && <p style={styles.error}>{error}</p>}
+          <button type="submit" disabled={loading || !csrfToken} style={styles.submitBtn}>
+            {loading ? 'Signing in...' : 'Sign in with Email'}
+          </button>
+        </form>
       </div>
     </div>
   )
@@ -130,38 +85,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#6b7280',
     textAlign: 'center',
     margin: '8px 0 24px',
-  },
-  providers: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-  },
-  oauthBtn: {
-    padding: '10px 16px',
-    background: '#1f2937',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 8,
-    fontSize: 14,
-    fontWeight: 500,
-    cursor: 'pointer',
-  },
-  divider: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '20px 0',
-    borderTop: '1px solid #374151',
-    position: 'relative',
-  },
-  dividerText: {
-    position: 'absolute',
-    background: '#111827',
-    padding: '0 12px',
-    fontSize: 11,
-    color: '#6b7280',
-    fontWeight: 600,
-    letterSpacing: 1,
   },
   form: {
     display: 'flex',
