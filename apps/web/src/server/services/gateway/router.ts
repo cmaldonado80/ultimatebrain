@@ -348,13 +348,70 @@ class OllamaAdapter implements ProviderAdapter {
   resolvedUrl: string | null = null
 
   private getBaseUrl(): string {
-    return this.resolvedUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'
+    const url = this.resolvedUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'
+    // Normalize: Ollama Cloud URL should be https://ollama.com/api (not https://ollama.com)
+    if (url.includes('ollama.com') && !url.endsWith('/api')) {
+      return url.replace(/\/+$/, '') + '/api'
+    }
+    return url
   }
 
   private buildHeaders(apiKey?: string): Record<string, string> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
     return headers
+  }
+
+  /**
+   * Pull a model from the Ollama registry (local or cloud).
+   * POST /api/pull with { model, stream: false }
+   */
+  async pullModel(model: string, apiKey?: string): Promise<{ status: string; error?: string }> {
+    const baseUrl = this.getBaseUrl()
+    try {
+      const res = await fetch(`${baseUrl}/api/pull`, {
+        method: 'POST',
+        headers: this.buildHeaders(apiKey),
+        body: JSON.stringify({ model: model.replace('ollama/', ''), stream: false }),
+      })
+      if (!res.ok) {
+        const err = await res.text()
+        return { status: 'error', error: `Ollama pull failed (${res.status}): ${err}` }
+      }
+      const data = (await res.json()) as { status?: string; error?: string }
+      return { status: data.status ?? 'success', error: data.error }
+    } catch (err) {
+      return {
+        status: 'error',
+        error: err instanceof Error ? err.message : 'Pull request failed',
+      }
+    }
+  }
+
+  /**
+   * List models available on the Ollama instance (GET /api/tags).
+   */
+  async listModels(
+    apiKey?: string,
+  ): Promise<Array<{ name: string; size: number; modifiedAt: string }>> {
+    const baseUrl = this.getBaseUrl()
+    try {
+      const res = await fetch(`${baseUrl}/api/tags`, {
+        method: 'GET',
+        headers: this.buildHeaders(apiKey),
+      })
+      if (!res.ok) return []
+      const data = (await res.json()) as {
+        models?: Array<{ name: string; size: number; modified_at: string }>
+      }
+      return (data.models ?? []).map((m) => ({
+        name: m.name,
+        size: m.size,
+        modifiedAt: m.modified_at,
+      }))
+    } catch {
+      return []
+    }
   }
 
   async chat(params: {
@@ -500,6 +557,12 @@ export class GatewayRouter {
   /** Register a provider adapter (OpenClaw, direct Anthropic, etc.) */
   registerAdapter(provider: ProviderName, adapter: ProviderAdapter): void {
     this.adapters.set(provider, adapter)
+  }
+
+  /** Get the Ollama adapter for direct operations (pull, list models). */
+  getOllamaAdapter(): OllamaAdapter | null {
+    const adapter = this.adapters.get('ollama')
+    return adapter instanceof OllamaAdapter ? adapter : null
   }
 
   /**

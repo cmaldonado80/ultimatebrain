@@ -220,7 +220,7 @@ export const gatewayRouter = router({
     }
   }),
 
-  /** Add an Ollama Cloud model */
+  /** Add an Ollama Cloud model (saves to DB registry) */
   addOllamaModel: protectedProcedure
     .input(z.object({ name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
@@ -238,4 +238,49 @@ export const gatewayRouter = router({
       await ctx.db.delete(ollamaModels).where(eq(ollamaModels.id, input.id))
       return { success: true }
     }),
+
+  /** Pull a model from the Ollama registry (triggers download on the Ollama instance). */
+  pullOllamaModel: protectedProcedure
+    .input(z.object({ name: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const gw = getGateway(ctx.db)
+      const ollamaAdapter = gw.getOllamaAdapter()
+      if (!ollamaAdapter) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Ollama adapter not available' })
+      }
+
+      // Resolve URL and API key from vault
+      const storedUrl = await gw.keyVault.getKey('ollama_url')
+      if (storedUrl) ollamaAdapter.resolvedUrl = storedUrl
+      const apiKey = await gw.keyVault.getKey('ollama')
+
+      const result = await ollamaAdapter.pullModel(input.name.trim(), apiKey ?? undefined)
+
+      if (result.error) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: result.error })
+      }
+
+      // Also save to DB registry if not already there
+      const existing = await ctx.db.query.ollamaModels.findFirst({
+        where: eq(ollamaModels.name, input.name.trim()),
+      })
+      if (!existing) {
+        await ctx.db.insert(ollamaModels).values({ name: input.name.trim() })
+      }
+
+      return { status: result.status, model: input.name.trim() }
+    }),
+
+  /** List models available on the connected Ollama instance. */
+  listOllamaAvailable: protectedProcedure.query(async ({ ctx }) => {
+    const gw = getGateway(ctx.db)
+    const ollamaAdapter = gw.getOllamaAdapter()
+    if (!ollamaAdapter) return []
+
+    const storedUrl = await gw.keyVault.getKey('ollama_url')
+    if (storedUrl) ollamaAdapter.resolvedUrl = storedUrl
+    const apiKey = await gw.keyVault.getKey('ollama')
+
+    return ollamaAdapter.listModels(apiKey ?? undefined)
+  }),
 })

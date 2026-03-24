@@ -18,15 +18,21 @@ export default function SettingsPage() {
   const cognitionQuery = trpc.intelligence.cognitionState.useQuery()
   const providersQuery = trpc.gateway.listProviders.useQuery()
   const utils = trpc.useUtils()
+  const [pullStatus, setPullStatus] = useState<Record<string, string>>({})
   const ollamaModelsQuery = trpc.gateway.ollamaModels.useQuery()
-  const addOllamaModelMut = trpc.gateway.addOllamaModel.useMutation({
-    onSuccess: () => {
-      utils.gateway.ollamaModels.invalidate()
-      setNewModelName('')
-    },
-  })
+  const ollamaAvailableQuery = trpc.gateway.listOllamaAvailable.useQuery()
   const removeOllamaModelMut = trpc.gateway.removeOllamaModel.useMutation({
     onSuccess: () => utils.gateway.ollamaModels.invalidate(),
+  })
+  const pullOllamaModelMut = trpc.gateway.pullOllamaModel.useMutation({
+    onSuccess: (data) => {
+      setPullStatus((prev) => ({ ...prev, [data.model]: 'success' }))
+      utils.gateway.ollamaModels.invalidate()
+      utils.gateway.listOllamaAvailable.invalidate()
+    },
+    onError: (err) => {
+      setPullStatus((prev) => ({ ...prev, [newModelName]: err.message }))
+    },
   })
   const deleteKeyMut = trpc.gateway.deleteKey.useMutation({
     onSuccess: () => utils.gateway.listProviders.invalidate(),
@@ -182,7 +188,7 @@ export default function SettingsPage() {
                     fontFamily: 'monospace',
                   }}
                   type="text"
-                  placeholder="https://ollama.com"
+                  placeholder="https://ollama.com/api (Ollama Cloud) or http://localhost:11434 (local)"
                   value={ollamaUrl}
                   onChange={(e) => setOllamaUrl(e.target.value)}
                 />
@@ -300,14 +306,15 @@ export default function SettingsPage() {
               fontFamily: 'monospace',
             }}
             type="text"
-            placeholder="Model name (e.g. qwen3:8b)"
+            placeholder="Model name (e.g. kimi-k2.5:cloud, qwen3:8b)"
             value={newModelName}
             onChange={(e) => setNewModelName(e.target.value)}
-            onKeyDown={(e) =>
-              e.key === 'Enter' &&
-              newModelName.trim() &&
-              addOllamaModelMut.mutate({ name: newModelName.trim() })
-            }
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newModelName.trim()) {
+                setPullStatus((prev) => ({ ...prev, [newModelName.trim()]: 'pulling' }))
+                pullOllamaModelMut.mutate({ name: newModelName.trim() })
+              }
+            }}
           />
           <button
             style={{
@@ -320,52 +327,116 @@ export default function SettingsPage() {
               fontWeight: 600,
               cursor: 'pointer',
             }}
-            onClick={() =>
-              newModelName.trim() && addOllamaModelMut.mutate({ name: newModelName.trim() })
-            }
-            disabled={addOllamaModelMut.isPending || !newModelName.trim()}
+            onClick={() => {
+              if (!newModelName.trim()) return
+              setPullStatus((prev) => ({ ...prev, [newModelName.trim()]: 'pulling' }))
+              pullOllamaModelMut.mutate({ name: newModelName.trim() })
+            }}
+            disabled={pullOllamaModelMut.isPending || !newModelName.trim()}
           >
-            {addOllamaModelMut.isPending ? 'Adding...' : 'Add Model'}
+            {pullOllamaModelMut.isPending ? 'Pulling...' : 'Pull & Add Model'}
           </button>
         </div>
-        {(ollamaModelsQuery.data as Array<{ id: string; name: string; addedAt: Date }> | undefined)
-          ?.length ? (
-          <div style={styles.providerList}>
-            {(ollamaModelsQuery.data as Array<{ id: string; name: string; addedAt: Date }>).map(
-              (m) => (
-                <div key={m.id} style={styles.providerRow}>
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: '#22c55e',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ ...styles.providerName, flex: 1 }}>{m.name}</span>
-                  <button
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#6b7280',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                    }}
-                    onClick={() => removeOllamaModelMut.mutate({ id: m.id })}
-                    title="Remove model"
-                  >
-                    ×
-                  </button>
-                </div>
-              ),
-            )}
-          </div>
-        ) : (
-          <div style={styles.empty}>
-            No Ollama models configured. Add a model name above to get started.
+        {pullOllamaModelMut.error && (
+          <div
+            style={{
+              background: '#1e1b4b',
+              border: '1px solid #ef4444',
+              borderRadius: 6,
+              padding: '8px 12px',
+              marginBottom: 8,
+              fontSize: 12,
+              color: '#fca5a5',
+            }}
+          >
+            {pullOllamaModelMut.error.message}
           </div>
         )}
+        {(() => {
+          const availableNames = new Set(
+            (
+              ollamaAvailableQuery.data as
+                | Array<{ name: string; size: number; modifiedAt: string }>
+                | undefined
+            )?.map((m) => m.name) ?? [],
+          )
+          const models = ollamaModelsQuery.data as
+            | Array<{ id: string; name: string; addedAt: Date }>
+            | undefined
+          if (!models?.length) {
+            return (
+              <div style={styles.empty}>
+                No Ollama models configured. Enter a model name above and click "Pull & Add Model".
+              </div>
+            )
+          }
+          return (
+            <div style={styles.providerList}>
+              {models.map((m) => {
+                const isAvailable =
+                  availableNames.has(m.name) ||
+                  availableNames.has(m.name + ':latest') ||
+                  [...availableNames].some((n) => n.startsWith(m.name))
+                const status = pullStatus[m.name]
+                return (
+                  <div key={m.id} style={styles.providerRow}>
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: isAvailable ? '#22c55e' : '#f59e0b',
+                        flexShrink: 0,
+                      }}
+                      title={isAvailable ? 'Available' : 'Not yet pulled'}
+                    />
+                    <span style={{ ...styles.providerName, flex: 1 }}>{m.name}</span>
+                    {status === 'pulling' && (
+                      <span style={{ fontSize: 10, color: '#818cf8' }}>pulling...</span>
+                    )}
+                    {status === 'success' && (
+                      <span style={{ fontSize: 10, color: '#22c55e' }}>ready</span>
+                    )}
+                    {!isAvailable && status !== 'pulling' && (
+                      <button
+                        style={{
+                          background: '#374151',
+                          border: 'none',
+                          borderRadius: 4,
+                          color: '#818cf8',
+                          cursor: 'pointer',
+                          fontSize: 10,
+                          padding: '2px 8px',
+                          fontWeight: 600,
+                        }}
+                        onClick={() => {
+                          setPullStatus((prev) => ({ ...prev, [m.name]: 'pulling' }))
+                          pullOllamaModelMut.mutate({ name: m.name })
+                        }}
+                        title="Pull this model from Ollama registry"
+                      >
+                        Pull
+                      </button>
+                    )}
+                    <button
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#6b7280',
+                        cursor: 'pointer',
+                        fontSize: 14,
+                      }}
+                      onClick={() => removeOllamaModelMut.mutate({ id: m.id })}
+                      title="Remove model"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })()}
       </div>
 
       <div style={styles.section}>
