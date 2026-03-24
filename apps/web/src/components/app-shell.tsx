@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import Sidebar from './layout/sidebar'
 import Topbar from './layout/topbar'
+import LiveCursors from './layout/live-cursors'
 import { TRPCProvider } from './trpc-provider'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
       </div>
+      <LiveCursors currentLocation={pathname} />
     </TRPCProvider>
   )
 }

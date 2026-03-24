@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback, useRef, memo } from 'react'
 import type { CursorPosition, PresenceEntry } from '../../server/services/presence/manager'
 import { PRESENCE_CONFIG } from '../../server/services/presence/manager'
+import { trpc } from '../../utils/trpc'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -153,10 +154,15 @@ const RemoteCursorView = memo(function RemoteCursorView({ cursor }: { cursor: Re
 
 export default function LiveCursors({
   currentLocation,
-  entries = MOCK_ENTRIES,
+  entries: entriesProp,
   currentUserId,
   onCursorMove,
 }: LiveCursorsProps) {
+  const { data: liveEntries } = trpc.presence.getActive.useQuery(undefined, {
+    refetchInterval: 5000,
+    retry: false,
+  })
+  const entries = entriesProp ?? (liveEntries as PresenceEntry[] | undefined) ?? MOCK_ENTRIES
   const isDemo = entries === MOCK_ENTRIES
   const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([])
   const containerRef = useRef<HTMLDivElement>(null)
