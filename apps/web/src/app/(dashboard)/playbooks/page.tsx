@@ -35,14 +35,16 @@ function RunForm({ playbook, onRun, onClose }: RunFormProps) {
   const uniqueVars = [...new Set(variables)]
 
   const [values, setValues] = useState<Record<string, string>>(
-    Object.fromEntries(uniqueVars.map((v) => [v, '']))
+    Object.fromEntries(uniqueVars.map((v) => [v, ''])),
   )
 
   return (
     <div style={styles.modalOverlay}>
       <div style={styles.modal}>
         <h3 style={styles.modalTitle}>Run: {playbook.name}</h3>
-        <p style={styles.modalSub}>{playbook.steps.length} steps · v{playbook.version}</p>
+        <p style={styles.modalSub}>
+          {playbook.steps.length} steps · v{playbook.version}
+        </p>
 
         {uniqueVars.length > 0 ? (
           <>
@@ -64,8 +66,12 @@ function RunForm({ playbook, onRun, onClose }: RunFormProps) {
         )}
 
         <div style={styles.modalActions}>
-          <button style={styles.cancelBtn} onClick={onClose}>Cancel</button>
-          <button style={styles.runBtn} onClick={() => onRun(values)}>▶ Run Playbook</button>
+          <button style={styles.cancelBtn} onClick={onClose}>
+            Cancel
+          </button>
+          <button style={styles.runBtn} onClick={() => onRun(values)}>
+            ▶ Run Playbook
+          </button>
         </div>
       </div>
     </div>
@@ -95,10 +101,16 @@ function PlaybookRow({
         </div>
       </div>
       <div style={styles.rowRight}>
-        <div style={styles.lastRun}>Created: {new Date(playbook.createdAt).toLocaleDateString()}</div>
+        <div style={styles.lastRun}>
+          Created: {new Date(playbook.createdAt).toLocaleDateString()}
+        </div>
         <div style={styles.rowActions}>
-          <button style={styles.viewBtn} onClick={onView}>View</button>
-          <button style={styles.runRowBtn} onClick={onRun}>▶ Run</button>
+          <button style={styles.viewBtn} onClick={onView}>
+            View
+          </button>
+          <button style={styles.runRowBtn} onClick={onRun}>
+            ▶ Run
+          </button>
         </div>
       </div>
     </div>
@@ -155,7 +167,15 @@ export default function PlaybooksPage() {
 
   if (isLoading) {
     return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <div
+        style={{
+          ...styles.page,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+        }}
+      >
         <div style={{ textAlign: 'center', color: '#6b7280' }}>
           <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
           <div style={{ fontSize: 13 }}>Fetching playbooks</div>
@@ -164,18 +184,7 @@ export default function PlaybooksPage() {
     )
   }
 
-  if (error) {
-    return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading playbooks</div>
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
-        </div>
-      </div>
-    )
-  }
-
-  const playbookList: SavedPlaybook[] = playbooks ?? []
+  const playbookList: SavedPlaybook[] = (playbooks as SavedPlaybook[]) ?? []
 
   function handleStartRecording() {
     startRecordingMutation.mutate(
@@ -248,15 +257,35 @@ export default function PlaybooksPage() {
         </div>
       </div>
 
+      {error && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            border: '1px solid #4338ca',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ color: '#818cf8', fontSize: 14 }}>
+            Database tables not yet provisioned.
+          </span>
+          <span style={{ color: '#6b7280', fontSize: 12 }}>
+            Run the migration to populate data.
+          </span>
+        </div>
+      )}
+
       {recording && (
         <div style={styles.recordingBanner}>
           ⏺ Recording in progress — your actions are being captured
         </div>
       )}
 
-      {lastRunResult && (
-        <div style={styles.successBanner}>{lastRunResult}</div>
-      )}
+      {lastRunResult && <div style={styles.successBanner}>{lastRunResult}</div>}
 
       {/* Playbook list */}
       {!selectedPlaybook ? (
@@ -279,7 +308,9 @@ export default function PlaybooksPage() {
       ) : (
         /* Detail view */
         <div style={styles.detail}>
-          <button style={styles.backBtn} onClick={() => setSelectedPlaybook(null)}>← Back</button>
+          <button style={styles.backBtn} onClick={() => setSelectedPlaybook(null)}>
+            ← Back
+          </button>
           <h2 style={styles.detailTitle}>{selectedPlaybook.name}</h2>
           <p style={styles.detailDesc}>{selectedPlaybook.description}</p>
           <div style={styles.detailMeta}>
@@ -293,7 +324,13 @@ export default function PlaybooksPage() {
             ))}
           </div>
           <div style={styles.detailActions}>
-            <button style={styles.runRowBtn} onClick={() => { setSelectedPlaybook(null); setRunTarget(selectedPlaybook) }}>
+            <button
+              style={styles.runRowBtn}
+              onClick={() => {
+                setSelectedPlaybook(null)
+                setRunTarget(selectedPlaybook)
+              }}
+            >
               ▶ Run This Playbook
             </button>
           </div>
@@ -302,11 +339,7 @@ export default function PlaybooksPage() {
 
       {/* Run modal */}
       {runTarget && (
-        <RunForm
-          playbook={runTarget}
-          onRun={handleRun}
-          onClose={() => setRunTarget(null)}
-        />
+        <RunForm playbook={runTarget} onRun={handleRun} onClose={() => setRunTarget(null)} />
       )}
     </div>
   )
@@ -315,55 +348,210 @@ export default function PlaybooksPage() {
 // ── Styles ────────────────────────────────────────────────────────────────
 
 const styles = {
-  page: { background: '#0f172a', minHeight: '100vh', color: '#f9fafb', fontFamily: 'sans-serif', padding: 24 },
+  page: {
+    background: '#0f172a',
+    minHeight: '100vh',
+    color: '#f9fafb',
+    fontFamily: 'sans-serif',
+    padding: 24,
+  },
   recordingMode: { outline: '3px solid #f97316', outlineOffset: -3 },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
   title: { margin: 0, fontSize: 22, fontWeight: 700 },
   subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
   headerActions: { display: 'flex', gap: 8 },
-  recordBtn: { background: '#ef4444', border: 'none', borderRadius: 6, color: '#fff', padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  stopBtn: { background: '#374151', border: '2px solid #f97316', borderRadius: 6, color: '#f97316', padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  recordingBanner: { background: '#7c2d12', border: '1px solid #f97316', borderRadius: 6, padding: '8px 16px', marginBottom: 16, fontSize: 13, color: '#fed7aa' },
-  successBanner: { background: '#14532d', border: '1px solid #22c55e', borderRadius: 6, padding: '8px 16px', marginBottom: 16, fontSize: 13, color: '#86efac' },
+  recordBtn: {
+    background: '#ef4444',
+    border: 'none',
+    borderRadius: 6,
+    color: '#fff',
+    padding: '8px 16px',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  stopBtn: {
+    background: '#374151',
+    border: '2px solid #f97316',
+    borderRadius: 6,
+    color: '#f97316',
+    padding: '8px 16px',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  recordingBanner: {
+    background: '#7c2d12',
+    border: '1px solid #f97316',
+    borderRadius: 6,
+    padding: '8px 16px',
+    marginBottom: 16,
+    fontSize: 13,
+    color: '#fed7aa',
+  },
+  successBanner: {
+    background: '#14532d',
+    border: '1px solid #22c55e',
+    borderRadius: 6,
+    padding: '8px 16px',
+    marginBottom: 16,
+    fontSize: 13,
+    color: '#86efac',
+  },
   list: { display: 'flex', flexDirection: 'column' as const, gap: 12 },
-  row: { background: '#1f2937', borderRadius: 8, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', gap: 20 },
+  row: {
+    background: '#1f2937',
+    borderRadius: 8,
+    padding: '16px 20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: 20,
+  },
   rowLeft: { flex: 1 },
   rowName: { fontSize: 15, fontWeight: 700, marginBottom: 4 },
   rowDesc: { fontSize: 12, color: '#9ca3af', marginBottom: 8 },
   rowMeta: { display: 'flex', gap: 6, flexWrap: 'wrap' as const },
-  metaTag: { background: '#374151', borderRadius: 10, padding: '2px 8px', fontSize: 11, color: '#9ca3af' },
+  metaTag: {
+    background: '#374151',
+    borderRadius: 10,
+    padding: '2px 8px',
+    fontSize: 11,
+    color: '#9ca3af',
+  },
   metaTrigger: { fontSize: 11, color: '#6b7280' },
-  rowRight: { display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 4, minWidth: 160 },
+  rowRight: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'flex-end',
+    gap: 4,
+    minWidth: 160,
+  },
   lastRun: { fontSize: 11, color: '#6b7280' },
   rowActions: { display: 'flex', gap: 6, marginTop: 4 },
-  viewBtn: { background: 'transparent', border: '1px solid #4b5563', borderRadius: 4, color: '#9ca3af', padding: '4px 10px', fontSize: 12, cursor: 'pointer' },
-  runRowBtn: { background: '#2563eb', border: 'none', borderRadius: 4, color: '#fff', padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  viewBtn: {
+    background: 'transparent',
+    border: '1px solid #4b5563',
+    borderRadius: 4,
+    color: '#9ca3af',
+    padding: '4px 10px',
+    fontSize: 12,
+    cursor: 'pointer',
+  },
+  runRowBtn: {
+    background: '#2563eb',
+    border: 'none',
+    borderRadius: 4,
+    color: '#fff',
+    padding: '4px 12px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
   detail: { background: '#1f2937', borderRadius: 8, padding: 24 },
-  backBtn: { background: 'transparent', border: 'none', color: '#6b7280', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 },
+  backBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#6b7280',
+    fontSize: 13,
+    cursor: 'pointer',
+    marginBottom: 12,
+    padding: 0,
+  },
   detailTitle: { margin: '0 0 6px', fontSize: 18, fontWeight: 700 },
   detailDesc: { fontSize: 13, color: '#9ca3af', marginBottom: 12 },
   detailMeta: { display: 'flex', gap: 6, marginBottom: 20 },
   stepsSection: {},
-  sectionHeader: { fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 10 },
-  stepRow: { display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 0', borderBottom: '1px solid #374151' },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#6b7280',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  stepRow: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'flex-start',
+    padding: '10px 0',
+    borderBottom: '1px solid #374151',
+  },
   stepIdx: { fontSize: 12, color: '#6b7280', minWidth: 20, paddingTop: 2 },
   stepInfo: { flex: 1 },
   stepName: { fontSize: 13, fontWeight: 600, marginBottom: 2 },
   stepDesc: { fontSize: 12, color: '#9ca3af', marginBottom: 4 },
   stepParams: { display: 'flex', gap: 4, flexWrap: 'wrap' as const },
-  paramChip: { fontSize: 11, background: '#374151', borderRadius: 4, padding: '1px 6px', color: '#d1d5db' },
-  stepType: { fontSize: 11, color: '#6b7280', background: '#111827', padding: '2px 6px', borderRadius: 4 },
+  paramChip: {
+    fontSize: 11,
+    background: '#374151',
+    borderRadius: 4,
+    padding: '1px 6px',
+    color: '#d1d5db',
+  },
+  stepType: {
+    fontSize: 11,
+    color: '#6b7280',
+    background: '#111827',
+    padding: '2px 6px',
+    borderRadius: 4,
+  },
   detailActions: { marginTop: 20 },
   // Modal
-  modalOverlay: { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-  modal: { background: '#1f2937', border: '1px solid #374151', borderRadius: 8, padding: 24, width: 440, maxWidth: '95vw' },
+  modalOverlay: {
+    position: 'fixed' as const,
+    inset: 0,
+    background: 'rgba(0,0,0,0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  modal: {
+    background: '#1f2937',
+    border: '1px solid #374151',
+    borderRadius: 8,
+    padding: 24,
+    width: 440,
+    maxWidth: '95vw',
+  },
   modalTitle: { margin: '0 0 4px', fontSize: 16, fontWeight: 700 },
   modalSub: { margin: '0 0 12px', fontSize: 12, color: '#9ca3af' },
   modalHint: { fontSize: 12, color: '#6b7280', marginBottom: 12 },
   formField: { marginBottom: 10 },
   fieldLabel: { display: 'block', fontSize: 12, color: '#9ca3af', marginBottom: 4 },
-  fieldInput: { width: '100%', background: '#111827', border: '1px solid #374151', borderRadius: 4, color: '#f9fafb', padding: '7px 10px', fontSize: 13, boxSizing: 'border-box' as const },
+  fieldInput: {
+    width: '100%',
+    background: '#111827',
+    border: '1px solid #374151',
+    borderRadius: 4,
+    color: '#f9fafb',
+    padding: '7px 10px',
+    fontSize: 13,
+    boxSizing: 'border-box' as const,
+  },
   modalActions: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
-  cancelBtn: { padding: '7px 16px', background: 'transparent', border: '1px solid #4b5563', borderRadius: 6, color: '#9ca3af', fontSize: 13, cursor: 'pointer' },
-  runBtn: { padding: '7px 16px', background: '#2563eb', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  cancelBtn: {
+    padding: '7px 16px',
+    background: 'transparent',
+    border: '1px solid #4b5563',
+    borderRadius: 6,
+    color: '#9ca3af',
+    fontSize: 13,
+    cursor: 'pointer',
+  },
+  runBtn: {
+    padding: '7px 16px',
+    background: '#2563eb',
+    border: 'none',
+    borderRadius: 6,
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
 }

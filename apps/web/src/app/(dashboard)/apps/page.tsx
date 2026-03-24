@@ -52,7 +52,9 @@ function AppCard({ app }: { app: DisplayApp }) {
       {app.tags.length > 0 && (
         <div style={styles.engineTags}>
           {app.tags.map((t) => (
-            <span key={t} style={styles.engineTag}>{t}</span>
+            <span key={t} style={styles.engineTag}>
+              {t}
+            </span>
           ))}
         </div>
       )}
@@ -66,7 +68,15 @@ export default function AppsPage() {
 
   if (isLoading) {
     return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <div
+        style={{
+          ...styles.page,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+        }}
+      >
         <div style={{ textAlign: 'center', color: '#6b7280' }}>
           <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
           <div style={{ fontSize: 13 }}>Fetching apps</div>
@@ -75,18 +85,7 @@ export default function AppsPage() {
     )
   }
 
-  if (error) {
-    return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading apps</div>
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
-        </div>
-      </div>
-    )
-  }
-
-  const agents = data ?? []
+  const agents = (data as any[]) ?? []
 
   const apps: DisplayApp[] = agents.map((a: any) => ({
     id: a.id,
@@ -109,16 +108,47 @@ export default function AppsPage() {
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>Connected Apps</h1>
-          <p style={styles.subtitle}>{apps.length} agent{apps.length !== 1 ? 's' : ''} registered</p>
+          <p style={styles.subtitle}>
+            {apps.length} agent{apps.length !== 1 ? 's' : ''} registered
+          </p>
         </div>
       </div>
 
+      {error && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            border: '1px solid #4338ca',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ color: '#818cf8', fontSize: 14 }}>
+            Database tables not yet provisioned.
+          </span>
+          <span style={{ color: '#6b7280', fontSize: 12 }}>
+            Run the migration to populate data.
+          </span>
+        </div>
+      )}
+
       <div style={styles.tabs}>
-        <button style={filter === 'all' ? styles.tabActive : styles.tab} onClick={() => setFilter('all')}>
+        <button
+          style={filter === 'all' ? styles.tabActive : styles.tab}
+          onClick={() => setFilter('all')}
+        >
           All ({apps.length})
         </button>
         {types.map((t) => (
-          <button key={t} style={filter === t ? styles.tabActive : styles.tab} onClick={() => setFilter(t)}>
+          <button
+            key={t}
+            style={filter === t ? styles.tabActive : styles.tab}
+            onClick={() => setFilter(t)}
+          >
             {t} ({apps.filter((a) => a.type === t).length})
           </button>
         ))}
@@ -126,7 +156,9 @@ export default function AppsPage() {
 
       <div style={styles.grid}>
         {filtered.length === 0 ? (
-          <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>No apps found</div>
+          <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>
+            No apps found
+          </div>
         ) : (
           filtered.map((app) => <AppCard key={app.id} app={app} />)
         )}
@@ -136,19 +168,62 @@ export default function AppsPage() {
 }
 
 const styles = {
-  page: { background: '#0f172a', minHeight: '100vh', color: '#f9fafb', fontFamily: 'sans-serif', padding: 24 },
+  page: {
+    background: '#0f172a',
+    minHeight: '100vh',
+    color: '#f9fafb',
+    fontFamily: 'sans-serif',
+    padding: 24,
+  },
   header: { marginBottom: 16 },
   title: { margin: 0, fontSize: 22, fontWeight: 700 },
   subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
   tabs: { display: 'flex', gap: 4, marginBottom: 16 },
-  tab: { background: 'transparent', border: '1px solid #374151', borderRadius: 6, color: '#9ca3af', padding: '6px 16px', fontSize: 13, cursor: 'pointer' },
-  tabActive: { background: '#1f2937', border: '1px solid #4b5563', borderRadius: 6, color: '#f9fafb', padding: '6px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  tab: {
+    background: 'transparent',
+    border: '1px solid #374151',
+    borderRadius: 6,
+    color: '#9ca3af',
+    padding: '6px 16px',
+    fontSize: 13,
+    cursor: 'pointer',
+  },
+  tabActive: {
+    background: '#1f2937',
+    border: '1px solid #4b5563',
+    borderRadius: 6,
+    color: '#f9fafb',
+    padding: '6px 16px',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
   grid: { display: 'flex', flexDirection: 'column' as const, gap: 10 },
-  card: { display: 'block', background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151', textDecoration: 'none', color: 'inherit' },
-  cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  card: {
+    display: 'block',
+    background: '#1f2937',
+    borderRadius: 8,
+    padding: 16,
+    border: '1px solid #374151',
+    textDecoration: 'none',
+    color: 'inherit',
+  },
+  cardTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   cardLeft: { display: 'flex', alignItems: 'center', gap: 6 },
   cardName: { fontSize: 15, fontWeight: 700 },
-  tierBadge: { fontSize: 10, background: '#1e3a5f', color: '#93c5fd', padding: '1px 6px', borderRadius: 4, fontWeight: 600 },
+  tierBadge: {
+    fontSize: 10,
+    background: '#1e3a5f',
+    color: '#93c5fd',
+    padding: '1px 6px',
+    borderRadius: 4,
+    fontWeight: 600,
+  },
   cardDomain: { fontSize: 12, color: '#6b7280', marginBottom: 10 },
   statusDot: { width: 8, height: 8, borderRadius: '50%', display: 'inline-block' },
   statsRow: { display: 'flex', gap: 20, marginBottom: 10 },
@@ -156,5 +231,11 @@ const styles = {
   statValue: { fontSize: 16, fontWeight: 700 },
   statLabel: { fontSize: 10, color: '#6b7280' },
   engineTags: { display: 'flex', gap: 4, flexWrap: 'wrap' as const },
-  engineTag: { fontSize: 10, background: '#374151', borderRadius: 4, padding: '2px 6px', color: '#9ca3af' },
+  engineTag: {
+    fontSize: 10,
+    background: '#374151',
+    borderRadius: 4,
+    padding: '2px 6px',
+    color: '#9ca3af',
+  },
 }

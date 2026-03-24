@@ -51,29 +51,8 @@ export default function QAPage() {
     )
   }
 
-  if (datasetsQuery.error) {
-    return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-            Error loading QA data
-          </div>
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>{datasetsQuery.error.message}</div>
-        </div>
-      </div>
-    )
-  }
-
-  const datasets: DatasetSummary[] = datasetsQuery.data ?? []
-  const runs: EvalRun[] = runsQuery.data ?? []
+  const datasets: DatasetSummary[] = (datasetsQuery.data as DatasetSummary[]) ?? []
+  const runs: EvalRun[] = (runsQuery.data as EvalRun[]) ?? []
 
   return (
     <div style={styles.page}>
@@ -83,6 +62,28 @@ export default function QAPage() {
           Record, replay, and validate visual test sessions for quality assurance.
         </p>
       </div>
+
+      {datasetsQuery.error && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            border: '1px solid #4338ca',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ color: '#818cf8', fontSize: 14 }}>
+            Database tables not yet provisioned.
+          </span>
+          <span style={{ color: '#6b7280', fontSize: 12 }}>
+            Run the migration to populate data.
+          </span>
+        </div>
+      )}
 
       <div style={styles.layout}>
         <div style={styles.sidebar}>

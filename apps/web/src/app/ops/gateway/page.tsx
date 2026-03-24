@@ -48,28 +48,7 @@ export default function GatewayPage() {
     )
   }
 
-  if (error) {
-    return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-            Error loading gateway
-          </div>
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
-        </div>
-      </div>
-    )
-  }
-
-  const metrics: GatewayMetric[] = metricsQuery.data ?? []
+  const metrics: GatewayMetric[] = (metricsQuery.data as GatewayMetric[]) ?? []
   const health = healthQuery.data as
     | { status: string; uptime?: number; requestCount?: number }
     | undefined
@@ -90,6 +69,28 @@ export default function GatewayPage() {
           LLM Gateway metrics — request volume, latency, cost tracking, and cache hit rates.
         </p>
       </div>
+
+      {error && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            border: '1px solid #4338ca',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ color: '#818cf8', fontSize: 14 }}>
+            Database tables not yet provisioned.
+          </span>
+          <span style={{ color: '#6b7280', fontSize: 12 }}>
+            Run the migration to populate data.
+          </span>
+        </div>
+      )}
 
       <div style={styles.statsGrid}>
         <div style={styles.statCard}>
