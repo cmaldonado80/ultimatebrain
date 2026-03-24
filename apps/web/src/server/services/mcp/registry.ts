@@ -205,31 +205,48 @@ export class MCPRegistry {
     if (!server) throw new Error(`External server not found: ${serverName}`)
     if (!server.enabled) return 0
 
-    // Stub — real impl:
-    // 1. Connect to the server via stdio or HTTP+SSE
-    // 2. Send `initialize` JSON-RPC request
-    // 3. Send `tools/list` to get available tools
-    // 4. Register each tool with a handler that proxies to the external server
+    // Route through OpenClaw's MCP client if connected (preferred — shares connections)
+    try {
+      const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+      const client = getOpenClawClient()
+      if (client?.isConnected()) {
+        const { OpenClawMcp } = await import('../../adapters/openclaw/mcp')
+        const mcp = new OpenClawMcp(client)
+        const tools = await mcp.discoverTools(true)
+        const serverTools = tools.filter((t) => t.server === serverName)
+        for (const tool of serverTools) {
+          this.register({
+            name: `external_${sanitizeId(serverName)}_${sanitizeId(tool.name)}`,
+            description: tool.description,
+            source: 'external',
+            serverUrl: serverName,
+            inputSchema: {
+              type: 'object',
+              properties: (tool.inputSchema?.properties ?? {}) as Record<
+                string,
+                { type: string; description?: string }
+              >,
+              required: (tool.inputSchema?.required ?? []) as string[],
+            },
+            handler: async (params) => mcp.invokeTool(serverName, tool.name, params),
+          })
+        }
+        return serverTools.length
+      }
+    } catch (err) {
+      console.warn(`[MCPRegistry] OpenClaw discovery failed for "${serverName}":`, err)
+    }
 
-    // For now, register a placeholder showing the mechanism works
+    // Fallback: register placeholder if OpenClaw unavailable
     this.register({
       name: `external_${sanitizeId(serverName)}_ping`,
       description: `Ping external MCP server "${serverName}"`,
       source: 'external',
       serverUrl: serverName,
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-      handler: async () => ({
-        status: 'ok',
-        server: serverName,
-        url: server.url,
-      }),
+      inputSchema: { type: 'object', properties: {}, required: [] },
+      handler: async () => ({ status: 'ok', server: serverName, url: server.url }),
     })
-
-    return 1 // placeholder count
+    return 1
   }
 
   /**

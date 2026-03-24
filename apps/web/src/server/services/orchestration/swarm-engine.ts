@@ -76,6 +76,25 @@ export class SwarmEngine {
           ...a,
           skillScore: (a.skills ?? []).filter((s) => input.requiredSkills!.includes(s)).length,
         }))
+
+        // Boost agents whose skills are backed by OpenClaw
+        try {
+          const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+          const client = getOpenClawClient()
+          if (client?.isConnected()) {
+            const { OpenClawSkills } = await import('../../adapters/openclaw/skills')
+            const ocSkills = new OpenClawSkills(client)
+            const catalog = await ocSkills.discoverSkills()
+            const ocNames = new Set(catalog.map((s) => s.name))
+            for (const agent of scored) {
+              const ocMatch = (agent.skills ?? []).filter((s) => ocNames.has(s)).length
+              agent.skillScore += ocMatch * 0.1 // bonus for OpenClaw-backed skills
+            }
+          }
+        } catch {
+          /* silent fallback to local scoring */
+        }
+
         scored.sort((a, b) => b.skillScore - a.skillScore)
         selectedAgents = scored.slice(0, maxAgents)
       } else {
@@ -90,10 +109,13 @@ export class SwarmEngine {
     }
 
     // Create swarm
-    const [swarm] = await this.db.insert(ephemeralSwarms).values({
-      task: input.task,
-      status: 'active',
-    }).returning()
+    const [swarm] = await this.db
+      .insert(ephemeralSwarms)
+      .values({
+        task: input.task,
+        status: 'active',
+      })
+      .returning()
 
     // Assign roles
     const members: SwarmMember[] = selectedAgents.map((agent, i) => ({
@@ -112,10 +134,18 @@ export class SwarmEngine {
     )
 
     // Update agent statuses to 'executing'
-    await this.db.update(agents).set({
-      status: 'executing',
-      updatedAt: new Date(),
-    }).where(inArray(agents.id, selectedAgents.map((a) => a.id)))
+    await this.db
+      .update(agents)
+      .set({
+        status: 'executing',
+        updatedAt: new Date(),
+      })
+      .where(
+        inArray(
+          agents.id,
+          selectedAgents.map((a) => a.id),
+        ),
+      )
 
     return {
       id: swarm!.id,
@@ -163,7 +193,9 @@ export class SwarmEngine {
    */
   async complete(swarmId: string): Promise<void> {
     await this.db.transaction(async (tx) => {
-      await tx.update(ephemeralSwarms).set({ status: 'completed' })
+      await tx
+        .update(ephemeralSwarms)
+        .set({ status: 'completed' })
         .where(eq(ephemeralSwarms.id, swarmId))
 
       const memberIds = await tx
@@ -172,10 +204,18 @@ export class SwarmEngine {
         .where(eq(swarmAgents.swarmId, swarmId))
 
       if (memberIds.length > 0) {
-        await tx.update(agents).set({
-          status: 'idle',
-          updatedAt: new Date(),
-        }).where(inArray(agents.id, memberIds.map((m) => m.agentId)))
+        await tx
+          .update(agents)
+          .set({
+            status: 'idle',
+            updatedAt: new Date(),
+          })
+          .where(
+            inArray(
+              agents.id,
+              memberIds.map((m) => m.agentId),
+            ),
+          )
       }
     })
   }
@@ -185,7 +225,9 @@ export class SwarmEngine {
    */
   async disband(swarmId: string): Promise<void> {
     await this.db.transaction(async (tx) => {
-      await tx.update(ephemeralSwarms).set({ status: 'disbanded' })
+      await tx
+        .update(ephemeralSwarms)
+        .set({ status: 'disbanded' })
         .where(eq(ephemeralSwarms.id, swarmId))
 
       const memberIds = await tx
@@ -194,10 +236,18 @@ export class SwarmEngine {
         .where(eq(swarmAgents.swarmId, swarmId))
 
       if (memberIds.length > 0) {
-        await tx.update(agents).set({
-          status: 'idle',
-          updatedAt: new Date(),
-        }).where(inArray(agents.id, memberIds.map((m) => m.agentId)))
+        await tx
+          .update(agents)
+          .set({
+            status: 'idle',
+            updatedAt: new Date(),
+          })
+          .where(
+            inArray(
+              agents.id,
+              memberIds.map((m) => m.agentId),
+            ),
+          )
       }
     })
   }
@@ -207,7 +257,9 @@ export class SwarmEngine {
    */
   async addMember(swarmId: string, agentId: string, role: SwarmRole = 'worker'): Promise<void> {
     await this.db.insert(swarmAgents).values({ swarmId, agentId, role })
-    await this.db.update(agents).set({ status: 'executing', updatedAt: new Date() })
+    await this.db
+      .update(agents)
+      .set({ status: 'executing', updatedAt: new Date() })
       .where(eq(agents.id, agentId))
   }
 
@@ -215,10 +267,12 @@ export class SwarmEngine {
    * Remove an agent from a swarm.
    */
   async removeMember(swarmId: string, agentId: string): Promise<void> {
-    await this.db.delete(swarmAgents).where(
-      and(eq(swarmAgents.swarmId, swarmId), eq(swarmAgents.agentId, agentId)),
-    )
-    await this.db.update(agents).set({ status: 'idle', updatedAt: new Date() })
+    await this.db
+      .delete(swarmAgents)
+      .where(and(eq(swarmAgents.swarmId, swarmId), eq(swarmAgents.agentId, agentId)))
+    await this.db
+      .update(agents)
+      .set({ status: 'idle', updatedAt: new Date() })
       .where(eq(agents.id, agentId))
   }
 

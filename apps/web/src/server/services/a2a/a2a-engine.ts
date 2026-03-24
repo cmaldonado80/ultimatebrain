@@ -138,6 +138,12 @@ export class A2AEngine {
         status: 'pending',
       })
       .returning({ id: a2aDelegations.id })
+
+    // Notify OpenClaw of delegation (non-blocking)
+    this.notifyChannel('delegated', row.id, { task: input.task, toAgentId: input.agentId }).catch(
+      () => {},
+    )
+
     return row.id
   }
 
@@ -179,6 +185,7 @@ export class A2AEngine {
       .where(eq(a2aDelegations.id, delegationId))
       .returning({ id: a2aDelegations.id })
     if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
+    this.notifyChannel('completed', delegationId, {}).catch(() => {})
   }
 
   async fail(delegationId: string, error: string): Promise<void> {
@@ -188,6 +195,7 @@ export class A2AEngine {
       .where(eq(a2aDelegations.id, delegationId))
       .returning({ id: a2aDelegations.id })
     if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
+    this.notifyChannel('failed', delegationId, { error }).catch(() => {})
   }
 
   async getStatus(delegationId: string): Promise<DelegationResult> {
@@ -225,5 +233,23 @@ export class A2AEngine {
 
   async removeCard(agentId: string): Promise<void> {
     await this.db.delete(agentCards).where(eq(agentCards.agentId, agentId))
+  }
+
+  /** Push delegation events to OpenClaw a2a-events channel (fire-and-forget). */
+  private async notifyChannel(
+    event: string,
+    delegationId: string,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+    const client = getOpenClawClient()
+    if (!client?.isConnected()) return
+    const { OpenClawChannels } = await import('../../adapters/openclaw/channels')
+    const channels = new OpenClawChannels(client)
+    await channels.sendMessage(
+      'a2a-events',
+      'system',
+      JSON.stringify({ event, delegationId, ...data }),
+    )
   }
 }

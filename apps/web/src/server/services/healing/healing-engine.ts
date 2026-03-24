@@ -21,6 +21,7 @@ export type HealingAction =
   | 'escalate'
   | 'suspend_entity'
   | 'clear_lock'
+  | 'reconnect_openclaw'
 
 export interface DiagnosticReport {
   timestamp: Date
@@ -145,6 +146,38 @@ export class HealingEngine {
     })
     if (failedCount > 5) {
       recommendations.push('High ticket failure rate — investigate root cause or escalate')
+    }
+
+    // Check 6: OpenClaw daemon health
+    try {
+      const { getOpenClawStatus } = await import('../../adapters/openclaw/bootstrap')
+      const status = getOpenClawStatus()
+      if (status.connected === false && status.lastSeen !== null) {
+        checks.push({
+          name: 'openclaw.connection',
+          status: 'warn',
+          message: `OpenClaw daemon disconnected (last seen: ${status.lastSeen.toISOString()})`,
+          latencyMs: Date.now() - start,
+        })
+        recommendations.push('Check OpenClaw daemon process and network connectivity')
+      } else if (status.connected && status.capabilities.providers === 0) {
+        checks.push({
+          name: 'openclaw.providers',
+          status: 'warn',
+          message: 'OpenClaw connected but reports 0 providers',
+          latencyMs: Date.now() - start,
+        })
+        recommendations.push('Check OpenClaw provider configuration')
+      } else if (status.connected) {
+        checks.push({
+          name: 'openclaw.connection',
+          status: 'pass',
+          message: `OpenClaw v${status.version} — ${status.capabilities.providers} providers, ${status.capabilities.skills} skills`,
+          latencyMs: Date.now() - start,
+        })
+      }
+    } catch {
+      // OpenClaw not configured — skip
     }
 
     // Determine overall status
@@ -307,6 +340,32 @@ export class HealingEngine {
         timestamp: new Date(),
         success,
       })
+    }
+
+    // Auto-reconnect OpenClaw if disconnected
+    if (report.checks.some((c) => c.name === 'openclaw.connection' && c.status === 'warn')) {
+      try {
+        const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+        const client = getOpenClawClient()
+        if (client && !client.isConnected()) {
+          await client.connect()
+          actions.push({
+            action: 'reconnect_openclaw',
+            target: 'daemon',
+            reason: 'OpenClaw daemon disconnected',
+            timestamp: new Date(),
+            success: true,
+          })
+        }
+      } catch {
+        actions.push({
+          action: 'reconnect_openclaw',
+          target: 'daemon',
+          reason: 'OpenClaw daemon disconnected',
+          timestamp: new Date(),
+          success: false,
+        })
+      }
     }
 
     return { report, actions }

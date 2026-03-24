@@ -35,11 +35,14 @@ export class CronEngine {
    */
   async createJob(input: CreateJobInput) {
     const nextRun = computeNextRun(input.schedule)
-    const [job] = await this.db.insert(cronJobs).values({
-      ...input,
-      enabled: true,
-      nextRun,
-    }).returning()
+    const [job] = await this.db
+      .insert(cronJobs)
+      .values({
+        ...input,
+        enabled: true,
+        nextRun,
+      })
+      .returning()
     return job
   }
 
@@ -47,10 +50,13 @@ export class CronEngine {
    * Pause a job.
    */
   async pause(jobId: string): Promise<void> {
-    await this.db.update(cronJobs).set({
-      status: 'paused',
-      enabled: false,
-    }).where(eq(cronJobs.id, jobId))
+    await this.db
+      .update(cronJobs)
+      .set({
+        status: 'paused',
+        enabled: false,
+      })
+      .where(eq(cronJobs.id, jobId))
   }
 
   /**
@@ -61,12 +67,15 @@ export class CronEngine {
     if (!job) throw new Error(`Job ${jobId} not found`)
 
     const nextRun = computeNextRun(job.schedule)
-    await this.db.update(cronJobs).set({
-      status: 'active',
-      enabled: true,
-      failCount: 0,
-      nextRun,
-    }).where(eq(cronJobs.id, jobId))
+    await this.db
+      .update(cronJobs)
+      .set({
+        status: 'active',
+        enabled: true,
+        failCount: 0,
+        nextRun,
+      })
+      .where(eq(cronJobs.id, jobId))
   }
 
   /**
@@ -83,11 +92,13 @@ export class CronEngine {
     return this.db
       .select()
       .from(cronJobs)
-      .where(and(
-        eq(cronJobs.status, 'active'),
-        eq(cronJobs.enabled, true),
-        lte(cronJobs.nextRun, new Date()),
-      ))
+      .where(
+        and(
+          eq(cronJobs.status, 'active'),
+          eq(cronJobs.enabled, true),
+          lte(cronJobs.nextRun, new Date()),
+        ),
+      )
   }
 
   /**
@@ -98,13 +109,19 @@ export class CronEngine {
     if (!job) return
 
     const nextRun = computeNextRun(job.schedule)
-    await this.db.update(cronJobs).set({
-      lastRun: new Date(),
-      nextRun,
-      lastResult: result ?? 'success',
-      runs: sql`${cronJobs.runs} + 1`,
-      failCount: 0,
-    }).where(eq(cronJobs.id, jobId))
+    await this.db
+      .update(cronJobs)
+      .set({
+        lastRun: new Date(),
+        nextRun,
+        lastResult: result ?? 'success',
+        runs: sql`${cronJobs.runs} + 1`,
+        failCount: 0,
+      })
+      .where(eq(cronJobs.id, jobId))
+
+    // Notify OpenClaw of job success (non-blocking)
+    this.notifyOpenClaw('job.success', jobId, { result }).catch(() => {})
   }
 
   /**
@@ -119,16 +136,43 @@ export class CronEngine {
 
     const nextRun = autoPaused ? null : computeNextRunWithBackoff(job.schedule, newFailCount)
 
-    await this.db.update(cronJobs).set({
-      lastRun: new Date(),
-      nextRun,
-      lastResult: `FAILED: ${error}`,
-      failCount: newFailCount,
-      fails: sql`${cronJobs.fails} + 1`,
-      ...(autoPaused ? { status: 'failed', enabled: false } : {}),
-    }).where(eq(cronJobs.id, jobId))
+    await this.db
+      .update(cronJobs)
+      .set({
+        lastRun: new Date(),
+        nextRun,
+        lastResult: `FAILED: ${error}`,
+        failCount: newFailCount,
+        fails: sql`${cronJobs.fails} + 1`,
+        ...(autoPaused ? { status: 'failed', enabled: false } : {}),
+      })
+      .where(eq(cronJobs.id, jobId))
+
+    // Notify OpenClaw of job failure with severity escalation
+    this.notifyOpenClaw('job.failed', jobId, { error, failCount: newFailCount, autoPaused }).catch(
+      () => {},
+    )
 
     return { autoPaused }
+  }
+
+  /** Push cron events to OpenClaw (fire-and-forget). */
+  private async notifyOpenClaw(
+    event: string,
+    jobId: string,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+    const client = getOpenClawClient()
+    if (!client?.isConnected()) return
+    const { OpenClawChannels } = await import('../../adapters/openclaw/channels')
+    const channels = new OpenClawChannels(client)
+    const severity = data.autoPaused ? 'CRITICAL' : 'info'
+    await channels.sendMessage(
+      'cron-events',
+      'system',
+      JSON.stringify({ event, jobId, severity, ...data }),
+    )
   }
 
   /**

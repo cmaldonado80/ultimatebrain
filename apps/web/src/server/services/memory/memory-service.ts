@@ -81,6 +81,9 @@ export class MemoryService {
       }
     }
 
+    // Sync to OpenClaw sqlite-vec (non-blocking)
+    this.syncToOpenClaw(mem!).catch(() => {})
+
     return mem!
   }
 
@@ -339,6 +342,8 @@ export class MemoryService {
       const threshold = PROMOTION_THRESHOLDS[nextTier]
       if ((mem.confidence ?? 0) >= threshold.minConfidence) {
         await this.updateTier(mem.id, nextTier)
+        // Sync tier change to OpenClaw
+        this.syncToOpenClaw({ ...mem, tier: nextTier }).catch(() => {})
         await this.db
           .update(cognitiveCandidates)
           .set({ status: 'promoted' })
@@ -370,6 +375,26 @@ export class MemoryService {
       .groupBy(memories.tier)
 
     return stats
+  }
+  /** Push a memory record to OpenClaw's sqlite-vec (non-blocking, fire-and-forget). */
+  private async syncToOpenClaw(mem: {
+    key: string
+    content: string
+    tier: string
+    confidence: number | null
+  }): Promise<void> {
+    const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+    const client = getOpenClawClient()
+    if (!client?.isConnected()) return
+    const { OpenClawMemorySync } = await import('../../adapters/openclaw/memory')
+    const sync = new OpenClawMemorySync(client)
+    await sync.pushToOpenClaw({
+      key: mem.key,
+      content: mem.content,
+      tier: mem.tier as 'core' | 'recall' | 'archival',
+      confidence: mem.confidence ?? 0.5,
+      updatedAt: new Date().toISOString(),
+    })
   }
 }
 

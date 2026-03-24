@@ -146,6 +146,44 @@ export class GuardrailEngine {
     await this.db.insert(guardrailLogs).values(rows)
   }
 
+  /**
+   * Wrap an OpenClaw skill/MCP tool invocation with guardrail checks.
+   * Runs tool-layer check before invocation and output-layer check after.
+   */
+  async wrapToolCall(
+    toolName: string,
+    params: Record<string, unknown>,
+    invoke: () => Promise<unknown>,
+    context?: { agentId?: string; ticketId?: string },
+  ): Promise<{ result: unknown; violations: Violation[] }> {
+    const allViolations: Violation[] = []
+
+    // Pre-flight: check tool call
+    const inputCheck = await this.checkTool(JSON.stringify({ tool: toolName, params }), {
+      agentId: context?.agentId,
+      ticketId: context?.ticketId,
+    })
+    allViolations.push(...inputCheck.violations)
+    if (!inputCheck.passed) {
+      throw new Error(
+        `Guardrail blocked tool "${toolName}": ${inputCheck.violations.map((v) => v.detail).join(', ')}`,
+      )
+    }
+
+    // Execute the tool
+    const result = await invoke()
+
+    // Post-flight: check output
+    const outputStr = typeof result === 'string' ? result : JSON.stringify(result)
+    const outputCheck = await this.checkOutput(outputStr, {
+      agentId: context?.agentId,
+      ticketId: context?.ticketId,
+    })
+    allViolations.push(...outputCheck.violations)
+
+    return { result: outputCheck.modifiedContent ?? result, violations: allViolations }
+  }
+
   /** Get all registered rule names */
   listRules(): Array<{ name: string; layers: GuardrailLayer[] }> {
     return this.rules.map((r) => ({ name: r.name, layers: r.layers }))
