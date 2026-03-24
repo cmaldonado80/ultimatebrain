@@ -4,7 +4,6 @@
  * Topbar — 64px bar with breadcrumb, health badge, presence avatars, and user menu
  */
 
-import { useSession, signOut } from 'next-auth/react'
 import PresenceAvatars from './presence-avatars'
 
 // ── Health Badge ────────────────────────────────────────────────────────
@@ -40,13 +39,15 @@ function Breadcrumb() {
 // ── Main ────────────────────────────────────────────────────────────────
 
 function UserMenu() {
-  const { data: session } = useSession()
-  if (!session?.user) return null
+  const handleSignOut = () => {
+    // Clear the session cookie and redirect to sign-in
+    document.cookie = 'session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    window.location.href = '/auth/signin'
+  }
 
   return (
     <div style={styles.userMenu}>
-      <span style={styles.userName}>{session.user.name ?? session.user.email}</span>
-      <button onClick={() => signOut({ callbackUrl: '/auth/signin' })} style={styles.signOutBtn}>
+      <button onClick={handleSignOut} style={styles.signOutBtn}>
         Sign out
       </button>
     </div>

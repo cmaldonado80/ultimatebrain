@@ -1,47 +1,43 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 export default function SignInPage() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
-  const [csrfToken, setCsrfToken] = useState('')
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    // Fetch CSRF token required by NextAuth
-    fetch('/api/auth/csrf')
-      .then((r) => r.json())
-      .then((data) => setCsrfToken(data.csrfToken))
-      .catch(() => setError('Failed to load. Please refresh.'))
-
-    // Show error from URL params (NextAuth redirects here with ?error= on failure)
-    const err = new URLSearchParams(window.location.search).get('error')
-    if (err) setError(err === 'CredentialsSignin' ? 'Sign in failed.' : `Error: ${err}`)
-  }, [])
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Sign in failed')
+        setLoading(false)
+        return
+      }
+      window.location.href = '/'
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error')
+      setLoading(false)
+    }
+  }
 
   return (
     <div style={styles.container}>
       <div style={styles.card}>
         <h1 style={styles.title}>Solarc Brain</h1>
         <p style={styles.subtitle}>Sign in to continue</p>
-
-        {/*
-          Direct form POST to NextAuth callback endpoint.
-          This is more reliable than the signIn() client function because
-          the browser handles the Set-Cookie headers natively from the redirect.
-        */}
-        <form
-          method="post"
-          action="/api/auth/callback/credentials"
-          style={styles.form}
-          onSubmit={() => setLoading(true)}
-        >
-          <input type="hidden" name="csrfToken" value={csrfToken} />
-          <input type="hidden" name="callbackUrl" value="/" />
+        <form onSubmit={handleSubmit} style={styles.form}>
           <input
             type="email"
-            name="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
@@ -49,7 +45,7 @@ export default function SignInPage() {
             style={styles.input}
           />
           {error && <p style={styles.error}>{error}</p>}
-          <button type="submit" disabled={loading || !csrfToken} style={styles.submitBtn}>
+          <button type="submit" disabled={loading} style={styles.submitBtn}>
             {loading ? 'Signing in...' : 'Sign in with Email'}
           </button>
         </form>
