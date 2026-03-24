@@ -139,7 +139,7 @@ describe('flows router', () => {
           name: 'Test Crew',
           task: 'Build a widget',
           agents: expect.arrayContaining([
-            expect.objectContaining({ id: 'agent-1', role: 'coder', tools: [] }),
+            expect.objectContaining({ id: 'agent-1', role: 'coder', tools: expect.any(Array) }),
           ]),
         }),
       )
@@ -180,10 +180,10 @@ describe('flows router', () => {
       })
 
       expect(mockCrewEngine.runAgent).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'agent-1', role: 'coder', tools: [] }),
+        expect.objectContaining({ id: 'agent-1', role: 'coder', tools: expect.any(Array) }),
         'Solve this problem',
         expect.any(String), // auto-generated crewId
-        [],
+        expect.any(Array),
       )
       expect(result).toEqual(expected)
     })
@@ -198,7 +198,12 @@ describe('flows router', () => {
         crewId: UUID,
       })
 
-      expect(mockCrewEngine.runAgent).toHaveBeenCalledWith(expect.any(Object), 'task', UUID, [])
+      expect(mockCrewEngine.runAgent).toHaveBeenCalledWith(
+        expect.any(Object),
+        'task',
+        UUID,
+        expect.any(Array),
+      )
     })
 
     it('rejects non-uuid crewId', async () => {

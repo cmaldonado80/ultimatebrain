@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Workspaces — list all workspaces from the database.
+ * Workspaces — lifecycle-managed organizational units with bindings and goals.
  */
 
 import { trpc } from '../../../utils/trpc'
@@ -14,9 +14,40 @@ interface Workspace {
   color: string | null
   icon: string | null
   autonomyLevel: number | null
+  lifecycleState: string
   settings: unknown
   createdAt: Date
   updatedAt: Date
+}
+
+interface Binding {
+  id: string
+  bindingType: string
+  bindingKey: string
+  enabled: boolean
+}
+
+interface Goal {
+  id: string
+  title: string
+  status: string
+  priority: number
+  targetMetric: string | null
+  targetValue: number | null
+  currentValue: number | null
+}
+
+const LIFECYCLE_COLORS: Record<string, string> = {
+  draft: '#6b7280',
+  active: '#22c55e',
+  paused: '#eab308',
+  retired: '#ef4444',
+}
+
+const BINDING_ICONS: Record<string, string> = {
+  brain: '🧠',
+  engine: '⚙️',
+  skill: '🔧',
 }
 
 export default function WorkspacesPage() {
@@ -48,7 +79,7 @@ export default function WorkspacesPage() {
       <div style={styles.header}>
         <h2 style={styles.title}>Workspaces</h2>
         <p style={styles.subtitle}>
-          Multi-tenant workspace isolation with resource scoping and access control boundaries.
+          Lifecycle-managed organizational units with bindings, goals, and execution boundaries.
         </p>
       </div>
 
@@ -79,17 +110,76 @@ export default function WorkspacesPage() {
       ) : (
         <div style={styles.grid}>
           {workspaces.map((ws) => (
-            <div key={ws.id} style={styles.card}>
-              <div style={styles.cardTop}>
-                <span style={styles.cardIcon}>{ws.icon || '📁'}</span>
-                <span style={styles.cardName}>{ws.name}</span>
-                {ws.type && <span style={styles.typeBadge}>{ws.type}</span>}
-              </div>
-              {ws.goal && <div style={styles.cardGoal}>{ws.goal}</div>}
-              <div style={styles.cardMeta}>
-                <span>Autonomy: {ws.autonomyLevel ?? 1}/5</span>
-                <span>ID: {ws.id.slice(0, 8)}</span>
-              </div>
+            <WorkspaceCard key={ws.id} workspace={ws} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
+  const bindingsQuery = trpc.workspaces.listBindings.useQuery({ workspaceId: ws.id })
+  const goalsQuery = trpc.workspaces.listGoals.useQuery({ workspaceId: ws.id })
+
+  const bindings: Binding[] = (bindingsQuery.data as Binding[]) ?? []
+  const goals: Goal[] = (goalsQuery.data as Goal[]) ?? []
+  const lifecycleColor = LIFECYCLE_COLORS[ws.lifecycleState] || '#6b7280'
+
+  return (
+    <div style={styles.card}>
+      <div style={styles.cardTop}>
+        <span style={styles.cardIcon}>{ws.icon || '📁'}</span>
+        <span style={styles.cardName}>{ws.name}</span>
+        <span
+          style={{
+            ...styles.lifecycleBadge,
+            color: lifecycleColor,
+            borderColor: lifecycleColor,
+          }}
+        >
+          {ws.lifecycleState}
+        </span>
+      </div>
+
+      {ws.goal && <div style={styles.cardGoal}>{ws.goal}</div>}
+
+      <div style={styles.cardMeta}>
+        {ws.type && <span>{ws.type}</span>}
+        <span>Autonomy: {ws.autonomyLevel ?? 1}/5</span>
+      </div>
+
+      {bindings.length > 0 && (
+        <div style={styles.bindingsSection}>
+          <div style={styles.sectionLabel}>Bindings</div>
+          <div style={styles.bindingList}>
+            {bindings.map((b) => (
+              <span
+                key={b.id}
+                style={{
+                  ...styles.bindingTag,
+                  opacity: b.enabled ? 1 : 0.5,
+                }}
+              >
+                {BINDING_ICONS[b.bindingType] || '📦'} {b.bindingKey}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {goals.length > 0 && (
+        <div style={styles.goalsSection}>
+          <div style={styles.sectionLabel}>Goals</div>
+          {goals.slice(0, 3).map((g) => (
+            <div key={g.id} style={styles.goalRow}>
+              <span style={styles.goalTitle}>{g.title}</span>
+              {g.targetMetric && g.targetValue != null && (
+                <span style={styles.goalMetric}>
+                  {g.currentValue != null ? `${g.currentValue}/${g.targetValue}` : g.targetValue}{' '}
+                  {g.targetMetric}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -104,18 +194,50 @@ const styles = {
   title: { margin: 0, fontSize: 22, fontWeight: 700 },
   subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
   empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+    gap: 12,
+  },
   card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
   cardTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
   cardIcon: { fontSize: 20 },
   cardName: { fontSize: 15, fontWeight: 700, flex: 1 },
-  typeBadge: {
+  lifecycleBadge: {
     fontSize: 10,
-    background: '#1e3a5f',
-    color: '#93c5fd',
+    fontWeight: 600,
+    padding: '2px 8px',
+    borderRadius: 4,
+    border: '1px solid',
+    textTransform: 'uppercase' as const,
+  },
+  cardGoal: { fontSize: 12, color: '#9ca3af', marginBottom: 8, lineHeight: 1.4 },
+  cardMeta: { display: 'flex', gap: 16, fontSize: 11, color: '#6b7280', marginBottom: 8 },
+  bindingsSection: { marginTop: 8, paddingTop: 8, borderTop: '1px solid #374151' },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#6b7280',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  bindingList: { display: 'flex', flexWrap: 'wrap' as const, gap: 4 },
+  bindingTag: {
+    fontSize: 11,
+    background: '#1e1b4b',
+    color: '#818cf8',
     padding: '2px 8px',
     borderRadius: 4,
   },
-  cardGoal: { fontSize: 12, color: '#9ca3af', marginBottom: 8, lineHeight: 1.4 },
-  cardMeta: { display: 'flex', gap: 16, fontSize: 11, color: '#6b7280' },
+  goalsSection: { marginTop: 8, paddingTop: 8, borderTop: '1px solid #374151' },
+  goalRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  goalTitle: { color: '#d1d5db' },
+  goalMetric: { color: '#6b7280', fontSize: 11, fontFamily: 'monospace' },
 }

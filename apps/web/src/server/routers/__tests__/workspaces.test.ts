@@ -29,11 +29,15 @@ function createMockDb() {
 // ---------------------------------------------------------------------------
 
 vi.mock('@solarc/db', () => ({
-  workspaces: { id: 'id' },
+  workspaces: { id: 'id', lifecycleState: 'lifecycle_state' },
+  workspaceBindings: { id: 'id', workspaceId: 'workspace_id', enabled: 'enabled' },
+  workspaceGoals: { id: 'id', workspaceId: 'workspace_id' },
+  workspaceLifecycleEvents: { id: 'id', workspaceId: 'workspace_id' },
 }))
 
 vi.mock('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val }),
+  and: (...conditions: unknown[]) => conditions,
 }))
 
 const { workspacesRouter } = await import('../workspaces')

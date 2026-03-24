@@ -22,6 +22,14 @@ import { healingRouter } from './healing'
 import { integrationsRouter } from './integrations'
 import { mcpRouter } from './mcp'
 import { skillsRouter } from './skills'
+import { instinctsRouter } from './instincts'
+import { aitmplRouter } from './aitmpl'
+import { engineRegistryRouter } from './engine-registry'
+import { browserAgentRouter } from './browser-agent'
+import { visualQaRouter } from './visual-qa'
+import { presenceRouter } from './presence'
+import { adaptiveRouter } from './adaptive'
+import { miniBrainFactoryRouter } from './mini-brain-factory'
 
 export const appRouter = router({
   workspaces: workspacesRouter,
@@ -47,6 +55,14 @@ export const appRouter = router({
   playbooks: playbooksRouter,
   mcp: mcpRouter,
   skills: skillsRouter,
+  instincts: instinctsRouter,
+  aitmpl: aitmplRouter,
+  engineRegistry: engineRegistryRouter,
+  browserAgent: browserAgentRouter,
+  visualQa: visualQaRouter,
+  presence: presenceRouter,
+  adaptive: adaptiveRouter,
+  factory: miniBrainFactoryRouter,
 })
 
 export type AppRouter = typeof appRouter

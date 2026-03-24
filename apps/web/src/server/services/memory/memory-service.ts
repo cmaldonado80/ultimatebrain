@@ -56,14 +56,17 @@ export class MemoryService {
    * Store a memory and optionally embed it for vector search.
    */
   async store(input: StoreMemoryInput): Promise<typeof memories.$inferSelect> {
-    const [mem] = await this.db.insert(memories).values({
-      key: input.key,
-      content: input.content,
-      tier: input.tier ?? 'recall',
-      workspaceId: input.workspaceId,
-      source: input.sourceAgentId,
-      confidence: input.confidence,
-    }).returning()
+    const [mem] = await this.db
+      .insert(memories)
+      .values({
+        key: input.key,
+        content: input.content,
+        tier: input.tier ?? 'recall',
+        workspaceId: input.workspaceId,
+        source: input.sourceAgentId,
+        confidence: input.confidence,
+      })
+      .returning()
 
     // Auto-embed if embedding function available
     if (this.embedFn) {
@@ -119,7 +122,7 @@ export class MemoryService {
       .orderBy(sql`${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
       .limit(limit)
 
-    return results.map((r) => ({
+    const mapped = results.map((r) => ({
       id: r.id,
       key: r.key,
       content: r.content,
@@ -127,6 +130,13 @@ export class MemoryService {
       score: r.score,
       createdAt: r.createdAt,
     }))
+
+    // Track access for returned results (fire-and-forget)
+    if (mapped.length > 0) {
+      this.trackAccess(mapped.map((m) => m.id)).catch(() => {})
+    }
+
+    return mapped
   }
 
   /**
@@ -195,9 +205,12 @@ export class MemoryService {
    * Update a memory's confidence score.
    */
   async updateConfidence(id: string, confidence: number): Promise<void> {
-    await this.db.update(memories).set({
-      confidence: Math.max(0, Math.min(1, confidence)),
-    }).where(eq(memories.id, id))
+    await this.db
+      .update(memories)
+      .set({
+        confidence: Math.max(0, Math.min(1, confidence)),
+      })
+      .where(eq(memories.id, id))
   }
 
   /**
@@ -208,6 +221,66 @@ export class MemoryService {
       await tx.delete(memoryVectors).where(eq(memoryVectors.memoryId, id))
       await tx.delete(memories).where(eq(memories.id, id))
     })
+  }
+
+  /**
+   * Track access for memories returned by search.
+   * Increments access_count and updates last_accessed_at.
+   */
+  async trackAccess(memoryIds: string[]): Promise<void> {
+    for (const id of memoryIds) {
+      await this.db
+        .update(memories)
+        .set({
+          accessCount: sql`${memories.accessCount} + 1`,
+          lastAccessedAt: new Date(),
+        })
+        .where(eq(memories.id, id))
+    }
+  }
+
+  /**
+   * Temporal decay: reduce confidence for memories not accessed recently.
+   * - 5% decay for memories not accessed in 30 days
+   * - 15% decay for memories not accessed in 90 days
+   * Call this periodically (e.g., from a cron job or healing autoHeal).
+   */
+  async decayConfidence(): Promise<{ decayed: number }> {
+    const now = new Date()
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+
+    // Heavy decay: not accessed in 90 days, lose 15%
+    const heavy = await this.db
+      .update(memories)
+      .set({
+        confidence: sql`GREATEST(0.05, COALESCE(${memories.confidence}, 0.5) * 0.85)`,
+      })
+      .where(
+        and(
+          sql`(${memories.lastAccessedAt} IS NULL OR ${memories.lastAccessedAt} < ${ninetyDaysAgo.toISOString()})`,
+          sql`COALESCE(${memories.confidence}, 0.5) > 0.05`,
+        ),
+      )
+      .returning()
+
+    // Light decay: not accessed in 30 days (but within 90), lose 5%
+    const light = await this.db
+      .update(memories)
+      .set({
+        confidence: sql`GREATEST(0.05, COALESCE(${memories.confidence}, 0.5) * 0.95)`,
+      })
+      .where(
+        and(
+          sql`${memories.lastAccessedAt} IS NOT NULL`,
+          sql`${memories.lastAccessedAt} < ${thirtyDaysAgo.toISOString()}`,
+          sql`${memories.lastAccessedAt} >= ${ninetyDaysAgo.toISOString()}`,
+          sql`COALESCE(${memories.confidence}, 0.5) > 0.05`,
+        ),
+      )
+      .returning()
+
+    return { decayed: heavy.length + light.length }
   }
 
   /**
@@ -233,7 +306,9 @@ export class MemoryService {
 
     for (const candidate of pending) {
       if (!candidate.memoryId) {
-        await this.db.update(cognitiveCandidates).set({ status: 'rejected' })
+        await this.db
+          .update(cognitiveCandidates)
+          .set({ status: 'rejected' })
           .where(eq(cognitiveCandidates.id, candidate.id))
         rejected++
         continue
@@ -241,7 +316,9 @@ export class MemoryService {
 
       const mem = await this.get(candidate.memoryId)
       if (!mem) {
-        await this.db.update(cognitiveCandidates).set({ status: 'rejected' })
+        await this.db
+          .update(cognitiveCandidates)
+          .set({ status: 'rejected' })
           .where(eq(cognitiveCandidates.id, candidate.id))
         rejected++
         continue
@@ -251,7 +328,9 @@ export class MemoryService {
       const nextTier = getNextTier(currentTier)
       if (!nextTier) {
         // Already at highest tier
-        await this.db.update(cognitiveCandidates).set({ status: 'rejected' })
+        await this.db
+          .update(cognitiveCandidates)
+          .set({ status: 'rejected' })
           .where(eq(cognitiveCandidates.id, candidate.id))
         rejected++
         continue
@@ -260,11 +339,15 @@ export class MemoryService {
       const threshold = PROMOTION_THRESHOLDS[nextTier]
       if ((mem.confidence ?? 0) >= threshold.minConfidence) {
         await this.updateTier(mem.id, nextTier)
-        await this.db.update(cognitiveCandidates).set({ status: 'promoted' })
+        await this.db
+          .update(cognitiveCandidates)
+          .set({ status: 'promoted' })
           .where(eq(cognitiveCandidates.id, candidate.id))
         promoted++
       } else {
-        await this.db.update(cognitiveCandidates).set({ status: 'rejected' })
+        await this.db
+          .update(cognitiveCandidates)
+          .set({ status: 'rejected' })
           .where(eq(cognitiveCandidates.id, candidate.id))
         rejected++
       }
@@ -294,8 +377,11 @@ export class MemoryService {
 
 function getNextTier(current: MemoryTier): MemoryTier | null {
   switch (current) {
-    case 'archival': return 'recall'
-    case 'recall': return 'core'
-    case 'core': return null
+    case 'archival':
+      return 'recall'
+    case 'recall':
+      return 'core'
+    case 'core':
+      return null
   }
 }
