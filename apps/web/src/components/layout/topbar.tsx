@@ -39,9 +39,8 @@ function Breadcrumb() {
 // ── Main ────────────────────────────────────────────────────────────────
 
 function UserMenu() {
-  const handleSignOut = () => {
-    // Clear the session cookie and redirect to sign-in
-    document.cookie = 'session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+  const handleSignOut = async () => {
+    await fetch('/api/auth/signout', { method: 'POST' })
     window.location.href = '/auth/signin'
   }
 
