@@ -101,20 +101,17 @@ describe('guardrails router', () => {
   // ── Auth ────────────────────────────────────────────────────────────────
 
   describe('auth', () => {
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects checkInput without a session', async () => {
+    it('rejects checkInput without a session', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.checkInput({ content: 'hello' })).rejects.toThrow()
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects checkOutput without a session', async () => {
+    it('rejects checkOutput without a session', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.checkOutput({ content: 'hello' })).rejects.toThrow()
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects rules query without a session', async () => {
+    it('rejects rules query without a session', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.rules()).rejects.toThrow()
     })

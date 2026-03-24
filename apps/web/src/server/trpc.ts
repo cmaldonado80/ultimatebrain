@@ -16,18 +16,12 @@ const t = initTRPC.context<TRPCContext>().create({
 
 export const router = t.router
 export const publicProcedure = t.procedure
-/**
- * protectedProcedure — enforces authentication when a session provider is wired up.
- * TODO: Once an auth provider (e.g. NextAuth / Clerk) is integrated, remove the
- *       bypass below so unauthenticated requests are properly rejected.
- */
+/** protectedProcedure — enforces authentication via NextAuth session. */
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
-  // Auth not yet wired — allow requests through so the app is usable.
-  // Once auth is added, uncomment the guard below:
-  // if (!ctx.session) {
-  //   throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' })
-  // }
-  return next({ ctx: { ...ctx, session: ctx.session ?? { userId: 'anonymous' } } })
+  if (!ctx.session) {
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' })
+  }
+  return next({ ctx: { ...ctx, session: ctx.session } })
 })
 export const middleware = t.middleware
 

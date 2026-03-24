@@ -1,3 +1,4 @@
+export * from './auth'
 export * from './core'
 export * from './execution'
 export * from './intelligence'

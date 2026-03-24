@@ -124,8 +124,7 @@ describe('memory router', () => {
       await expect(trpc.list({ tier: 'invalid' as any })).rejects.toThrow()
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects unauthenticated calls', async () => {
+    it('rejects unauthenticated calls', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.list()).rejects.toThrow()
     })
@@ -154,8 +153,7 @@ describe('memory router', () => {
       await expect(trpc.store({ key: 'k', content: '' })).rejects.toThrow()
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects unauthenticated calls', async () => {
+    it('rejects unauthenticated calls', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.store({ key: 'k', content: 'c' })).rejects.toThrow()
     })
@@ -229,8 +227,7 @@ describe('memory router', () => {
       expect(result).toEqual(stats)
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects unauthenticated calls', async () => {
+    it('rejects unauthenticated calls', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.processPromotions()).rejects.toThrow()
     })

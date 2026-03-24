@@ -99,20 +99,17 @@ describe('evals router', () => {
   // ── Auth ────────────────────────────────────────────────────────────────
 
   describe('auth', () => {
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects datasets query without a session', async () => {
+    it('rejects datasets query without a session', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.datasets()).rejects.toThrow()
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects createDataset mutation without a session', async () => {
+    it('rejects createDataset mutation without a session', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.createDataset({ name: 'test' })).rejects.toThrow()
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects addCase mutation without a session', async () => {
+    it('rejects addCase mutation without a session', async () => {
       const trpc = caller({ db, session: null })
       const id = '550e8400-e29b-41d4-a716-446655440000'
       await expect(trpc.addCase({ datasetId: id, input: 'q' })).rejects.toThrow()

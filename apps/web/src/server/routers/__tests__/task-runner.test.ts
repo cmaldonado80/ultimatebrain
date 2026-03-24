@@ -144,8 +144,7 @@ describe('task-runner router', () => {
   })
 
   describe('auth', () => {
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects unauthenticated requests', async () => {
+    it('rejects unauthenticated requests', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.detectMode({ ticketId: UUID })).rejects.toThrow()
     })

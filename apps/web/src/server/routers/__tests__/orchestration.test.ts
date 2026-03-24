@@ -117,8 +117,7 @@ describe('orchestration router', () => {
       expect(result).toEqual([])
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects unauthenticated calls', async () => {
+    it('rejects unauthenticated calls', async () => {
       const trpc = caller(unauthCtx())
       await expect(trpc.readyTickets()).rejects.toThrow()
     })
@@ -148,8 +147,7 @@ describe('orchestration router', () => {
       ).rejects.toThrow()
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects unauthenticated calls', async () => {
+    it('rejects unauthenticated calls', async () => {
       const trpc = caller(unauthCtx())
       await expect(trpc.acquireLock({ ticketId: UUID1, agentId: UUID2 })).rejects.toThrow()
     })
@@ -267,8 +265,7 @@ describe('orchestration router', () => {
       expect(result).toEqual(receipt)
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects unauthenticated calls', async () => {
+    it('rejects unauthenticated calls', async () => {
       const trpc = caller(unauthCtx())
       await expect(trpc.startReceipt({})).rejects.toThrow()
     })

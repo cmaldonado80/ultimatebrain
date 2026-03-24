@@ -93,8 +93,7 @@ describe('a2a router', () => {
       expect(result).toEqual({ id: 'card-1', ...card })
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects without a session (UNAUTHORIZED)', async () => {
+    it('rejects without a session (UNAUTHORIZED)', async () => {
       const trpc = caller({ db, session: null })
       await expect(
         trpc.registerCard({ agentId: '550e8400-e29b-41d4-a716-446655440000' }),

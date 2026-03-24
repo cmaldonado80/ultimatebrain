@@ -1,9 +1,10 @@
 'use client'
 
 /**
- * Topbar — 64px bar with breadcrumb, health badge, and presence avatars
+ * Topbar — 64px bar with breadcrumb, health badge, presence avatars, and user menu
  */
 
+import { useSession, signOut } from 'next-auth/react'
 import PresenceAvatars from './presence-avatars'
 
 // ── Health Badge ────────────────────────────────────────────────────────
@@ -38,6 +39,20 @@ function Breadcrumb() {
 
 // ── Main ────────────────────────────────────────────────────────────────
 
+function UserMenu() {
+  const { data: session } = useSession()
+  if (!session?.user) return null
+
+  return (
+    <div style={styles.userMenu}>
+      <span style={styles.userName}>{session.user.name ?? session.user.email}</span>
+      <button onClick={() => signOut({ callbackUrl: '/auth/signin' })} style={styles.signOutBtn}>
+        Sign out
+      </button>
+    </div>
+  )
+}
+
 export default function Topbar() {
   return (
     <header style={styles.topbar}>
@@ -46,6 +61,8 @@ export default function Topbar() {
         <HealthBadge />
         <div style={styles.divider} />
         <PresenceAvatars maxVisible={4} />
+        <div style={styles.divider} />
+        <UserMenu />
       </div>
     </header>
   )
@@ -83,4 +100,22 @@ const styles = {
   healthLabel: { fontSize: 12, fontWeight: 600 },
   healthScore: { fontSize: 11, color: '#6b7280', fontFamily: 'monospace' },
   divider: { width: 1, height: 24, background: '#1f2937' },
+  userMenu: { display: 'flex', alignItems: 'center', gap: 8 },
+  userName: {
+    fontSize: 12,
+    color: '#9ca3af',
+    maxWidth: 120,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' as const,
+  },
+  signOutBtn: {
+    fontSize: 11,
+    color: '#6b7280',
+    background: 'none',
+    border: '1px solid #374151',
+    borderRadius: 4,
+    padding: '2px 8px',
+    cursor: 'pointer',
+  },
 }

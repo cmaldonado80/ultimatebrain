@@ -110,8 +110,7 @@ describe('entities router', () => {
       expect(result.developments).toEqual([{ id: '3', tier: 'development' }])
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects without a session (UNAUTHORIZED)', async () => {
+    it('rejects without a session (UNAUTHORIZED)', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.topology()).rejects.toThrow()
     })

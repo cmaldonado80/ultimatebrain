@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createDb, type Database } from '@solarc/db'
+import { auth } from '../../../../server/auth'
 
 /** Singleton DB pool — survives across Vercel hot reloads / Lambda reuse */
 let _db: Database | undefined
@@ -17,13 +18,15 @@ async function handler(req: Request) {
   const { fetchRequestHandler } = await import('@trpc/server/adapters/fetch')
   const { appRouter } = await import('../../../../server/routers/_app')
 
+  const session = await auth()
+
   return fetchRequestHandler({
     endpoint: '/api/trpc',
     req,
     router: appRouter,
     createContext: () => ({
       db: getDb(),
-      session: null,
+      session: session?.user?.id ? { userId: session.user.id } : null,
     }),
   })
 }

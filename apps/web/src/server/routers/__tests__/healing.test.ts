@@ -74,8 +74,7 @@ describe('healing router', () => {
       expect(result).toEqual(report)
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects without a session (UNAUTHORIZED)', async () => {
+    it('rejects without a session (UNAUTHORIZED)', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.diagnose()).rejects.toThrow()
     })

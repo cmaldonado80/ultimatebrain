@@ -184,8 +184,7 @@ describe('gateway router', () => {
       expect(result).toEqual(response)
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects unauthenticated calls', async () => {
+    it('rejects unauthenticated calls', async () => {
       const trpc = caller(unauthCtx(db))
       await expect(trpc.chat({ messages: [{ role: 'user', content: 'Hi' }] })).rejects.toThrow()
     })
@@ -203,8 +202,7 @@ describe('gateway router', () => {
       expect(result).toEqual(metrics)
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects unauthenticated calls', async () => {
+    it('rejects unauthenticated calls', async () => {
       const trpc = caller(unauthCtx(db))
       await expect(trpc.metrics()).rejects.toThrow()
     })
@@ -222,8 +220,7 @@ describe('gateway router', () => {
       expect(result).toEqual(recorded)
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects unauthenticated calls', async () => {
+    it('rejects unauthenticated calls', async () => {
       const trpc = caller(unauthCtx(db))
       await expect(trpc.record({ provider: 'openai', model: 'gpt-4' })).rejects.toThrow()
     })

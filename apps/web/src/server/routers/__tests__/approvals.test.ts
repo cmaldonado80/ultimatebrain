@@ -72,8 +72,7 @@ describe('approvals router', () => {
       expect(result).toEqual(gates)
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects without a session (UNAUTHORIZED)', async () => {
+    it('rejects without a session (UNAUTHORIZED)', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.pending()).rejects.toThrow()
     })
