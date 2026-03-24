@@ -13,13 +13,13 @@
   },
   "dependencies": {
     "@solarc/db": "workspace:*",
-    "@solarc/types": "workspace:*",
     "@solarc/engine-contracts": "workspace:*",
-    "drizzle-orm": "^0.38.0",
+    "@solarc/types": "workspace:*",
     "@tanstack/react-query": "^5.62.0",
     "@trpc/client": "^11.0.0",
     "@trpc/react-query": "^11.0.0",
     "@trpc/server": "^11.0.0",
+    "drizzle-orm": "^0.38.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -27,8 +27,10 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.7.0"
   }
 }

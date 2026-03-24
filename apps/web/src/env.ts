@@ -9,12 +9,16 @@ import { z } from 'zod'
  */
 const envSchema = z.object({
   // ── Database ────────────────────────────────────────────────
-  DATABASE_URL: z.string().url('DATABASE_URL must be a valid connection URL'),
+  DATABASE_URL: z
+    .string()
+    .min(1, 'DATABASE_URL is required')
+    .refine(
+      (s) => s.startsWith('postgres://') || s.startsWith('postgresql://'),
+      'DATABASE_URL must be a postgres:// or postgresql:// connection string',
+    ),
 
   // ── Node ────────────────────────────────────────────────────
-  NODE_ENV: z
-    .enum(['development', 'test', 'production'])
-    .default('development'),
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
   // ── Key Vault (required when encrypting/decrypting API keys) ─
   VAULT_SECRET: z.string().min(16, 'VAULT_SECRET must be at least 16 characters').optional(),
@@ -59,4 +63,13 @@ function validateEnv(): Env {
   return result.data
 }
 
-export const env = validateEnv()
+/** Lazy singleton — only validates on first access, not at import time.
+ *  This prevents crashes during Next.js static page generation where
+ *  server env vars may not be available. */
+let _env: Env | undefined
+export const env: Env = new Proxy({} as Env, {
+  get(_target, prop: string) {
+    if (!_env) _env = validateEnv()
+    return _env[prop as keyof Env]
+  },
+})
