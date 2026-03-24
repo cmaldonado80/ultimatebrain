@@ -24,7 +24,8 @@ function deriveKey(secret: string, salt: Buffer): Buffer {
 
 function getVaultSecret(): string {
   const secret = env.VAULT_SECRET
-  if (!secret) throw new Error('VAULT_SECRET environment variable is required for key vault operations')
+  if (!secret)
+    throw new Error('VAULT_SECRET environment variable is required for key vault operations')
   return secret
 }
 
@@ -112,9 +113,15 @@ export class KeyVault {
 
   /** List all providers that have stored keys (no decryption) */
   async listProviders(): Promise<Array<{ provider: string; createdAt: Date }>> {
-    return this.db
-      .select({ provider: apiKeys.provider, createdAt: apiKeys.createdAt })
-      .from(apiKeys)
+    try {
+      return await this.db
+        .select({ provider: apiKeys.provider, createdAt: apiKeys.createdAt })
+        .from(apiKeys)
+    } catch (err: unknown) {
+      // Table may not exist yet if migrations haven't run
+      if (err instanceof Error && err.message.includes('does not exist')) return []
+      throw err
+    }
   }
 
   /** Clear the in-memory cache (for testing/security) */

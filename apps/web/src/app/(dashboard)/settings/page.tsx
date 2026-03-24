@@ -56,7 +56,7 @@ export default function SettingsPage() {
   const cognition = cognitionQuery.data as
     | { features?: Record<string, boolean>; policies?: Record<string, unknown>; updatedAt?: Date }
     | undefined
-  const providers = providersQuery.data as string[] | undefined
+  const providers = providersQuery.data as Array<{ provider: string; createdAt: Date }> | undefined
 
   return (
     <div style={styles.page}>
@@ -181,7 +181,9 @@ export default function SettingsPage() {
                 </button>
                 {storeKeyMut.error && (
                   <span style={{ color: '#fca5a5', fontSize: 11 }}>
-                    {storeKeyMut.error.message}
+                    {storeKeyMut.error.message.includes('does not exist')
+                      ? 'Database tables not provisioned — run migrations first.'
+                      : storeKeyMut.error.message}
                   </span>
                 )}
               </div>
@@ -192,7 +194,7 @@ export default function SettingsPage() {
         {providers && providers.length > 0 ? (
           <div style={styles.providerList}>
             {providers.map((p) => (
-              <div key={p} style={styles.providerRow}>
+              <div key={p.provider} style={styles.providerRow}>
                 <span
                   style={{
                     width: 8,
@@ -202,7 +204,7 @@ export default function SettingsPage() {
                     flexShrink: 0,
                   }}
                 />
-                <span style={styles.providerName}>{p}</span>
+                <span style={styles.providerName}>{p.provider}</span>
               </div>
             ))}
           </div>
