@@ -70,6 +70,27 @@ export const workspacesRouter = router({
       return ws
     }),
 
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1).optional(),
+        goal: z.string().optional(),
+        autonomyLevel: z.number().min(1).max(5).optional(),
+        settings: z.record(z.unknown()).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...fields } = input
+      const [updated] = await ctx.db
+        .update(workspaces)
+        .set({ ...fields, updatedAt: new Date() })
+        .where(eq(workspaces.id, id))
+        .returning()
+      if (!updated) throw new TRPCError({ code: 'NOT_FOUND', message: 'Workspace not found' })
+      return updated
+    }),
+
   // ── Lifecycle ────────────────────────────────────────────────────
 
   activate: protectedProcedure

@@ -28,6 +28,9 @@ export default function SettingsPage() {
   const removeOllamaModelMut = trpc.gateway.removeOllamaModel.useMutation({
     onSuccess: () => utils.gateway.ollamaModels.invalidate(),
   })
+  const deleteKeyMut = trpc.gateway.deleteKey.useMutation({
+    onSuccess: () => utils.gateway.listProviders.invalidate(),
+  })
   const storeKeyMut = trpc.gateway.storeKey.useMutation({
     onSuccess: () => {
       utils.gateway.listProviders.invalidate()
@@ -230,22 +233,41 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {providers && providers.length > 0 ? (
+        {providers && providers.filter((p) => p.provider !== 'ollama_url').length > 0 ? (
           <div style={styles.providerList}>
-            {providers.map((p) => (
-              <div key={p.provider} style={styles.providerRow}>
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: '#22c55e',
-                    flexShrink: 0,
-                  }}
-                />
-                <span style={styles.providerName}>{p.provider}</span>
-              </div>
-            ))}
+            {providers
+              .filter((p) => p.provider !== 'ollama_url')
+              .map((p) => (
+                <div key={p.provider} style={styles.providerRow}>
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: '#22c55e',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ ...styles.providerName, flex: 1 }}>{p.provider}</span>
+                  <span style={{ fontSize: 10, color: '#4b5563' }}>
+                    {new Date(p.createdAt).toLocaleDateString()}
+                  </span>
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#6b7280',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      padding: '0 4px',
+                    }}
+                    onClick={() => deleteKeyMut.mutate({ provider: p.provider })}
+                    title="Remove key"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
           </div>
         ) : (
           <div style={styles.empty}>

@@ -181,6 +181,15 @@ export const gatewayRouter = router({
     return gw.keyVault.listProviders()
   }),
 
+  /** Delete an API key */
+  deleteKey: protectedProcedure
+    .input(z.object({ provider: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const gw = getGateway(ctx.db)
+      await gw.keyVault.deleteKey(input.provider)
+      return { success: true }
+    }),
+
   /** Reset circuit breaker for a provider */
   resetCircuit: protectedProcedure
     .input(z.object({ provider: z.string() }))

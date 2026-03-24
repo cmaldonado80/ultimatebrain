@@ -16,7 +16,7 @@ const t = initTRPC.context<TRPCContext>().create({
 
 export const router = t.router
 export const publicProcedure = t.procedure
-/** protectedProcedure — enforces authentication via NextAuth session. */
+/** protectedProcedure — enforces authentication via JWT session. */
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!ctx.session) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' })

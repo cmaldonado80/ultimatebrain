@@ -47,6 +47,26 @@ export const ticketsRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create ticket' })
       return ticket
     }),
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional(),
+        priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+        complexity: z.enum(['easy', 'medium', 'hard', 'critical']).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...fields } = input
+      const [updated] = await ctx.db
+        .update(tickets)
+        .set({ ...fields, updatedAt: new Date() })
+        .where(eq(tickets.id, id))
+        .returning()
+      if (!updated) throw new TRPCError({ code: 'NOT_FOUND', message: 'Ticket not found' })
+      return updated
+    }),
   updateStatus: protectedProcedure
     .input(
       z.object({

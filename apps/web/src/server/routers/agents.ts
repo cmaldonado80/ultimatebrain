@@ -62,6 +62,31 @@ export const agentsRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create agent' })
       return agent
     }),
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1).optional(),
+        type: z.string().optional(),
+        model: z.string().optional(),
+        description: z.string().optional(),
+        skills: z.array(z.string()).optional(),
+        tags: z.array(z.string()).optional(),
+        status: z
+          .enum(['idle', 'planning', 'executing', 'reviewing', 'error', 'offline'])
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...fields } = input
+      const [updated] = await ctx.db
+        .update(agents)
+        .set({ ...fields, updatedAt: new Date() })
+        .where(eq(agents.id, id))
+        .returning()
+      if (!updated) throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' })
+      return updated
+    }),
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
