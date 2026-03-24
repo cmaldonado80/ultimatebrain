@@ -5,11 +5,13 @@ import * as schema from './schema/index'
 export * from './schema/index'
 
 export function createDb(connectionString: string) {
+  const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME
   const pool = new pg.Pool({
     connectionString,
-    max: 20,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 2_000,
+    // Serverless: keep pool tiny to avoid exhausting DB connections
+    max: isServerless ? 3 : 20,
+    idleTimeoutMillis: isServerless ? 10_000 : 30_000,
+    connectionTimeoutMillis: 5_000,
   })
   return drizzle(pool, { schema })
 }

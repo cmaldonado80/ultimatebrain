@@ -13,10 +13,19 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createDb, agents, tickets } from '@solarc/db'
-
-const db = createDb(process.env.DATABASE_URL!)
+import { createDb, agents, tickets, type Database } from '@solarc/db'
 import { eq } from 'drizzle-orm'
+
+/** Lazy singleton DB pool — avoids cold-start crash if DATABASE_URL not yet set */
+let _db: Database | undefined
+function getDb(): Database {
+  if (!_db) {
+    const url = process.env.DATABASE_URL
+    if (!url) throw new Error('DATABASE_URL is not set')
+    _db = createDb(url)
+  }
+  return _db
+}
 
 interface A2ARequest {
   task: string
@@ -33,7 +42,11 @@ const MAX_REQUESTS_PER_AGENT = 100
 const ipRequestCounts = new Map<string, { count: number; resetAt: number }>()
 const agentRequestCounts = new Map<string, { count: number; resetAt: number }>()
 
-function checkRateLimit(key: string, store: Map<string, { count: number; resetAt: number }>, max: number): boolean {
+function checkRateLimit(
+  key: string,
+  store: Map<string, { count: number; resetAt: number }>,
+  max: number,
+): boolean {
   const now = Date.now()
   const entry = store.get(key)
   if (!entry || now > entry.resetAt) {
@@ -68,7 +81,9 @@ function isPrivateUrl(url: string): boolean {
 }
 
 // ── CORS ──────────────────────────────────────────────────────────────────
-const A2A_ALLOWED_ORIGINS = process.env.A2A_ALLOWED_ORIGINS?.split(',').map(s => s.trim()) ?? ['*']
+const A2A_ALLOWED_ORIGINS = process.env.A2A_ALLOWED_ORIGINS?.split(',').map((s) => s.trim()) ?? [
+  '*',
+]
 
 function corsHeaders(): Record<string, string> {
   return {
@@ -99,27 +114,25 @@ const taskStore = new Map<
   }
 >()
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = await params
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
   if (!checkRateLimit(ip, ipRequestCounts, MAX_REQUESTS_PER_IP)) {
     return NextResponse.json(
       { error: 'Rate limit exceeded' },
-      { status: 429, headers: { 'Retry-After': '60', ...corsHeaders() } }
+      { status: 429, headers: { 'Retry-After': '60', ...corsHeaders() } },
     )
   }
   if (!checkRateLimit(agentId, agentRequestCounts, MAX_REQUESTS_PER_AGENT)) {
     return NextResponse.json(
       { error: 'Agent rate limit exceeded' },
-      { status: 429, headers: { 'Retry-After': '60', ...corsHeaders() } }
+      { status: 429, headers: { 'Retry-After': '60', ...corsHeaders() } },
     )
   }
 
   // Verify agent exists
+  const db = getDb()
   const agent = await db.query.agents.findFirst({
     where: eq(agents.id, agentId),
   })
@@ -131,7 +144,10 @@ export async function POST(
   // Enforce request body size limit (64KB)
   const contentLength = req.headers.get('content-length')
   if (contentLength && parseInt(contentLength, 10) > 65_536) {
-    return NextResponse.json({ error: 'Request body too large (max 64KB)' }, { status: 413, headers: corsHeaders() })
+    return NextResponse.json(
+      { error: 'Request body too large (max 64KB)' },
+      { status: 413, headers: corsHeaders() },
+    )
   }
 
   // Parse request body
@@ -139,7 +155,10 @@ export async function POST(
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers: corsHeaders() })
+    return NextResponse.json(
+      { error: 'Invalid JSON body' },
+      { status: 400, headers: corsHeaders() },
+    )
   }
 
   if (!body.task || typeof body.task !== 'string') {
@@ -147,20 +166,32 @@ export async function POST(
   }
 
   if (body.task.length > 10000) {
-    return NextResponse.json({ error: 'task exceeds maximum length of 10000 characters' }, { status: 400, headers: corsHeaders() })
+    return NextResponse.json(
+      { error: 'task exceeds maximum length of 10000 characters' },
+      { status: 400, headers: corsHeaders() },
+    )
   }
 
   if (body.callback_url) {
     try {
       const cbUrl = new URL(body.callback_url)
       if (!['http:', 'https:'].includes(cbUrl.protocol)) {
-        return NextResponse.json({ error: 'callback_url must use http or https' }, { status: 400, headers: corsHeaders() })
+        return NextResponse.json(
+          { error: 'callback_url must use http or https' },
+          { status: 400, headers: corsHeaders() },
+        )
       }
       if (isPrivateUrl(body.callback_url)) {
-        return NextResponse.json({ error: 'callback_url must not target private networks' }, { status: 400, headers: corsHeaders() })
+        return NextResponse.json(
+          { error: 'callback_url must not target private networks' },
+          { status: 400, headers: corsHeaders() },
+        )
       }
     } catch {
-      return NextResponse.json({ error: 'callback_url is not a valid URL' }, { status: 400, headers: corsHeaders() })
+      return NextResponse.json(
+        { error: 'callback_url is not a valid URL' },
+        { status: 400, headers: corsHeaders() },
+      )
     }
   }
 
@@ -177,21 +208,24 @@ export async function POST(
   })
 
   // Create internal ticket assigned to the agent
-  const [insertedTicket] = await db.insert(tickets).values({
-    title: `[A2A] ${body.task.slice(0, 200)}`,
-    description: body.task,
-    status: 'queued',
-    priority: 'medium',
-    complexity: 'medium',
-    assignedAgentId: agentId,
-    ...(agent.workspaceId ? { workspaceId: agent.workspaceId } : {}),
-    metadata: {
-      a2a: true,
-      taskId,
-      context: body.context ?? {},
-      callback_url: body.callback_url ?? null,
-    },
-  }).returning()
+  const [insertedTicket] = await db
+    .insert(tickets)
+    .values({
+      title: `[A2A] ${body.task.slice(0, 200)}`,
+      description: body.task,
+      status: 'queued',
+      priority: 'medium',
+      complexity: 'medium',
+      assignedAgentId: agentId,
+      ...(agent.workspaceId ? { workspaceId: agent.workspaceId } : {}),
+      metadata: {
+        a2a: true,
+        taskId,
+        context: body.context ?? {},
+        callback_url: body.callback_url ?? null,
+      },
+    })
+    .returning()
 
   // If streaming requested, return SSE
   if (body.stream || req.headers.get('accept')?.includes('text/event-stream')) {
@@ -210,14 +244,11 @@ export async function POST(
       agent: agent.name,
       poll_url: `/api/a2a/${agentId}/tasks/${taskId}`,
     },
-    { status: 202, headers: corsHeaders() }
+    { status: 202, headers: corsHeaders() },
   )
 }
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
-) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = await params
 
   // List all tasks for this agent
@@ -230,11 +261,7 @@ export async function GET(
 
 // ── SSE Streaming ─────────────────────────────────────────────────────────
 
-function streamTaskProgress(
-  taskId: string,
-  agentId: string,
-  body: A2ARequest
-): Response {
+function streamTaskProgress(taskId: string, agentId: string, body: A2ARequest): Response {
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
@@ -261,7 +288,12 @@ function streamTaskProgress(
         const task = taskStore.get(taskId)
         if (!task || task.status === 'failed') break
 
-        taskStore.set(taskId, { ...task, status: 'running', progress: step.progress, updatedAt: new Date() })
+        taskStore.set(taskId, {
+          ...task,
+          status: 'running',
+          progress: step.progress,
+          updatedAt: new Date(),
+        })
         send('progress', { task_id: taskId, progress: step.progress, message: step.message })
       }
 
@@ -316,7 +348,7 @@ async function executeTaskInBackground(
   taskId: string,
   agentId: string,
   body: A2ARequest,
-  ticketId: string
+  ticketId: string,
 ): Promise<void> {
   const task = taskStore.get(taskId)
   if (!task) return
@@ -326,7 +358,7 @@ async function executeTaskInBackground(
   try {
     // Delegate to ModeRouter for real execution
     const { ModeRouter } = await import('../../../../server/services/task-runner/mode-router')
-    const modeRouter = new ModeRouter(db)
+    const modeRouter = new ModeRouter(getDb())
 
     let executionResult
     try {
@@ -370,7 +402,7 @@ async function executeTaskInBackground(
 async function deliverCallback(
   callbackUrl: string,
   taskId: string,
-  result: unknown
+  result: unknown,
 ): Promise<void> {
   try {
     await fetch(callbackUrl, {

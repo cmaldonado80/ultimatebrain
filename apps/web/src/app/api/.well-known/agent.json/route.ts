@@ -8,14 +8,25 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { createDb, type Database } from '@solarc/db'
 
 export const dynamic = 'force-dynamic'
 
+/** Lazy singleton DB pool — reused across requests */
+let _db: Database | undefined
+function getDb(): Database {
+  if (!_db) {
+    const url = process.env.DATABASE_URL
+    if (!url) throw new Error('DATABASE_URL is not set')
+    _db = createDb(url)
+  }
+  return _db
+}
+
 export async function GET(req: NextRequest) {
-  const { createDb } = await import('@solarc/db')
   const { AgentCardGenerator } = await import('../../../../server/services/a2a/agent-card')
 
-  const db = createDb(process.env.DATABASE_URL!)
+  const db = getDb()
   const host = req.headers.get('host') ?? 'localhost:3000'
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
   const baseUrl = `${protocol}://${host}`
@@ -44,12 +55,12 @@ export async function GET(req: NextRequest) {
           'Cache-Control': 'public, max-age=60',
           'Content-Type': 'application/json',
         },
-      }
+      },
     )
   } catch (err) {
     return NextResponse.json(
       { error: 'Failed to generate agent cards', detail: String(err) },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
