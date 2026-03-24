@@ -170,9 +170,7 @@ function DatasetRow({
       <div style={styles.datasetMeta}>
         {dataset.description && <span style={styles.datasetDesc}>{dataset.description}</span>}
         <span style={styles.caseCount}>{dataset.caseCount} cases</span>
-        <span style={styles.datasetDate}>
-          {new Date(dataset.createdAt).toLocaleDateString()}
-        </span>
+        <span style={styles.datasetDate}>{new Date(dataset.createdAt).toLocaleDateString()}</span>
       </div>
     </div>
   )
@@ -204,7 +202,15 @@ export default function EvalsPage() {
 
   if (isLoading) {
     return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <div
+        style={{
+          ...styles.page,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+        }}
+      >
         <div style={{ textAlign: 'center', color: '#6b7280' }}>
           <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
           <div style={{ fontSize: 13 }}>Fetching eval datasets</div>
@@ -215,9 +221,19 @@ export default function EvalsPage() {
 
   if (datasetsQuery.error) {
     return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <div
+        style={{
+          ...styles.page,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+        }}
+      >
         <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading eval data</div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+            Error loading eval data
+          </div>
           <div style={{ fontSize: 13, color: '#9ca3af' }}>{datasetsQuery.error.message}</div>
         </div>
       </div>
@@ -233,7 +249,8 @@ export default function EvalsPage() {
     createdAt: new Date(d.createdAt),
   }))
 
-  const selectedDataset = datasets.find((d) => d.id === selectedDatasetId) ?? (datasets.length > 0 ? datasets[0] : null)
+  const selectedDataset =
+    datasets.find((d) => d.id === selectedDatasetId) ?? (datasets.length > 0 ? datasets[0] : null)
 
   // Auto-select first dataset if none selected
   useEffect(() => {
@@ -266,7 +283,9 @@ export default function EvalsPage() {
       <div style={styles.header}>
         <div>
           <h1 style={styles.pageTitle}>Eval Dashboard</h1>
-          <p style={styles.pageSubtitle}>Production-to-eval pipeline · automated regression detection</p>
+          <p style={styles.pageSubtitle}>
+            Production-to-eval pipeline · automated regression detection
+          </p>
         </div>
       </div>
 
@@ -320,9 +339,15 @@ export default function EvalsPage() {
                     <div key={dim.key} style={styles.scoreCard}>
                       <div style={styles.scoreCardLabel}>{dim.label}</div>
                       <div style={styles.scoreCardValue}>
-                        {Math.round(((latestRun.scores as Record<string, number>)?.[dim.key] ?? 0) * 100)}%
+                        {Math.round(
+                          ((latestRun.scores as Record<string, number>)?.[dim.key] ?? 0) * 100,
+                        )}
+                        %
                       </div>
-                      <ScoreBar score={(latestRun.scores as Record<string, number>)?.[dim.key] ?? 0} color={dim.color} />
+                      <ScoreBar
+                        score={(latestRun.scores as Record<string, number>)?.[dim.key] ?? 0}
+                        color={dim.color}
+                      />
                     </div>
                   ))}
                 </div>
@@ -344,9 +369,17 @@ export default function EvalsPage() {
               {activeTab === 'trends' && (
                 <div>
                   {runsQuery.isLoading ? (
-                    <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>Loading trends...</div>
+                    <div
+                      style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}
+                    >
+                      Loading trends...
+                    </div>
                   ) : history.length === 0 ? (
-                    <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>No run history available.</div>
+                    <div
+                      style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}
+                    >
+                      No run history available.
+                    </div>
                   ) : (
                     <div style={styles.trendsGrid}>
                       {SCORE_DIMENSIONS.map((dim) => (
@@ -356,7 +389,11 @@ export default function EvalsPage() {
                           {history.length >= 2 && (
                             <div style={styles.trendRange}>
                               <span>{new Date(history[0]?.createdAt).toLocaleDateString()}</span>
-                              <span>{new Date(history[history.length - 1]?.createdAt).toLocaleDateString()}</span>
+                              <span>
+                                {new Date(
+                                  history[history.length - 1]?.createdAt,
+                                ).toLocaleDateString()}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -370,9 +407,17 @@ export default function EvalsPage() {
               {activeTab === 'cases' && (
                 <div>
                   {casesQuery.isLoading ? (
-                    <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>Loading cases...</div>
+                    <div
+                      style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}
+                    >
+                      Loading cases...
+                    </div>
                   ) : evalCases.length === 0 ? (
-                    <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>No cases in this dataset.</div>
+                    <div
+                      style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}
+                    >
+                      No cases in this dataset.
+                    </div>
                   ) : (
                     <>
                       <div style={styles.caseList}>
@@ -387,7 +432,10 @@ export default function EvalsPage() {
                           >
                             <span style={styles.caseId}>{c.id.slice(0, 8)}</span>
                             <span style={styles.casePrompt}>
-                              {String((c.input as Record<string, unknown>).prompt ?? JSON.stringify(c.input).slice(0, 80))}
+                              {String(
+                                (c.input as Record<string, unknown>).prompt ??
+                                  JSON.stringify(c.input).slice(0, 80),
+                              )}
                             </span>
                             {c.traceId && (
                               <span style={styles.traceLink}>trace: {c.traceId.slice(0, 10)}</span>
@@ -425,42 +473,122 @@ export default function EvalsPage() {
 // ── Styles ────────────────────────────────────────────────────────────────
 
 const styles = {
-  page: { background: '#0f172a', minHeight: '100vh', color: '#f9fafb', fontFamily: 'sans-serif', padding: 24 },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  page: {
+    background: '#0f172a',
+    minHeight: '100vh',
+    color: '#f9fafb',
+    fontFamily: 'sans-serif',
+    padding: 24,
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+  },
   pageTitle: { margin: 0, fontSize: 22, fontWeight: 700 },
   pageSubtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
   layout: { display: 'flex', gap: 20 },
   sidebar: { width: 220, flexShrink: 0 },
-  sidebarHeader: { fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 },
-  datasetRow: { padding: '10px 12px', borderRadius: 6, cursor: 'pointer', marginBottom: 4, border: '1px solid transparent' },
+  sidebarHeader: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#6b7280',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  datasetRow: {
+    padding: '10px 12px',
+    borderRadius: 6,
+    cursor: 'pointer',
+    marginBottom: 4,
+    border: '1px solid transparent',
+  },
   datasetRowSelected: { background: '#1e3a5f', border: '1px solid #2563eb' },
   datasetName: { fontSize: 13, fontWeight: 600, marginBottom: 2 },
   datasetMeta: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const },
   datasetDesc: { fontSize: 11, color: '#6b7280' },
-  caseCount: { fontSize: 11, background: '#374151', borderRadius: 10, padding: '1px 6px', color: '#9ca3af' },
+  caseCount: {
+    fontSize: 11,
+    background: '#374151',
+    borderRadius: 10,
+    padding: '1px 6px',
+    color: '#9ca3af',
+  },
   datasetDate: { fontSize: 11, color: '#4b5563' },
   main: { flex: 1 },
   datasetTitle: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 },
   datasetTitleText: { fontSize: 16, fontWeight: 700 },
   datasetTitleMeta: { fontSize: 12, color: '#9ca3af' },
-  tabs: { display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid #1f2937', paddingBottom: 8 },
-  tab: { background: 'transparent', border: 'none', color: '#6b7280', fontSize: 13, padding: '4px 12px', cursor: 'pointer', borderRadius: 4 },
+  tabs: {
+    display: 'flex',
+    gap: 4,
+    marginBottom: 20,
+    borderBottom: '1px solid #1f2937',
+    paddingBottom: 8,
+  },
+  tab: {
+    background: 'transparent',
+    border: 'none',
+    color: '#6b7280',
+    fontSize: 13,
+    padding: '4px 12px',
+    cursor: 'pointer',
+    borderRadius: 4,
+  },
   tabActive: { color: '#93c5fd', background: '#1e3a5f' },
-  overviewGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 },
+  overviewGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+    gap: 12,
+  },
   scoreCard: { background: '#1f2937', borderRadius: 8, padding: 14 },
   scoreCardLabel: { fontSize: 11, color: '#9ca3af', marginBottom: 4 },
   scoreCardValue: { fontSize: 24, fontWeight: 700, marginBottom: 8 },
-  scoreBarWrapper: { height: 6, background: '#374151', borderRadius: 3, position: 'relative' as const, display: 'flex', alignItems: 'center' },
+  scoreBarWrapper: {
+    height: 6,
+    background: '#374151',
+    borderRadius: 3,
+    position: 'relative' as const,
+    display: 'flex',
+    alignItems: 'center',
+  },
   scoreBarFill: { height: '100%', borderRadius: 3, transition: 'width 0.3s' },
-  scoreBarLabel: { position: 'absolute' as const, right: 0, fontSize: 10, color: '#9ca3af', top: 8 },
-  trendsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 },
+  scoreBarLabel: {
+    position: 'absolute' as const,
+    right: 0,
+    fontSize: 10,
+    color: '#9ca3af',
+    top: 8,
+  },
+  trendsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+    gap: 12,
+  },
   trendCard: { background: '#1f2937', borderRadius: 8, padding: 14 },
   trendLabel: { fontSize: 12, fontWeight: 600, marginBottom: 8 },
   trendSvg: { display: 'block' },
-  trendRange: { display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#6b7280', marginTop: 4 },
+  trendRange: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: 10,
+    color: '#6b7280',
+    marginTop: 4,
+  },
   noData: { fontSize: 12, color: '#6b7280' },
   caseList: { display: 'flex', flexDirection: 'column' as const, gap: 4, marginBottom: 16 },
-  caseRow: { background: '#1f2937', borderRadius: 6, padding: '10px 12px', cursor: 'pointer', display: 'flex', gap: 12, alignItems: 'center', border: '1px solid transparent' },
+  caseRow: {
+    background: '#1f2937',
+    borderRadius: 6,
+    padding: '10px 12px',
+    cursor: 'pointer',
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+    border: '1px solid transparent',
+  },
   caseRowSelected: { border: '1px solid #2563eb' },
   caseId: { fontSize: 11, color: '#6b7280', fontFamily: 'monospace', minWidth: 30 },
   casePrompt: { flex: 1, fontSize: 12, color: '#d1d5db' },
@@ -469,7 +597,23 @@ const styles = {
   caseDetailHeader: { fontSize: 13, fontWeight: 600, marginBottom: 12 },
   caseCompare: { display: 'flex', gap: 12, alignItems: 'flex-start' },
   casePanel: { flex: 1 },
-  casePanelHeader: { fontSize: 11, fontWeight: 600, color: '#9ca3af', marginBottom: 6, textTransform: 'uppercase' as const },
-  caseJson: { background: '#111827', borderRadius: 6, padding: 12, fontSize: 11, fontFamily: 'monospace', color: '#d1d5db', overflow: 'auto', maxHeight: 240, margin: 0 },
+  casePanelHeader: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#9ca3af',
+    marginBottom: 6,
+    textTransform: 'uppercase' as const,
+  },
+  caseJson: {
+    background: '#111827',
+    borderRadius: 6,
+    padding: 12,
+    fontSize: 11,
+    fontFamily: 'monospace',
+    color: '#d1d5db',
+    overflow: 'auto',
+    maxHeight: 240,
+    margin: 0,
+  },
   casePanelDivider: { fontSize: 18, color: '#374151', paddingTop: 32 },
 }
