@@ -4,6 +4,7 @@
  * Flows — list saved flow definitions and run crews.
  */
 
+import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
 
 interface Flow {
@@ -26,7 +27,23 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function FlowsPage() {
+  const [showRun, setShowRun] = useState(false)
+  const [crewName, setCrewName] = useState('')
+  const [task, setTask] = useState('')
+  const [runResult, setRunResult] = useState<string | null>(null)
   const { data, isLoading, error } = trpc.flows.list.useQuery()
+  const runCrewMut = trpc.flows.runCrew.useMutation({
+    onSuccess: (data) => {
+      setRunResult(
+        typeof data === 'object' && data !== null && 'result' in data
+          ? String((data as { result: unknown }).result)
+          : 'Crew run completed.',
+      )
+      setShowRun(false)
+      setCrewName('')
+      setTask('')
+    },
+  })
 
   if (isLoading) {
     return (
@@ -52,11 +69,139 @@ export default function FlowsPage() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h2 style={styles.title}>Flows</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={styles.title}>Flows</h2>
+          <button
+            style={{
+              background: '#818cf8',
+              color: '#f9fafb',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            onClick={() => setShowRun(!showRun)}
+          >
+            {showRun ? 'Cancel' : 'Run Crew'}
+          </button>
+        </div>
         <p style={styles.subtitle}>
           Define and monitor multi-step agent workflows, crew runs, and recall chains.
         </p>
       </div>
+
+      {showRun && (
+        <div
+          style={{
+            background: '#1f2937',
+            borderRadius: 8,
+            padding: 16,
+            border: '1px solid #374151',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            <input
+              style={{
+                background: '#111827',
+                color: '#f9fafb',
+                border: '1px solid #374151',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+              }}
+              placeholder="Crew name..."
+              value={crewName}
+              onChange={(e) => setCrewName(e.target.value)}
+            />
+            <textarea
+              style={{
+                background: '#111827',
+                color: '#f9fafb',
+                border: '1px solid #374151',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+                minHeight: 60,
+                resize: 'vertical' as const,
+              }}
+              placeholder="Task to accomplish..."
+              value={task}
+              onChange={(e) => setTask(e.target.value)}
+            />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                style={{
+                  background: '#22c55e',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onClick={() =>
+                  crewName.trim() &&
+                  task.trim() &&
+                  runCrewMut.mutate({
+                    name: crewName.trim(),
+                    task: task.trim(),
+                    agents: [
+                      {
+                        id: 'default',
+                        role: 'executor',
+                        goal: task.trim(),
+                        backstory: 'You are a skilled AI agent.',
+                      },
+                    ],
+                  })
+                }
+                disabled={runCrewMut.isPending || !crewName.trim() || !task.trim()}
+              >
+                {runCrewMut.isPending ? 'Running...' : 'Run'}
+              </button>
+              {runCrewMut.error && (
+                <span style={{ color: '#fca5a5', fontSize: 11 }}>{runCrewMut.error.message}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {runResult && (
+        <div
+          style={{
+            background: '#14532d',
+            border: '1px solid #166534',
+            borderRadius: 8,
+            padding: 14,
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#86efac', marginBottom: 4 }}>
+            CREW RESULT
+          </div>
+          <div style={{ fontSize: 13, color: '#d1fae5', whiteSpace: 'pre-wrap' as const }}>
+            {runResult}
+          </div>
+          <button
+            style={{
+              marginTop: 8,
+              background: 'transparent',
+              color: '#6b7280',
+              border: 'none',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+            onClick={() => setRunResult(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {error && (
         <div

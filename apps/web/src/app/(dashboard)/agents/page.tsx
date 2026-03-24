@@ -68,6 +68,11 @@ export default function AgentsPage() {
       setDescription('')
     },
   })
+  const deleteMut = trpc.agents.delete.useMutation({
+    onSuccess: () => {
+      utils.agents.list.invalidate()
+    },
+  })
 
   if (isLoading) {
     return (
@@ -258,6 +263,21 @@ export default function AgentsPage() {
                 <StatusDot status={agent.status} />
                 <span style={styles.cardName}>{agent.name}</span>
                 {agent.type && <span style={styles.typeBadge}>{agent.type}</span>}
+                <button
+                  style={{
+                    background: 'transparent',
+                    color: '#6b7280',
+                    border: 'none',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    marginLeft: 'auto',
+                  }}
+                  onClick={() => {
+                    if (confirm(`Delete agent "${agent.name}"?`)) deleteMut.mutate({ id: agent.id })
+                  }}
+                >
+                  Del
+                </button>
               </div>
               <div style={styles.cardDesc}>{agent.description || 'No description'}</div>
               <div style={styles.cardMeta}>

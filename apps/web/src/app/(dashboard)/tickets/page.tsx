@@ -64,6 +64,11 @@ export default function TicketsPage() {
       setExecuting(null)
     },
   })
+  const deleteMut = trpc.tickets.delete.useMutation({
+    onSuccess: () => {
+      utils.tickets.list.invalidate()
+    },
+  })
 
   if (isLoading) {
     return (
@@ -273,6 +278,21 @@ export default function TicketsPage() {
                 ) : (
                   <span style={{ fontSize: 11, color: '#6b7280' }}>{t.executionMode || '—'}</span>
                 )}
+                <button
+                  style={{
+                    background: 'transparent',
+                    color: '#6b7280',
+                    border: 'none',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    marginLeft: 6,
+                  }}
+                  onClick={() => {
+                    if (confirm('Delete this ticket?')) deleteMut.mutate({ id: t.id })
+                  }}
+                >
+                  Del
+                </button>
               </span>
             </div>
           ))}
