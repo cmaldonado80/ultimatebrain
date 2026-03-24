@@ -22,27 +22,24 @@ export default function SignInPage() {
       .catch(() => setProviders({ github: false, google: false, credentials: true }))
   }, [])
 
+  // Read error from URL params (NextAuth redirects here with ?error= on failure)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const err = params.get('error')
+    if (err === 'CredentialsSignin') {
+      setError('Invalid email. Please try again.')
+    } else if (err) {
+      setError(`Sign in failed: ${err}`)
+    }
+  }, [])
+
   const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-    try {
-      const result = await signIn('credentials', { email, redirect: false })
-      if (result?.error || !result?.ok) {
-        setError(
-          result?.error === 'CredentialsSignin'
-            ? 'Invalid email. Please try again.'
-            : `Sign in failed: ${result?.error || 'unknown error'}`,
-        )
-        setLoading(false)
-      } else {
-        // Use relative path to avoid cross-domain redirect issues with preview URLs
-        window.location.href = '/'
-      }
-    } catch (err) {
-      setError('Network error. Please try again.')
-      setLoading(false)
-    }
+    // Use redirect: true (default) so NextAuth sets the session cookie
+    // via server-side HTTP redirects, which is reliable on Vercel previews.
+    await signIn('credentials', { email, callbackUrl: '/' })
   }
 
   return (
