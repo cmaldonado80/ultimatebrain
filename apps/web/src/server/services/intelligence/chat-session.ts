@@ -11,6 +11,7 @@
 import type { Database } from '@solarc/db'
 import { chatSessions, chatMessages } from '@solarc/db'
 import { eq, desc, asc, sql } from 'drizzle-orm'
+import { GatewayRouter } from '../gateway'
 
 export interface ChatMessage {
   id: string
@@ -36,9 +37,12 @@ export class ChatSessionManager {
    * Create a new chat session.
    */
   async createSession(agentId?: string) {
-    const [session] = await this.db.insert(chatSessions).values({
-      agentId,
-    }).returning()
+    const [session] = await this.db
+      .insert(chatSessions)
+      .values({
+        agentId,
+      })
+      .returning()
     return session!
   }
 
@@ -57,7 +61,8 @@ export class ChatSessionManager {
         orderBy: desc(chatMessages.createdAt),
         limit: messageLimit ?? DEFAULT_CONTEXT_WINDOW,
       }),
-      this.db.select({ count: sql<number>`count(*)` })
+      this.db
+        .select({ count: sql<number>`count(*)` })
         .from(chatMessages)
         .where(eq(chatMessages.sessionId, sessionId)),
     ])
@@ -84,15 +89,20 @@ export class ChatSessionManager {
     text: string,
     attachment?: unknown,
   ): Promise<ChatMessage> {
-    const [msg] = await this.db.insert(chatMessages).values({
-      sessionId,
-      role,
-      text,
-      attachment,
-    }).returning()
+    const [msg] = await this.db
+      .insert(chatMessages)
+      .values({
+        sessionId,
+        role,
+        text,
+        attachment,
+      })
+      .returning()
 
     // Touch session updatedAt
-    await this.db.update(chatSessions).set({ updatedAt: new Date() })
+    await this.db
+      .update(chatSessions)
+      .set({ updatedAt: new Date() })
       .where(eq(chatSessions.id, sessionId))
 
     return {
@@ -130,11 +140,7 @@ export class ChatSessionManager {
    * Compact a session: summarize old messages into a single system message.
    * Keeps the last `keepRecent` messages intact.
    */
-  async compact(
-    sessionId: string,
-    summary: string,
-    keepRecent = 10,
-  ): Promise<{ removed: number }> {
+  async compact(sessionId: string, summary: string, keepRecent = 10): Promise<{ removed: number }> {
     const allMsgs = await this.db.query.chatMessages.findMany({
       where: eq(chatMessages.sessionId, sessionId),
       orderBy: asc(chatMessages.createdAt),
@@ -157,6 +163,42 @@ export class ChatSessionManager {
     })
 
     return { removed: toRemove.length }
+  }
+
+  /**
+   * Auto-compact a session using LLM summarization.
+   * Generates a summary of old messages via the gateway, then calls compact().
+   */
+  async autoCompact(
+    sessionId: string,
+    keepRecent = 10,
+  ): Promise<{ removed: number; summary: string }> {
+    const allMsgs = await this.db.query.chatMessages.findMany({
+      where: eq(chatMessages.sessionId, sessionId),
+      orderBy: asc(chatMessages.createdAt),
+    })
+
+    if (allMsgs.length <= keepRecent + 1) return { removed: 0, summary: '' }
+
+    const toSummarize = allMsgs.slice(0, allMsgs.length - keepRecent)
+    const transcript = toSummarize.map((m) => `${m.role}: ${m.text}`).join('\n')
+
+    // Generate summary via LLM
+    const gateway = new GatewayRouter(this.db)
+    const result = await gateway.chat({
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a conversation summarizer. Produce a concise summary of the following conversation, preserving key facts, decisions, and action items. Keep it under 300 words.',
+        },
+        { role: 'user', content: transcript },
+      ],
+    })
+
+    const summary = result.content
+    const { removed } = await this.compact(sessionId, summary, keepRecent)
+    return { removed, summary }
   }
 
   /**
