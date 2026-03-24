@@ -12,10 +12,12 @@ import {
   ChatSessionManager,
   AgentMessagingService,
 } from '../services/intelligence'
+import { GatewayRouter } from '../services/gateway'
 
 let cognition: CognitionManager | null = null
 let chatManager: ChatSessionManager | null = null
 let messaging: AgentMessagingService | null = null
+let gateway: GatewayRouter | null = null
 
 function getCognition(db: Database) {
   return (cognition ??= new CognitionManager(db))
@@ -25,6 +27,9 @@ function getChatManager(db: Database) {
 }
 function getMessaging(db: Database) {
   return (messaging ??= new AgentMessagingService(db))
+}
+function getGateway(db: Database) {
+  return (gateway ??= new GatewayRouter(db))
 }
 
 export const intelligenceRouter = router({
@@ -186,6 +191,17 @@ export const intelligenceRouter = router({
         input.text,
         input.attachment,
       )
+    }),
+
+  sendChatMessage: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        text: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return getChatManager(ctx.db).sendAndReply(input.sessionId, input.text, getGateway(ctx.db))
     }),
 
   chatContextWindow: protectedProcedure

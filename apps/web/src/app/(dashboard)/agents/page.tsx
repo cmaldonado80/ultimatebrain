@@ -4,6 +4,7 @@
  * Agents — list all AI agent instances from the database.
  */
 
+import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
 
 interface Agent {
@@ -51,7 +52,22 @@ function StatusDot({ status }: { status: string }) {
 }
 
 export default function AgentsPage() {
+  const [showForm, setShowForm] = useState(false)
+  const [name, setName] = useState('')
+  const [type, setType] = useState('')
+  const [model, setModel] = useState('claude-sonnet-4-6')
+  const [description, setDescription] = useState('')
   const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
+  const utils = trpc.useUtils()
+  const createMut = trpc.agents.create.useMutation({
+    onSuccess: () => {
+      utils.agents.list.invalidate()
+      setShowForm(false)
+      setName('')
+      setType('')
+      setDescription('')
+    },
+  })
 
   if (isLoading) {
     return (
@@ -77,11 +93,138 @@ export default function AgentsPage() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h2 style={styles.title}>Agents</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={styles.title}>Agents</h2>
+          <button
+            style={{
+              background: '#818cf8',
+              color: '#f9fafb',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? 'Cancel' : '+ New Agent'}
+          </button>
+        </div>
         <p style={styles.subtitle}>
           Manage AI agent instances — executors, reviewers, planners, and specialists.
         </p>
       </div>
+
+      {showForm && (
+        <div
+          style={{
+            background: '#1f2937',
+            borderRadius: 8,
+            padding: 16,
+            border: '1px solid #374151',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            <input
+              style={{
+                background: '#111827',
+                color: '#f9fafb',
+                border: '1px solid #374151',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+              }}
+              placeholder="Agent name..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select
+                style={{
+                  background: '#111827',
+                  color: '#f9fafb',
+                  border: '1px solid #374151',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  fontSize: 12,
+                  flex: 1,
+                }}
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                <option value="">Type (optional)</option>
+                <option value="executor">Executor</option>
+                <option value="planner">Planner</option>
+                <option value="reviewer">Reviewer</option>
+                <option value="specialist">Specialist</option>
+              </select>
+              <select
+                style={{
+                  background: '#111827',
+                  color: '#f9fafb',
+                  border: '1px solid #374151',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  fontSize: 12,
+                  flex: 1,
+                }}
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+              >
+                <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                <option value="claude-opus-4-6">Claude Opus 4.6</option>
+                <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4o-mini">GPT-4o Mini</option>
+              </select>
+            </div>
+            <input
+              style={{
+                background: '#111827',
+                color: '#f9fafb',
+                border: '1px solid #374151',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+              }}
+              placeholder="Description (optional)..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                style={{
+                  background: '#22c55e',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onClick={() =>
+                  name.trim() &&
+                  createMut.mutate({
+                    name: name.trim(),
+                    type: type || undefined,
+                    model,
+                    description: description.trim() || undefined,
+                  })
+                }
+                disabled={createMut.isPending || !name.trim()}
+              >
+                {createMut.isPending ? 'Creating...' : 'Create Agent'}
+              </button>
+              {createMut.error && (
+                <span style={{ color: '#fca5a5', fontSize: 11 }}>{createMut.error.message}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div
