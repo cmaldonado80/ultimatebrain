@@ -15,8 +15,15 @@ function getDb() {
   return _db
 }
 
+/**
+ * Lazy adapter — returns undefined during Next.js static page collection
+ * when DATABASE_URL is not yet available. NextAuth works without an adapter
+ * for JWT-only sessions; the adapter is only needed for DB-backed user lookup.
+ */
+const adapter = process.env.DATABASE_URL ? DrizzleAdapter(getDb()) : undefined
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: DrizzleAdapter(getDb()),
+  adapter,
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/auth/signin',
