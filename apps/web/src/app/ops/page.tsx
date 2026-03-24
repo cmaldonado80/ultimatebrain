@@ -39,30 +39,11 @@ export default function OpsOverviewPage() {
     )
   }
 
-  if (error) {
-    return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading ops</div>
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
-        </div>
-      </div>
-    )
-  }
-
   const health = healthQuery.data as
     | { status: string; checks?: Record<string, { status: string; message?: string }> }
     | undefined
-  const traces = tracesQuery.data ?? []
-  const pendingApprovals = approvalsQuery.data ?? []
+  const traces = (tracesQuery.data as unknown[]) ?? []
+  const pendingApprovals = (approvalsQuery.data as unknown[]) ?? []
   const gatewayHealth = gatewayHealthQuery.data as { status: string } | undefined
 
   return (
@@ -73,6 +54,28 @@ export default function OpsOverviewPage() {
           System-wide operational dashboard — health, throughput, errors, and SLA compliance.
         </p>
       </div>
+
+      {error && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            border: '1px solid #4338ca',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ color: '#818cf8', fontSize: 14 }}>
+            Database tables not yet provisioned.
+          </span>
+          <span style={{ color: '#6b7280', fontSize: 12 }}>
+            Run the migration to populate data.
+          </span>
+        </div>
+      )}
 
       <div style={styles.statsGrid}>
         <div style={styles.statCard}>

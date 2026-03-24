@@ -11,7 +11,11 @@
 
 import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
-import type { SkillListing, SkillCategory, SkillCapability } from '../../../server/services/skills/marketplace'
+import type {
+  SkillListing,
+  SkillCategory,
+  SkillCapability,
+} from '../../../server/services/skills/marketplace'
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -61,7 +65,7 @@ function PermissionReviewModal({
   onCancel: () => void
 }) {
   const [approved, setApproved] = useState<Set<SkillCapability>>(
-    new Set(skill.permissions.map((p) => p.capability))
+    new Set(skill.permissions.map((p) => p.capability)),
   )
 
   const toggle = (cap: SkillCapability) => {
@@ -101,7 +105,9 @@ function PermissionReviewModal({
         </div>
 
         <div style={styles.modalActions}>
-          <button style={styles.cancelBtn} onClick={onCancel}>Cancel</button>
+          <button style={styles.cancelBtn} onClick={onCancel}>
+            Cancel
+          </button>
           <button
             style={{
               ...styles.installBtnModal,
@@ -130,15 +136,31 @@ function SkillCard({
   return (
     <div style={styles.card}>
       <div style={styles.cardTop}>
-        <div style={styles.cardIcon}>{skill.category === 'coding' ? '💻' : skill.category === 'data' ? '📊' : skill.category === 'media' ? '🖼' : skill.category === 'integrations' ? '🔗' : '⚡'}</div>
+        <div style={styles.cardIcon}>
+          {skill.category === 'coding'
+            ? '💻'
+            : skill.category === 'data'
+              ? '📊'
+              : skill.category === 'media'
+                ? '🖼'
+                : skill.category === 'integrations'
+                  ? '🔗'
+                  : '⚡'}
+        </div>
         <div style={styles.cardInfo}>
           <div style={styles.cardName}>{skill.name}</div>
-          <div style={styles.cardAuthor}>by {skill.author} · v{skill.version}</div>
+          <div style={styles.cardAuthor}>
+            by {skill.author} · v{skill.version}
+          </div>
         </div>
         {skill.installed ? (
-          <button style={styles.uninstallBtn} onClick={onUninstall}>Uninstall</button>
+          <button style={styles.uninstallBtn} onClick={onUninstall}>
+            Uninstall
+          </button>
         ) : (
-          <button style={styles.installBtn} onClick={onInstall}>Install</button>
+          <button style={styles.installBtn} onClick={onInstall}>
+            Install
+          </button>
         )}
       </div>
       <div style={styles.cardDesc}>{skill.description}</div>
@@ -147,7 +169,10 @@ function SkillCard({
         <span style={styles.installs}>{skill.installCount.toLocaleString()} installs</span>
         <div style={styles.permTags}>
           {skill.permissions.map((p) => (
-            <span key={p.capability} style={{ ...styles.permTag, borderColor: RISK_COLORS[getPermRisk(p.capability)] }}>
+            <span
+              key={p.capability}
+              style={{ ...styles.permTag, borderColor: RISK_COLORS[getPermRisk(p.capability)] }}
+            >
               {p.capability}
             </span>
           ))}
@@ -156,7 +181,10 @@ function SkillCard({
       {skill.installed && skill.usageStats && (
         <div style={styles.usageRow}>
           <span>{skill.usageStats.totalRuns} runs</span>
-          <span>{skill.assignedAgents?.length ?? 0} agent{(skill.assignedAgents?.length ?? 0) !== 1 ? 's' : ''}</span>
+          <span>
+            {skill.assignedAgents?.length ?? 0} agent
+            {(skill.assignedAgents?.length ?? 0) !== 1 ? 's' : ''}
+          </span>
           <span>{skill.usageStats.avgDurationMs}ms avg</span>
         </div>
       )}
@@ -172,9 +200,10 @@ export default function SkillsPage() {
   const [search, setSearch] = useState('')
   const [installTarget, setInstallTarget] = useState<SkillListing | null>(null)
 
-  const browseQuery = trpc.skills.browse.useQuery(
-    { category: category === 'all' ? undefined : category, search: search || undefined },
-  )
+  const browseQuery = trpc.skills.browse.useQuery({
+    category: category === 'all' ? undefined : category,
+    search: search || undefined,
+  })
   const installedQuery = trpc.skills.installed.useQuery()
   const installMutation = trpc.skills.install.useMutation()
   const uninstallMutation = trpc.skills.uninstall.useMutation()
@@ -186,7 +215,15 @@ export default function SkillsPage() {
 
   if (isLoading) {
     return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <div
+        style={{
+          ...styles.page,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+        }}
+      >
         <div style={{ textAlign: 'center', color: '#6b7280' }}>
           <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
           <div style={{ fontSize: 13 }}>Fetching skills</div>
@@ -195,18 +232,7 @@ export default function SkillsPage() {
     )
   }
 
-  if (error) {
-    return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading skills</div>
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
-        </div>
-      </div>
-    )
-  }
-
-  const allSkills: SkillListing[] = browseQuery.data ?? []
+  const allSkills: SkillListing[] = (browseQuery.data as SkillListing[]) ?? []
   const installedSkills = (installedQuery.data ?? []) as unknown as SkillListing[]
   const installedIds = new Set(installedSkills.map((s) => s.id))
 
@@ -254,12 +280,40 @@ export default function SkillsPage() {
         </div>
       </div>
 
+      {error && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            border: '1px solid #4338ca',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ color: '#818cf8', fontSize: 14 }}>
+            Database tables not yet provisioned.
+          </span>
+          <span style={{ color: '#6b7280', fontSize: 12 }}>
+            Run the migration to populate data.
+          </span>
+        </div>
+      )}
+
       {/* Tabs */}
       <div style={styles.tabs}>
-        <button style={tab === 'browse' ? styles.tabActive : styles.tab} onClick={() => setTab('browse')}>
+        <button
+          style={tab === 'browse' ? styles.tabActive : styles.tab}
+          onClick={() => setTab('browse')}
+        >
           Browse ({allSkills.length})
         </button>
-        <button style={tab === 'installed' ? styles.tabActive : styles.tab} onClick={() => setTab('installed')}>
+        <button
+          style={tab === 'installed' ? styles.tabActive : styles.tab}
+          onClick={() => setTab('installed')}
+        >
           Installed ({mergedSkills.filter((s) => s.installed).length})
         </button>
       </div>
@@ -315,23 +369,79 @@ export default function SkillsPage() {
 // ── Styles ────────────────────────────────────────────────────────────────
 
 const styles = {
-  page: { background: '#0f172a', minHeight: '100vh', color: '#f9fafb', fontFamily: 'sans-serif', padding: 24 },
+  page: {
+    background: '#0f172a',
+    minHeight: '100vh',
+    color: '#f9fafb',
+    fontFamily: 'sans-serif',
+    padding: 24,
+  },
   header: { marginBottom: 16 },
   title: { margin: 0, fontSize: 22, fontWeight: 700 },
   subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
   // Tabs
   tabs: { display: 'flex', gap: 4, marginBottom: 16 },
-  tab: { background: 'transparent', border: '1px solid #374151', borderRadius: 6, color: '#9ca3af', padding: '6px 16px', fontSize: 13, cursor: 'pointer' },
-  tabActive: { background: '#1f2937', border: '1px solid #4b5563', borderRadius: 6, color: '#f9fafb', padding: '6px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  tab: {
+    background: 'transparent',
+    border: '1px solid #374151',
+    borderRadius: 6,
+    color: '#9ca3af',
+    padding: '6px 16px',
+    fontSize: 13,
+    cursor: 'pointer',
+  },
+  tabActive: {
+    background: '#1f2937',
+    border: '1px solid #4b5563',
+    borderRadius: 6,
+    color: '#f9fafb',
+    padding: '6px 16px',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
   // Filters
   filters: { marginBottom: 16 },
-  searchInput: { width: '100%', background: '#1f2937', border: '1px solid #374151', borderRadius: 6, color: '#f9fafb', padding: '8px 12px', fontSize: 13, marginBottom: 10, boxSizing: 'border-box' as const },
+  searchInput: {
+    width: '100%',
+    background: '#1f2937',
+    border: '1px solid #374151',
+    borderRadius: 6,
+    color: '#f9fafb',
+    padding: '8px 12px',
+    fontSize: 13,
+    marginBottom: 10,
+    boxSizing: 'border-box' as const,
+  },
   catRow: { display: 'flex', gap: 4, flexWrap: 'wrap' as const },
-  catBtn: { background: 'transparent', border: '1px solid #374151', borderRadius: 12, color: '#9ca3af', padding: '3px 12px', fontSize: 12, cursor: 'pointer' },
-  catBtnActive: { background: '#2563eb', border: '1px solid #2563eb', borderRadius: 12, color: '#fff', padding: '3px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  catBtn: {
+    background: 'transparent',
+    border: '1px solid #374151',
+    borderRadius: 12,
+    color: '#9ca3af',
+    padding: '3px 12px',
+    fontSize: 12,
+    cursor: 'pointer',
+  },
+  catBtnActive: {
+    background: '#2563eb',
+    border: '1px solid #2563eb',
+    borderRadius: 12,
+    color: '#fff',
+    padding: '3px 12px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
   // Grid
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 },
-  empty: { gridColumn: '1 / -1', textAlign: 'center' as const, padding: 40, color: '#6b7280', fontSize: 13 },
+  empty: {
+    gridColumn: '1 / -1',
+    textAlign: 'center' as const,
+    padding: 40,
+    color: '#6b7280',
+    fontSize: 13,
+  },
   // Card
   card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
   cardTop: { display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
@@ -346,23 +456,95 @@ const styles = {
   ratingNum: { color: '#9ca3af', marginLeft: 4, fontSize: 11 },
   installs: { fontSize: 11, color: '#6b7280' },
   permTags: { display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginLeft: 'auto' },
-  permTag: { fontSize: 10, border: '1px solid', borderRadius: 4, padding: '1px 5px', color: '#9ca3af', fontFamily: 'monospace' },
-  usageRow: { display: 'flex', gap: 12, marginTop: 10, paddingTop: 8, borderTop: '1px solid #374151', fontSize: 11, color: '#6b7280' },
-  installBtn: { background: '#2563eb', border: 'none', borderRadius: 6, color: '#fff', padding: '5px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 },
-  uninstallBtn: { background: 'transparent', border: '1px solid #374151', borderRadius: 6, color: '#9ca3af', padding: '5px 14px', fontSize: 12, cursor: 'pointer', flexShrink: 0 },
+  permTag: {
+    fontSize: 10,
+    border: '1px solid',
+    borderRadius: 4,
+    padding: '1px 5px',
+    color: '#9ca3af',
+    fontFamily: 'monospace',
+  },
+  usageRow: {
+    display: 'flex',
+    gap: 12,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTop: '1px solid #374151',
+    fontSize: 11,
+    color: '#6b7280',
+  },
+  installBtn: {
+    background: '#2563eb',
+    border: 'none',
+    borderRadius: 6,
+    color: '#fff',
+    padding: '5px 14px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  uninstallBtn: {
+    background: 'transparent',
+    border: '1px solid #374151',
+    borderRadius: 6,
+    color: '#9ca3af',
+    padding: '5px 14px',
+    fontSize: 12,
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
   // Modal
-  modalOverlay: { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-  modal: { background: '#1f2937', border: '1px solid #374151', borderRadius: 8, padding: 24, width: 460, maxWidth: '95vw' },
+  modalOverlay: {
+    position: 'fixed' as const,
+    inset: 0,
+    background: 'rgba(0,0,0,0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  modal: {
+    background: '#1f2937',
+    border: '1px solid #374151',
+    borderRadius: 8,
+    padding: 24,
+    width: 460,
+    maxWidth: '95vw',
+  },
   modalTitle: { margin: '0 0 4px', fontSize: 16, fontWeight: 700 },
   modalSub: { margin: '0 0 16px', fontSize: 13, color: '#9ca3af' },
   permList: { display: 'flex', flexDirection: 'column' as const, gap: 10, marginBottom: 16 },
   permItem: { display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer' },
   permCheck: { marginTop: 3 },
   permCap: { display: 'flex', alignItems: 'center', gap: 6 },
-  permCode: { fontSize: 12, background: '#111827', padding: '1px 5px', borderRadius: 3, color: '#d1d5db' },
+  permCode: {
+    fontSize: 12,
+    background: '#111827',
+    padding: '1px 5px',
+    borderRadius: 3,
+    color: '#d1d5db',
+  },
   riskBadge: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const },
   permReason: { fontSize: 11, color: '#6b7280', marginTop: 2 },
   modalActions: { display: 'flex', justifyContent: 'flex-end', gap: 8 },
-  cancelBtn: { padding: '7px 16px', background: 'transparent', border: '1px solid #4b5563', borderRadius: 6, color: '#9ca3af', fontSize: 13, cursor: 'pointer' },
-  installBtnModal: { padding: '7px 16px', background: '#2563eb', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  cancelBtn: {
+    padding: '7px 16px',
+    background: 'transparent',
+    border: '1px solid #4b5563',
+    borderRadius: 6,
+    color: '#9ca3af',
+    fontSize: 13,
+    cursor: 'pointer',
+  },
+  installBtnModal: {
+    padding: '7px 16px',
+    background: '#2563eb',
+    border: 'none',
+    borderRadius: 6,
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
 }

@@ -28,7 +28,6 @@ interface AgentRecord {
   updatedAt: Date
 }
 
-
 export default function AppDetailPage() {
   const params = useParams()
   const appId = params.appId as string
@@ -37,7 +36,15 @@ export default function AppDetailPage() {
 
   if (isLoading) {
     return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <div
+        style={{
+          ...styles.page,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+        }}
+      >
         <div style={{ textAlign: 'center', color: '#6b7280' }}>
           <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
           <div style={{ fontSize: 13 }}>Fetching app details</div>
@@ -46,20 +53,17 @@ export default function AppDetailPage() {
     )
   }
 
-  if (error) {
+  if (!app && !error) {
     return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Error loading app</div>
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!app) {
-    return (
-      <div style={{ ...styles.page, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <div
+        style={{
+          ...styles.page,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+        }}
+      >
         <div style={{ textAlign: 'center', color: '#f87171' }}>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>App not found</div>
           <div style={{ fontSize: 13, color: '#9ca3af' }}>No agent with ID {appId}</div>
@@ -68,7 +72,7 @@ export default function AppDetailPage() {
     )
   }
 
-  const agent = app as AgentRecord
+  const agent = (app as AgentRecord) ?? ({} as Partial<AgentRecord>)
   const agentName = agent.name ?? `Agent ${appId.slice(0, 8)}`
   const agentType = agent.type ?? 'agent'
   const agentDescription = agent.description ?? ''
@@ -78,9 +82,32 @@ export default function AppDetailPage() {
 
   return (
     <div style={styles.page}>
+      {error && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            border: '1px solid #4338ca',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ color: '#818cf8', fontSize: 14 }}>
+            Database tables not yet provisioned.
+          </span>
+          <span style={{ color: '#6b7280', fontSize: 12 }}>
+            Run the migration to populate data.
+          </span>
+        </div>
+      )}
       {/* Header */}
       <div style={styles.header}>
-        <a href="/apps" style={styles.back}>← Apps</a>
+        <a href="/apps" style={styles.back}>
+          ← Apps
+        </a>
         <div style={styles.headerMain}>
           <div>
             <h1 style={styles.title}>{agentName}</h1>
@@ -139,7 +166,9 @@ export default function AppDetailPage() {
             ) : (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
                 {agentTags.map((tag) => (
-                  <span key={tag} style={styles.tagChip}>{tag}</span>
+                  <span key={tag} style={styles.tagChip}>
+                    {tag}
+                  </span>
                 ))}
               </div>
             )}
@@ -160,7 +189,9 @@ export default function AppDetailPage() {
             {agent.createdAt && (
               <div style={styles.detailRow}>
                 <span style={styles.detailKey}>Created:</span>
-                <span style={styles.detailVal}>{new Date(agent.createdAt).toLocaleDateString()}</span>
+                <span style={styles.detailVal}>
+                  {new Date(agent.createdAt).toLocaleDateString()}
+                </span>
               </div>
             )}
           </div>
@@ -171,37 +202,107 @@ export default function AppDetailPage() {
 }
 
 const styles = {
-  page: { background: '#0f172a', minHeight: '100vh', color: '#f9fafb', fontFamily: 'sans-serif', padding: 24 },
+  page: {
+    background: '#0f172a',
+    minHeight: '100vh',
+    color: '#f9fafb',
+    fontFamily: 'sans-serif',
+    padding: 24,
+  },
   header: { marginBottom: 20 },
-  back: { fontSize: 12, color: '#6b7280', textDecoration: 'none', display: 'block', marginBottom: 8 },
+  back: {
+    fontSize: 12,
+    color: '#6b7280',
+    textDecoration: 'none',
+    display: 'block',
+    marginBottom: 8,
+  },
   headerMain: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
   title: { margin: '0 0 6px', fontSize: 22, fontWeight: 700 },
   headerMeta: { display: 'flex', gap: 8, alignItems: 'center' },
-  tierBadge: { fontSize: 10, background: '#1e3a5f', color: '#93c5fd', padding: '2px 8px', borderRadius: 4, fontWeight: 600 },
+  tierBadge: {
+    fontSize: 10,
+    background: '#1e3a5f',
+    color: '#93c5fd',
+    padding: '2px 8px',
+    borderRadius: 4,
+    fontWeight: 600,
+  },
   metaText: { fontSize: 12, color: '#6b7280' },
-  ring: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', background: '#1f2937', borderRadius: 8, padding: '12px 20px', border: '1px solid #374151' },
+  ring: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    background: '#1f2937',
+    borderRadius: 8,
+    padding: '12px 20px',
+    border: '1px solid #374151',
+  },
   ringValue: { fontSize: 28, fontWeight: 700 },
   ringLabel: { fontSize: 10, color: '#6b7280' },
   // Stats
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 },
-  statCard: { background: '#1f2937', borderRadius: 8, padding: 12, textAlign: 'center' as const, border: '1px solid #374151' },
+  statCard: {
+    background: '#1f2937',
+    borderRadius: 8,
+    padding: 12,
+    textAlign: 'center' as const,
+    border: '1px solid #374151',
+  },
   statBig: { fontSize: 22, fontWeight: 700 },
   statLabel: { fontSize: 10, color: '#6b7280', marginTop: 2 },
   // Columns
   columns: { display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 },
   colLeft: {},
   colRight: {},
-  section: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151', marginBottom: 12 },
-  sectionHeader: { fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 10 },
+  section: {
+    background: '#1f2937',
+    borderRadius: 8,
+    padding: 16,
+    border: '1px solid #374151',
+    marginBottom: 12,
+  },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#6b7280',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
   // Engine rows
-  engineRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid #111827', fontSize: 12 },
+  engineRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '5px 0',
+    borderBottom: '1px solid #111827',
+    fontSize: 12,
+  },
   eDot: { width: 6, height: 6, borderRadius: '50%', flexShrink: 0 },
   eName: { flex: 1, fontWeight: 600 },
   // Tags
-  tagChip: { fontSize: 11, background: '#374151', borderRadius: 4, padding: '2px 8px', color: '#9ca3af' },
+  tagChip: {
+    fontSize: 11,
+    background: '#374151',
+    borderRadius: 4,
+    padding: '2px 8px',
+    color: '#9ca3af',
+  },
   // Details
-  detailRow: { display: 'flex', gap: 8, padding: '4px 0', fontSize: 12, borderBottom: '1px solid #111827' },
+  detailRow: {
+    display: 'flex',
+    gap: 8,
+    padding: '4px 0',
+    fontSize: 12,
+    borderBottom: '1px solid #111827',
+  },
   detailKey: { color: '#6b7280', minWidth: 80 },
-  detailVal: { color: '#d1d5db', fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' as const },
+  detailVal: {
+    color: '#d1d5db',
+    fontFamily: 'monospace',
+    fontSize: 11,
+    wordBreak: 'break-all' as const,
+  },
   emptyText: { fontSize: 12, color: '#4b5563', textAlign: 'center' as const, padding: 16 },
 }

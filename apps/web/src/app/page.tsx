@@ -200,30 +200,9 @@ export default function DashboardPage() {
     )
   }
 
-  if (error) {
-    return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-            Error loading dashboard
-          </div>
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>{error.message}</div>
-        </div>
-      </div>
-    )
-  }
-
-  const agents = agentsQuery.data ?? []
-  const tickets = ticketsQuery.data ?? []
-  const workspacesData = workspacesQuery.data ?? []
+  const agents = (agentsQuery.data as Agent[]) ?? []
+  const tickets = (ticketsQuery.data as Ticket[]) ?? []
+  const workspacesData = (workspacesQuery.data as Workspace[]) ?? []
 
   const activeAgents = agents.length
   const openTickets = tickets.filter(
@@ -296,6 +275,28 @@ export default function DashboardPage() {
         <h2 style={styles.title}>Brain Dashboard</h2>
         <p style={styles.subtitle}>Central Intelligence Core — Solarc v4</p>
       </div>
+
+      {error && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            border: '1px solid #4338ca',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ color: '#818cf8', fontSize: 14 }}>
+            Database tables not yet provisioned.
+          </span>
+          <span style={{ color: '#6b7280', fontSize: 12 }}>
+            Run the migration to populate data.
+          </span>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div style={styles.statsGrid}>

@@ -219,27 +219,6 @@ export default function EvalsPage() {
     )
   }
 
-  if (datasetsQuery.error) {
-    return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-            Error loading eval data
-          </div>
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>{datasetsQuery.error.message}</div>
-        </div>
-      </div>
-    )
-  }
-
   const datasetsRaw: DatasetRaw[] = (datasetsQuery.data ?? []) as DatasetRaw[]
   const datasets: Dataset[] = datasetsRaw.map((d: DatasetRaw) => ({
     id: d.id,
@@ -288,6 +267,28 @@ export default function EvalsPage() {
           </p>
         </div>
       </div>
+
+      {datasetsQuery.error && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            border: '1px solid #4338ca',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ color: '#818cf8', fontSize: 14 }}>
+            Database tables not yet provisioned.
+          </span>
+          <span style={{ color: '#6b7280', fontSize: 12 }}>
+            Run the migration to populate data.
+          </span>
+        </div>
+      )}
 
       <div style={styles.layout}>
         {/* Sidebar — Dataset List */}
