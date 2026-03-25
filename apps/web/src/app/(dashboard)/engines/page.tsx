@@ -76,7 +76,24 @@ export default function EnginesPage() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <h2 style={styles.title}>Engines</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={styles.title}>Engines</h2>
+          <a
+            href="/engines/manage"
+            style={{
+              background: '#818cf8',
+              color: '#f9fafb',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            Manage Brain
+          </a>
+        </div>
         <p style={styles.subtitle}>
           Monitor the brain's core engines — LLM Gateway, Memory, Orchestration, Guardrails, and
           more.
