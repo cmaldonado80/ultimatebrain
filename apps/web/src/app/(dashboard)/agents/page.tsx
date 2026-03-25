@@ -53,6 +53,14 @@ function StatusDot({ status }: { status: string }) {
   )
 }
 
+const BUILT_IN_MODELS = [
+  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
+  { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
+  { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+  { value: 'gpt-4o', label: 'GPT-4o' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+]
+
 export default function AgentsPage() {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
@@ -61,7 +69,20 @@ export default function AgentsPage() {
   const [description, setDescription] = useState('')
   const [search, setSearch] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [editingModel, setEditingModel] = useState<string | null>(null)
   const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
+  const ollamaModelsQuery = trpc.gateway.ollamaModels.useQuery()
+
+  // Build dynamic model list: built-in + Ollama models from DB
+  const ollamaModels =
+    (ollamaModelsQuery.data as Array<{ id: string; name: string; addedAt: Date }> | undefined) ?? []
+  const allModels = [
+    ...BUILT_IN_MODELS,
+    ...ollamaModels.map((m) => ({
+      value: `ollama/${m.name}`,
+      label: `Ollama: ${m.name}`,
+    })),
+  ]
 
   const utils = trpc.useUtils()
   const createMut = trpc.agents.create.useMutation({
@@ -76,6 +97,12 @@ export default function AgentsPage() {
   const deleteMut = trpc.agents.delete.useMutation({
     onSuccess: () => {
       utils.agents.list.invalidate()
+    },
+  })
+  const updateMut = trpc.agents.update.useMutation({
+    onSuccess: () => {
+      utils.agents.list.invalidate()
+      setEditingModel(null)
     },
   })
 
@@ -205,11 +232,22 @@ export default function AgentsPage() {
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
               >
-                <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
-                <option value="claude-opus-4-6">Claude Opus 4.6</option>
-                <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
+                <optgroup label="Built-in">
+                  {BUILT_IN_MODELS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </optgroup>
+                {ollamaModels.length > 0 && (
+                  <optgroup label="Ollama Cloud">
+                    {ollamaModels.map((m) => (
+                      <option key={m.id} value={`ollama/${m.name}`}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
             <input
@@ -283,7 +321,36 @@ export default function AgentsPage() {
               </div>
               <div style={styles.cardDesc}>{agent.description || 'No description'}</div>
               <div style={styles.cardMeta}>
-                <span>Model: {agent.model || 'N/A'}</span>
+                {editingModel === agent.id ? (
+                  <select
+                    style={{
+                      background: '#111827',
+                      color: '#f9fafb',
+                      border: '1px solid #818cf8',
+                      borderRadius: 4,
+                      padding: '2px 6px',
+                      fontSize: 11,
+                    }}
+                    value={agent.model ?? ''}
+                    onChange={(e) => updateMut.mutate({ id: agent.id, model: e.target.value })}
+                    onBlur={() => setEditingModel(null)}
+                    autoFocus
+                  >
+                    {allModels.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span
+                    style={{ cursor: 'pointer', borderBottom: '1px dashed #4b5563' }}
+                    onClick={() => setEditingModel(agent.id)}
+                    title="Click to change model"
+                  >
+                    Model: {agent.model || 'N/A'}
+                  </span>
+                )}
                 <span>Status: {agent.status}</span>
               </div>
               {agent.skills && agent.skills.length > 0 && (
