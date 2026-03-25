@@ -349,11 +349,8 @@ class OllamaAdapter implements ProviderAdapter {
 
   private getBaseUrl(): string {
     const url = this.resolvedUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'
-    // Normalize: Ollama Cloud URL should be https://ollama.com/api (not https://ollama.com)
-    if (url.includes('ollama.com') && !url.endsWith('/api')) {
-      return url.replace(/\/+$/, '') + '/api'
-    }
-    return url
+    // Strip trailing slashes and any trailing /api to prevent double /api/api paths
+    return url.replace(/\/+$/, '').replace(/\/api$/, '')
   }
 
   private buildHeaders(apiKey?: string): Record<string, string> {
