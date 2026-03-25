@@ -142,6 +142,10 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         parent_orchestrator_id uuid,
         required_model_type model_type,
         trigger_mode text,
+        soul text,
+        temperature real DEFAULT 1.0,
+        max_tokens integer DEFAULT 4096,
+        tool_access text[],
         created_at timestamp NOT NULL DEFAULT now(),
         updated_at timestamp NOT NULL DEFAULT now()
       )`,

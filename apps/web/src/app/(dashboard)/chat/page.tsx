@@ -21,8 +21,17 @@ interface ChatMessage {
   createdAt: Date
 }
 
+interface Agent {
+  id: string
+  name: string
+  model: string | null
+  soul: string | null
+  requiredModelType: string | null
+}
+
 export default function ChatPage() {
   const [selectedSession, setSelectedSession] = useState<string | null>(null)
+  const [selectedAgent, setSelectedAgent] = useState<string>('')
   const [newMessage, setNewMessage] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [streamText, setStreamText] = useState('')
@@ -34,11 +43,15 @@ export default function ChatPage() {
     { id: selectedSession!, messageLimit: 100 },
     { enabled: !!selectedSession },
   )
+  const agentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
+  const agents = (agentsQuery.data ?? []) as Agent[]
   const createSessionMut = trpc.intelligence.createChatSession.useMutation()
   const utils = trpc.useUtils()
 
   const handleNewSession = async () => {
-    const session = await createSessionMut.mutateAsync()
+    const session = await createSessionMut.mutateAsync({
+      agentId: selectedAgent || undefined,
+    })
     utils.intelligence.chatSessions.invalidate()
     if (session) setSelectedSession(session.id)
   }
@@ -154,6 +167,28 @@ export default function ChatPage() {
               + New
             </button>
           </div>
+          <select
+            style={{
+              width: '100%',
+              background: '#1f2937',
+              color: '#f9fafb',
+              border: '1px solid #374151',
+              borderRadius: 4,
+              padding: '4px 8px',
+              fontSize: 11,
+              marginBottom: 8,
+            }}
+            value={selectedAgent}
+            onChange={(e) => setSelectedAgent(e.target.value)}
+          >
+            <option value="">Default Assistant</option>
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+                {a.soul ? ' *' : ''}
+              </option>
+            ))}
+          </select>
           {sessions.length === 0 ? (
             <div style={styles.sidebarEmpty}>No sessions yet.</div>
           ) : (

@@ -7,8 +7,8 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
-import { agents } from '@solarc/db'
-import { eq, and } from 'drizzle-orm'
+import { agents, traces } from '@solarc/db'
+import { eq, and, desc } from 'drizzle-orm'
 
 export const agentsRouter = router({
   list: protectedProcedure
@@ -68,6 +68,10 @@ export const agentsRouter = router({
         description: z.string().optional(),
         skills: z.array(z.string()).optional(),
         tags: z.array(z.string()).optional(),
+        soul: z.string().optional(),
+        temperature: z.number().min(0).max(2).optional(),
+        maxTokens: z.number().min(1).max(200000).optional(),
+        toolAccess: z.array(z.string()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -104,6 +108,10 @@ export const agentsRouter = router({
         status: z
           .enum(['idle', 'planning', 'executing', 'reviewing', 'error', 'offline'])
           .optional(),
+        soul: z.string().optional(),
+        temperature: z.number().min(0).max(2).optional(),
+        maxTokens: z.number().min(1).max(200000).optional(),
+        toolAccess: z.array(z.string()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -171,11 +179,14 @@ export const agentsRouter = router({
         version: '1.0' as const,
         name: agent.name,
         description: agent.description ?? undefined,
+        soul: agent.soul ?? undefined,
         type: agent.type ?? undefined,
         requiredCapability: (agent.requiredModelType as string) ?? 'reasoning',
         preferredModel: agent.model ?? undefined,
         skills: agent.skills ?? [],
         tags: agent.tags ?? [],
+        temperature: agent.temperature ?? undefined,
+        maxTokens: agent.maxTokens ?? undefined,
       }
     }),
 
@@ -237,5 +248,23 @@ export const agentsRouter = router({
       if (!agent)
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to import agent' })
       return agent
+    }),
+
+  /** Get agent with recent traces for the detail page */
+  agentWithTraces: protectedProcedure
+    .input(z.object({ id: z.string().uuid(), traceLimit: z.number().min(1).max(50).default(20) }))
+    .query(async ({ ctx, input }) => {
+      const agent = await ctx.db.query.agents.findFirst({ where: eq(agents.id, input.id) })
+      if (!agent) throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' })
+
+      const recentTraces = await ctx.db.query.traces
+        .findMany({
+          where: eq(traces.agentId, input.id),
+          orderBy: desc(traces.createdAt),
+          limit: input.traceLimit,
+        })
+        .catch(() => [])
+
+      return { ...agent, recentTraces }
     }),
 })

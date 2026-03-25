@@ -6,6 +6,7 @@
  */
 
 import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { trpc } from '../../../utils/trpc'
 import ConfirmDialog from '../../../components/ui/confirm-dialog'
 import { DbErrorBanner } from '../../../components/db-error-banner'
@@ -80,6 +81,7 @@ export default function AgentsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [editingModel, setEditingModel] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const navRouter = useRouter()
 
   const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
   const modelsQuery = trpc.models.availableModels.useQuery()
@@ -364,7 +366,13 @@ export default function AgentsPage() {
             <div key={agent.id} style={styles.card}>
               <div style={styles.cardTop}>
                 <StatusDot status={agent.status} />
-                <span style={styles.cardName}>{agent.name}</span>
+                <span
+                  style={{ ...styles.cardName, cursor: 'pointer', textDecoration: 'none' }}
+                  onClick={() => navRouter.push(`/agents/${agent.id}`)}
+                  title="Open agent detail"
+                >
+                  {agent.name}
+                </span>
                 {agent.type && <span style={styles.typeBadge}>{agent.type}</span>}
                 {agent.requiredModelType && (
                   <span style={styles.capBadge}>{agent.requiredModelType}</span>

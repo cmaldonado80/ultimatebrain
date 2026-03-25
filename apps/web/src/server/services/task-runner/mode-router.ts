@@ -14,7 +14,7 @@
  */
 
 import type { Database } from '@solarc/db'
-import { tickets } from '@solarc/db'
+import { tickets, agents } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 import { GatewayRouter } from '../gateway'
 import { WebhookService } from '../integrations'
@@ -311,12 +311,30 @@ export class ModeRouter {
 
   // ── Internal helpers ──────────────────────────────────────────────────────
 
-  private async singleLLMCall(prompt: string, context: string): Promise<string> {
+  /** Resolve agent model and soul for a ticket's assigned agent */
+  private async resolveAgentConfig(ticketId: string): Promise<{ model?: string; soul?: string }> {
     try {
+      const ticket = await this.db.query.tickets.findFirst({ where: eq(tickets.id, ticketId) })
+      if (!ticket?.assignedAgentId) return {}
+      const agent = await this.db.query.agents.findFirst({
+        where: eq(agents.id, ticket.assignedAgentId),
+      })
+      return { model: agent?.model ?? undefined, soul: agent?.soul ?? undefined }
+    } catch {
+      return {}
+    }
+  }
+
+  private async singleLLMCall(prompt: string, context: string, ticketId?: string): Promise<string> {
+    try {
+      const agentConfig = ticketId ? await this.resolveAgentConfig(ticketId) : {}
       const result = await this.gateway.chat({
-        model: 'claude-haiku-4-5',
+        model: agentConfig.model ?? 'claude-haiku-4-5',
         messages: [
-          { role: 'system', content: `You are a helpful assistant. Context: ${context}` },
+          {
+            role: 'system',
+            content: agentConfig.soul ?? `You are a helpful assistant. Context: ${context}`,
+          },
           { role: 'user', content: prompt },
         ],
       })
@@ -382,13 +400,17 @@ export class ModeRouter {
       }
 
       // Step 3: Execute via LLM with tools (+ skill context if available)
+      // Use the assigned agent's model and soul if available
+      const agentConfig = await this.resolveAgentConfig(ticketId)
       const executionResult = await this.gateway.chat({
+        model: agentConfig.model,
         messages: [
           {
             role: 'system',
             content:
+              agentConfig.soul ??
               'You are an autonomous agent executing a task. ' +
-              'Describe the steps you would take and their outcomes.',
+                'Describe the steps you would take and their outcomes.',
           },
           { role: 'user', content: `Execute this task: ${taskDescription}${skillContext}` },
         ],
