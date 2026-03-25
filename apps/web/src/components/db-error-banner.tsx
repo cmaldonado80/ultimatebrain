@@ -11,18 +11,23 @@ export function DbErrorBanner({ error }: { error: { message: string } }) {
     msg.includes('ECONNREFUSED') ||
     msg.includes('Connection terminated') ||
     msg.includes('connect ETIMEDOUT')
+  const isAuthError = msg.includes('Not authenticated') || msg.includes('UNAUTHORIZED')
 
   const title = isTableMissing
     ? 'Database tables not yet provisioned.'
     : isConnectionError
       ? 'Cannot connect to database.'
-      : 'Failed to load data.'
+      : isAuthError
+        ? 'Session expired.'
+        : 'Failed to load data.'
 
   const detail = isTableMissing
     ? 'Run: npx tsx packages/db/src/migrate.ts'
     : isConnectionError
       ? 'Check that PostgreSQL is running (docker compose up postgres).'
-      : msg
+      : isAuthError
+        ? null
+        : msg
 
   return (
     <div
@@ -39,14 +44,23 @@ export function DbErrorBanner({ error }: { error: { message: string } }) {
     >
       <span
         style={{
-          color: isTableMissing ? '#818cf8' : '#fca5a5',
+          color: isTableMissing || isAuthError ? '#818cf8' : '#fca5a5',
           fontSize: 14,
           fontWeight: 600,
         }}
       >
         {title}
       </span>
-      <span style={{ color: '#6b7280', fontSize: 12 }}>{detail}</span>
+      {isAuthError ? (
+        <a
+          href="/auth/signin"
+          style={{ color: '#818cf8', fontSize: 12, textDecoration: 'underline' }}
+        >
+          Please sign in again.
+        </a>
+      ) : (
+        <span style={{ color: '#6b7280', fontSize: 12 }}>{detail}</span>
+      )}
     </div>
   )
 }
