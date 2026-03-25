@@ -198,7 +198,11 @@ export default function ChatPage() {
                 style={selectedSession === s.id ? styles.sessionActive : styles.sessionItem}
                 onClick={() => setSelectedSession(s.id)}
               >
-                <div style={styles.sessionLabel}>Session {s.id.slice(0, 8)}</div>
+                <div style={styles.sessionLabel}>
+                  {s.agentId
+                    ? (agents.find((a) => a.id === s.agentId)?.name ?? 'Agent')
+                    : `Session ${s.id.slice(0, 8)}`}
+                </div>
                 <div style={styles.sessionMeta}>{new Date(s.createdAt).toLocaleDateString()}</div>
               </div>
             ))
