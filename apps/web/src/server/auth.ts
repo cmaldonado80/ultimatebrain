@@ -21,6 +21,11 @@ export async function createSession(email: string): Promise<string> {
 
 /** Read and verify the session cookie. Returns null if invalid/missing. */
 export async function auth(): Promise<Session | null> {
+  // Dev mode: return mock session when SKIP_AUTH is set
+  if (process.env.SKIP_AUTH === 'true') {
+    return { user: { id: 'dev-user', email: 'dev@ultimatebrain.local', name: 'Developer' } }
+  }
+
   const cookieStore = await cookies()
   const token = cookieStore.get(COOKIE_NAME)?.value
   if (!token) return null

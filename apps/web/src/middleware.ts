@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(req: NextRequest) {
+  // Skip auth redirect when SKIP_AUTH is set (development mode)
+  if (process.env.SKIP_AUTH === 'true') return NextResponse.next()
+
   const hasSession = req.cookies.has('session-token')
 
   if (!hasSession && req.nextUrl.pathname !== '/auth/signin') {
