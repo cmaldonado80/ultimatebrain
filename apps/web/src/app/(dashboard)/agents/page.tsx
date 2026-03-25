@@ -83,7 +83,7 @@ export default function AgentsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navRouter = useRouter()
 
-  const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
+  const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 500, offset: 0 })
   const modelsQuery = trpc.models.availableModels.useQuery()
   const availableModels = (modelsQuery.data ?? []) as Array<{
     modelId: string
