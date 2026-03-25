@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 import { createDb, waitForSchema, type Database } from '@solarc/db'
-import { chatSessions, chatMessages } from '@solarc/db'
+import { chatSessions, chatMessages, agents } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
 import { GatewayRouter } from '../../../../server/services/gateway'
 
@@ -44,7 +44,21 @@ export async function POST(req: Request) {
     .set({ updatedAt: new Date() })
     .where(eq(chatSessions.id, body.sessionId))
 
-  // 2. Load conversation history
+  // 2. Load session's agent (if assigned)
+  const session = await db.query.chatSessions.findFirst({
+    where: eq(chatSessions.id, body.sessionId),
+  })
+  let agentSoul = 'You are a helpful AI assistant. Be concise and direct.'
+  let agentModel: string | undefined
+  if (session?.agentId) {
+    const agent = await db.query.agents.findFirst({
+      where: eq(agents.id, session.agentId),
+    })
+    if (agent?.soul) agentSoul = agent.soul
+    if (agent?.model) agentModel = agent.model
+  }
+
+  // 3. Load conversation history
   const msgs = await db.query.chatMessages.findMany({
     where: eq(chatMessages.sessionId, body.sessionId),
     orderBy: desc(chatMessages.createdAt),
@@ -52,27 +66,31 @@ export async function POST(req: Request) {
   })
   const history = msgs.reverse().map((m) => ({ role: m.role, content: m.text }))
 
-  // 3. Stream response via SSE
+  // 4. Stream response via SSE
   const encoder = new TextEncoder()
   let fullContent = ''
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        // Pre-check: ensure an API key is available for the default provider
-        const defaultModel = 'claude-sonnet-4-6'
-        const providerName = defaultModel.startsWith('claude')
+        // Pre-check: ensure an API key is available for the target provider
+        const targetModel = agentModel ?? 'claude-sonnet-4-6'
+        const providerName = targetModel.startsWith('claude')
           ? 'anthropic'
-          : defaultModel.startsWith('gpt') || defaultModel.startsWith('o')
+          : targetModel.startsWith('gpt') || targetModel.startsWith('o')
             ? 'openai'
-            : 'anthropic'
+            : targetModel.startsWith('ollama/') || targetModel.includes(':')
+              ? 'ollama'
+              : 'anthropic'
         const hasKey = await gateway.keyVault.getKey(providerName)
         const hasEnvKey =
           providerName === 'anthropic'
             ? !!process.env.ANTHROPIC_API_KEY
             : providerName === 'openai'
               ? !!process.env.OPENAI_API_KEY
-              : false
+              : providerName === 'ollama'
+                ? !!process.env.OLLAMA_API_KEY
+                : false
         if (!hasKey && !hasEnvKey) {
           controller.enqueue(
             encoder.encode(
@@ -86,10 +104,8 @@ export async function POST(req: Request) {
         }
 
         const gen = gateway.chatStream({
-          messages: [
-            { role: 'system', content: 'You are a helpful AI assistant. Be concise and direct.' },
-            ...history,
-          ],
+          model: agentModel,
+          messages: [{ role: 'system', content: agentSoul }, ...history],
         })
 
         for await (const chunk of gen) {
