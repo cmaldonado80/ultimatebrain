@@ -16,6 +16,14 @@ export default function CanvasPage() {
   const isLoading = featuresQuery.isLoading || policiesQuery.isLoading
   const error = featuresQuery.error || policiesQuery.error
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   const handleToggleFeature = async (name: string, enabled: boolean) => {
     await setFeatureMut.mutateAsync({ name, enabled })
     utils.intelligence.features.invalidate()
@@ -51,8 +59,6 @@ export default function CanvasPage() {
           Visual workspace for orchestrating agent workflows and viewing execution graphs.
         </p>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       <div style={styles.section}>
         <div style={styles.sectionTitle}>Feature Flags</div>
         {features && Object.keys(features).length > 0 ? (

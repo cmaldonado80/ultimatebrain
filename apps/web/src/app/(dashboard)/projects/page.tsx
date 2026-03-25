@@ -35,6 +35,14 @@ export default function ProjectsPage() {
   const [goal, setGoal] = useState('')
   const [search, setSearch] = useState('')
   const { data, isLoading, error } = trpc.projects.list.useQuery({ limit: 100, offset: 0 })
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
   const utils = trpc.useUtils()
   const createMut = trpc.projects.create.useMutation({
     onSuccess: () => {
@@ -176,8 +184,6 @@ export default function ProjectsPage() {
           </div>
         </div>
       )}
-
-      {error && <DbErrorBanner error={error} />}
       {projects.length === 0 ? (
         <div style={styles.empty}>No projects found. Create one to get started.</div>
       ) : (

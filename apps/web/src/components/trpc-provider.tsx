@@ -19,7 +19,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
           onError: (error) => {
             const trpcError = error as { data?: { code?: string } }
             if (trpcError?.data?.code === 'UNAUTHORIZED' || error.message === 'Not authenticated') {
-              window.location.href = '/auth/signin'
+              if (typeof window !== 'undefined') window.location.href = '/auth/signin'
             }
           },
         }),

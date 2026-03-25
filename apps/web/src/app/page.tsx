@@ -182,6 +182,14 @@ export default function DashboardPage() {
   const error =
     agentsQuery.error || ticketsQuery.error || workspacesQuery.error || healthQuery.error
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -276,8 +284,6 @@ export default function DashboardPage() {
         <h2 style={styles.title}>Brain Dashboard</h2>
         <p style={styles.subtitle}>Central Intelligence Core — Solarc v4</p>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       {/* Stat cards */}
       <div style={styles.statsGrid}>
         {STATS.map((stat) => (

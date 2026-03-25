@@ -42,6 +42,14 @@ export default function IntegrationsPage() {
   const isLoading = channelsQuery.isLoading || webhooksQuery.isLoading
   const error = channelsQuery.error || webhooksQuery.error
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   const handleToggleChannel = async (id: string, enabled: boolean) => {
     await toggleChannelMut.mutateAsync({ id, enabled })
     utils.integrations.channels.invalidate()
@@ -82,8 +90,6 @@ export default function IntegrationsPage() {
           Connect third-party services — GitHub, Slack, Jira, and custom webhooks.
         </p>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       <div style={styles.section}>
         <div
           style={{

@@ -30,6 +30,14 @@ export default function GatewayPage() {
   const isLoading = metricsQuery.isLoading || healthQuery.isLoading || providersQuery.isLoading
   const error = metricsQuery.error || healthQuery.error || providersQuery.error
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -70,8 +78,6 @@ export default function GatewayPage() {
           LLM Gateway metrics — request volume, latency, cost tracking, and cache hit rates.
         </p>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       <div style={styles.statsGrid}>
         <div style={styles.statCard}>
           <div

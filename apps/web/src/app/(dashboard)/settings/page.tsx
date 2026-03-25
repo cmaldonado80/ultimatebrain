@@ -65,6 +65,14 @@ export default function SettingsPage() {
   const error =
     featuresQuery.error || policiesQuery.error || cognitionQuery.error || providersQuery.error
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -99,8 +107,6 @@ export default function SettingsPage() {
           Configure brain identity, API keys, LLM providers, and system preferences.
         </p>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       <div style={styles.section}>
         <div
           style={{

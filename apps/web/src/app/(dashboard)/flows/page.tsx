@@ -33,6 +33,14 @@ export default function FlowsPage() {
   const [task, setTask] = useState('')
   const [runResult, setRunResult] = useState<string | null>(null)
   const { data, isLoading, error } = trpc.flows.list.useQuery()
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
   const runCrewMut = trpc.flows.runCrew.useMutation({
     onSuccess: (data) => {
       setRunResult(
@@ -203,8 +211,6 @@ export default function FlowsPage() {
           </button>
         </div>
       )}
-
-      {error && <DbErrorBanner error={error} />}
       {flows.length === 0 ? (
         <div style={styles.empty}>
           No flows defined yet. Create a flow to orchestrate agent workflows.

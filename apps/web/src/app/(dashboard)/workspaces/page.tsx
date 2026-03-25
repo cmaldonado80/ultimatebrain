@@ -60,6 +60,14 @@ export default function WorkspacesPage() {
   const [goal, setGoal] = useState('')
   const [search, setSearch] = useState('')
   const { data, isLoading, error } = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
   const utils = trpc.useUtils()
   const createMut = trpc.workspaces.create.useMutation({
     onSuccess: () => {
@@ -227,8 +235,6 @@ export default function WorkspacesPage() {
           </div>
         </div>
       )}
-
-      {error && <DbErrorBanner error={error} />}
       {workspaces.length === 0 ? (
         <div style={styles.empty}>No workspaces found. Create one to get started.</div>
       ) : (

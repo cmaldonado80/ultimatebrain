@@ -50,6 +50,14 @@ export default function MemoryPage() {
   const isLoading = listQuery.isLoading || statsQuery.isLoading
   const error = listQuery.error || statsQuery.error
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -181,8 +189,6 @@ export default function MemoryPage() {
           </div>
         </div>
       )}
-
-      {error && <DbErrorBanner error={error} />}
       {stats && (
         <div style={styles.statsGrid}>
           {Object.entries(stats).map(([tier, count]) => (

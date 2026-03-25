@@ -35,6 +35,14 @@ export default function AppDetailPage() {
 
   const { data: app, isLoading, error } = trpc.agents.byId.useQuery({ id: appId })
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -83,7 +91,6 @@ export default function AppDetailPage() {
 
   return (
     <div style={styles.page}>
-      {error && <DbErrorBanner error={error} />}
       {/* Header */}
       <div style={styles.header}>
         <a href="/apps" style={styles.back}>

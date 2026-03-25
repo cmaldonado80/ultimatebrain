@@ -16,6 +16,14 @@ export default function DLQPage() {
   const isLoading = diagnoseQuery.isLoading || healthQuery.isLoading
   const error = diagnoseQuery.error || healthQuery.error
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   const handleClearLeases = async () => {
     await clearLeasesMut.mutateAsync()
     utils.healing.diagnose.invalidate()
@@ -55,8 +63,6 @@ export default function DLQPage() {
           Inspect and retry failed jobs — ticket executions, cron runs, and webhook deliveries.
         </p>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       {health && (
         <div style={styles.healthCard}>
           <div style={styles.healthTop}>

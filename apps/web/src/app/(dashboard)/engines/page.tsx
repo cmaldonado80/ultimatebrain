@@ -40,6 +40,14 @@ export default function EnginesPage() {
   const isLoading = listQuery.isLoading || topoQuery.isLoading
   const error = listQuery.error || topoQuery.error
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -73,8 +81,6 @@ export default function EnginesPage() {
           more.
         </p>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       {topo && (
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>

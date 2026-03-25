@@ -135,9 +135,16 @@ export default function ChatPage() {
     | undefined
   const messages: ChatMessage[] = sessionData?.messages ?? []
 
+  if (sessionsQuery.error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={sessionsQuery.error} />
+      </div>
+    )
+  }
+
   return (
     <div style={styles.page}>
-      {sessionsQuery.error && <DbErrorBanner error={sessionsQuery.error} />}
       <div style={styles.layout}>
         {/* Sidebar */}
         <div style={styles.sidebar}>

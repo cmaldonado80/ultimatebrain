@@ -51,6 +51,14 @@ export default function TicketsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const { data, isLoading, error } = trpc.tickets.list.useQuery()
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
   const utils = trpc.useUtils()
   const createMut = trpc.tickets.create.useMutation({
     onSuccess: () => {
@@ -254,8 +262,6 @@ export default function TicketsPage() {
           </div>
         </div>
       )}
-
-      {error && <DbErrorBanner error={error} />}
       {tickets.length === 0 ? (
         <div style={styles.empty}>No tickets found. Create one to get started.</div>
       ) : (

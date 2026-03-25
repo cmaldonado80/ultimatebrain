@@ -21,6 +21,14 @@ export default function OpsOverviewPage() {
   const error =
     healthQuery.error || tracesQuery.error || approvalsQuery.error || gatewayHealthQuery.error
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -55,8 +63,6 @@ export default function OpsOverviewPage() {
           System-wide operational dashboard — health, throughput, errors, and SLA compliance.
         </p>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       <div style={styles.statsGrid}>
         <div style={styles.statCard}>
           <div

@@ -149,6 +149,14 @@ export default function PlaybooksPage() {
   const [lastRunResult, setLastRunResult] = useState<string | null>(null)
 
   const { data: playbooks, isLoading, error } = trpc.playbooks.list.useQuery()
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
   const runMutation = trpc.playbooks.run.useMutation()
   const startRecordingMutation = trpc.playbooks.startRecording.useMutation()
   const endRecordingMutation = trpc.playbooks.endRecording.useMutation()
@@ -257,8 +265,6 @@ export default function PlaybooksPage() {
           )}
         </div>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       {recording && (
         <div style={styles.recordingBanner}>
           ⏺ Recording in progress — your actions are being captured

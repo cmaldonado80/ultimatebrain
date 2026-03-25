@@ -214,6 +214,14 @@ export default function SkillsPage() {
   const isLoading = browseQuery.isLoading || installedQuery.isLoading
   const error = browseQuery.error || installedQuery.error
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -280,8 +288,6 @@ export default function SkillsPage() {
           <p style={styles.subtitle}>Browse, install, and manage agent skills</p>
         </div>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       {/* Tabs */}
       <div style={styles.tabs}>
         <button

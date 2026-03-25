@@ -25,6 +25,14 @@ export default function GuardrailsPage() {
   const isLoading = logsQuery.isLoading || statsQuery.isLoading
   const error = logsQuery.error || statsQuery.error
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -62,8 +70,6 @@ export default function GuardrailsPage() {
           Safety rules, PII detection logs, and content policy enforcement across all agents.
         </p>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       {stats && (
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>

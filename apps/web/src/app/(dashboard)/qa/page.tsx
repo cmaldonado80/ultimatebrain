@@ -55,6 +55,14 @@ export default function QAPage() {
   const datasets: DatasetSummary[] = (datasetsQuery.data as DatasetSummary[]) ?? []
   const runs: EvalRun[] = (runsQuery.data as EvalRun[]) ?? []
 
+  if (datasetsQuery.error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={datasetsQuery.error} />
+      </div>
+    )
+  }
+
   return (
     <div style={styles.page}>
       <div style={styles.header}>
@@ -63,9 +71,6 @@ export default function QAPage() {
           Record, replay, and validate visual test sessions for quality assurance.
         </p>
       </div>
-
-      {datasetsQuery.error && <DbErrorBanner error={datasetsQuery.error} />}
-
       <div style={styles.layout}>
         <div style={styles.sidebar}>
           <div style={styles.sidebarTitle}>Datasets ({datasets.length})</div>

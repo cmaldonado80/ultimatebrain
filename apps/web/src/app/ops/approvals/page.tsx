@@ -23,6 +23,14 @@ interface ApprovalGate {
 
 export default function ApprovalsPage() {
   const { data, isLoading, error } = trpc.approvals.pending.useQuery()
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
   const decideMutation = trpc.approvals.decide.useMutation()
   const utils = trpc.useUtils()
 
@@ -65,8 +73,6 @@ export default function ApprovalsPage() {
           Review and approve pending agent actions that require human-in-the-loop authorization.
         </p>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       {gates.length === 0 ? (
         <div style={styles.empty}>No pending approvals. All clear.</div>
       ) : (

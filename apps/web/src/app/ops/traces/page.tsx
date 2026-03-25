@@ -24,6 +24,14 @@ interface Span {
 export default function TracesPage() {
   const { data, isLoading, error } = trpc.traces.recent.useQuery({ limit: 100 })
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -53,8 +61,6 @@ export default function TracesPage() {
           Distributed tracing for agent executions — spans, latency, and dependency graphs.
         </p>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       {spans.length === 0 ? (
         <div style={styles.empty}>No traces found. Traces appear as agents execute tasks.</div>
       ) : (

@@ -67,6 +67,14 @@ export default function AppsPage() {
   const [filter, setFilter] = useState<string>('all')
   const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -121,8 +129,6 @@ export default function AppsPage() {
           </p>
         </div>
       </div>
-
-      {error && <DbErrorBanner error={error} />}
       <div style={styles.tabs}>
         <button
           style={filter === 'all' ? styles.tabActive : styles.tab}
