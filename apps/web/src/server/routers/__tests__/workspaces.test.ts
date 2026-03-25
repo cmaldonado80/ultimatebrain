@@ -15,6 +15,9 @@ function createMockDb() {
         findMany: mockFindMany,
         findFirst: mockFindFirst,
       },
+      agents: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
     },
     insert: vi.fn().mockReturnValue({
       values: vi.fn().mockReturnValue({
@@ -29,10 +32,11 @@ function createMockDb() {
 // ---------------------------------------------------------------------------
 
 vi.mock('@solarc/db', () => ({
-  workspaces: { id: 'id', lifecycleState: 'lifecycle_state' },
+  workspaces: { id: 'id', lifecycleState: 'lifecycle_state', type: 'type' },
   workspaceBindings: { id: 'id', workspaceId: 'workspace_id', enabled: 'enabled' },
   workspaceGoals: { id: 'id', workspaceId: 'workspace_id' },
   workspaceLifecycleEvents: { id: 'id', workspaceId: 'workspace_id' },
+  agents: { id: 'id', workspaceId: 'workspace_id', isWsOrchestrator: 'is_ws_orchestrator' },
 }))
 
 vi.mock('drizzle-orm', () => ({

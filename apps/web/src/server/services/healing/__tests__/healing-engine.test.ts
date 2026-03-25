@@ -5,7 +5,12 @@ import { HealingEngine } from '../healing-engine'
 
 vi.mock('@solarc/db', () => ({
   agents: { id: 'id', name: 'name', status: 'status', updatedAt: 'updatedAt' },
-  tickets: { id: 'id', status: 'status', updatedAt: 'updatedAt', assignedAgentId: 'assignedAgentId' },
+  tickets: {
+    id: 'id',
+    status: 'status',
+    updatedAt: 'updatedAt',
+    assignedAgentId: 'assignedAgentId',
+  },
   ticketExecution: {
     ticketId: 'ticketId',
     lockOwner: 'lockOwner',
@@ -13,12 +18,21 @@ vi.mock('@solarc/db', () => ({
     leaseUntil: 'leaseUntil',
   },
   brainEntities: { id: 'id', name: 'name', status: 'status' },
+  healingLogs: {
+    id: 'id',
+    action: 'action',
+    target: 'target',
+    reason: 'reason',
+    success: 'success',
+    createdAt: 'createdAt',
+  },
 }))
 
 vi.mock('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val }),
   and: (...args: unknown[]) => ({ and: args }),
   lte: (col: string, val: unknown) => ({ lte: { col, val } }),
+  desc: (col: string) => ({ desc: col }),
   sql: (...args: unknown[]) => args,
 }))
 
@@ -27,7 +41,13 @@ vi.mock('drizzle-orm', () => ({
 function createMockDb() {
   const whereFn = vi.fn().mockReturnThis()
   const setFn = vi.fn().mockReturnValue({ where: whereFn })
-  const fromFn = vi.fn().mockReturnValue({ where: whereFn })
+  const limitFn = vi.fn().mockResolvedValue([])
+  const orderByFn = vi.fn().mockReturnValue({ limit: limitFn })
+  const fromFn = vi.fn().mockImplementation(() => ({
+    where: whereFn,
+    orderBy: orderByFn,
+  }))
+  const insertValuesFn = vi.fn().mockResolvedValue(undefined)
 
   return {
     query: {
@@ -40,7 +60,10 @@ function createMockDb() {
     },
     select: vi.fn().mockReturnValue({ from: fromFn }),
     update: vi.fn().mockReturnValue({ set: setFn }),
-    _mock: { whereFn, setFn, fromFn },
+    insert: vi.fn().mockReturnValue({
+      values: insertValuesFn,
+    }),
+    _mock: { whereFn, setFn, fromFn, limitFn, orderByFn, insertValuesFn },
   } as any
 }
 
@@ -61,7 +84,8 @@ describe('HealingEngine', () => {
   describe('diagnose', () => {
     it('should return healthy status when all checks pass', async () => {
       // All query defaults return empty arrays, stuckTickets/failedTickets return [{count:0}]
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([]) // expired leases
         .mockResolvedValueOnce([{ count: 0 }]) // stuck tickets
         .mockResolvedValueOnce([{ count: 0 }]) // failed tickets
@@ -77,11 +101,10 @@ describe('HealingEngine', () => {
     })
 
     it('should return degraded when agents are in error state (<=2)', async () => {
-      db.query.agents.findMany.mockResolvedValue([
-        { id: 'a1', name: 'Agent 1', status: 'error' },
-      ])
+      db.query.agents.findMany.mockResolvedValue([{ id: 'a1', name: 'Agent 1', status: 'error' }])
 
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([]) // expired leases
         .mockResolvedValueOnce([{ count: 0 }]) // stuck tickets
         .mockResolvedValueOnce([{ count: 0 }]) // failed tickets
@@ -104,7 +127,8 @@ describe('HealingEngine', () => {
         { id: 'a3', name: 'Agent 3', status: 'error' },
       ])
 
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([]) // expired leases
         .mockResolvedValueOnce([{ count: 0 }]) // stuck tickets
         .mockResolvedValueOnce([{ count: 0 }]) // failed tickets
@@ -119,7 +143,8 @@ describe('HealingEngine', () => {
     })
 
     it('should detect expired execution leases', async () => {
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([{ ticketId: 't1', lockOwner: 'a1' }]) // expired leases
         .mockResolvedValueOnce([{ count: 0 }]) // stuck tickets
         .mockResolvedValueOnce([{ count: 0 }]) // failed tickets
@@ -136,7 +161,8 @@ describe('HealingEngine', () => {
     })
 
     it('should detect stuck tickets', async () => {
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([]) // expired leases
         .mockResolvedValueOnce([{ count: 5 }]) // stuck tickets (>3 => fail)
         .mockResolvedValueOnce([{ count: 0 }]) // failed tickets
@@ -156,7 +182,8 @@ describe('HealingEngine', () => {
         { id: 'e1', name: 'Entity 1', status: 'degraded' },
       ])
 
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([]) // expired leases
         .mockResolvedValueOnce([{ count: 0 }]) // stuck tickets
         .mockResolvedValueOnce([{ count: 0 }]) // failed tickets
@@ -172,7 +199,8 @@ describe('HealingEngine', () => {
     })
 
     it('should detect high recent ticket failure rate', async () => {
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([]) // expired leases
         .mockResolvedValueOnce([{ count: 0 }]) // stuck tickets
         .mockResolvedValueOnce([{ count: 8 }]) // failed tickets (>5 => fail)
@@ -191,7 +219,8 @@ describe('HealingEngine', () => {
     })
 
     it('should include timestamp and latencyMs in report', async () => {
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ count: 0 }])
         .mockResolvedValueOnce([{ count: 0 }])
@@ -211,7 +240,8 @@ describe('HealingEngine', () => {
 
   describe('healthCheck', () => {
     it('should return a HealthCheckOutput matching engine contract', async () => {
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ count: 0 }])
         .mockResolvedValueOnce([{ count: 0 }])
@@ -235,9 +265,7 @@ describe('HealingEngine', () => {
 
       expect(result).toBe(true)
       expect(db.update).toHaveBeenCalledTimes(2)
-      expect(db._mock.setFn).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'idle' }),
-      )
+      expect(db._mock.setFn).toHaveBeenCalledWith(expect.objectContaining({ status: 'idle' }))
       expect(db._mock.setFn).toHaveBeenCalledWith(
         expect.objectContaining({
           lockOwner: null,
@@ -408,7 +436,8 @@ describe('HealingEngine', () => {
   describe('autoHeal', () => {
     it('should run diagnose and clear expired leases', async () => {
       // diagnose queries
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([]) // diagnose: expired leases
         .mockResolvedValueOnce([{ count: 0 }]) // diagnose: stuck tickets
         .mockResolvedValueOnce([{ count: 0 }]) // diagnose: failed tickets
@@ -425,7 +454,8 @@ describe('HealingEngine', () => {
     })
 
     it('should restart error agents during autoHeal', async () => {
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([]) // diagnose: expired leases
         .mockResolvedValueOnce([{ count: 0 }]) // diagnose: stuck tickets
         .mockResolvedValueOnce([{ count: 0 }]) // diagnose: failed tickets
@@ -451,7 +481,8 @@ describe('HealingEngine', () => {
     })
 
     it('should include clear_lock action when expired leases exist', async () => {
-      const selectWhereFn = vi.fn()
+      const selectWhereFn = vi
+        .fn()
         .mockResolvedValueOnce([]) // diagnose: expired leases
         .mockResolvedValueOnce([{ count: 0 }]) // diagnose: stuck tickets
         .mockResolvedValueOnce([{ count: 0 }]) // diagnose: failed tickets

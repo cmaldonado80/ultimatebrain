@@ -88,7 +88,7 @@ describe('memory router', () => {
       const trpc = caller({ db, session: { userId: 'user-1' } })
       const result = await trpc.list()
 
-      expect(mockFindMany).toHaveBeenCalledWith({ where: undefined })
+      expect(mockFindMany).toHaveBeenCalledWith({ where: undefined, limit: 50, offset: 0 })
       expect(result).toEqual(mems)
     })
 
@@ -100,6 +100,8 @@ describe('memory router', () => {
 
       expect(mockFindMany).toHaveBeenCalledWith({
         where: { and: [{ col: 'tier', val: 'core' }] },
+        limit: 50,
+        offset: 0,
       })
     })
 
@@ -116,6 +118,8 @@ describe('memory router', () => {
             { col: 'workspaceId', val: UUID1 },
           ],
         },
+        limit: 50,
+        offset: 0,
       })
     })
 
