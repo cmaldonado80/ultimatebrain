@@ -57,6 +57,27 @@ export const engineRegistryRouter = router({
       return { connected: true }
     }),
 
+  /** Register a custom engine */
+  registerEngine: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+        description: z.string().default(''),
+        domain: z.string().optional(),
+      }),
+    )
+    .mutation(({ input }) => {
+      return getRegistry().registerCustomEngine(input)
+    }),
+
+  /** List engines by category */
+  listByCategory: protectedProcedure
+    .input(z.object({ category: z.enum(['system', 'domain', 'custom']) }))
+    .query(({ input }) => {
+      return getRegistry().listByCategory(input.category)
+    }),
+
   /** Record a request to an engine from an app */
   recordRequest: protectedProcedure
     .input(
