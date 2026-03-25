@@ -774,6 +774,25 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       await client.query(sql).catch(() => {})
     }
 
+    // ── Step 2b: Add missing columns to existing tables ──
+    const alterStatements = [
+      `ALTER TABLE agents ADD COLUMN IF NOT EXISTS soul text`,
+      `ALTER TABLE agents ADD COLUMN IF NOT EXISTS temperature real DEFAULT 1.0`,
+      `ALTER TABLE agents ADD COLUMN IF NOT EXISTS max_tokens integer DEFAULT 4096`,
+      `ALTER TABLE agents ADD COLUMN IF NOT EXISTS tool_access text[]`,
+      `ALTER TABLE agents ADD COLUMN IF NOT EXISTS parent_orchestrator_id uuid`,
+      `ALTER TABLE agents ADD COLUMN IF NOT EXISTS required_model_type model_type`,
+      `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS is_system_protected boolean DEFAULT false`,
+      `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS lifecycle_state workspace_lifecycle DEFAULT 'draft' NOT NULL`,
+      `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS icon text`,
+      `ALTER TABLE memories ADD COLUMN IF NOT EXISTS access_count integer DEFAULT 0 NOT NULL`,
+      `ALTER TABLE memories ADD COLUMN IF NOT EXISTS last_accessed_at timestamp`,
+      `ALTER TABLE orchestrator_routes ADD COLUMN IF NOT EXISTS orchestrator_id uuid`,
+    ]
+    for (const stmt of alterStatements) {
+      await client.query(stmt).catch(() => {})
+    }
+
     // ── Step 3: Seed model_registry with built-in models ──
     const builtInModels = [
       {
