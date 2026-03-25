@@ -24,10 +24,10 @@ interface Entity {
 interface Template {
   id: string
   domain: string
-  name: string
-  description: string
   engines: string[]
-  agentCount: number
+  agents: Array<{ name: string; role: string; capabilities: string[] }>
+  dbTables: string[]
+  developmentTemplates: string[]
 }
 
 const TIER_COLORS: Record<string, string> = {
@@ -47,7 +47,12 @@ export default function BrainManagerPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [entityName, setEntityName] = useState('')
-  const [entityDomain, setEntityDomain] = useState('')
+  const [expandedEntity, setExpandedEntity] = useState<string | null>(null)
+  const [devCreateTarget, setDevCreateTarget] = useState<string | null>(null)
+  const [devName, setDevName] = useState('')
+  const [createResult, setCreateResult] = useState<{ name: string; agentCount: number } | null>(
+    null,
+  )
 
   const entitiesQuery = trpc.platform.entitiesByTier.useQuery({ tier: 'brain' })
   const miniBrainsQuery = trpc.platform.entitiesByTier.useQuery({ tier: 'mini_brain' })
@@ -55,12 +60,20 @@ export default function BrainManagerPage() {
   const templatesQuery = trpc.factory.templates.useQuery()
 
   const utils = trpc.useUtils()
-  const createMut = trpc.platform.createEntity.useMutation({
-    onSuccess: () => {
+  const createMut = trpc.factory.smartCreate.useMutation({
+    onSuccess: (data) => {
       utils.platform.entitiesByTier.invalidate()
       setShowCreateForm(false)
       setEntityName('')
-      setEntityDomain('')
+      setSelectedTemplate('')
+      setCreateResult({ name: data.entity.name, agentCount: data.agentCount })
+    },
+  })
+  const devCreateMut = trpc.factory.smartCreateDevelopment.useMutation({
+    onSuccess: () => {
+      utils.platform.entitiesByTier.invalidate()
+      setDevCreateTarget(null)
+      setDevName('')
     },
   })
   const activateMut = trpc.platform.activateEntity.useMutation({
@@ -129,7 +142,30 @@ export default function BrainManagerPage() {
               flexShrink: 0,
             }}
           />
-          <span style={{ fontWeight: 700, fontSize: 13, flex: 1 }}>{entity.name}</span>
+          <span
+            style={{
+              fontWeight: 700,
+              fontSize: 13,
+              flex: 1,
+              cursor: 'pointer',
+              borderBottom: expandedEntity === entity.id ? '2px solid #818cf8' : 'none',
+            }}
+            onClick={() => setExpandedEntity(expandedEntity === entity.id ? null : entity.id)}
+            title="Click to expand"
+          >
+            {entity.name}
+          </span>
+          {entity.tier === 'mini_brain' && (
+            <button
+              style={{ ...styles.btnSmall, background: '#eab308', color: '#000', fontSize: 9 }}
+              onClick={(e) => {
+                e.stopPropagation()
+                setDevCreateTarget(devCreateTarget === entity.id ? null : entity.id)
+              }}
+            >
+              + Dev
+            </button>
+          )}
           <span
             style={{
               fontSize: 10,
@@ -172,6 +208,64 @@ export default function BrainManagerPage() {
             </button>
           )}
         </div>
+        {/* Expanded detail */}
+        {expandedEntity === entity.id && (
+          <div
+            style={{
+              padding: '8px 16px',
+              paddingLeft: 16 + depth * 24,
+              background: '#0d1117',
+              borderBottom: '1px solid #374151',
+              fontSize: 12,
+            }}
+          >
+            <div style={{ display: 'flex', gap: 16, marginBottom: 6 }}>
+              <span style={{ color: '#6b7280' }}>
+                Engines: {entity.enginesEnabled?.join(', ') || 'None'}
+              </span>
+              <span style={{ color: '#6b7280' }}>
+                Health:{' '}
+                {entity.lastHealthCheck
+                  ? new Date(entity.lastHealthCheck).toLocaleString()
+                  : 'Never checked'}
+              </span>
+            </div>
+            {entity.tier === 'mini_brain' && entity.domain && (
+              <div style={{ color: '#9ca3af', marginBottom: 4 }}>Domain: {entity.domain}</div>
+            )}
+          </div>
+        )}
+        {/* Dev creation inline */}
+        {devCreateTarget === entity.id && (
+          <div
+            style={{
+              padding: '8px 16px',
+              paddingLeft: 16 + depth * 24,
+              background: '#0d1117',
+              borderBottom: '1px solid #374151',
+              display: 'flex',
+              gap: 6,
+              alignItems: 'center',
+            }}
+          >
+            <input
+              style={{ ...styles.input, flex: 1, padding: '4px 8px', fontSize: 11 }}
+              placeholder="Development app name..."
+              value={devName}
+              onChange={(e) => setDevName(e.target.value)}
+            />
+            <button
+              style={{ ...styles.btnCreate, padding: '4px 10px', fontSize: 11 }}
+              onClick={() =>
+                devName.trim() &&
+                devCreateMut.mutate({ name: devName.trim(), miniBrainId: entity.id })
+              }
+              disabled={devCreateMut.isPending || !devName.trim()}
+            >
+              {devCreateMut.isPending ? 'Creating...' : 'Create Development'}
+            </button>
+          </div>
+        )}
         {children.map((child) => renderEntity(child, depth + 1))}
       </div>
     )
@@ -221,70 +315,133 @@ export default function BrainManagerPage() {
         </div>
       </div>
 
+      {/* Success Banner */}
+      {createResult && (
+        <div
+          style={{
+            background: '#064e3b',
+            border: '1px solid #22c55e',
+            borderRadius: 6,
+            padding: '10px 14px',
+            marginBottom: 12,
+            fontSize: 12,
+            color: '#6ee7b7',
+          }}
+        >
+          Mini-Brain &quot;{createResult.name}&quot; created with {createResult.agentCount} agents —
+          workspace active!
+          <button
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#6ee7b7',
+              cursor: 'pointer',
+              marginLeft: 8,
+              fontSize: 11,
+            }}
+            onClick={() => setCreateResult(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Create Form */}
       {showCreateForm && (
         <div style={styles.formCard}>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
             <input
               style={styles.input}
-              placeholder="Entity name..."
+              placeholder="Mini-Brain name (e.g., Hotel Revenue AI)..."
               value={entityName}
               onChange={(e) => setEntityName(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                style={{ ...styles.input, flex: 1 }}
-                placeholder="Domain (e.g., hospitality, healthcare)..."
-                value={entityDomain}
-                onChange={(e) => setEntityDomain(e.target.value)}
-              />
-              {templates.length > 0 && (
-                <select
-                  style={styles.select}
-                  value={selectedTemplate}
-                  onChange={(e) => setSelectedTemplate(e.target.value)}
-                >
-                  <option value="">Template (optional)</option>
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} — {t.description}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                style={styles.btnCreate}
-                onClick={() =>
-                  entityName.trim() &&
-                  createMut.mutate({
-                    name: entityName.trim(),
-                    tier: 'mini_brain',
-                    domain: entityDomain.trim() || undefined,
-                    parentId: brains[0]?.id,
-                  })
-                }
-                disabled={createMut.isPending || !entityName.trim()}
-              >
-                {createMut.isPending ? 'Creating...' : 'Create Mini-Brain'}
-              </button>
-              <button
-                style={{ ...styles.btnCreate, background: '#eab308', color: '#000' }}
-                onClick={() =>
-                  entityName.trim() &&
-                  createMut.mutate({
-                    name: entityName.trim(),
-                    tier: 'development',
-                    domain: entityDomain.trim() || undefined,
-                    parentId: miniBrains[0]?.id || brains[0]?.id,
-                  })
-                }
-                disabled={createMut.isPending || !entityName.trim()}
-              >
-                {createMut.isPending ? 'Creating...' : 'Create Development'}
-              </button>
-            </div>
+            <select
+              style={{ ...styles.select, borderColor: selectedTemplate ? '#22c55e' : '#374151' }}
+              value={selectedTemplate}
+              onChange={(e) => setSelectedTemplate(e.target.value)}
+            >
+              <option value="">Select a template (required)</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.id.charAt(0).toUpperCase() + t.id.slice(1)} — {t.domain} ({t.agents.length}{' '}
+                  agents, {t.engines.length} engines)
+                </option>
+              ))}
+            </select>
+
+            {/* Template Preview */}
+            {selectedTemplate &&
+              (() => {
+                const tpl = templates.find((t) => t.id === selectedTemplate)
+                if (!tpl) return null
+                return (
+                  <div
+                    style={{
+                      background: '#0d1117',
+                      borderRadius: 6,
+                      padding: 10,
+                      border: '1px solid #1e3a5f',
+                    }}
+                  >
+                    <div
+                      style={{ fontSize: 11, color: '#818cf8', fontWeight: 700, marginBottom: 6 }}
+                    >
+                      Template Preview: {tpl.domain}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
+                      Engines: {tpl.engines.join(' · ')}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>
+                      Agents ({tpl.agents.length}):
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+                      {tpl.agents.map((a) => (
+                        <span
+                          key={a.name}
+                          style={{
+                            fontSize: 10,
+                            background: '#1e1b4b',
+                            color: '#818cf8',
+                            padding: '2px 6px',
+                            borderRadius: 3,
+                          }}
+                          title={`${a.role} — ${a.capabilities.join(', ')}`}
+                        >
+                          {a.name}
+                        </span>
+                      ))}
+                    </div>
+                    {tpl.developmentTemplates.length > 0 && (
+                      <div style={{ fontSize: 10, color: '#4b5563', marginTop: 6 }}>
+                        Development variants: {tpl.developmentTemplates.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
+            <button
+              style={styles.btnCreate}
+              onClick={() =>
+                entityName.trim() &&
+                selectedTemplate &&
+                createMut.mutate({
+                  template: selectedTemplate as
+                    | 'astrology'
+                    | 'hospitality'
+                    | 'healthcare'
+                    | 'legal'
+                    | 'marketing'
+                    | 'soc-ops',
+                  name: entityName.trim(),
+                  parentId: brains[0]?.id,
+                })
+              }
+              disabled={createMut.isPending || !entityName.trim() || !selectedTemplate}
+            >
+              {createMut.isPending ? 'Provisioning Mini-Brain...' : 'Create Mini-Brain'}
+            </button>
             {createMut.error && (
               <div style={{ color: '#fca5a5', fontSize: 11 }}>{createMut.error.message}</div>
             )}
@@ -329,14 +486,16 @@ export default function BrainManagerPage() {
                   border: '1px solid #374151',
                 }}
               >
-                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{t.name}</div>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
+                  {t.id.charAt(0).toUpperCase() + t.id.slice(1)}
+                </div>
                 <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
-                  {t.description}
+                  {t.domain} domain
                 </div>
                 <div style={{ display: 'flex', gap: 8, fontSize: 10, color: '#4b5563' }}>
-                  <span>Domain: {t.domain}</span>
                   <span>Engines: {t.engines.length}</span>
-                  <span>Agents: {t.agentCount}</span>
+                  <span>Agents: {t.agents.length}</span>
+                  <span>Dev templates: {t.developmentTemplates.length}</span>
                 </div>
               </div>
             ))}
