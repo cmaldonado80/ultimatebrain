@@ -42,6 +42,10 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
 
+  // ── Neon database provisioning ────────────────────────────
+  NEON_API_KEY: z.string().optional(),
+  NEON_PROJECT_ID: z.string().optional(),
+
   // ── Public (exposed to the browser via Next.js) ───────────
   NEXT_PUBLIC_API_BASE_URL: z.string().url().optional(),
 })
