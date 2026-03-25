@@ -69,6 +69,7 @@ export const orchestratorRoutes = pgTable('orchestrator_routes', {
   id: uuid('id').primaryKey().defaultRandom(),
   fromWorkspace: uuid('from_workspace').references(() => workspaces.id, { onDelete: 'cascade' }),
   toWorkspace: uuid('to_workspace').references(() => workspaces.id, { onDelete: 'cascade' }),
+  orchestratorId: uuid('orchestrator_id').references(() => agents.id, { onDelete: 'set null' }),
   rule: text('rule'),
   priority: integer('priority').default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),

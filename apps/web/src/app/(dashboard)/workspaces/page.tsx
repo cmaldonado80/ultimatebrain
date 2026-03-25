@@ -210,7 +210,7 @@ export default function WorkspacesPage() {
                   name.trim() &&
                   createMut.mutate({
                     name: name.trim(),
-                    type: type || undefined,
+                    type: (type as 'general' | 'development' | 'staging' | 'system') || undefined,
                     goal: goal.trim() || undefined,
                   })
                 }

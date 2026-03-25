@@ -16,6 +16,7 @@ import {
   traces,
   projects,
   flows,
+  cronJobs,
 } from './schema/index'
 
 async function seed() {
@@ -30,6 +31,67 @@ async function seed() {
 
   try {
     await db.transaction(async (tx) => {
+      // -------------------------------------------------------
+      // 0. System Orchestrator Workspace (singleton, always active)
+      // -------------------------------------------------------
+      const [systemWs] = await tx
+        .insert(workspaces)
+        .values({
+          name: 'System Orchestrator',
+          type: 'system',
+          goal: 'Govern all workspaces, route tasks, enforce policies, monitor health',
+          color: '#dc2626',
+          icon: 'crown',
+          autonomyLevel: 5,
+          lifecycleState: 'active',
+          isSystemProtected: true,
+          settings: { notifications: true, autoEscalate: true },
+        })
+        .returning()
+
+      console.log(`  ✓ System Workspace: ${systemWs.id}`)
+
+      // System orchestrator agent (top of hierarchy, no parent)
+      const [systemOrchestrator] = await tx
+        .insert(agents)
+        .values({
+          name: 'Brain Orchestrator',
+          type: 'orchestrator',
+          workspaceId: systemWs.id,
+          status: 'idle',
+          model: 'claude-sonnet-4-20250514',
+          color: '#dc2626',
+          bg: '#fef2f2',
+          description: 'System-wide orchestrator — governs all workspace orchestrators',
+          tags: ['governance', 'orchestration', 'system'],
+          skills: [
+            'cross-workspace-routing',
+            'budget-governance',
+            'policy-enforcement',
+            'health-monitoring',
+            'agent-allocation',
+            'auto-scaling',
+          ],
+          isWsOrchestrator: true,
+          parentOrchestratorId: null,
+          triggerMode: 'auto',
+        })
+        .returning()
+
+      console.log(`  ✓ System Orchestrator Agent: ${systemOrchestrator.id}`)
+
+      // Health monitoring cron job
+      await tx.insert(cronJobs).values({
+        name: 'system-health-monitor',
+        schedule: '*/5 * * * *',
+        type: 'system',
+        task: 'systemOrchestrator.monitorHealth',
+        workspaceId: systemWs.id,
+        status: 'active',
+      })
+
+      console.log('  ✓ System health monitor cron job')
+
       // -------------------------------------------------------
       // 1. Workspace
       // -------------------------------------------------------
@@ -66,6 +128,7 @@ async function seed() {
             tags: ['planning', 'strategy'],
             skills: ['decomposition', 'prioritization', 'dependency-analysis'],
             isWsOrchestrator: true,
+            parentOrchestratorId: systemOrchestrator.id,
             triggerMode: 'auto',
           },
           {

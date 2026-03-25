@@ -4,7 +4,13 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
-import { workspaces, workspaceBindings, workspaceGoals, workspaceLifecycleEvents } from '@solarc/db'
+import {
+  workspaces,
+  workspaceBindings,
+  workspaceGoals,
+  workspaceLifecycleEvents,
+  agents,
+} from '@solarc/db'
 import { eq, and } from 'drizzle-orm'
 
 // Valid lifecycle transitions
@@ -46,7 +52,7 @@ export const workspacesRouter = router({
     .input(
       z.object({
         name: z.string().min(1),
-        type: z.string().optional(),
+        type: z.enum(['general', 'development', 'staging', 'system']).optional(),
         goal: z.string().optional(),
         autonomyLevel: z.number().min(1).max(5).optional(),
       }),
@@ -65,6 +71,30 @@ export const workspacesRouter = router({
         eventType: 'created',
         toState: 'draft',
         payload: { name: ws.name, type: ws.type },
+      })
+
+      // Auto-provision orchestrator agent for this workspace
+      // Find system orchestrator to set as parent (if exists)
+      const systemWs = await ctx.db.query.workspaces.findFirst({
+        where: eq(workspaces.type, 'system'),
+      })
+      let parentOrchestratorId: string | null = null
+      if (systemWs) {
+        const systemOrch = await ctx.db.query.agents.findFirst({
+          where: and(eq(agents.workspaceId, systemWs.id), eq(agents.isWsOrchestrator, true)),
+        })
+        parentOrchestratorId = systemOrch?.id ?? null
+      }
+
+      await ctx.db.insert(agents).values({
+        name: `${ws.name} Orchestrator`,
+        type: 'orchestrator',
+        workspaceId: ws.id,
+        isWsOrchestrator: true,
+        parentOrchestratorId,
+        description: `Default orchestrator for workspace ${ws.name}`,
+        skills: ['coordination', 'task-routing', 'monitoring'],
+        triggerMode: 'auto',
       })
 
       return ws
@@ -121,6 +151,17 @@ export const workspacesRouter = router({
           message: 'Workspace has no active bindings. Add at least one binding before activating.',
         })
 
+      // Enforce orchestrator exists
+      const orchestrator = await ctx.db.query.agents.findFirst({
+        where: and(eq(agents.workspaceId, input.id), eq(agents.isWsOrchestrator, true)),
+      })
+      if (!orchestrator)
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message:
+            'Workspace has no orchestrator agent. An orchestrator is required before activating.',
+        })
+
       const [updated] = await ctx.db
         .update(workspaces)
         .set({ lifecycleState: 'active', updatedAt: new Date() })
@@ -144,6 +185,9 @@ export const workspacesRouter = router({
         where: eq(workspaces.id, input.id),
       })
       if (!ws) throw new TRPCError({ code: 'NOT_FOUND', message: 'Workspace not found' })
+
+      if (ws.type === 'system' || ws.isSystemProtected)
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'System workspace cannot be paused' })
 
       const current = ws.lifecycleState ?? 'draft'
       if (!VALID_TRANSITIONS[current]?.includes('paused'))
@@ -176,6 +220,9 @@ export const workspacesRouter = router({
         where: eq(workspaces.id, input.id),
       })
       if (!ws) throw new TRPCError({ code: 'NOT_FOUND', message: 'Workspace not found' })
+
+      if (ws.type === 'system' || ws.isSystemProtected)
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'System workspace cannot be retired' })
 
       const current = ws.lifecycleState ?? 'draft'
       if (!VALID_TRANSITIONS[current]?.includes('retired'))
@@ -225,15 +272,20 @@ export const workspacesRouter = router({
         ),
       })
 
+      const orchestrator = await ctx.db.query.agents.findFirst({
+        where: and(eq(agents.workspaceId, input.id), eq(agents.isWsOrchestrator, true)),
+      })
+
       const checks = {
         hasBindings: bindings.length > 0,
         hasBrain: bindings.some((b) => b.bindingType === 'brain'),
         hasEngine: bindings.some((b) => b.bindingType === 'engine'),
+        hasOrchestrator: !!orchestrator,
         bindingCount: bindings.length,
       }
 
       return {
-        ready: checks.hasBindings,
+        ready: checks.hasBindings && checks.hasOrchestrator,
         lifecycleState: ws.lifecycleState,
         checks,
       }
@@ -358,6 +410,23 @@ export const workspacesRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.delete(workspaceGoals).where(eq(workspaceGoals.id, input.id))
+      return { deleted: true }
+    }),
+
+  // ── Delete ────────────────────────────────────────────────────────
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const ws = await ctx.db.query.workspaces.findFirst({
+        where: eq(workspaces.id, input.id),
+      })
+      if (!ws) throw new TRPCError({ code: 'NOT_FOUND', message: 'Workspace not found' })
+
+      if (ws.type === 'system' || ws.isSystemProtected)
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'System workspace cannot be deleted' })
+
+      await ctx.db.delete(workspaces).where(eq(workspaces.id, input.id))
       return { deleted: true }
     }),
 })

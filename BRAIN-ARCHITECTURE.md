@@ -37,12 +37,12 @@ can know about anything in an outer circle.
 
 ### Layer Boundaries
 
-| Layer | Can Import From | NEVER Imports From | Lives In |
-|-------|----------------|-------------------|----------|
-| **Domain** (entities, value objects, events, ports) | Nothing (zero deps) | Application, Infrastructure, UI | `packages/types/`, engine `contracts/` |
-| **Application** (use cases, flows, crews) | Domain only | Infrastructure, UI | `engines/*/core/`, `src/server/services/` |
-| **Infrastructure** (DB adapters, LLM providers, MCP) | Domain (implements ports) | Application directly | `src/server/adapters/`, `packages/db/` |
-| **Presentation** (tRPC routers, API routes, UI) | Application (via ports) | Infrastructure internals | `src/server/routers/`, `src/app/` |
+| Layer                                                | Can Import From           | NEVER Imports From              | Lives In                                  |
+| ---------------------------------------------------- | ------------------------- | ------------------------------- | ----------------------------------------- |
+| **Domain** (entities, value objects, events, ports)  | Nothing (zero deps)       | Application, Infrastructure, UI | `packages/types/`, engine `contracts/`    |
+| **Application** (use cases, flows, crews)            | Domain only               | Infrastructure, UI              | `engines/*/core/`, `src/server/services/` |
+| **Infrastructure** (DB adapters, LLM providers, MCP) | Domain (implements ports) | Application directly            | `src/server/adapters/`, `packages/db/`    |
+| **Presentation** (tRPC routers, API routes, UI)      | Application (via ports)   | Infrastructure internals        | `src/server/routers/`, `src/app/`         |
 
 ### Concrete Rules
 
@@ -64,13 +64,13 @@ can know about anything in an outer circle.
 
 ### Enforcement Mechanisms
 
-| Mechanism | What It Catches | When It Runs |
-|-----------|----------------|--------------|
-| **ESLint `no-restricted-imports`** | Domain importing from infrastructure | Every save (IDE) + CI |
-| **TypeScript project references** | Cross-package boundary violations | `tsc --build` in CI |
-| **Architect Agent guardrail** | Structural violations in agent-generated code | Every autonomous/deep-work ticket |
-| **PR review checklist** | Manual verification of layer compliance | Every pull request |
-| **Dependency graph CI check** | Circular dependencies, layer violations | GitHub Actions on every push |
+| Mechanism                          | What It Catches                               | When It Runs                      |
+| ---------------------------------- | --------------------------------------------- | --------------------------------- |
+| **ESLint `no-restricted-imports`** | Domain importing from infrastructure          | Every save (IDE) + CI             |
+| **TypeScript project references**  | Cross-package boundary violations             | `tsc --build` in CI               |
+| **Architect Agent guardrail**      | Structural violations in agent-generated code | Every autonomous/deep-work ticket |
+| **PR review checklist**            | Manual verification of layer compliance       | Every pull request                |
+| **Dependency graph CI check**      | Circular dependencies, layer violations       | GitHub Actions on every push      |
 
 ```typescript
 // ESLint rule example for packages/types/
@@ -91,11 +91,11 @@ can know about anything in an outer circle.
 
 ### Architecture Per Tier
 
-| Tier | Architecture Style | Rationale |
-|------|-------------------|-----------|
-| **Brain** | Hexagonal (Ports & Adapters) + Event-Driven | Must support swappable providers, multiple consumers, engine isolation |
-| **Mini Brain** | Hexagonal for domain engines, simplified for glue code | Domain engines need the same rigor; brain-bridge is thin adapter |
-| **Development** | Feature-based modules with Mini Brain SDK as the I/O boundary | Apps are thin — most intelligence comes from Mini Brain. Keep simple |
+| Tier            | Architecture Style                                            | Rationale                                                              |
+| --------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Brain**       | Hexagonal (Ports & Adapters) + Event-Driven                   | Must support swappable providers, multiple consumers, engine isolation |
+| **Mini Brain**  | Hexagonal for domain engines, simplified for glue code        | Domain engines need the same rigor; brain-bridge is thin adapter       |
+| **Development** | Feature-based modules with Mini Brain SDK as the I/O boundary | Apps are thin — most intelligence comes from Mini Brain. Keep simple   |
 
 ---
 
@@ -219,44 +219,123 @@ Brain Healer Agent detects anomaly in Hospitality Mini Brain:
   5. Brain healer has cross-domain knowledge, may have seen similar issue in Legal apps
 ```
 
+### Orchestrator Hierarchy (delegation + escalation)
+
+Every workspace — system, general, mini brain, and development — has a designated orchestrator agent (`is_ws_orchestrator = true`). These orchestrators form a tree that mirrors the 3-tier hierarchy:
+
+```
+System Orchestrator (Brain Orchestrator — Tier 1)
+│   Singleton, auto-bootstrapped, cannot be deleted/retired.
+│   Full governance: cross-workspace routing, budget, policy, health.
+│
+├── Dev Workspace Orchestrator
+│   Manages local development tasks, linked to system orchestrator.
+│
+├── Astrology Mini Brain Orchestrator (Tier 2)
+│   │   Domain-specific orchestration for astrology workloads.
+│   │   Escalates to system orchestrator when overloaded or blocked.
+│   │
+│   ├── Sports Astrology Dev Orchestrator (Tier 3)
+│   └── Personal Astrology Dev Orchestrator (Tier 3)
+│
+├── Hospitality Mini Brain Orchestrator (Tier 2)
+│   ├── MGHM Hotels Dev Orchestrator (Tier 3)
+│   └── Boutique Resorts Dev Orchestrator (Tier 3)
+│
+└── Legal Mini Brain Orchestrator (Tier 2)
+    ├── IP Portfolio Dev Orchestrator (Tier 3)
+    └── Contract Review Dev Orchestrator (Tier 3)
+```
+
+**How delegation works:**
+
+```
+System Orchestrator receives a cross-domain task:
+  1. System orchestrator checks orchestrator_routes for matching rule
+  2. Delegates ticket to target workspace orchestrator (reassigns workspace + agent)
+  3. Target orchestrator picks up the ticket and assigns to best agent
+  4. On completion, result cascades back up
+```
+
+**How escalation works:**
+
+```
+Workspace orchestrator encounters a problem it can't solve:
+  1. Workspace orchestrator calls escalate(ticketId, reason)
+  2. Ticket moves to parent orchestrator's workspace
+  3. Parent orchestrator has broader visibility and resources
+  4. If mini brain orchestrator escalates → system orchestrator handles it
+  5. System orchestrator can rebalance agents, enforce budgets, or re-route
+```
+
+**Key design decisions:**
+
+| Decision                                                         | Rationale                                                                                               |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Every workspace MUST have an orchestrator                        | Enforced at activation (readiness check). Auto-provisioned on workspace creation.                       |
+| System workspace is a singleton                                  | Auto-created at bootstrap, `is_system_protected = true`, cannot be paused/retired/deleted.              |
+| Orchestrators linked via `parent_orchestrator_id`                | Agents table FK. Enables tree traversal, delegation, and escalation.                                    |
+| `orchestrator_routes` table for routing rules                    | Cross-workspace routing with priority. Each route can reference the responsible orchestrator.           |
+| The `brain-orchestrator` custom agent IS the system orchestrator | Defined in seed, governs all workspace orchestrators. Skills: routing, budget, policy, health, scaling. |
+| Mini Brain Factory auto-provisions orchestrators                 | Both `createMiniBrain()` and `createDevelopment()` create orchestrator agents linked to the hierarchy.  |
+
+**Database support:**
+
+```sql
+-- agents table
+parent_orchestrator_id UUID REFERENCES agents(id)  -- links to parent orchestrator
+is_ws_orchestrator BOOLEAN DEFAULT false            -- marks orchestrator role
+
+-- workspaces table
+type workspace_type DEFAULT 'general'  -- enum: general, development, staging, system
+is_system_protected BOOLEAN DEFAULT false  -- prevents deletion of system workspace
+
+-- orchestrator_routes table
+orchestrator_id UUID REFERENCES agents(id)  -- orchestrator responsible for this route
+```
+
 ---
 
 ## What Each Tier Owns
 
 ### The Brain (Tier 1)
-| Owns | Examples |
-|------|---------|
-| Universal LLM routing | Provider selection, failover, caching, cost |
-| Universal memory | Cross-domain lessons, golden rules |
-| Universal orchestration | Task execution, approval gates, receipts |
-| Universal eval | Quality scoring, drift detection |
-| Universal guardrails | Prompt injection, toxicity, OWASP |
-| Universal observability | OpenTelemetry, traces, metrics |
-| Platform services | Auth, billing, app factory, skill marketplace |
-| Mini Brain factory | Scaffold + wire new Mini Brains |
-| Healing oversight | Monitor all Mini Brains + escalation |
+
+| Owns                    | Examples                                      |
+| ----------------------- | --------------------------------------------- |
+| Universal LLM routing   | Provider selection, failover, caching, cost   |
+| Universal memory        | Cross-domain lessons, golden rules            |
+| Universal orchestration | Task execution, approval gates, receipts      |
+| Universal eval          | Quality scoring, drift detection              |
+| Universal guardrails    | Prompt injection, toxicity, OWASP             |
+| Universal observability | OpenTelemetry, traces, metrics                |
+| Platform services       | Auth, billing, app factory, skill marketplace |
+| Mini Brain factory      | Scaffold + wire new Mini Brains               |
+| Healing oversight       | Monitor all Mini Brains + escalation          |
 
 ### Mini Brain (Tier 2)
-| Owns | Examples |
-|------|---------|
-| Domain-specific engines | Swiss Ephemeris, PMS integration, Case Law search |
-| Domain database | Natal charts, reservations, contracts |
-| Domain agents | Astrologer, Concierge, Paralegal |
-| Domain guardrails | "No medical claims" (astrology), "HIPAA compliance" (healthcare) |
-| Domain memory | Astrology interpretations, hotel guest preferences, legal precedents |
-| Domain eval | Domain-specific quality metrics |
-| Development factory | Scaffold + wire domain-specific apps |
-| Development healing | Monitor + repair domain apps |
+
+| Owns                    | Examples                                                             |
+| ----------------------- | -------------------------------------------------------------------- |
+| Domain-specific engines | Swiss Ephemeris, PMS integration, Case Law search                    |
+| Domain database         | Natal charts, reservations, contracts                                |
+| Domain agents           | Astrologer, Concierge, Paralegal                                     |
+| Domain guardrails       | "No medical claims" (astrology), "HIPAA compliance" (healthcare)     |
+| Domain memory           | Astrology interpretations, hotel guest preferences, legal precedents |
+| Domain eval             | Domain-specific quality metrics                                      |
+| Development factory     | Scaffold + wire domain-specific apps                                 |
+| Development healing     | Monitor + repair domain apps                                         |
 
 ### Development (Tier 3)
-| Owns | Examples |
-|------|---------|
-| End-user UI | Sports astrology dashboard, hotel booking interface |
-| User-facing data | User accounts, preferences, history |
-| Business logic | Match predictions, room pricing, contract scoring |
-| User interactions | Chat, notifications, reports |
+
+| Owns              | Examples                                            |
+| ----------------- | --------------------------------------------------- |
+| End-user UI       | Sports astrology dashboard, hotel booking interface |
+| User-facing data  | User accounts, preferences, history                 |
+| Business logic    | Match predictions, room pricing, contract scoring   |
+| User interactions | Chat, notifications, reports                        |
 
 ### What Developments DON'T own:
+
 - LLM inference (Mini Brain → Brain)
 - Agent orchestration (Mini Brain → Brain)
 - Memory/knowledge (Mini Brain → Brain)
@@ -328,7 +407,7 @@ const brain = createBrainClient({
   apiKey: process.env.BRAIN_API_KEY,
   endpoint: process.env.BRAIN_URL,
   engines: ['llm', 'memory', 'eval', 'guardrails', 'a2a', 'healing'],
-  domain: 'astrology'  // scopes memory + metrics
+  domain: 'astrology', // scopes memory + metrics
 })
 
 // Expose DOWN to Developments (provide domain engines)
@@ -343,11 +422,11 @@ const miniBrain = createMiniBrainServer({
   guardrails: domainGuardrails,
   // Proxy universal engines through to developments:
   proxy: {
-    llm: brain.llm,        // Developments call mini.llm → Brain.llm
-    memory: brain.memory,   // With domain context injected
+    llm: brain.llm, // Developments call mini.llm → Brain.llm
+    memory: brain.memory, // With domain context injected
     eval: brain.eval,
-    guardrails: brain.guardrails,  // Domain + universal guardrails stacked
-  }
+    guardrails: brain.guardrails, // Domain + universal guardrails stacked
+  },
 })
 ```
 
@@ -363,16 +442,24 @@ const astro = createMiniBrainClient({
 })
 
 // Domain engine (handled by Mini Brain)
-const chart = await astro.ephemeris.calculate({ date: '1990-06-15', time: '14:30', place: 'London' })
+const chart = await astro.ephemeris.calculate({
+  date: '1990-06-15',
+  time: '14:30',
+  place: 'London',
+})
 
 // LLM call (Mini Brain enriches → Brain routes to provider)
 const reading = await astro.llm.chat({
   messages: [{ role: 'user', content: 'Analyze this team chart for upcoming match' }],
-  context: { chart, opponent_chart, transit_data }
+  context: { chart, opponent_chart, transit_data },
 })
 
 // Memory (scoped to astrology domain, stored in Brain)
-await astro.memory.store({ key: 'team-pattern', content: 'Mars-Jupiter conjunctions correlate with wins', tier: 'archival' })
+await astro.memory.store({
+  key: 'team-pattern',
+  content: 'Mars-Jupiter conjunctions correlate with wins',
+  tier: 'archival',
+})
 ```
 
 ---
@@ -447,8 +534,10 @@ entertainment purposes only."
 Every engine is a self-contained module that child apps can connect to. Engines expose a standardized API (tRPC + A2A + MCP).
 
 ### Engine 1: LLM Engine (`src/server/engines/llm/`)
+
 **What child apps get**: Multi-provider LLM inference with failover, caching, cost tracking, guardrails
 **API**:
+
 - `llm.chat({ model, messages, tools?, stream? })` → streaming response
 - `llm.embed({ text, model? })` → vector embedding
 - `llm.models()` → available models list
@@ -457,8 +546,10 @@ Every engine is a self-contained module that child apps can connect to. Engines 
 **What the Brain handles**: Provider routing, circuit breaking, semantic caching, rate limiting, key vault, cost budgets per app. Child apps never touch API keys.
 
 ### Engine 2: Orchestration Engine (`src/server/engines/orchestration/`)
+
 **What child apps get**: Task execution, agent coordination, approval gates, cron scheduling
 **API**:
+
 - `orch.createTicket({ title, description, agent?, mode? })` → ticket with execution tracking
 - `orch.runFlow({ flow_id, params })` → deterministic workflow execution
 - `orch.spawnCrew({ agents, goal })` → autonomous multi-agent team
@@ -469,8 +560,10 @@ Every engine is a self-contained module that child apps can connect to. Engines 
 **What the Brain handles**: Lease management, model failover, retries, DLQ, receipts, checkpointing. Child apps just submit work.
 
 ### Engine 3: Memory Engine (`src/server/engines/memory/`)
+
 **What child apps get**: Persistent knowledge with semantic search across tiers
 **API**:
+
 - `memory.store({ key, content, tier, app_id?, workspace? })` → store with auto-embedding
 - `memory.search({ query, tier?, app_id?, limit? })` → hybrid search (vector + BM25)
 - `memory.recall({ agent_id })` → agent's core + recent recall memories
@@ -480,8 +573,10 @@ Every engine is a self-contained module that child apps can connect to. Engines 
 **What the Brain handles**: pgvector indexing, tiered storage, temporal decay, MMR dedup, cross-app knowledge sharing (with isolation). An agent helping MGHM hotels can access hospitality lessons learned from other hotel apps.
 
 ### Engine 4: Eval Engine (`src/server/engines/eval/`)
+
 **What child apps get**: Quality monitoring, drift detection, regression testing
 **API**:
+
 - `eval.saveCase({ input, expected, trace_id, dataset? })` → save eval case
 - `eval.run({ dataset_id, version? })` → run eval suite, return scores
 - `eval.drift({ app_id, period })` → quality trend over time
@@ -491,8 +586,10 @@ Every engine is a self-contained module that child apps can connect to. Engines 
 **What the Brain handles**: Eval execution, scoring (LLM-as-judge + rule-based), drift alerting, CI/CD integration. Child apps just tag traces.
 
 ### Engine 5: Guardrail Engine (`src/server/engines/guardrails/`)
+
 **What child apps get**: Input/output/tool validation with policy enforcement
 **API**:
+
 - `guard.checkInput({ prompt, agent_id, policies? })` → { passed, violations }
 - `guard.checkOutput({ response, context, policies? })` → { passed, violations, modified? }
 - `guard.checkTool({ tool_name, params, agent_id })` → { allowed, reason }
@@ -502,8 +599,10 @@ Every engine is a self-contained module that child apps can connect to. Engines 
 **What the Brain handles**: Prompt injection detection, toxicity checking, hallucination detection, tool scope enforcement, policy management per app/workspace.
 
 ### Engine 6: A2A Engine (`src/server/engines/a2a/`)
+
 **What child apps get**: Inter-app agent communication and delegation
 **API**:
+
 - `a2a.discover({ capability? })` → available agents across all apps
 - `a2a.delegate({ agent_id, task, context, callback? })` → cross-app task delegation
 - `a2a.message({ from_agent, to_agent, text })` → inter-app messaging
@@ -512,8 +611,10 @@ Every engine is a self-contained module that child apps can connect to. Engines 
 **What the Brain handles**: Agent registry, capability matching, routing, auth, long-running task support. MGHM hotel app can ask a financial analyst agent in the Brain for revenue forecasting.
 
 ### Engine 7: Mini Brain Factory (`src/server/engines/mini-brain-factory/`)
+
 **What it does**: Scaffolds new Mini Brains (Tier 2) from the Brain
 **API**:
+
 - `factory.createMiniBrain({ name, domain, engines?, agents? })` → scaffold Mini Brain with domain DB, engines, agents
 - `factory.createDevelopment({ mini_brain_id, name, template? })` → scaffold child app wired to a Mini Brain
 - `factory.templates()` → available templates (astrology, hospitality, legal, healthcare, marketing, soc-ops)
@@ -525,8 +626,10 @@ Every engine is a self-contained module that child apps can connect to. Engines 
 **What the Brain handles**: Scaffolding, engine wiring, agent assignment, health monitoring. Mini Brains inherit Brain engines by default and can add domain-specific engines on top.
 
 ### Engine 8: Healing Engine (`src/server/engines/healing/`)
+
 **What child apps get**: Autonomous monitoring, error detection, and self-repair
 **API**:
+
 - `heal.monitor({ app_id })` → start continuous monitoring
 - `heal.diagnose({ app_id, symptom })` → AI-powered root cause analysis
 - `heal.repair({ app_id, issue_id, auto? })` → auto-repair or suggest fix
@@ -551,6 +654,7 @@ Every engine is a self-contained module that child apps can connect to. Engines 
 ```
 
 ### Brain SDK (`packages/brain-sdk/`):
+
 - TypeScript npm package published from the Brain monorepo
 - Auto-generated from tRPC router types (full type safety)
 - Handles: auth, retries, streaming, WebSocket for real-time events
@@ -558,6 +662,7 @@ Every engine is a self-contained module that child apps can connect to. Engines 
 - Framework-agnostic: works in Next.js, Express, React Native, etc.
 
 ### Connection tables in Postgres:
+
 ```
 -- Tracks all entities in the hierarchy
 brain_entities (
@@ -624,6 +729,7 @@ Brain                              MGHM Hotel App
 ## Phase 0 — Foundation (Week 1-2)
 
 ### 0A: Project Scaffold
+
 - Turborepo monorepo:
   ```
   solarc-brain/
@@ -661,11 +767,13 @@ Brain                              MGHM Hotel App
 - Docker Compose: Postgres 17 (pgvector/pgvector:pg17), OpenClaw daemon, app, worker, Jaeger
 
 ### 0B: Postgres Schema + Drizzle
+
 Migrate all 25 JSON files to relational tables:
 
 **Core tables:**
+
 - `workspaces` (id, name, type, goal, color, icon, autonomy_level, settings JSONB)
-- `agents` (id, name, type, workspace_id FK, status, model, color, bg, description, tags text[], skills text[], is_ws_orchestrator, trigger_mode)
+- `agents` (id, name, type, workspace_id FK, status, model, color, bg, description, tags text[], skills text[], is_ws_orchestrator, parent_orchestrator_id FK, trigger_mode)
 - `tickets` (id, title, description, status, priority, complexity, workspace_id FK, assigned_agent_id FK, project_id FK, dag_id, dag_node_type, metadata JSONB, result, created_at, updated_at)
 - `ticket_execution` (ticket_id PK/FK, run_id, lock_owner FK, locked_at, lease_until, lease_seconds, wake_pending_count, last_wake_at)
 - `ticket_status_history` (ticket_id FK, from_status, to_status, changed_at)
@@ -677,6 +785,7 @@ Migrate all 25 JSON files to relational tables:
 - `project_log` (id, project_id FK, workspace_id, agent_id, reply, created_at)
 
 **Execution & jobs:**
+
 - `cron_jobs` (id, name, schedule, type, status, task, workspace_id FK, agent_id FK, enabled, fail_count, last_run, next_run, last_result, runs, fails)
 - `ephemeral_swarms` (id, task, status, created_at)
 - `swarm_agents` (swarm_id FK, agent_id FK, role)
@@ -686,6 +795,7 @@ Migrate all 25 JSON files to relational tables:
 - `approval_gates` (id, action, agent_id FK, risk, status, requested_at, decided_at, decided_by, reason, metadata JSONB, expires_at)
 
 **Intelligence & memory:**
+
 - `memories` (id, key, content, source FK, confidence, workspace_id FK, tier enum[core/recall/archival], created_at)
 - `memory_vectors` (memory_id FK/PK, embedding vector(1536)) — pgvector HNSW index
 - `chat_sessions` (id, agent_id FK, created_at, updated_at)
@@ -698,15 +808,17 @@ Migrate all 25 JSON files to relational tables:
 - `cognitive_candidates` (id, memory_id FK, status, created_at)
 
 **Integrations:**
+
 - `channels` (id, type, config JSONB encrypted, enabled, created_at)
 - `webhooks` (id, source, url, secret, enabled, created_at)
 - `artifacts` (id, name, content, ticket_id FK, agent_id FK, type, created_at)
 - `strategy_runs` (id, plan, status, agent_id FK, workspace_id FK, tickets text[], created_at, started_at, completed_at)
 - `api_keys` (id, provider, encrypted_key, created_at) — AES-256-GCM
 - `model_fallbacks` (id, agent_id FK, chain text[], created_at)
-- `orchestrator_routes` (id, from_workspace FK, to_workspace FK, rule, priority, created_at)
+- `orchestrator_routes` (id, from_workspace FK, to_workspace FK, orchestrator_id FK, rule, priority, created_at)
 
 **New tables for stolen features:**
+
 - `checkpoints` (id, entity_type, entity_id, step_index, state JSONB, metadata JSONB, created_at) — Feature #1
 - `traces` (trace_id, parent_span_id, span_id, operation, service, agent_id, ticket_id, duration_ms, status, attributes JSONB, created_at) — Feature #2
 - `guardrail_logs` (id, layer enum[input/tool/output], agent_id, ticket_id, rule_name, passed, violation_detail, created_at) — Feature #3
@@ -719,6 +831,7 @@ Migrate all 25 JSON files to relational tables:
 - `skills_marketplace` (id, name, source_url, version, installed, config JSONB, created_at) — Feature #15
 
 **Indexes:**
+
 - `tickets(status)`, `tickets(workspace_id, status)`, `tickets(assigned_agent_id)`, `tickets(project_id)`
 - `episodes(event_type, created_at)`, `memories(key)`, `memories(tier)`
 - `agent_messages(to_agent_id, read)`, `approval_gates(status)`
@@ -729,18 +842,21 @@ Migrate all 25 JSON files to relational tables:
 - HNSW index on `memory_vectors.embedding`
 
 ### 0C: Seed Migration Script
+
 - Read all 25 JSON files from `runtime/state/`
 - Transform and insert into Postgres tables
 - Validate row counts match source
 - Run as `pnpm db:seed`
 
 ### 0D: tRPC Setup
+
 - `src/server/trpc.ts` — init, context (db + session), middleware (auth, timing, guardrails)
 - `src/server/routers/_app.ts` — merge all routers
 - 17 routers matching the schema groups above
 - Zod input/output validation on every procedure
 
 ### 0E: OpenClaw Adapter Layer
+
 - `src/server/adapters/openclaw/client.ts` — WebSocket connection to `ws://127.0.0.1:18789`
 - `src/server/adapters/openclaw/providers.ts` — `chat()`, `embed()`, `complete()` that route through OpenClaw's 20+ LLM providers
 - `src/server/adapters/openclaw/channels.ts` — receive inbound messages from OpenClaw channels, create tickets/chat messages
@@ -757,6 +873,7 @@ Migrate all 25 JSON files to relational tables:
 **Why first**: Every other feature depends on reliable LLM calls. The gateway is the foundation.
 
 ### Architecture
+
 ```
 Task Runner / Chat / Any LLM consumer
         │
@@ -781,6 +898,7 @@ Task Runner / Chat / Any LLM consumer
 ```
 
 ### Implementation
+
 - `src/server/services/gateway/router.ts`:
   - Accept: `{ model, messages, agent_id, ticket_id, stream? }`
   - Resolve provider from model name (e.g., `claude-sonnet-4-6` → Anthropic, `gpt-4o` → OpenAI, `qwen3:8b` → Ollama)
@@ -828,6 +946,7 @@ Task Runner / Chat / Any LLM consumer
 **Why second**: Observability for everything that follows.
 
 ### Architecture
+
 ```
 Any service (app, worker, gateway)
         │
@@ -851,6 +970,7 @@ Any service (app, worker, gateway)
 ```
 
 ### Implementation
+
 - Install: `@opentelemetry/sdk-node`, `@opentelemetry/auto-instrumentations-node`, `@opentelemetry/exporter-trace-otlp-grpc`
 - `src/server/telemetry/init.ts`:
   - Initialize OTel SDK at app startup
@@ -886,6 +1006,7 @@ Any service (app, worker, gateway)
 ## Phase 3 — Feature #3: Three-Layer Guardrails (Week 4-5)
 
 ### Architecture
+
 ```
 Input                    LLM Call                  Output
   │                        │                        │
@@ -907,6 +1028,7 @@ Input                    LLM Call                  Output
 ```
 
 ### Implementation
+
 - `src/server/services/guardrails/engine.ts`:
   - `GuardrailEngine` class with `.runInput()`, `.runTool()`, `.runOutput()`
   - Each returns: `{ passed: boolean, violations: Violation[], modified_content?: string }`
@@ -941,6 +1063,7 @@ Input                    LLM Call                  Output
 ## Phase 4 — Feature #10: Tiered Memory Architecture (Week 5-6)
 
 ### Architecture
+
 ```
 Agent System Prompt
   │
@@ -955,6 +1078,7 @@ Agent System Prompt
 ```
 
 ### Implementation
+
 - `memories` table gets `tier` enum column: `core`, `recall`, `archival`
 
 - `src/server/services/memory/core-memory.ts`:
@@ -997,6 +1121,7 @@ Agent System Prompt
 ## Phase 5 — Feature #1: Checkpointing + Time Travel (Week 6-7)
 
 ### Implementation
+
 - `src/server/services/checkpointing/checkpoint-manager.ts`:
   - Auto-checkpoint on: ticket status change, LLM call completion, tool invocation, approval decision, DAG step transition
   - Checkpoint data: `{ entity_type, entity_id, step_index, state: <full entity snapshot as JSONB>, metadata: { trigger, agent_id, trace_id } }`
@@ -1027,6 +1152,7 @@ Agent System Prompt
 ## Phase 6 — Feature #4: Tiered Agent Modes (Week 7-8)
 
 ### Implementation
+
 - Add `execution_mode` to tickets: `quick`, `autonomous`, `deep_work`
 
 - `src/server/services/task-runner/mode-router.ts`:
@@ -1063,6 +1189,7 @@ Agent System Prompt
 ## Phase 7 — Feature #5: Production-to-Eval Pipeline (Week 8-9)
 
 ### Implementation
+
 - `src/server/services/evals/dataset-builder.ts`:
   - "Save as eval case" button on any trace in Ops Center
   - Auto-extract: input (prompt + context), expected output (actual response), trace_id
@@ -1101,6 +1228,7 @@ Agent System Prompt
 ## Phase 8 — Feature #6: Deterministic Flows + Autonomous Crews (Week 9-10)
 
 ### Implementation
+
 - Separate the task runner into two subsystems:
 
 - `src/server/services/flows/flow-engine.ts`:
@@ -1140,6 +1268,7 @@ Agent System Prompt
 ## Phase 9 — Feature #7: A2A Protocol (Week 10-11)
 
 ### Implementation
+
 - `src/server/services/a2a/agent-card.ts`:
   - Generate `/.well-known/agent.json` for each agent:
     ```json
@@ -1176,6 +1305,7 @@ Agent System Prompt
 ## Phase 10 — Feature #8: Teach & Repeat (Week 11-12)
 
 ### Implementation
+
 - `src/server/services/playbooks/recorder.ts`:
   - Record user actions in dashboard as structured events:
     - Click targets (component, action, parameters)
@@ -1209,6 +1339,7 @@ Agent System Prompt
 ## Phase 11 — Feature #11: Bidirectional MCP (Week 12-13)
 
 ### Implementation
+
 - `src/server/services/mcp/server.ts`:
   - Expose your agents and workflows as MCP tools
   - Each agent becomes a callable tool: `solarc_agent_{agentId}(task, context)`
@@ -1229,6 +1360,7 @@ Agent System Prompt
 ## Phase 12 — Feature #12: Live Agent Viewport (Week 13-14)
 
 ### Implementation
+
 - `src/components/agents/live-viewport.tsx`:
   - Embedded iframe showing agent's active browser session (from Playwright)
   - Narration sidebar: real-time log of agent actions with timestamps
@@ -1249,6 +1381,7 @@ Agent System Prompt
 ## Phase 13 — Feature #13: Multiplayer Presence (Week 14)
 
 ### Implementation
+
 - `src/server/services/presence/manager.ts`:
   - Track: which users are online, which tab they're viewing, cursor position
   - Track: which agents are executing, which ticket, which workspace
@@ -1269,6 +1402,7 @@ Agent System Prompt
 ## Phase 14 — Feature #14: Adaptive Dashboard Layout (Week 15)
 
 ### Implementation
+
 - `src/server/services/adaptive/layout-engine.ts`:
   - Track user behavior: which panels opened, time spent, interaction frequency
   - Role-based defaults: admin sees security + approvals first, operator sees health + DLQ first
@@ -1286,6 +1420,7 @@ Agent System Prompt
 ## Phase 15 — Feature #15: Skill Marketplace (Week 15-16)
 
 ### Implementation
+
 - `src/server/services/skills/marketplace.ts`:
   - Fetch available skills from: OpenClaw's 67 built-in, SkillsMP API, custom skill repos
   - Display: name, description, author, install count, rating
@@ -1309,6 +1444,7 @@ Agent System Prompt
 ## Phase 16 — Feature #16: Visual QA Recording Playback (Week 16)
 
 ### Implementation
+
 - `src/server/services/visual-qa/recorder.ts`:
   - During browser automation: record screenshot stream as video (ffmpeg)
   - Annotate with: action labels, pass/fail markers, timestamps
@@ -1331,9 +1467,11 @@ Agent System Prompt
 ## Phase 17 — Brain SDK + App Factory (Week 16-18)
 
 ### 17A: Brain SDK (`packages/brain-sdk/`)
+
 - Auto-generate TypeScript client from tRPC router types
 - Publish as `@solarc/brain-sdk` to private npm registry (or local package)
 - API surface:
+
   ```typescript
   import { createBrainClient } from '@solarc/brain-sdk'
 
@@ -1361,6 +1499,7 @@ Agent System Prompt
   // Healing Engine (auto-starts on connect)
   brain.healing.onIncident((incident) => { console.log('Brain detected:', incident) })
   ```
+
 - Features:
   - Full TypeScript types (inferred from engine contracts)
   - Streaming support (AsyncIterator for LLM responses)
@@ -1373,16 +1512,17 @@ Agent System Prompt
 
 **Mini Brain templates** (stored in `templates/mini-brains/`):
 
-| Template | Domain | Domain Engines | Domain Agents | Domain DB Tables |
-|----------|--------|---------------|---------------|-----------------|
-| `astrology` | Astrology | Swiss Ephemeris, Chart Calculator, Transit Engine | Master Astrologer, Transit Tracker, Sports Analyst, Business Advisor | clients, natal_charts, readings, transit_alerts, sports_teams |
-| `hospitality` | Hotels | PMS Integration, Revenue Mgmt, Guest Profile | CEO, COO, CFO, GM, F&B Director, HR, Sales | reservations, guests, rooms, revenue_data, staff, f&b_inventory |
-| `healthcare` | Medical | HIPAA Checker, Clinical Protocol, Patient Profile | Compliance Analyst, Medical IP Counsel, Clinical Reviewer | patients, protocols, compliance_logs, clinical_trials |
-| `legal` | Law | Case Law Search, Contract Parser, Compliance Check | Chief Legal Officer, IP Counsel, Paralegal, Compliance Auditor | cases, contracts, regulations, filings, ip_portfolio |
-| `marketing` | Campaigns | Campaign Engine, Analytics, A/B Tester | Campaign Orchestrator, Analytics Analyst, Content Creator | campaigns, audiences, experiments, creatives, metrics |
-| `soc-ops` | Security | Threat Intel, SIEM Connector, Incident Response | SOC Analyst, Incident Responder, Threat Hunter | incidents, alerts, indicators, playbooks, forensics |
+| Template      | Domain    | Domain Engines                                     | Domain Agents                                                        | Domain DB Tables                                                |
+| ------------- | --------- | -------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `astrology`   | Astrology | Swiss Ephemeris, Chart Calculator, Transit Engine  | Master Astrologer, Transit Tracker, Sports Analyst, Business Advisor | clients, natal_charts, readings, transit_alerts, sports_teams   |
+| `hospitality` | Hotels    | PMS Integration, Revenue Mgmt, Guest Profile       | CEO, COO, CFO, GM, F&B Director, HR, Sales                           | reservations, guests, rooms, revenue_data, staff, f&b_inventory |
+| `healthcare`  | Medical   | HIPAA Checker, Clinical Protocol, Patient Profile  | Compliance Analyst, Medical IP Counsel, Clinical Reviewer            | patients, protocols, compliance_logs, clinical_trials           |
+| `legal`       | Law       | Case Law Search, Contract Parser, Compliance Check | Chief Legal Officer, IP Counsel, Paralegal, Compliance Auditor       | cases, contracts, regulations, filings, ip_portfolio            |
+| `marketing`   | Campaigns | Campaign Engine, Analytics, A/B Tester             | Campaign Orchestrator, Analytics Analyst, Content Creator            | campaigns, audiences, experiments, creatives, metrics           |
+| `soc-ops`     | Security  | Threat Intel, SIEM Connector, Incident Response    | SOC Analyst, Incident Responder, Threat Hunter                       | incidents, alerts, indicators, playbooks, forensics             |
 
 **`factory.createMiniBrain()` flow:**
+
 1. Clone Mini Brain template to target directory
 2. Set up domain Postgres database (separate from Brain's DB)
 3. Run domain Drizzle migrations
@@ -1395,6 +1535,7 @@ Agent System Prompt
 10. Return: Mini Brain URL + API key + dashboard URL
 
 **`factory.createDevelopment()` flow:**
+
 1. Clone Development template from Mini Brain's template library
 2. Pre-wire `@solarc/mini-brain-sdk` with Mini Brain endpoint
 3. Provision user-facing tables (accounts, preferences, etc.)
@@ -1404,16 +1545,17 @@ Agent System Prompt
 
 **Development templates per Mini Brain:**
 
-| Mini Brain | Development Templates |
-|-----------|----------------------|
-| Astrology | `sports-astrology`, `personal-astrology`, `business-astrology`, `mundane-astrology` |
-| Hospitality | `luxury-hotel`, `boutique-resort`, `business-hotel`, `chain-operations` |
-| Healthcare | `clinic-management`, `clinical-trials`, `telemedicine`, `pharmacy` |
-| Legal | `ip-portfolio`, `contract-review`, `compliance-audit`, `litigation-support` |
-| Marketing | `social-media`, `email-campaigns`, `influencer-management`, `analytics-dashboard` |
-| SOC-Ops | `threat-monitoring`, `incident-management`, `vulnerability-scanning`, `compliance-reporting` |
+| Mini Brain  | Development Templates                                                                        |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| Astrology   | `sports-astrology`, `personal-astrology`, `business-astrology`, `mundane-astrology`          |
+| Hospitality | `luxury-hotel`, `boutique-resort`, `business-hotel`, `chain-operations`                      |
+| Healthcare  | `clinic-management`, `clinical-trials`, `telemedicine`, `pharmacy`                           |
+| Legal       | `ip-portfolio`, `contract-review`, `compliance-audit`, `litigation-support`                  |
+| Marketing   | `social-media`, `email-campaigns`, `influencer-management`, `analytics-dashboard`            |
+| SOC-Ops     | `threat-monitoring`, `incident-management`, `vulnerability-scanning`, `compliance-reporting` |
 
 ### 17C: Engine Registry (`src/server/services/engine-registry/`)
+
 - Central registry of all engines with:
   - Health status per engine
   - Connected apps per engine
@@ -1425,6 +1567,7 @@ Agent System Prompt
   - Rate limit configuration
 
 ### 17D: App Dashboard in Brain
+
 - `src/app/(dashboard)/apps/page.tsx` — list all connected child apps
 - `src/app/(dashboard)/apps/[appId]/page.tsx` — single app view:
   - Health score (from healing engine)
@@ -1441,6 +1584,7 @@ Agent System Prompt
 This runs in parallel throughout all phases:
 
 ### Week 2-3: App Shell
+
 - Root layout: sidebar (260px) + topbar (64px) + main content
 - Sidebar: navigation matching current 24 tabs, spotlight search (Cmd+K)
 - Topbar: breadcrumb, health badge (computed from traces + gateway metrics)
@@ -1448,17 +1592,20 @@ This runs in parallel throughout all phases:
 - shadcn/ui: install Button, Card, Badge, Dialog, Table, Tabs, Command, Sheet, Tooltip
 
 ### Week 4-5: Core Views
+
 - Home dashboard: stat cards, sparklines, progress rings (Recharts)
 - Workspaces grid: workspace cards with agent counts, health indicators
 - Agents list: status badges, model assignment, skill tags
 - Tickets: kanban board (shadcn drag-and-drop) or table view toggle
 
 ### Week 6-8: Chat + Canvas
+
 - Chat: agent sidebar, streaming messages, slash commands, file upload
 - Canvas: sandboxed iframe with history navigation, inspector toggle
 - Voice panel: PTT + continuous + TTS (Web Speech API)
 
 ### Week 9-12: Ops + Advanced
+
 - Ops overview: health score, alerts, active agents
 - DLQ panel, approval queue, receipt table, cron job center
 - Trace waterfall, eval dashboard, checkpoint timeline
@@ -1467,6 +1614,7 @@ This runs in parallel throughout all phases:
 - Graph: Cytoscape topology (dynamic import), Flowgram DAG builder (dynamic import)
 
 ### Week 13-16: Polish
+
 - Settings: API keys (encrypted), channels, permissions, model registry
 - Integrations: webhook manager, channel status
 - Adaptive layout, multiplayer presence, live viewport
@@ -1477,26 +1625,28 @@ This runs in parallel throughout all phases:
 ## Verification Plan
 
 ### Per-Feature Verification
-| Feature | Test |
-|---------|------|
-| AI Gateway | Send 100 concurrent LLM calls, kill one provider mid-stream, verify failover + cost tracking |
-| OTel Tracing | Execute a multi-agent DAG, verify complete trace waterfall in Jaeger + Postgres |
-| Guardrails | Send prompt injection, verify input guardrail catches it; send hallucinated output, verify output guardrail catches it |
-| Tiered Memory | Write to core, recall, archival; search with query that should hit each tier; verify temporal decay |
-| Checkpointing | Execute 10-step ticket, rollback to step 5, verify state matches checkpoint |
-| Tiered Modes | Create quick/auto/deep tickets, verify each uses correct pipeline (no tools in quick, planning phase in deep) |
-| Eval Pipeline | Save a trace as eval case, modify agent, re-run eval, verify score comparison |
-| Flows + Crews | Define a 3-step flow with parallel crews, verify deterministic ordering + autonomous crew reasoning |
-| A2A Protocol | Register external agent, invoke from your agent, verify task completion via HTTP |
-| Teach & Repeat | Record a 5-step workflow, replay on new input, verify 4/5 steps succeed |
-| Bidirectional MCP | Call your agent from Claude Desktop via MCP, verify response |
-| Live Viewport | Start browser automation, verify screenshot stream + narration in UI |
-| Multiplayer | Open dashboard in 2 browsers, verify presence avatars + cursor positions |
-| Adaptive Layout | Use dashboard for 1 hour, verify panel ranking changes based on behavior |
-| Skill Marketplace | Install a skill from OpenClaw, assign to agent, invoke via chat |
-| Visual QA | Run browser test, verify recording plays back with annotations |
+
+| Feature           | Test                                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| AI Gateway        | Send 100 concurrent LLM calls, kill one provider mid-stream, verify failover + cost tracking                           |
+| OTel Tracing      | Execute a multi-agent DAG, verify complete trace waterfall in Jaeger + Postgres                                        |
+| Guardrails        | Send prompt injection, verify input guardrail catches it; send hallucinated output, verify output guardrail catches it |
+| Tiered Memory     | Write to core, recall, archival; search with query that should hit each tier; verify temporal decay                    |
+| Checkpointing     | Execute 10-step ticket, rollback to step 5, verify state matches checkpoint                                            |
+| Tiered Modes      | Create quick/auto/deep tickets, verify each uses correct pipeline (no tools in quick, planning phase in deep)          |
+| Eval Pipeline     | Save a trace as eval case, modify agent, re-run eval, verify score comparison                                          |
+| Flows + Crews     | Define a 3-step flow with parallel crews, verify deterministic ordering + autonomous crew reasoning                    |
+| A2A Protocol      | Register external agent, invoke from your agent, verify task completion via HTTP                                       |
+| Teach & Repeat    | Record a 5-step workflow, replay on new input, verify 4/5 steps succeed                                                |
+| Bidirectional MCP | Call your agent from Claude Desktop via MCP, verify response                                                           |
+| Live Viewport     | Start browser automation, verify screenshot stream + narration in UI                                                   |
+| Multiplayer       | Open dashboard in 2 browsers, verify presence avatars + cursor positions                                               |
+| Adaptive Layout   | Use dashboard for 1 hour, verify panel ranking changes based on behavior                                               |
+| Skill Marketplace | Install a skill from OpenClaw, assign to agent, invoke via chat                                                        |
+| Visual QA         | Run browser test, verify recording plays back with annotations                                                         |
 
 ### Integration Tests (Vitest)
+
 - Database: test all Drizzle queries against a test Postgres instance
 - tRPC: test all routers with mock context
 - Gateway: test circuit breaker state machine transitions
@@ -1504,12 +1654,14 @@ This runs in parallel throughout all phases:
 - Memory: test tiered search with known embeddings
 
 ### E2E Tests (Playwright)
+
 - Login → create ticket → verify execution → check ops center
 - Chat with agent → verify streaming → check receipt
 - Create project → verify multi-workspace orchestration → check synthesis
 - Approval flow: create high-risk ticket → verify gate appears → approve → verify execution
 
 ### Load Testing
+
 - 50 concurrent tickets with different modes
 - 10 simultaneous chat streams
 - Gateway under 1000 req/min with 2 providers failing
@@ -1519,65 +1671,71 @@ This runs in parallel throughout all phases:
 ## Timeline Summary
 
 ### Stage 1: Brain Core (Weeks 1-8)
-| Week | Phase | Deliverable |
-|------|-------|-------------|
-| 1-2 | Phase 0 | Foundation: monorepo scaffold, Postgres schema, seed migration, tRPC, OpenClaw adapter |
-| 2-3 | Phase 1 | **LLM Engine**: AI Gateway with circuit breaking, cost tracking, semantic caching |
-| 3-4 | Phase 2 | **Observability**: OpenTelemetry tracing with trace waterfall UI |
-| 4-5 | Phase 3 | **Guardrail Engine**: Three-layer guardrails (input/tool/output) |
-| 5-6 | Phase 4 | **Memory Engine**: Tiered memory (core/recall/archival) with self-management |
-| 6-7 | Phase 5 | Checkpointing + time travel with timeline UI |
-| 7-8 | Phase 6 | **Orchestration Engine**: Tiered agent modes (quick/auto/deep work) |
+
+| Week | Phase   | Deliverable                                                                            |
+| ---- | ------- | -------------------------------------------------------------------------------------- |
+| 1-2  | Phase 0 | Foundation: monorepo scaffold, Postgres schema, seed migration, tRPC, OpenClaw adapter |
+| 2-3  | Phase 1 | **LLM Engine**: AI Gateway with circuit breaking, cost tracking, semantic caching      |
+| 3-4  | Phase 2 | **Observability**: OpenTelemetry tracing with trace waterfall UI                       |
+| 4-5  | Phase 3 | **Guardrail Engine**: Three-layer guardrails (input/tool/output)                       |
+| 5-6  | Phase 4 | **Memory Engine**: Tiered memory (core/recall/archival) with self-management           |
+| 6-7  | Phase 5 | Checkpointing + time travel with timeline UI                                           |
+| 7-8  | Phase 6 | **Orchestration Engine**: Tiered agent modes (quick/auto/deep work)                    |
 
 ### Stage 2: Intelligence Layer (Weeks 8-12)
-| Week | Phase | Deliverable |
-|------|-------|-------------|
-| 8-9 | Phase 7 | **Eval Engine**: Production-to-eval pipeline with drift detection |
-| 9-10 | Phase 8 | Flows + Crews separation (deterministic + autonomous) |
-| 10-11 | Phase 9 | **A2A Engine**: Agent cards, cross-app delegation, capability discovery |
-| 11-12 | Phase 10 | Teach & Repeat (playbook recorder/executor) |
+
+| Week  | Phase    | Deliverable                                                             |
+| ----- | -------- | ----------------------------------------------------------------------- |
+| 8-9   | Phase 7  | **Eval Engine**: Production-to-eval pipeline with drift detection       |
+| 9-10  | Phase 8  | Flows + Crews separation (deterministic + autonomous)                   |
+| 10-11 | Phase 9  | **A2A Engine**: Agent cards, cross-app delegation, capability discovery |
+| 11-12 | Phase 10 | Teach & Repeat (playbook recorder/executor)                             |
 
 ### Stage 3: Ecosystem (Weeks 12-16)
-| Week | Phase | Deliverable |
-|------|-------|-------------|
+
+| Week  | Phase    | Deliverable                                          |
+| ----- | -------- | ---------------------------------------------------- |
 | 12-13 | Phase 11 | Bidirectional MCP (expose Brain agents as MCP tools) |
-| 13-14 | Phase 12 | Live agent viewport (browser session streaming) |
-| 14 | Phase 13 | Multiplayer presence (avatars + cursors) |
-| 15 | Phase 14 | Adaptive dashboard layout |
-| 15-16 | Phase 15 | Skill marketplace with security scanning |
-| 16 | Phase 16 | Visual QA recording playback |
+| 13-14 | Phase 12 | Live agent viewport (browser session streaming)      |
+| 14    | Phase 13 | Multiplayer presence (avatars + cursors)             |
+| 15    | Phase 14 | Adaptive dashboard layout                            |
+| 15-16 | Phase 15 | Skill marketplace with security scanning             |
+| 16    | Phase 16 | Visual QA recording playback                         |
 
 ### Stage 4: Platform Layer (Weeks 16-20)
-| Week | Phase | Deliverable |
-|------|-------|-------------|
-| 16-17 | Phase 17A | **Brain SDK** (`@solarc/brain-sdk`): Mini Brains connect UP to Brain |
-| 17-18 | Phase 17B | **Mini Brain Factory**: Templates, scaffolding, domain engine wiring |
+
+| Week  | Phase     | Deliverable                                                                           |
+| ----- | --------- | ------------------------------------------------------------------------------------- |
+| 16-17 | Phase 17A | **Brain SDK** (`@solarc/brain-sdk`): Mini Brains connect UP to Brain                  |
+| 17-18 | Phase 17B | **Mini Brain Factory**: Templates, scaffolding, domain engine wiring                  |
 | 17-18 | Phase 17B | **Mini Brain SDK** (`@solarc/mini-brain-sdk`): Developments connect UP to Mini Brains |
-| 18-19 | Phase 17C | **Healing Engine**: Auto-monitoring cascade (Brain → Mini Brain → Development) |
-| 19-20 | Phase 17D | **Engine Registry + App Dashboard**: Topology view, usage tracking, health |
+| 18-19 | Phase 17C | **Healing Engine**: Auto-monitoring cascade (Brain → Mini Brain → Development)        |
+| 19-20 | Phase 17D | **Engine Registry + App Dashboard**: Topology view, usage tracking, health            |
 
 ### Stage 5: First Domain — Prove the Platform (Weeks 20-24)
-| Week | Phase | Deliverable |
-|------|-------|-------------|
+
+| Week  | Phase     | Deliverable                                                                             |
+| ----- | --------- | --------------------------------------------------------------------------------------- |
 | 20-21 | Phase 19A | **Hospitality Mini Brain**: Domain DB, PMS engine, Revenue engine, Guest Profile engine |
-| 21-22 | Phase 19B | **MGHM Hotels Development**: Room mgmt, F&B ops, guest experience, revenue dashboard |
-| 22-23 | Phase 19C | **Astrology Mini Brain**: Swiss Ephemeris engine, Chart Calculator, Transit engine |
-| 23-24 | Phase 19D | **Sports Astrology Development**: Team analysis, match prediction, season forecast |
-| 2-24 | Phase 18 | UI shell + all views (parallel throughout) |
+| 21-22 | Phase 19B | **MGHM Hotels Development**: Room mgmt, F&B ops, guest experience, revenue dashboard    |
+| 22-23 | Phase 19C | **Astrology Mini Brain**: Swiss Ephemeris engine, Chart Calculator, Transit engine      |
+| 23-24 | Phase 19D | **Sports Astrology Development**: Team analysis, match prediction, season forecast      |
+| 2-24  | Phase 18  | UI shell + all views (parallel throughout)                                              |
 
 **Total: 24 weeks (6 months)**
 
 ### Milestone Gates
-| Gate | Week | Criteria |
-|------|------|---------|
-| **Brain Boots** | 2 | Postgres running, schema migrated, tRPC responds, OpenClaw daemon connected |
-| **Brain Thinks** | 5 | LLM Engine routes calls, guardrails catch injections, memory stores/retrieves across tiers |
-| **Brain Orchestrates** | 8 | Tickets execute end-to-end with checkpointing, traces visible in Jaeger |
-| **Brain Learns** | 10 | Eval pipeline catches regressions, Flows + Crews run multi-agent projects |
-| **Brain Connects** | 13 | A2A protocol works cross-app, Brain exposed as MCP server |
-| **Brain Spawns** | 18 | Mini Brain Factory creates a Mini Brain, Brain SDK connects, agents monitor |
-| **Mini Brain Lives** | 21 | Hospitality Mini Brain running, MGHM app connected, domain engines serving requests |
-| **Platform Proven** | 24 | Two Mini Brains (Hospitality + Astrology), two Developments each, healing cascade working, cross-domain knowledge sharing active |
+
+| Gate                   | Week | Criteria                                                                                                                         |
+| ---------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Brain Boots**        | 2    | Postgres running, schema migrated, tRPC responds, OpenClaw daemon connected                                                      |
+| **Brain Thinks**       | 5    | LLM Engine routes calls, guardrails catch injections, memory stores/retrieves across tiers                                       |
+| **Brain Orchestrates** | 8    | Tickets execute end-to-end with checkpointing, traces visible in Jaeger                                                          |
+| **Brain Learns**       | 10   | Eval pipeline catches regressions, Flows + Crews run multi-agent projects                                                        |
+| **Brain Connects**     | 13   | A2A protocol works cross-app, Brain exposed as MCP server                                                                        |
+| **Brain Spawns**       | 18   | Mini Brain Factory creates a Mini Brain, Brain SDK connects, agents monitor                                                      |
+| **Mini Brain Lives**   | 21   | Hospitality Mini Brain running, MGHM app connected, domain engines serving requests                                              |
+| **Platform Proven**    | 24   | Two Mini Brains (Hospitality + Astrology), two Developments each, healing cascade working, cross-domain knowledge sharing active |
 
 ---
 
@@ -1608,110 +1766,110 @@ AITMPL Marketplace (1,000+ components)
 
 ### Component Mapping: What Goes Where
 
-| AITMPL Category | Brain (Tier 1) | Mini Brain (Tier 2) | Development (Tier 3) |
-|----------------|----------------|--------------------|--------------------|
-| **Agents** | Governance, security, compliance, healing, orchestration agents | Domain specialist agents (astrologer, concierge, paralegal) | End-user facing agents (chatbot, assistant) |
-| **Skills** | Universal skills: code review, testing, search, documentation | Domain skills: chart calculation, PMS ops, case law | App-specific skills: UI generation, report formatting |
-| **Commands** | System commands: `/health`, `/audit`, `/deploy`, `/security-scan` | Domain commands: `/calculate-chart`, `/check-availability` | User commands: `/predict-match`, `/book-room` |
-| **Hooks** | Lifecycle enforcement: pre-commit guards, guardrail triggers, receipt logging | Domain enforcement: HIPAA checks, disclaimer injection, data validation | App-level: user input sanitization, response formatting |
-| **MCPs** | Infrastructure: GitHub, PostgreSQL, Docker, AWS, Sentry, Datadog | Domain services: Swiss Ephemeris API, PMS systems, legal databases | User services: Stripe, SendGrid, Twilio |
-| **Settings** | Brain-wide: model defaults, timeouts, memory limits, output formats | Domain-wide: domain-specific model preferences, context windows | App-specific: UI preferences, feature flags |
+| AITMPL Category | Brain (Tier 1)                                                                | Mini Brain (Tier 2)                                                     | Development (Tier 3)                                    |
+| --------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------- |
+| **Agents**      | Governance, security, compliance, healing, orchestration agents               | Domain specialist agents (astrologer, concierge, paralegal)             | End-user facing agents (chatbot, assistant)             |
+| **Skills**      | Universal skills: code review, testing, search, documentation                 | Domain skills: chart calculation, PMS ops, case law                     | App-specific skills: UI generation, report formatting   |
+| **Commands**    | System commands: `/health`, `/audit`, `/deploy`, `/security-scan`             | Domain commands: `/calculate-chart`, `/check-availability`              | User commands: `/predict-match`, `/book-room`           |
+| **Hooks**       | Lifecycle enforcement: pre-commit guards, guardrail triggers, receipt logging | Domain enforcement: HIPAA checks, disclaimer injection, data validation | App-level: user input sanitization, response formatting |
+| **MCPs**        | Infrastructure: GitHub, PostgreSQL, Docker, AWS, Sentry, Datadog              | Domain services: Swiss Ephemeris API, PMS systems, legal databases      | User services: Stripe, SendGrid, Twilio                 |
+| **Settings**    | Brain-wide: model defaults, timeouts, memory limits, output formats           | Domain-wide: domain-specific model preferences, context windows         | App-specific: UI preferences, feature flags             |
 
 ### Brain Pre-Installed Components (from AITMPL + curated)
 
 **Agents (Brain-level, always available):**
 
-| Agent | Source | Role in Brain |
-|-------|--------|--------------|
-| `security-auditor` | AITMPL | Continuous security scanning of all tiers |
-| `code-reviewer` | AITMPL | Reviews code changes across all connected apps |
-| `test-generator` | AITMPL | Generates tests for Brain engines and Mini Brain code |
-| `documentation-sync` | AITMPL | Keeps docs in sync across tiers |
-| `performance-optimizer` | AITMPL | Monitors and optimizes LLM usage, caching, costs |
-| `compliance-checker` | AITMPL | GDPR, SOC2, HIPAA policy enforcement |
-| `incident-responder` | AITMPL | Auto-responds to health incidents across tiers |
-| `deploy-manager` | AITMPL | Manages deployments and rollbacks |
-| `brain-healer` | Custom | Master healer — monitors Mini Brains and escalates |
-| `brain-orchestrator` | Custom | Routes work across Mini Brains and manages flows |
-| `brain-governor` | Custom | Approval gates, RBAC, autonomy level enforcement |
-| `brain-evaluator` | Custom | Runs eval suites, detects drift, suggests improvements |
+| Agent                   | Source | Role in Brain                                          |
+| ----------------------- | ------ | ------------------------------------------------------ |
+| `security-auditor`      | AITMPL | Continuous security scanning of all tiers              |
+| `code-reviewer`         | AITMPL | Reviews code changes across all connected apps         |
+| `test-generator`        | AITMPL | Generates tests for Brain engines and Mini Brain code  |
+| `documentation-sync`    | AITMPL | Keeps docs in sync across tiers                        |
+| `performance-optimizer` | AITMPL | Monitors and optimizes LLM usage, caching, costs       |
+| `compliance-checker`    | AITMPL | GDPR, SOC2, HIPAA policy enforcement                   |
+| `incident-responder`    | AITMPL | Auto-responds to health incidents across tiers         |
+| `deploy-manager`        | AITMPL | Manages deployments and rollbacks                      |
+| `brain-healer`          | Custom | Master healer — monitors Mini Brains and escalates     |
+| `brain-orchestrator`    | Custom | Routes work across Mini Brains and manages flows       |
+| `brain-governor`        | Custom | Approval gates, RBAC, autonomy level enforcement       |
+| `brain-evaluator`       | Custom | Runs eval suites, detects drift, suggests improvements |
 
 **Skills (Brain-level):**
 
-| Skill | Source | Purpose |
-|-------|--------|---------|
-| `code-review` | AITMPL/Anthropic | Multi-file code review with quality scoring |
-| `test-generation` | AITMPL | Unit/integration/E2E test generation |
-| `security-scan` | AITMPL | OWASP, secrets detection, dependency audit |
-| `documentation` | AITMPL | Auto-generate docs from code |
-| `refactoring` | AITMPL | Safe refactoring with impact analysis |
-| `debugging` | AITMPL | Root cause analysis with trace inspection |
-| `performance-analysis` | AITMPL | Bottleneck detection and optimization |
-| `api-design` | AITMPL | OpenAPI spec generation and validation |
-| `database-migration` | AITMPL | Schema migration planning and execution |
-| `prompt-engineering` | AITMPL | Prompt optimization and A/B testing |
-| `perplexity-search` | AITMPL/K-Dense | Web search with source citation |
-| `scientific-analysis` | AITMPL/K-Dense | Data analysis and statistical methods |
+| Skill                  | Source           | Purpose                                     |
+| ---------------------- | ---------------- | ------------------------------------------- |
+| `code-review`          | AITMPL/Anthropic | Multi-file code review with quality scoring |
+| `test-generation`      | AITMPL           | Unit/integration/E2E test generation        |
+| `security-scan`        | AITMPL           | OWASP, secrets detection, dependency audit  |
+| `documentation`        | AITMPL           | Auto-generate docs from code                |
+| `refactoring`          | AITMPL           | Safe refactoring with impact analysis       |
+| `debugging`            | AITMPL           | Root cause analysis with trace inspection   |
+| `performance-analysis` | AITMPL           | Bottleneck detection and optimization       |
+| `api-design`           | AITMPL           | OpenAPI spec generation and validation      |
+| `database-migration`   | AITMPL           | Schema migration planning and execution     |
+| `prompt-engineering`   | AITMPL           | Prompt optimization and A/B testing         |
+| `perplexity-search`    | AITMPL/K-Dense   | Web search with source citation             |
+| `scientific-analysis`  | AITMPL/K-Dense   | Data analysis and statistical methods       |
 
 **Commands (Brain-level):**
 
-| Command | Purpose |
-|---------|---------|
-| `/health` | Full health check across all tiers |
-| `/topology` | Show Brain → Mini Brain → Development tree |
-| `/costs` | LLM cost breakdown by tier/domain/agent |
-| `/audit` | Security + compliance audit |
-| `/deploy` | Deploy changes to Mini Brain or Development |
-| `/eval` | Run eval suite on specified scope |
-| `/heal` | Trigger healing scan on target entity |
-| `/spawn-mini-brain` | Create new Mini Brain from template |
+| Command              | Purpose                                         |
+| -------------------- | ----------------------------------------------- |
+| `/health`            | Full health check across all tiers              |
+| `/topology`          | Show Brain → Mini Brain → Development tree      |
+| `/costs`             | LLM cost breakdown by tier/domain/agent         |
+| `/audit`             | Security + compliance audit                     |
+| `/deploy`            | Deploy changes to Mini Brain or Development     |
+| `/eval`              | Run eval suite on specified scope               |
+| `/heal`              | Trigger healing scan on target entity           |
+| `/spawn-mini-brain`  | Create new Mini Brain from template             |
 | `/spawn-development` | Create new Development from Mini Brain template |
-| `/connect` | Wire a new entity to its parent |
-| `/guardrails` | View/edit guardrail policies |
-| `/traces` | Search and view OTel traces |
-| `/checkpoints` | Browse and restore checkpoints |
-| `/memory` | Search across memory tiers |
-| `/agents` | List and manage agents across all tiers |
-| `/skills` | Browse and install skills from AITMPL |
-| `/generate-tests` | AITMPL: Auto-generate tests for current code |
-| `/check-security` | AITMPL: Run security scan |
+| `/connect`           | Wire a new entity to its parent                 |
+| `/guardrails`        | View/edit guardrail policies                    |
+| `/traces`            | Search and view OTel traces                     |
+| `/checkpoints`       | Browse and restore checkpoints                  |
+| `/memory`            | Search across memory tiers                      |
+| `/agents`            | List and manage agents across all tiers         |
+| `/skills`            | Browse and install skills from AITMPL           |
+| `/generate-tests`    | AITMPL: Auto-generate tests for current code    |
+| `/check-security`    | AITMPL: Run security scan                       |
 
 **Hooks (Brain-level):**
 
-| Hook Event | Action | Purpose |
-|-----------|--------|---------|
-| `PreToolUse` (on Edit/Write) | Run `guardrails.checkTool()` | Prevent unsafe file modifications |
-| `PostToolUse` (on Bash) | Log to `receipt_actions` + OTel span | Audit trail for all shell commands |
-| `PreToolUse` (on agent delegation) | Check RBAC + autonomy level | Governance enforcement |
-| `PostToolUse` (on LLM call) | Record `gateway_metrics` | Cost tracking |
-| `PostToolUse` (on any) | Auto-checkpoint if configured | Checkpointing support |
-| `SessionStart` | Load core memory + active context | Memory tier initialization |
-| `SessionEnd` | Compact and persist session state | Memory compaction |
-| `SubagentComplete` | Evaluate output quality | Auto-eval on agent completion |
+| Hook Event                         | Action                               | Purpose                            |
+| ---------------------------------- | ------------------------------------ | ---------------------------------- |
+| `PreToolUse` (on Edit/Write)       | Run `guardrails.checkTool()`         | Prevent unsafe file modifications  |
+| `PostToolUse` (on Bash)            | Log to `receipt_actions` + OTel span | Audit trail for all shell commands |
+| `PreToolUse` (on agent delegation) | Check RBAC + autonomy level          | Governance enforcement             |
+| `PostToolUse` (on LLM call)        | Record `gateway_metrics`             | Cost tracking                      |
+| `PostToolUse` (on any)             | Auto-checkpoint if configured        | Checkpointing support              |
+| `SessionStart`                     | Load core memory + active context    | Memory tier initialization         |
+| `SessionEnd`                       | Compact and persist session state    | Memory compaction                  |
+| `SubagentComplete`                 | Evaluate output quality              | Auto-eval on agent completion      |
 
 **MCPs (Brain-level):**
 
-| MCP Server | Purpose | Pre-installed? |
-|-----------|---------|---------------|
-| `filesystem` | File read/write with access controls | Yes |
-| `git` | Version control operations | Yes |
-| `github` | Repo management, issues, PRs | Yes |
-| `postgresql` | Natural language SQL queries | Yes |
-| `memory` | Knowledge graph persistent memory | Yes |
-| `sequential-thinking` | Structured reasoning | Yes |
-| `playwright` | Browser automation | Yes |
-| `duckduckgo-search` | Free web search | Yes |
-| `context7` | Version-specific code docs | Yes |
-| `firecrawl` | Web scraping to markdown | Yes |
-| `slack` | Workspace messaging | One-click |
-| `notion` | Page/database management | One-click |
-| `linear` | Issue tracking | One-click |
-| `sentry` | Error tracking | One-click |
-| `docker` | Container management | One-click |
-| `supabase` | Backend-as-a-service | One-click |
-| `datadog` | Observability | One-click |
-| `stripe` | Payments | One-click |
-| `aws` | Cloud infrastructure | One-click |
+| MCP Server            | Purpose                              | Pre-installed? |
+| --------------------- | ------------------------------------ | -------------- |
+| `filesystem`          | File read/write with access controls | Yes            |
+| `git`                 | Version control operations           | Yes            |
+| `github`              | Repo management, issues, PRs         | Yes            |
+| `postgresql`          | Natural language SQL queries         | Yes            |
+| `memory`              | Knowledge graph persistent memory    | Yes            |
+| `sequential-thinking` | Structured reasoning                 | Yes            |
+| `playwright`          | Browser automation                   | Yes            |
+| `duckduckgo-search`   | Free web search                      | Yes            |
+| `context7`            | Version-specific code docs           | Yes            |
+| `firecrawl`           | Web scraping to markdown             | Yes            |
+| `slack`               | Workspace messaging                  | One-click      |
+| `notion`              | Page/database management             | One-click      |
+| `linear`              | Issue tracking                       | One-click      |
+| `sentry`              | Error tracking                       | One-click      |
+| `docker`              | Container management                 | One-click      |
+| `supabase`            | Backend-as-a-service                 | One-click      |
+| `datadog`             | Observability                        | One-click      |
+| `stripe`              | Payments                             | One-click      |
+| `aws`                 | Cloud infrastructure                 | One-click      |
 
 ### Mini Brain Component Kit (per domain)
 
@@ -1719,52 +1877,53 @@ When a Mini Brain is created, it gets domain-specific components ON TOP of Brain
 
 **Astrology Mini Brain components:**
 
-| Type | Component | Purpose |
-|------|-----------|---------|
-| Agent | `master-astrologer` | Senior chart interpretation |
-| Agent | `transit-tracker` | Monitors planetary movements, sends alerts |
-| Agent | `sports-analyst` | Sports-specific astrological analysis |
-| Agent | `business-advisor` | Business timing and partnership compatibility |
-| Skill | `ephemeris-calculation` | Swiss Ephemeris chart computation |
-| Skill | `chart-interpretation` | AI-powered natal/transit/synastry reading |
-| Skill | `aspect-analysis` | Planetary aspect pattern recognition |
-| Command | `/calculate-chart` | Compute natal chart from birth data |
-| Command | `/transits` | Show current transits for a client |
-| Command | `/compatibility` | Synastry analysis between two charts |
-| Command | `/forecast` | Generate period forecast for a client |
-| Hook | `PostToolUse` (on readings) | Auto-append disclaimer |
-| Hook | `PreToolUse` (on LLM) | Inject ephemeris context into prompt |
-| Guardrail | `no-medical-claims` | Block health-related predictions |
-| Guardrail | `no-financial-advice` | Block specific financial recommendations |
-| MCP | `swiss-ephemeris` | Custom: planetary position calculations |
+| Type      | Component                   | Purpose                                       |
+| --------- | --------------------------- | --------------------------------------------- |
+| Agent     | `master-astrologer`         | Senior chart interpretation                   |
+| Agent     | `transit-tracker`           | Monitors planetary movements, sends alerts    |
+| Agent     | `sports-analyst`            | Sports-specific astrological analysis         |
+| Agent     | `business-advisor`          | Business timing and partnership compatibility |
+| Skill     | `ephemeris-calculation`     | Swiss Ephemeris chart computation             |
+| Skill     | `chart-interpretation`      | AI-powered natal/transit/synastry reading     |
+| Skill     | `aspect-analysis`           | Planetary aspect pattern recognition          |
+| Command   | `/calculate-chart`          | Compute natal chart from birth data           |
+| Command   | `/transits`                 | Show current transits for a client            |
+| Command   | `/compatibility`            | Synastry analysis between two charts          |
+| Command   | `/forecast`                 | Generate period forecast for a client         |
+| Hook      | `PostToolUse` (on readings) | Auto-append disclaimer                        |
+| Hook      | `PreToolUse` (on LLM)       | Inject ephemeris context into prompt          |
+| Guardrail | `no-medical-claims`         | Block health-related predictions              |
+| Guardrail | `no-financial-advice`       | Block specific financial recommendations      |
+| MCP       | `swiss-ephemeris`           | Custom: planetary position calculations       |
 
 **Hospitality Mini Brain components:**
 
-| Type | Component | Purpose |
-|------|-----------|---------|
-| Agent | `revenue-analyst` | Revenue management and pricing optimization |
-| Agent | `concierge` | Guest experience and request handling |
-| Agent | `f&b-optimizer` | Food & beverage cost and menu optimization |
-| Agent | `hr-coordinator` | Staff scheduling and training |
-| Agent | `sales-director` | Group bookings and corporate sales |
-| Agent | `gm-oracle` | General manager decision support |
-| Skill | `pms-integration` | Property Management System operations |
-| Skill | `revenue-forecasting` | Demand prediction and dynamic pricing |
-| Skill | `guest-profiling` | Guest preference learning and personalization |
-| Command | `/occupancy` | Current and forecasted occupancy |
-| Command | `/revenue` | Revenue report for period |
-| Command | `/guest-lookup` | Find guest profile and history |
-| Command | `/rate-adjust` | Suggest rate adjustments based on demand |
-| Hook | `PreToolUse` (on guest data) | PII protection enforcement |
-| Hook | `PostToolUse` (on pricing) | Log rate changes for audit |
-| Guardrail | `pii-protection` | Mask guest personal data in logs |
-| Guardrail | `rate-bounds` | Prevent extreme pricing recommendations |
-| MCP | `pms-connector` | Custom: PMS system API integration |
-| MCP | `ota-connector` | Custom: OTA channel management |
+| Type      | Component                    | Purpose                                       |
+| --------- | ---------------------------- | --------------------------------------------- |
+| Agent     | `revenue-analyst`            | Revenue management and pricing optimization   |
+| Agent     | `concierge`                  | Guest experience and request handling         |
+| Agent     | `f&b-optimizer`              | Food & beverage cost and menu optimization    |
+| Agent     | `hr-coordinator`             | Staff scheduling and training                 |
+| Agent     | `sales-director`             | Group bookings and corporate sales            |
+| Agent     | `gm-oracle`                  | General manager decision support              |
+| Skill     | `pms-integration`            | Property Management System operations         |
+| Skill     | `revenue-forecasting`        | Demand prediction and dynamic pricing         |
+| Skill     | `guest-profiling`            | Guest preference learning and personalization |
+| Command   | `/occupancy`                 | Current and forecasted occupancy              |
+| Command   | `/revenue`                   | Revenue report for period                     |
+| Command   | `/guest-lookup`              | Find guest profile and history                |
+| Command   | `/rate-adjust`               | Suggest rate adjustments based on demand      |
+| Hook      | `PreToolUse` (on guest data) | PII protection enforcement                    |
+| Hook      | `PostToolUse` (on pricing)   | Log rate changes for audit                    |
+| Guardrail | `pii-protection`             | Mask guest personal data in logs              |
+| Guardrail | `rate-bounds`                | Prevent extreme pricing recommendations       |
+| MCP       | `pms-connector`              | Custom: PMS system API integration            |
+| MCP       | `ota-connector`              | Custom: OTA channel management                |
 
 ### AITMPL Auto-Discovery
 
 `src/server/services/aitmpl/discoverer.ts`:
+
 - Weekly cron: fetch latest AITMPL catalog from GitHub API
 - Diff against installed components
 - Flag new/updated components relevant to each tier
@@ -1776,14 +1935,14 @@ When a Mini Brain is created, it gets domain-specific components ON TOP of Brain
 
 AITMPL components are designed for single-user Claude Code sessions. Brain needs to adapt them:
 
-| AITMPL Pattern | Brain Adaptation |
-|---------------|-----------------|
-| SKILL.md in `.claude/skills/` | Stored in `skills_marketplace` DB table, injected into agent prompts dynamically |
-| Agent .md in `.claude/agents/` | Registered in `agents` table with Brain orchestration metadata (workspace, trust score, model assignment) |
-| Commands in `.claude/commands/` | Exposed via tRPC router + chat slash commands in dashboard |
-| Hooks in `settings.json` | Mapped to Brain lifecycle events (ticket execution, agent delegation, LLM calls) |
-| MCPs in `settings.json` | Registered in engine registry, managed via MCP proxy with auth + rate limiting |
-| Settings presets | Applied per workspace/agent/Mini Brain scope (not global) |
+| AITMPL Pattern                  | Brain Adaptation                                                                                          |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| SKILL.md in `.claude/skills/`   | Stored in `skills_marketplace` DB table, injected into agent prompts dynamically                          |
+| Agent .md in `.claude/agents/`  | Registered in `agents` table with Brain orchestration metadata (workspace, trust score, model assignment) |
+| Commands in `.claude/commands/` | Exposed via tRPC router + chat slash commands in dashboard                                                |
+| Hooks in `settings.json`        | Mapped to Brain lifecycle events (ticket execution, agent delegation, LLM calls)                          |
+| MCPs in `settings.json`         | Registered in engine registry, managed via MCP proxy with auth + rate limiting                            |
+| Settings presets                | Applied per workspace/agent/Mini Brain scope (not global)                                                 |
 
 ---
 
@@ -1793,89 +1952,90 @@ From the curated awesome-claude-code lists (hesreallyhim, jqueryscript, rohitg00
 
 ### Orchestration Frameworks to Study/Integrate
 
-| Framework | Stars | What Brain Steals |
-|-----------|-------|-------------------|
-| **Claude-Flow** (ruvnet) | 11.4K | Recursive execution cycles: write → edit → test → optimize. Brain's Flow Engine should support this pattern |
-| **wshobson/agents** | 31.3K | 112 specialized agents + 16 multi-agent workflow orchestrators. Largest agent library — import as Brain agents |
-| **oh-my-claudecode** | 9.9K | Teams-first: 19 agents + 28 skills designed for multi-agent coordination. Model for Mini Brain team composition |
-| **vibe-kanban** | 23.2K | Kanban-based orchestration for 10+ agents. Brain's ticket system should support kanban views |
-| **production-grade** | — | 14-agent autonomous pipeline: PM → Architect → Backend → Frontend → QA → Security. Template for Brain's Deep Work mode |
+| Framework                | Stars | What Brain Steals                                                                                                      |
+| ------------------------ | ----- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Claude-Flow** (ruvnet) | 11.4K | Recursive execution cycles: write → edit → test → optimize. Brain's Flow Engine should support this pattern            |
+| **wshobson/agents**      | 31.3K | 112 specialized agents + 16 multi-agent workflow orchestrators. Largest agent library — import as Brain agents         |
+| **oh-my-claudecode**     | 9.9K  | Teams-first: 19 agents + 28 skills designed for multi-agent coordination. Model for Mini Brain team composition        |
+| **vibe-kanban**          | 23.2K | Kanban-based orchestration for 10+ agents. Brain's ticket system should support kanban views                           |
+| **production-grade**     | —     | 14-agent autonomous pipeline: PM → Architect → Backend → Frontend → QA → Security. Template for Brain's Deep Work mode |
 
 ### Memory Systems to Integrate
 
-| System | Stars | Integration Plan |
-|--------|-------|-----------------|
-| **claude-mem** | 35.9K | Auto-capture everything agents do, compress with AI, inject into context. Brain's Memory Engine should adopt this pattern for auto-learning |
-| **claude-context** (Zilliz) | 5.6K | Hybrid BM25 + dense vector search across codebases. Integrate into Memory Engine's recall tier for code-aware search |
-| **MCP Memory Service** (doobidoo) | — | 5ms retrieval + D3.js graph visualization. Brain should match this latency target |
-| **Neo4j Memory Server** | — | Relationship mapping via graph DB. Brain's knowledge graph should use similar entity-relation patterns in Postgres |
-| **cipher** | 3.4K | Open-source memory layer specifically for coding agents. Study for Brain's coding-focused memory patterns |
+| System                            | Stars | Integration Plan                                                                                                                            |
+| --------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **claude-mem**                    | 35.9K | Auto-capture everything agents do, compress with AI, inject into context. Brain's Memory Engine should adopt this pattern for auto-learning |
+| **claude-context** (Zilliz)       | 5.6K  | Hybrid BM25 + dense vector search across codebases. Integrate into Memory Engine's recall tier for code-aware search                        |
+| **MCP Memory Service** (doobidoo) | —     | 5ms retrieval + D3.js graph visualization. Brain should match this latency target                                                           |
+| **Neo4j Memory Server**           | —     | Relationship mapping via graph DB. Brain's knowledge graph should use similar entity-relation patterns in Postgres                          |
+| **cipher**                        | 3.4K  | Open-source memory layer specifically for coding agents. Study for Brain's coding-focused memory patterns                                   |
 
 ### Security Components (Critical for Brain)
 
-| Tool | Purpose | Brain Integration |
-|------|---------|-------------------|
-| **parry** (vaporif) | Prompt injection scanner: scans tool inputs/outputs | **Must have**: Run as input guardrail hook on every LLM call across all tiers |
-| **Trail of Bits Security Skills** | CodeQL, Semgrep, variant analysis, fix verification | Install as Brain-level security skills for code review agents |
-| **Dippy** (ldayton) | AST-based safe command auto-approve; blocks destructive ops | Model for Brain's tool guardrail: understand command semantics before allowing |
-| **Bouncer** | Cross-model quality gate (Gemini audits Claude) | Brain should support multi-model verification: use a different LLM to audit primary agent output |
-| **claude-code-safety-net** | Catches destructive commands | Baseline safety for all tiers |
+| Tool                              | Purpose                                                     | Brain Integration                                                                                |
+| --------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| **parry** (vaporif)               | Prompt injection scanner: scans tool inputs/outputs         | **Must have**: Run as input guardrail hook on every LLM call across all tiers                    |
+| **Trail of Bits Security Skills** | CodeQL, Semgrep, variant analysis, fix verification         | Install as Brain-level security skills for code review agents                                    |
+| **Dippy** (ldayton)               | AST-based safe command auto-approve; blocks destructive ops | Model for Brain's tool guardrail: understand command semantics before allowing                   |
+| **Bouncer**                       | Cross-model quality gate (Gemini audits Claude)             | Brain should support multi-model verification: use a different LLM to audit primary agent output |
+| **claude-code-safety-net**        | Catches destructive commands                                | Baseline safety for all tiers                                                                    |
 
 ### Monitoring & Observability (Brain Ops Center)
 
-| Tool | Stars | Brain Integration |
-|------|-------|-------------------|
-| **claude-code-otel** (ColeMurray) | — | Prometheus + Loki + Grafana pipeline. Reference architecture for Brain's OTel Phase 2 |
-| **Bifrost** | — | Open-source AI gateway: hierarchical budgets, virtual keys, <11us overhead. Study for Brain's LLM Engine gateway |
-| **ccusage** (ryoppippi) | 11.5K | CLI for analyzing usage from JSONL. Brain should store metrics in Postgres, not JSONL |
-| **ccflare / better-ccflare** | — | Tableau-quality web dashboard for usage. Model for Brain's cost tracking UI |
-| **Datadog AI Agents Console** | — | Claude Code monitoring: adoption, performance, spend, ROI. Brain's Ops Center should match these dimensions |
-| **Arize Dev-Agent-Lens** | — | LiteLLM + OTel + OpenInference spans. Proxy-based observability pattern |
+| Tool                              | Stars | Brain Integration                                                                                                |
+| --------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
+| **claude-code-otel** (ColeMurray) | —     | Prometheus + Loki + Grafana pipeline. Reference architecture for Brain's OTel Phase 2                            |
+| **Bifrost**                       | —     | Open-source AI gateway: hierarchical budgets, virtual keys, <11us overhead. Study for Brain's LLM Engine gateway |
+| **ccusage** (ryoppippi)           | 11.5K | CLI for analyzing usage from JSONL. Brain should store metrics in Postgres, not JSONL                            |
+| **ccflare / better-ccflare**      | —     | Tableau-quality web dashboard for usage. Model for Brain's cost tracking UI                                      |
+| **Datadog AI Agents Console**     | —     | Claude Code monitoring: adoption, performance, spend, ROI. Brain's Ops Center should match these dimensions      |
+| **Arize Dev-Agent-Lens**          | —     | LiteLLM + OTel + OpenInference spans. Proxy-based observability pattern                                          |
 
 ### Hooks Library (Brain Lifecycle Enforcement)
 
-| Hook | Purpose | Brain Tier |
-|------|---------|-----------|
-| **parry** | Prompt injection detection on all tool I/O | Brain (universal) |
-| **Dippy** | AST-aware command approval | Brain (universal) |
-| **TDD Guard** (nizos) | Blocks changes violating TDD principles | Mini Brain (engineering domains) |
-| **TypeScript Quality Hooks** | TSC + ESLint + Prettier with <5ms caching | Mini Brain (TypeScript domains) |
-| **HCOM** (aannoo) | Real-time inter-agent communication via hooks | Brain (agent bus enhancement) |
-| **CC Notify** (dazuiba) | Desktop/mobile notifications for events | Brain (notification system) |
-| **Claudio** (ctoth) | OS-native sounds for events | Development (UX polish) |
+| Hook                         | Purpose                                       | Brain Tier                       |
+| ---------------------------- | --------------------------------------------- | -------------------------------- |
+| **parry**                    | Prompt injection detection on all tool I/O    | Brain (universal)                |
+| **Dippy**                    | AST-aware command approval                    | Brain (universal)                |
+| **TDD Guard** (nizos)        | Blocks changes violating TDD principles       | Mini Brain (engineering domains) |
+| **TypeScript Quality Hooks** | TSC + ESLint + Prettier with <5ms caching     | Mini Brain (TypeScript domains)  |
+| **HCOM** (aannoo)            | Real-time inter-agent communication via hooks | Brain (agent bus enhancement)    |
+| **CC Notify** (dazuiba)      | Desktop/mobile notifications for events       | Brain (notification system)      |
+| **Claudio** (ctoth)          | OS-native sounds for events                   | Development (UX polish)          |
 
 ### Multi-Agent Communication Patterns
 
-| Pattern | Source | Brain Implementation |
-|---------|--------|---------------------|
-| **Hook-based messaging** | HCOM | Add hook-triggered agent messages: when agent A finishes, auto-notify agent B |
-| **Workspace isolation** | claude-squad | Each agent runs in isolated workspace (git worktree). Brain's worker already does this via pg-boss job isolation |
-| **Swarm connectivity** | claude-swarm | YAML-defined agent swarms with connection topology. Brain's `ephemeral_swarms` table supports this |
-| **Cross-model audit** | Bouncer | Agent A (Claude) produces output → Agent B (Gemini) audits it. Brain's Eval Engine should support multi-model verification |
-| **Parallel worktrees** | pro-workflow | Multiple agents work on different branches simultaneously, merge when done |
+| Pattern                  | Source       | Brain Implementation                                                                                                       |
+| ------------------------ | ------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| **Hook-based messaging** | HCOM         | Add hook-triggered agent messages: when agent A finishes, auto-notify agent B                                              |
+| **Workspace isolation**  | claude-squad | Each agent runs in isolated workspace (git worktree). Brain's worker already does this via pg-boss job isolation           |
+| **Swarm connectivity**   | claude-swarm | YAML-defined agent swarms with connection topology. Brain's `ephemeral_swarms` table supports this                         |
+| **Cross-model audit**    | Bouncer      | Agent A (Claude) produces output → Agent B (Gemini) audits it. Brain's Eval Engine should support multi-model verification |
+| **Parallel worktrees**   | pro-workflow | Multiple agents work on different branches simultaneously, merge when done                                                 |
 
 ### Auto-Configuration Intelligence
 
-| Tool | Stars | Brain Application |
-|------|-------|-------------------|
-| **PUIUX Pilot** | — | Scans 95+ project types, auto-selects from 28+ hooks. Brain's App Factory should do this: scan a new Development's codebase and auto-configure appropriate hooks, skills, and agents |
-| **Rulesync** (dyoshikawa) | — | Auto-generate configs across AI coding agents; convert between providers. Brain should support multi-agent-format export |
-| **ClaudeCTX** | — | Switch entire config with single command. Brain's Mini Brains should support context switching between domains |
+| Tool                      | Stars | Brain Application                                                                                                                                                                    |
+| ------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **PUIUX Pilot**           | —     | Scans 95+ project types, auto-selects from 28+ hooks. Brain's App Factory should do this: scan a new Development's codebase and auto-configure appropriate hooks, skills, and agents |
+| **Rulesync** (dyoshikawa) | —     | Auto-generate configs across AI coding agents; convert between providers. Brain should support multi-agent-format export                                                             |
+| **ClaudeCTX**             | —     | Switch entire config with single command. Brain's Mini Brains should support context switching between domains                                                                       |
 
 ### Workflow Patterns to Encode
 
-| Pattern | Source | Brain Implementation |
-|---------|--------|---------------------|
-| **Spec-driven development** | claude-code-spec-workflow, AB Method | Deep Work mode: always start with a spec/PRD, get approval, then execute |
-| **Self-correcting memory** | pro-workflow | Agent detects own mistakes, writes to memory "don't do X", future agents inherit the lesson |
-| **Checkpoint + wrap-up rituals** | claudekit, pro-workflow | Auto-checkpoint at milestones + structured session wrap-up that captures learnings |
-| **RIPER phases** | RIPER Workflow | Research → Innovate → Plan → Execute → Review. Map to Deep Work mode's planning phases |
-| **Kanban orchestration** | vibe-kanban | Ticket board as the orchestration interface: agents pick from backlog, move to in-progress, done |
-| **14-agent pipeline** | production-grade | PM → Architect → Backend → Frontend → QA → Security → Deploy. Template for Brain's project orchestration flow |
+| Pattern                          | Source                               | Brain Implementation                                                                                          |
+| -------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| **Spec-driven development**      | claude-code-spec-workflow, AB Method | Deep Work mode: always start with a spec/PRD, get approval, then execute                                      |
+| **Self-correcting memory**       | pro-workflow                         | Agent detects own mistakes, writes to memory "don't do X", future agents inherit the lesson                   |
+| **Checkpoint + wrap-up rituals** | claudekit, pro-workflow              | Auto-checkpoint at milestones + structured session wrap-up that captures learnings                            |
+| **RIPER phases**                 | RIPER Workflow                       | Research → Innovate → Plan → Execute → Review. Map to Deep Work mode's planning phases                        |
+| **Kanban orchestration**         | vibe-kanban                          | Ticket board as the orchestration interface: agents pick from backlog, move to in-progress, done              |
+| **14-agent pipeline**            | production-grade                     | PM → Architect → Backend → Frontend → QA → Security → Deploy. Template for Brain's project orchestration flow |
 
 ### Notable Agent Archetypes (from wshobson, oh-my-claudecode, production-grade)
 
 **Universal (Brain-level):**
+
 - Architect Agent — designs system architecture, reviews PRs for architectural consistency
 - Security Auditor — runs CodeQL/Semgrep, reviews for OWASP, scans secrets
 - Test Generator — generates unit/integration/E2E tests, enforces TDD
@@ -1886,6 +2046,7 @@ From the curated awesome-claude-code lists (hesreallyhim, jqueryscript, rohitg00
 - Incident Responder — monitors errors, diagnoses root cause, suggests fixes
 
 **Engineering Mini Brain:**
+
 - Frontend Developer — React/Vue/Svelte specialist
 - Backend Developer — API design, database, auth
 - DevOps Engineer — CI/CD, Docker, Kubernetes, Terraform
@@ -1894,6 +2055,7 @@ From the curated awesome-claude-code lists (hesreallyhim, jqueryscript, rohitg00
 - AI/ML Engineer — Model training, fine-tuning, evaluation
 
 **Design Mini Brain:**
+
 - UI Designer — Pixel-perfect component design
 - UX Researcher — User testing, persona creation, journey mapping
 - Brand Designer — Identity systems, guidelines, assets
@@ -1937,6 +2099,7 @@ instincts/
 ```
 
 **Database tables:**
+
 ```
 instincts (
   id,
@@ -1961,6 +2124,7 @@ instinct_observations (
 ```
 
 **Promotion cascade:**
+
 ```
 Development observes pattern → confidence reaches 0.7 → instinct saved at Development level
   ↓
@@ -1983,6 +2147,7 @@ Brain instinct with confidence ≥ 0.9 + evidence_count ≥ 50 → candidate for
 | SessionEnd/Stop | Persist learnings, run pattern eval, track metrics | Write observations to instinct observer, finalize receipt, update gateway metrics |
 
 **2. Automatic Agent Delegation (not manual):**
+
 - Code written → auto-trigger `code-reviewer` agent
 - Build fails → auto-trigger language-specific `build-resolver` agent
 - Complex feature requested → auto-trigger `planner` agent
@@ -1991,6 +2156,7 @@ Brain instinct with confidence ≥ 0.9 + evidence_count ≥ 50 → candidate for
 Brain implementation: Add `auto_delegation_rules` to the Flow Engine. Rules are condition-action pairs that trigger agents based on events, not manual assignment.
 
 **3. Adversarial Security Scanning (Red/Blue/Auditor):**
+
 ```
 Security Scan Request
     │
@@ -2000,30 +2166,34 @@ Security Scan Request
     │         │
     └──→ Auditor Agent (synthesizes both → prioritized risk report)
 ```
+
 Brain implementation: Add to Guardrail Engine as `/security-deep-scan` command. Uses 3 parallel agents with different system prompts (attacker, defender, auditor). Runs on: Mini Brain creation, Development deployment, weekly cron.
 
 **4. Config Protection Hooks:**
 Prevent agents from modifying linter/test configs to pass instead of fixing actual code. Brain implementation: Add a guardrail rule that detects when an agent modifies `.eslintrc`, `tsconfig.json`, `jest.config`, `prettier.config`, etc. and requires human approval.
 
 **5. Hook Runtime Controls:**
+
 ```bash
 export BRAIN_HOOK_PROFILE=minimal|standard|strict
 export BRAIN_DISABLED_HOOKS="pre:bash:tmux-reminder,post:edit:typecheck"
 ```
+
 Brain implementation: Add `hook_profile` to `brain_entities` table. Each tier can run in minimal (fast, fewer checks), standard (balanced), or strict (all guardrails, all logging) mode.
 
 **6. Autonomous Loop Spectrum:**
 Map ECC's loop patterns to Brain's tiered agent modes:
 
-| ECC Pattern | Brain Mode | When |
-|-------------|-----------|------|
-| Sequential pipeline (`claude -p`) | Quick mode | Single LLM call, fresh context |
-| NanoClaw REPL | Chat mode | Persistent conversation |
-| Infinite Agentic Loop | Autonomous mode | Parallel sub-agents in waves |
-| Continuous PR Loop | Deep Work mode | Branch → implement → PR → CI → fix → merge |
-| DAG orchestration | Flow Engine | Dependency graph, tiered quality, worktree isolation |
+| ECC Pattern                       | Brain Mode      | When                                                 |
+| --------------------------------- | --------------- | ---------------------------------------------------- |
+| Sequential pipeline (`claude -p`) | Quick mode      | Single LLM call, fresh context                       |
+| NanoClaw REPL                     | Chat mode       | Persistent conversation                              |
+| Infinite Agentic Loop             | Autonomous mode | Parallel sub-agents in waves                         |
+| Continuous PR Loop                | Deep Work mode  | Branch → implement → PR → CI → fix → merge           |
+| DAG orchestration                 | Flow Engine     | Dependency graph, tiered quality, worktree isolation |
 
 **7. Token Optimization Strategy:**
+
 - Default to smaller model for 90% of work (Sonnet)
 - Large model (Opus) only for: 5+ file changes, architecture, security review
 - The Brain's LLM Engine `model_strategy` tiers map directly:
@@ -2088,21 +2258,33 @@ Declarative agent behavior using journeys, transitions, glossaries, and conditio
 // Example: Hospitality Mini Brain — Guest Check-in Journey
 const checkInJourney = journey('guest-check-in')
   .glossary({
-    'PMS': 'Property Management System — the hotel operational database',
-    'OTA': 'Online Travel Agency — Booking.com, Expedia, etc.',
-    'RevPAR': 'Revenue Per Available Room — key performance metric',
-    'ADR': 'Average Daily Rate — average room revenue per occupied room',
+    PMS: 'Property Management System — the hotel operational database',
+    OTA: 'Online Travel Agency — Booking.com, Expedia, etc.',
+    RevPAR: 'Revenue Per Available Room — key performance metric',
+    ADR: 'Average Daily Rate — average room revenue per occupied room',
   })
   .state('greeting', {
     guidelines: [
-      { when: 'guest provides confirmation number', action: 'look up reservation in PMS', tool: 'pms.getReservation' },
-      { when: 'guest is a returning VIP', action: 'acknowledge loyalty status and preferences', tool: 'memory.recall' },
-      { when: 'guest has no reservation', action: 'check availability and offer walk-in rate', tool: 'pms.checkAvailability' },
+      {
+        when: 'guest provides confirmation number',
+        action: 'look up reservation in PMS',
+        tool: 'pms.getReservation',
+      },
+      {
+        when: 'guest is a returning VIP',
+        action: 'acknowledge loyalty status and preferences',
+        tool: 'memory.recall',
+      },
+      {
+        when: 'guest has no reservation',
+        action: 'check availability and offer walk-in rate',
+        tool: 'pms.checkAvailability',
+      },
     ],
     transitions: {
       'reservation found': 'verification',
       'no reservation': 'walk-in-booking',
-    }
+    },
   })
   .state('verification', {
     guidelines: [
@@ -2110,11 +2292,13 @@ const checkInJourney = journey('guest-check-in')
       { when: 'ID mismatch', action: 'escalate to front desk manager', tool: 'a2a.delegate' },
     ],
     transitions: {
-      'verified': 'room-assignment',
-      'escalated': 'manager-review',
-    }
+      verified: 'room-assignment',
+      escalated: 'manager-review',
+    },
   })
-  .state('room-assignment', { /* ... */ })
+  .state('room-assignment', {
+    /* ... */
+  })
 ```
 
 **Brain implementation**: Add `src/server/services/agents/journey-engine.ts`. Journeys are stored in the database as JSONB. Mini Brains define domain-specific journeys. The journey engine enforces state transitions deterministically while allowing LLM reasoning within each state. This sits between the Flow Engine (deterministic orchestration) and the Crew Engine (autonomous reasoning).
@@ -2127,8 +2311,8 @@ Tools self-report confidence. The orchestrator uses these scores for routing dec
 // Every tool invocation returns a trust score
 interface ToolResult {
   output: any
-  trust_score: number    // 0.0 - 1.0
-  source: string         // 'cached' | 'live' | 'computed' | 'estimated'
+  trust_score: number // 0.0 - 1.0
+  source: string // 'cached' | 'live' | 'computed' | 'estimated'
   staleness_hours: number // how old is this data
 }
 
@@ -2143,6 +2327,7 @@ if (toolResult.trust_score < 0.5) {
 ```
 
 **Brain implementation**: Add `trust_score` field to all tool/engine responses. The Guardrail Engine uses trust scores to decide whether to:
+
 - Accept the result (score > 0.8)
 - Verify with a second source (0.5 < score < 0.8)
 - Reject and retry with different approach (score < 0.5)
@@ -2182,13 +2367,13 @@ Query → Retrieve documents
 
 Use different models for different stages based on cost/quality tradeoffs:
 
-| Stage | Model | Why |
-|-------|-------|-----|
-| Routing/classification | Small/fast (Haiku, Groq) | Cheap, low-latency, just needs to pick a path |
-| Deep analysis | Large/smart (Opus, GPT-4o) | Quality matters, willing to pay |
-| Code generation | Code-specialized (Claude Sonnet, Codex) | Best at structured output |
-| Synthesis/summary | Medium (Sonnet, GPT-4o-mini) | Good enough, much cheaper |
-| Guardrail checks | Different provider (Gemini auditing Claude) | Cross-model reduces blind spots |
+| Stage                  | Model                                       | Why                                           |
+| ---------------------- | ------------------------------------------- | --------------------------------------------- |
+| Routing/classification | Small/fast (Haiku, Groq)                    | Cheap, low-latency, just needs to pick a path |
+| Deep analysis          | Large/smart (Opus, GPT-4o)                  | Quality matters, willing to pay               |
+| Code generation        | Code-specialized (Claude Sonnet, Codex)     | Best at structured output                     |
+| Synthesis/summary      | Medium (Sonnet, GPT-4o-mini)                | Good enough, much cheaper                     |
+| Guardrail checks       | Different provider (Gemini auditing Claude) | Cross-model reduces blind spots               |
 
 **Brain implementation**: Add `model_strategy` to Flow definitions. Each flow step can specify a model tier (`fast`, `smart`, `code`, `cheap`) instead of a specific model. The LLM Engine resolves the tier to the best available model based on current health, cost, and latency.
 
@@ -2211,9 +2396,11 @@ class AgenticRAGAPI(LitAPI):
 Graphiti (by Zep) provides time-aware memory where facts have timestamps and can be queried by recency, not just similarity.
 
 **Brain implementation**: Add `created_at` and `last_accessed_at` to memory retrieval scoring:
+
 ```
 final_score = (similarity * 0.6) + (recency * 0.3) + (access_frequency * 0.1)
 ```
+
 Where `recency = 1 / (1 + days_since_creation * decay_rate)`. This is already partially in the tiered memory design but should be formalized as a scoring function.
 
 ### Pattern 8: Semantic Memory Export (Cross-Session Intelligence)
@@ -2279,6 +2466,7 @@ Categories: coding, media processing, data analysis, smart home, finance, health
 **CRITICAL**: 12% of community skills on ClawHub contained malware (VirusTotal, Feb 2026). 341 malicious skills were weaponized.
 
 Implementation in `src/server/services/skills/scanner.ts`:
+
 - **Static analysis**: Scan SKILL.md + handler code for suspicious patterns (eval, fetch to unknown domains, credential access)
 - **Sandbox execution**: Run skill in isolated container with no network, limited filesystem
 - **Permission review**: Skills must declare required capabilities (file:read, network:fetch, etc.), user approves explicitly
@@ -2294,32 +2482,32 @@ Last 5 commits added ~7,000+ lines: cognition layer, trust scoring, governance, 
 
 ### CARRY FORWARD (Improved)
 
-| ClawCloneOS Feature | Brain Improvement |
-|---------------------|-------------------|
-| **Approval Gates** (`approvals.js`, 276 lines) — L0-L3 autonomy, risk levels, 10-min auto-expiry, L1 blocking | → Postgres-backed (not in-memory), cascading across tiers (Brain gates override Mini Brain gates), WebSocket real-time push to dashboard instead of polling |
-| **Receipt/Audit Trail** (`receipts.js`, 336 lines) — ReceiptBuilder + AuditTrail + RollbackEngine | → Postgres transactions with savepoints replace manual `preState` JSONB snapshots. Rollback becomes `ROLLBACK TO SAVEPOINT` not custom undo functions. OTel spans auto-generated per receipt action |
-| **Cognition Layer** (server.js +4,000 lines) — Memory vault, trust scoring, subconscious context injection, episodes | → Tiered memory replaces flat vault. Trust scores get weighted by task importance (not just hit/miss). Instinct system replaces regex-based pattern extraction. Episodes become Postgres partitioned table |
-| **Token Accounting** (`recordTokenUsage`, `loadTokenLedger`) — Per-workspace/agent/day budgets, 429 on over-limit | → Gateway metrics table replaces in-memory ledger. Per-tier (Brain/Mini Brain/Development) cost tracking. Budget enforcement at gateway level (before LLM call, not after) |
-| **ATLAS.md** (290 lines) — Canonical system reference with maturity tracking, conventions, recurring bugs | → Becomes the Brain's self-documentation system. Auto-generated from database schema + engine registry + agent catalog. Updated by a cron agent, not manually |
-| **Nexus Priority Routing** (task_runner.js) — Cloud agent gets instant execution, local has concurrency limits | → LLM Engine's model strategy tiers. `fast` tier has no queue, `smart` tier has concurrency limit of 2, `code` tier queued via pg-boss |
-| **CORS/Auth Hardening** — Tailscale `.ts.net`, Cloudflare `.trycloudflare.com`, `brain.mghm.ai` | → NextAuth.js handles auth. CORS configurable per Mini Brain (each Mini Brain can whitelist its Developments). API keys per entity in `brain_entities` |
-| **Workspace Generator** (`routes/workspace-gen.js`, 33K) — LLM-powered workspace scaffolding with SSE streaming | → Becomes part of Mini Brain Factory. LLM generates domain agents, skills, and commands based on domain description. Streaming progress via SSE |
-| **Debate Arena** (`debate_sidebar.js`) — Proof tree, constitutional interpreter, blind spot oracle, Elo ratings | → **Persist to Postgres** (currently resets on refresh). Proof tree nodes + edges in `debate_nodes` and `debate_edges` tables. Elo ratings stored per agent. Constitutional rules stored per Mini Brain |
-| **48 Domain Agents** (untracked `agents/` folders) — healthcare, legal, analytics, marketing, academic, etc. | → Pre-assign to appropriate Mini Brain templates. MGHM hotel agents → Hospitality Mini Brain. Legal agents → Legal Mini Brain. Healthcare → Healthcare Mini Brain |
-| **7 New Skills** (`.agents/skills/`) — context-manager, data-analyst, distributed-review, pipeline-runner, self-improving-agent, team-knowledge, watchdog | → Map to Brain tiers: `watchdog` + `distributed-review` → Brain level. `data-analyst` + `pipeline-runner` → Mini Brain level. `self-improving-agent` → feeds the Instinct System |
+| ClawCloneOS Feature                                                                                                                                       | Brain Improvement                                                                                                                                                                                          |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Approval Gates** (`approvals.js`, 276 lines) — L0-L3 autonomy, risk levels, 10-min auto-expiry, L1 blocking                                             | → Postgres-backed (not in-memory), cascading across tiers (Brain gates override Mini Brain gates), WebSocket real-time push to dashboard instead of polling                                                |
+| **Receipt/Audit Trail** (`receipts.js`, 336 lines) — ReceiptBuilder + AuditTrail + RollbackEngine                                                         | → Postgres transactions with savepoints replace manual `preState` JSONB snapshots. Rollback becomes `ROLLBACK TO SAVEPOINT` not custom undo functions. OTel spans auto-generated per receipt action        |
+| **Cognition Layer** (server.js +4,000 lines) — Memory vault, trust scoring, subconscious context injection, episodes                                      | → Tiered memory replaces flat vault. Trust scores get weighted by task importance (not just hit/miss). Instinct system replaces regex-based pattern extraction. Episodes become Postgres partitioned table |
+| **Token Accounting** (`recordTokenUsage`, `loadTokenLedger`) — Per-workspace/agent/day budgets, 429 on over-limit                                         | → Gateway metrics table replaces in-memory ledger. Per-tier (Brain/Mini Brain/Development) cost tracking. Budget enforcement at gateway level (before LLM call, not after)                                 |
+| **ATLAS.md** (290 lines) — Canonical system reference with maturity tracking, conventions, recurring bugs                                                 | → Becomes the Brain's self-documentation system. Auto-generated from database schema + engine registry + agent catalog. Updated by a cron agent, not manually                                              |
+| **Nexus Priority Routing** (task_runner.js) — Cloud agent gets instant execution, local has concurrency limits                                            | → LLM Engine's model strategy tiers. `fast` tier has no queue, `smart` tier has concurrency limit of 2, `code` tier queued via pg-boss                                                                     |
+| **CORS/Auth Hardening** — Tailscale `.ts.net`, Cloudflare `.trycloudflare.com`, `brain.mghm.ai`                                                           | → NextAuth.js handles auth. CORS configurable per Mini Brain (each Mini Brain can whitelist its Developments). API keys per entity in `brain_entities`                                                     |
+| **Workspace Generator** (`routes/workspace-gen.js`, 33K) — LLM-powered workspace scaffolding with SSE streaming                                           | → Becomes part of Mini Brain Factory. LLM generates domain agents, skills, and commands based on domain description. Streaming progress via SSE                                                            |
+| **Debate Arena** (`debate_sidebar.js`) — Proof tree, constitutional interpreter, blind spot oracle, Elo ratings                                           | → **Persist to Postgres** (currently resets on refresh). Proof tree nodes + edges in `debate_nodes` and `debate_edges` tables. Elo ratings stored per agent. Constitutional rules stored per Mini Brain    |
+| **48 Domain Agents** (untracked `agents/` folders) — healthcare, legal, analytics, marketing, academic, etc.                                              | → Pre-assign to appropriate Mini Brain templates. MGHM hotel agents → Hospitality Mini Brain. Legal agents → Legal Mini Brain. Healthcare → Healthcare Mini Brain                                          |
+| **7 New Skills** (`.agents/skills/`) — context-manager, data-analyst, distributed-review, pipeline-runner, self-improving-agent, team-knowledge, watchdog | → Map to Brain tiers: `watchdog` + `distributed-review` → Brain level. `data-analyst` + `pipeline-runner` → Mini Brain level. `self-improving-agent` → feeds the Instinct System                           |
 
 ### REDESIGN (Don't Carry As-Is)
 
-| ClawCloneOS Pattern | Problem | Brain Redesign |
-|--------------------|---------|----------------|
-| **Regex-based memory extraction** (`extractMemoriesFromReply()` matches `RULE:`, `INSIGHT:` tags) | Fragile — depends on LLM output format. ~60% capture rate | → Use a cheap LLM (Haiku) to extract structured observations from any response. Feed into Instinct observer. 95%+ capture rate |
-| **In-memory debate tree** (500-node cap, resets on page refresh) | Data loss on every navigation | → Postgres tables: `debate_sessions`, `debate_nodes`, `debate_edges`. Persistent across sessions. No cap (paginated) |
-| **Simple trust scoring** (hit/miss ratio) | No weighting — a failed trivial task counts as much as a failed critical task | → Bayesian trust model: `score = (weighted_successes + prior) / (weighted_total + prior_weight)` where weight = task priority * complexity. Decays over time (recent performance matters more) |
-| **Brain module stub** (`brain/src/index.js`, 23 lines) | Empty; no clear purpose | → The entire Brain IS the new project. This stub is superseded by the full Brain architecture |
-| **Global STATE object** (mutated everywhere) | Race conditions, no transactions, JSON file persistence | → Postgres + Drizzle ORM. React Query for client cache. Zustand for UI-only state. No global mutable object |
-| **25 JSON files for persistence** | No concurrent write safety, no queries, no transactions | → Single Postgres database with 40+ properly indexed tables |
-| **`saveState()` / `loadState()` cycle** | Entire state saved as one blob. One corrupt field kills everything | → Individual table mutations via tRPC. Each entity has its own CRUD. Transactions where atomicity matters |
-| **In-memory event ring buffer** (100 entries) | Loses events on restart, no search capability | → `episodes` Postgres table, partitioned by month. Full-text search via `tsvector`. OTel spans for structured queries |
+| ClawCloneOS Pattern                                                                               | Problem                                                                       | Brain Redesign                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Regex-based memory extraction** (`extractMemoriesFromReply()` matches `RULE:`, `INSIGHT:` tags) | Fragile — depends on LLM output format. ~60% capture rate                     | → Use a cheap LLM (Haiku) to extract structured observations from any response. Feed into Instinct observer. 95%+ capture rate                                                                  |
+| **In-memory debate tree** (500-node cap, resets on page refresh)                                  | Data loss on every navigation                                                 | → Postgres tables: `debate_sessions`, `debate_nodes`, `debate_edges`. Persistent across sessions. No cap (paginated)                                                                            |
+| **Simple trust scoring** (hit/miss ratio)                                                         | No weighting — a failed trivial task counts as much as a failed critical task | → Bayesian trust model: `score = (weighted_successes + prior) / (weighted_total + prior_weight)` where weight = task priority \* complexity. Decays over time (recent performance matters more) |
+| **Brain module stub** (`brain/src/index.js`, 23 lines)                                            | Empty; no clear purpose                                                       | → The entire Brain IS the new project. This stub is superseded by the full Brain architecture                                                                                                   |
+| **Global STATE object** (mutated everywhere)                                                      | Race conditions, no transactions, JSON file persistence                       | → Postgres + Drizzle ORM. React Query for client cache. Zustand for UI-only state. No global mutable object                                                                                     |
+| **25 JSON files for persistence**                                                                 | No concurrent write safety, no queries, no transactions                       | → Single Postgres database with 40+ properly indexed tables                                                                                                                                     |
+| **`saveState()` / `loadState()` cycle**                                                           | Entire state saved as one blob. One corrupt field kills everything            | → Individual table mutations via tRPC. Each entity has its own CRUD. Transactions where atomicity matters                                                                                       |
+| **In-memory event ring buffer** (100 entries)                                                     | Loses events on restart, no search capability                                 | → `episodes` Postgres table, partitioned by month. Full-text search via `tsvector`. OTel spans for structured queries                                                                           |
 
 ### NEW DATABASE TABLES (from recent changes)
 
@@ -2401,43 +2589,46 @@ export async function getRandomPort(): Promise<number> {
 Optimize development speed and cost by assigning the right model to each task type.
 
 ### Opus (Heavy Thinking — ~5% of calls)
-| Task | Why Opus |
-|------|---------|
-| System architecture decisions | Needs deep reasoning across 5+ files, multiple concerns |
-| Security review (adversarial red/blue/auditor) | Needs creative attack thinking + thorough defense analysis |
-| Multi-file refactoring plans | Must hold entire dependency graph in context |
-| Eval dataset creation (LLM-as-judge) | Judging quality requires the strongest model |
+
+| Task                                               | Why Opus                                                        |
+| -------------------------------------------------- | --------------------------------------------------------------- |
+| System architecture decisions                      | Needs deep reasoning across 5+ files, multiple concerns         |
+| Security review (adversarial red/blue/auditor)     | Needs creative attack thinking + thorough defense analysis      |
+| Multi-file refactoring plans                       | Must hold entire dependency graph in context                    |
+| Eval dataset creation (LLM-as-judge)               | Judging quality requires the strongest model                    |
 | Instinct evolution (clustering instincts → skills) | Synthesizing patterns into coherent skills needs high reasoning |
-| Complex debugging (cross-service traces) | Root cause analysis across multiple services |
-| ATLAS.md / documentation synthesis | Comprehensive system understanding |
-| Debate arbitration (auditor agent) | Must weigh both sides fairly |
+| Complex debugging (cross-service traces)           | Root cause analysis across multiple services                    |
+| ATLAS.md / documentation synthesis                 | Comprehensive system understanding                              |
+| Debate arbitration (auditor agent)                 | Must weigh both sides fairly                                    |
 
 ### Sonnet (Daily Driver — ~85% of calls)
-| Task | Why Sonnet |
-|------|-----------|
-| All ticket execution (autonomous mode) | Good balance of quality and speed for standard tasks |
-| Code generation (features, tests, migrations) | Strong code output, 3x cheaper than Opus |
-| Chat responses | Sufficient quality for interactive conversation |
-| Agent-to-agent messaging (sessions_yield) | Fast enough for synchronous Q&A |
-| Flow step execution | Standard workflow steps don't need Opus-level reasoning |
-| Memory search + retrieval | Good at understanding queries and ranking results |
-| Receipt + checkpoint creation | Structured output, doesn't need heavy reasoning |
-| Guardrail checks (output validation) | Pattern matching and policy checking |
-| Deep Work planning phase | Can generate good plans, user reviews anyway |
+
+| Task                                          | Why Sonnet                                              |
+| --------------------------------------------- | ------------------------------------------------------- |
+| All ticket execution (autonomous mode)        | Good balance of quality and speed for standard tasks    |
+| Code generation (features, tests, migrations) | Strong code output, 3x cheaper than Opus                |
+| Chat responses                                | Sufficient quality for interactive conversation         |
+| Agent-to-agent messaging (sessions_yield)     | Fast enough for synchronous Q&A                         |
+| Flow step execution                           | Standard workflow steps don't need Opus-level reasoning |
+| Memory search + retrieval                     | Good at understanding queries and ranking results       |
+| Receipt + checkpoint creation                 | Structured output, doesn't need heavy reasoning         |
+| Guardrail checks (output validation)          | Pattern matching and policy checking                    |
+| Deep Work planning phase                      | Can generate good plans, user reviews anyway            |
 
 ### Haiku (Fast + Cheap — ~10% of calls)
-| Task | Why Haiku |
-|------|----------|
-| Instinct observation (background observer) | Runs on EVERY tool call — must be ultra-cheap |
-| Routing/classification ("which agent handles this?") | Just needs to pick from a list |
-| Context evaluation scoring (0-1 relevance) | Simple numeric judgment |
-| Trust score calculation | Lightweight computation |
+
+| Task                                                     | Why Haiku                                          |
+| -------------------------------------------------------- | -------------------------------------------------- |
+| Instinct observation (background observer)               | Runs on EVERY tool call — must be ultra-cheap      |
+| Routing/classification ("which agent handles this?")     | Just needs to pick from a list                     |
+| Context evaluation scoring (0-1 relevance)               | Simple numeric judgment                            |
+| Trust score calculation                                  | Lightweight computation                            |
 | Guardrail checks (input validation, injection detection) | Fast pattern matching, runs before expensive calls |
-| Corrective RAG relevance grading | Quick yes/no per document |
-| Query rewriting (for memory search) | Simple reformulation |
-| Session compaction (summarize for memory) | Compression, not creation |
-| Notification formatting | Template filling |
-| Health check analysis | Simple status interpretation |
+| Corrective RAG relevance grading                         | Quick yes/no per document                          |
+| Query rewriting (for memory search)                      | Simple reformulation                               |
+| Session compaction (summarize for memory)                | Compression, not creation                          |
+| Notification formatting                                  | Template filling                                   |
+| Health check analysis                                    | Simple status interpretation                       |
 
 ### Implementation in LLM Engine
 
@@ -2479,21 +2670,24 @@ const MODEL_STRATEGY: Record<string, ModelTier> = {
 // Resolve tier to actual model based on available providers
 function resolveModel(tier: ModelTier): string {
   switch (tier) {
-    case 'opus':  return 'claude-opus-4-6'    // or fallback to gpt-4o
-    case 'sonnet': return 'claude-sonnet-4-6'  // or fallback to gpt-4o-mini
-    case 'haiku': return 'claude-haiku-4-5'   // or fallback to groq/llama
+    case 'opus':
+      return 'claude-opus-4-6' // or fallback to gpt-4o
+    case 'sonnet':
+      return 'claude-sonnet-4-6' // or fallback to gpt-4o-mini
+    case 'haiku':
+      return 'claude-haiku-4-5' // or fallback to groq/llama
   }
 }
 ```
 
 ### Cost Estimate (per 1,000 tickets)
 
-| Model | % of Calls | Avg Tokens/Call | Cost/1K Tickets |
-|-------|-----------|-----------------|-----------------|
-| Opus | 5% (50 calls) | ~4,000 | ~$3.00 |
-| Sonnet | 85% (850 calls) | ~2,000 | ~$5.10 |
-| Haiku | 10% (100 calls) | ~500 | ~$0.03 |
-| **Total** | | | **~$8.13 per 1K tickets** |
+| Model     | % of Calls      | Avg Tokens/Call | Cost/1K Tickets           |
+| --------- | --------------- | --------------- | ------------------------- |
+| Opus      | 5% (50 calls)   | ~4,000          | ~$3.00                    |
+| Sonnet    | 85% (850 calls) | ~2,000          | ~$5.10                    |
+| Haiku     | 10% (100 calls) | ~500            | ~$0.03                    |
+| **Total** |                 |                 | **~$8.13 per 1K tickets** |
 
 With semantic caching (gateway), expect 20-30% cache hit rate → effective cost ~$6/1K tickets.
 
@@ -2513,11 +2707,11 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:latest
-    ports: [16686:16686, 4317:4317]  # UI + OTLP gRPC
+    ports: [16686:16686, 4317:4317] # UI + OTLP gRPC
 
   openclaw:
     build: ./openclaw
-    ports: [18789:18789]  # WebSocket gateway
+    ports: [18789:18789] # WebSocket gateway
     volumes: [openclaw-data:/root/.openclaw]
 
   app:
@@ -2548,17 +2742,17 @@ volumes:
 
 These are the failure modes that sink ambitious AI platforms. Every developer and agent must avoid them.
 
-| Anti-Pattern | Why It's Fatal | Prevention |
-|-------------|----------------|------------|
-| **God Service** — One service that "does everything" | Impossible to test, deploy, or reason about. Every change risks breaking unrelated features | Each engine is a separate module with its own tests. No engine exceeds 2,000 LOC. Split on first sign of bloat |
-| **Shared Mutable State** — Global objects, singletons with state | Race conditions, impossible debugging, state corruption across async flows | Postgres is the single source of truth. In-memory state is read-only caches with TTL. Zustand for UI-only state |
-| **Leaky Abstractions** — Drizzle types in use cases, tRPC context in domain | Couples inner layers to outer layers, makes swapping impossible | Clean Architecture Enforcement Rules above. ESLint catches violations. Architect Agent flags them |
-| **Premature Optimization** — Building for 10K concurrent users on day 1 | Over-engineering kills velocity. You need working features, not theoretical scale | Build for correctness first. Profile before optimizing. pg-boss handles job scaling. Optimize only when metrics prove a bottleneck |
-| **Agent Sprawl** — 200 agents with overlapping skills | Routing becomes impossible, context is wasted listing capabilities, token costs explode | Each Mini Brain has max 8 domain agents. Brain has max 12 universal agents. Merge before adding. Quality > quantity |
-| **Unmonitored LLM Calls** — LLM calls without traces, cost tracking, or guardrails | Runaway costs, silent hallucinations, no debugging capability | EVERY LLM call goes through the Gateway Engine. No direct `anthropic.messages.create()` anywhere. Gateway enforces tracing + cost + guardrails |
-| **JSON File Persistence** — Storing state in JSON files (the ClawCloneOS trap) | No transactions, no concurrent safety, no queries, total data loss risk | Phase 0 migrates ALL state to Postgres. JSON files are read once during seed migration, then deleted. No new JSON persistence ever |
-| **Missing Error Boundaries** — One failed agent crashes the entire Brain | Cascading failures take down all Mini Brains and Developments | Circuit breakers per engine, per provider. pg-boss DLQ for failed jobs. Healing Engine auto-detects and isolates failures |
+| Anti-Pattern                                                                       | Why It's Fatal                                                                              | Prevention                                                                                                                                     |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **God Service** — One service that "does everything"                               | Impossible to test, deploy, or reason about. Every change risks breaking unrelated features | Each engine is a separate module with its own tests. No engine exceeds 2,000 LOC. Split on first sign of bloat                                 |
+| **Shared Mutable State** — Global objects, singletons with state                   | Race conditions, impossible debugging, state corruption across async flows                  | Postgres is the single source of truth. In-memory state is read-only caches with TTL. Zustand for UI-only state                                |
+| **Leaky Abstractions** — Drizzle types in use cases, tRPC context in domain        | Couples inner layers to outer layers, makes swapping impossible                             | Clean Architecture Enforcement Rules above. ESLint catches violations. Architect Agent flags them                                              |
+| **Premature Optimization** — Building for 10K concurrent users on day 1            | Over-engineering kills velocity. You need working features, not theoretical scale           | Build for correctness first. Profile before optimizing. pg-boss handles job scaling. Optimize only when metrics prove a bottleneck             |
+| **Agent Sprawl** — 200 agents with overlapping skills                              | Routing becomes impossible, context is wasted listing capabilities, token costs explode     | Each Mini Brain has max 8 domain agents. Brain has max 12 universal agents. Merge before adding. Quality > quantity                            |
+| **Unmonitored LLM Calls** — LLM calls without traces, cost tracking, or guardrails | Runaway costs, silent hallucinations, no debugging capability                               | EVERY LLM call goes through the Gateway Engine. No direct `anthropic.messages.create()` anywhere. Gateway enforces tracing + cost + guardrails |
+| **JSON File Persistence** — Storing state in JSON files (the ClawCloneOS trap)     | No transactions, no concurrent safety, no queries, total data loss risk                     | Phase 0 migrates ALL state to Postgres. JSON files are read once during seed migration, then deleted. No new JSON persistence ever             |
+| **Missing Error Boundaries** — One failed agent crashes the entire Brain           | Cascading failures take down all Mini Brains and Developments                               | Circuit breakers per engine, per provider. pg-boss DLQ for failed jobs. Healing Engine auto-detects and isolates failures                      |
 
 ---
 
-*This is a living document. Update it as the project evolves. The Brain's Documentation Agent auto-updates the ATLAS.md system reference from this blueprint.*
+_This is a living document. Update it as the project evolves. The Brain's Documentation Agent auto-updates the ATLAS.md system reference from this blueprint._

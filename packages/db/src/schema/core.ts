@@ -86,6 +86,12 @@ export const workspaceLifecycleEnum = pgEnum('workspace_lifecycle', [
   'paused',
   'retired',
 ])
+export const workspaceTypeEnum = pgEnum('workspace_type', [
+  'general',
+  'development',
+  'staging',
+  'system',
+])
 export const workspaceBindingTypeEnum = pgEnum('workspace_binding_type', [
   'brain',
   'engine',
@@ -102,12 +108,13 @@ export const workspaceGoalStatusEnum = pgEnum('workspace_goal_status', [
 export const workspaces = pgTable('workspaces', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  type: text('type'),
+  type: workspaceTypeEnum('type').default('general'),
   goal: text('goal'),
   color: text('color'),
   icon: text('icon'),
   autonomyLevel: integer('autonomy_level').default(1),
   lifecycleState: workspaceLifecycleEnum('lifecycle_state').default('draft').notNull(),
+  isSystemProtected: boolean('is_system_protected').default(false),
   settings: jsonb('settings'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -128,6 +135,7 @@ export const agents = pgTable(
     tags: text('tags').array(),
     skills: text('skills').array(),
     isWsOrchestrator: boolean('is_ws_orchestrator').default(false),
+    parentOrchestratorId: uuid('parent_orchestrator_id'),
     triggerMode: text('trigger_mode'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
