@@ -48,6 +48,26 @@ export class EntityManager {
    * Create and provision a new brain entity.
    */
   async create(input: CreateEntityInput) {
+    // Governance: validate tier hierarchy
+    if (input.tier === 'brain' && input.parentId) {
+      throw new Error('Brain-tier entities cannot have a parent')
+    }
+    if (input.tier === 'mini_brain') {
+      if (input.parentId) {
+        const parent = await this.db.query.brainEntities.findFirst({
+          where: eq(brainEntities.id, input.parentId),
+        })
+        if (parent && parent.tier !== 'brain') {
+          throw new Error('Mini-brain can only be a child of a brain entity')
+        }
+      }
+    }
+    if (input.tier === 'development') {
+      if (!input.parentId) {
+        throw new Error('Development entities must have a parent (mini_brain or brain)')
+      }
+    }
+
     const [entity] = await this.db
       .insert(brainEntities)
       .values({
