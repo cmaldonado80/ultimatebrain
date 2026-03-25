@@ -13,35 +13,49 @@ let debate: DebateEngine | null = null
 let ledger: TokenLedgerService | null = null
 let entities: EntityManager | null = null
 
-function getDebate(db: Database) { return debate ??= new DebateEngine(db) }
-function getLedger(db: Database) { return ledger ??= new TokenLedgerService(db) }
-function getEntities(db: Database) { return entities ??= new EntityManager(db) }
+function getDebate(db: Database) {
+  return (debate ??= new DebateEngine(db))
+}
+function getLedger(db: Database) {
+  return (ledger ??= new TokenLedgerService(db))
+}
+function getEntities(db: Database) {
+  return (entities ??= new EntityManager(db))
+}
 
 export const platformRouter = router({
   // === Debate Engine ===
 
   createDebate: protectedProcedure
-    .input(z.object({
-      projectId: z.string().uuid().optional(),
-      rules: z.array(z.object({
-        name: z.string(),
-        description: z.string(),
-        weight: z.number().min(0).max(1),
-      })).optional(),
-    }))
+    .input(
+      z.object({
+        projectId: z.string().uuid().optional(),
+        rules: z
+          .array(
+            z.object({
+              name: z.string(),
+              description: z.string(),
+              weight: z.number().min(0).max(1),
+            }),
+          )
+          .optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getDebate(ctx.db).createSession(input.projectId, input.rules)
     }),
 
   submitArgument: protectedProcedure
-    .input(z.object({
-      sessionId: z.string().uuid(),
-      agentId: z.string().uuid(),
-      text: z.string().min(1),
-      parentId: z.string().uuid().optional(),
-      isAxiom: z.boolean().optional(),
-      validity: z.number().min(0).max(1).optional(),
-    }))
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        agentId: z.string().uuid(),
+        text: z.string().min(1),
+        parentId: z.string().uuid().optional(),
+        isAxiom: z.boolean().optional(),
+        validity: z.number().min(0).max(1).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getDebate(ctx.db).submitArgument(input.sessionId, input.agentId, input.text, {
         parentId: input.parentId,
@@ -51,11 +65,13 @@ export const platformRouter = router({
     }),
 
   addDebateEdge: protectedProcedure
-    .input(z.object({
-      fromNodeId: z.string().uuid(),
-      toNodeId: z.string().uuid(),
-      type: z.enum(['support', 'attack', 'rebuttal']),
-    }))
+    .input(
+      z.object({
+        fromNodeId: z.string().uuid(),
+        toNodeId: z.string().uuid(),
+        type: z.enum(['support', 'attack', 'rebuttal']),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getDebate(ctx.db).addEdge(input.fromNodeId, input.toNodeId, input.type)
     }),
@@ -80,11 +96,13 @@ export const platformRouter = router({
     }),
 
   completeDebate: protectedProcedure
-    .input(z.object({
-      sessionId: z.string().uuid(),
-      winnerId: z.string().uuid().optional(),
-      loserId: z.string().uuid().optional(),
-    }))
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        winnerId: z.string().uuid().optional(),
+        loserId: z.string().uuid().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getDebate(ctx.db).completeSession(input.sessionId, input.winnerId, input.loserId)
     }),
@@ -110,15 +128,17 @@ export const platformRouter = router({
   // === Token Ledger ===
 
   recordUsage: protectedProcedure
-    .input(z.object({
-      entityId: z.string().uuid().optional(),
-      agentId: z.string().uuid().optional(),
-      model: z.string().optional(),
-      provider: z.string().optional(),
-      tokensIn: z.number().min(0),
-      tokensOut: z.number().min(0),
-      costUsd: z.number().min(0),
-    }))
+    .input(
+      z.object({
+        entityId: z.string().uuid().optional(),
+        agentId: z.string().uuid().optional(),
+        model: z.string().optional(),
+        provider: z.string().optional(),
+        tokensIn: z.number().min(0),
+        tokensOut: z.number().min(0),
+        costUsd: z.number().min(0),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getLedger(ctx.db).record(input)
     }),
@@ -130,42 +150,50 @@ export const platformRouter = router({
     }),
 
   setBudget: protectedProcedure
-    .input(z.object({
-      entityId: z.string().uuid(),
-      dailyLimitUsd: z.number().min(0).optional(),
-      monthlyLimitUsd: z.number().min(0).optional(),
-      alertThreshold: z.number().min(0).max(1).optional(),
-      enforce: z.boolean().optional(),
-    }))
+    .input(
+      z.object({
+        entityId: z.string().uuid(),
+        dailyLimitUsd: z.number().min(0).optional(),
+        monthlyLimitUsd: z.number().min(0).optional(),
+        alertThreshold: z.number().min(0).max(1).optional(),
+        enforce: z.boolean().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { entityId, ...limits } = input
       return getLedger(ctx.db).setBudget(entityId, limits)
     }),
 
   usageSummary: protectedProcedure
-    .input(z.object({
-      entityId: z.string().uuid(),
-      since: z.date().optional(),
-      until: z.date().optional(),
-    }))
+    .input(
+      z.object({
+        entityId: z.string().uuid(),
+        since: z.date().optional(),
+        until: z.date().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       return getLedger(ctx.db).usageSummary(input.entityId, input.since, input.until)
     }),
 
   agentUsage: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid(),
-      since: z.date().optional(),
-    }))
+    .input(
+      z.object({
+        agentId: z.string().uuid(),
+        since: z.date().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       return getLedger(ctx.db).agentUsage(input.agentId, input.since)
     }),
 
   dailyCostTrend: protectedProcedure
-    .input(z.object({
-      entityId: z.string().uuid(),
-      days: z.number().min(1).max(365).optional(),
-    }))
+    .input(
+      z.object({
+        entityId: z.string().uuid(),
+        days: z.number().min(1).max(365).optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       return getLedger(ctx.db).dailyCostTrend(input.entityId, input.days)
     }),
@@ -173,16 +201,18 @@ export const platformRouter = router({
   // === Brain Entities ===
 
   createEntity: protectedProcedure
-    .input(z.object({
-      name: z.string().min(1),
-      domain: z.string().optional(),
-      tier: z.enum(['brain', 'mini_brain', 'development']),
-      parentId: z.string().uuid().optional(),
-      enginesEnabled: z.array(z.string()).optional(),
-      config: z.record(z.unknown()).optional(),
-      endpoint: z.string().optional(),
-      healthEndpoint: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1),
+        domain: z.string().optional(),
+        tier: z.enum(['brain', 'mini_brain', 'development']),
+        parentId: z.string().uuid().optional(),
+        enginesEnabled: z.array(z.string()).optional(),
+        config: z.record(z.unknown()).optional(),
+        endpoint: z.string().optional(),
+        healthEndpoint: z.string().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).create(input)
     }),
@@ -218,20 +248,24 @@ export const platformRouter = router({
     }),
 
   assignEntityAgent: protectedProcedure
-    .input(z.object({
-      entityId: z.string().uuid(),
-      agentId: z.string().uuid(),
-      role: z.enum(['primary', 'monitor', 'healer', 'specialist']),
-    }))
+    .input(
+      z.object({
+        entityId: z.string().uuid(),
+        agentId: z.string().uuid(),
+        role: z.enum(['primary', 'monitor', 'healer', 'specialist']),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).assignAgent(input.entityId, input.agentId, input.role)
     }),
 
   removeEntityAgent: protectedProcedure
-    .input(z.object({
-      entityId: z.string().uuid(),
-      agentId: z.string().uuid(),
-    }))
+    .input(
+      z.object({
+        entityId: z.string().uuid(),
+        agentId: z.string().uuid(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).removeAgent(input.entityId, input.agentId)
     }),
@@ -249,10 +283,12 @@ export const platformRouter = router({
     }),
 
   recordHealthCheck: protectedProcedure
-    .input(z.object({
-      entityId: z.string().uuid(),
-      status: z.enum(['active', 'suspended', 'degraded', 'provisioning']),
-    }))
+    .input(
+      z.object({
+        entityId: z.string().uuid(),
+        status: z.enum(['active', 'suspended', 'degraded', 'provisioning']),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).recordHealthCheck(input.entityId, input.status)
     }),
@@ -260,20 +296,24 @@ export const platformRouter = router({
   // === Strategy Runs ===
 
   createStrategy: protectedProcedure
-    .input(z.object({
-      plan: z.string().min(1),
-      workspaceId: z.string().uuid().optional(),
-      agentId: z.string().uuid().optional(),
-    }))
+    .input(
+      z.object({
+        plan: z.string().min(1),
+        workspaceId: z.string().uuid().optional(),
+        agentId: z.string().uuid().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).createStrategyRun(input.plan, input.workspaceId, input.agentId)
     }),
 
   startStrategy: protectedProcedure
-    .input(z.object({
-      runId: z.string().uuid(),
-      ticketIds: z.array(z.string().uuid()),
-    }))
+    .input(
+      z.object({
+        runId: z.string().uuid(),
+        ticketIds: z.array(z.string().uuid()),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).startStrategyRun(input.runId, input.ticketIds)
     }),
@@ -290,17 +330,34 @@ export const platformRouter = router({
       return getEntities(ctx.db).getStrategyRuns(input?.workspaceId)
     }),
 
+  /** Execute a strategy — decompose goal into tickets via AI */
+  executeStrategy: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { GatewayRouter } = await import('../services/gateway')
+      const gateway = new GatewayRouter(ctx.db)
+      const { executeStrategy: exec } = await import('../services/platform/strategy-executor')
+      return exec(ctx.db, gateway, input.runId)
+    }),
+
   // === Cross-Workspace Routing ===
 
   addRoute: protectedProcedure
-    .input(z.object({
-      fromWorkspace: z.string().uuid(),
-      toWorkspace: z.string().uuid(),
-      rule: z.string().min(1),
-      priority: z.number().min(0).optional(),
-    }))
+    .input(
+      z.object({
+        fromWorkspace: z.string().uuid(),
+        toWorkspace: z.string().uuid(),
+        rule: z.string().min(1),
+        priority: z.number().min(0).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
-      return getEntities(ctx.db).addRoute(input.fromWorkspace, input.toWorkspace, input.rule, input.priority)
+      return getEntities(ctx.db).addRoute(
+        input.fromWorkspace,
+        input.toWorkspace,
+        input.rule,
+        input.priority,
+      )
     }),
 
   routes: protectedProcedure

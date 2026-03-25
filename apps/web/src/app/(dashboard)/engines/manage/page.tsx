@@ -343,6 +343,389 @@ export default function BrainManagerPage() {
           </div>
         </div>
       )}
+      {/* Health & Healing */}
+      <HealthSection />
+
+      {/* Routes */}
+      <RoutesSection />
+
+      {/* Budget Summary */}
+      <BudgetSection />
+    </div>
+  )
+}
+
+function HealthSection() {
+  const healthQuery = trpc.systemOrchestrator.allWorkspacesHealth.useQuery()
+  const healingQuery = trpc.healing.healingLog.useQuery({ limit: 10 })
+  const monitorMut = trpc.systemOrchestrator.monitorHealth.useMutation()
+  const autoHealMut = trpc.healing.autoHeal.useMutation({
+    onSuccess: () => healingQuery.refetch(),
+  })
+
+  const healthData = (healthQuery.data ?? []) as Array<{
+    workspaceId: string
+    workspaceName: string
+    agentCount: number
+    idleAgents: number
+    errorAgents: number
+    hasOrchestrator: boolean
+  }>
+  const healingLog = (healingQuery.data ?? []) as unknown as Array<{
+    id: string
+    action: string
+    target: string
+    reason: string
+    success: boolean
+    createdAt: Date
+  }>
+
+  return (
+    <div style={styles.section}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 10,
+        }}
+      >
+        <div style={styles.sectionTitle}>Health & Healing</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            style={{ ...styles.btnSmall, background: '#818cf8' }}
+            onClick={() => monitorMut.mutate()}
+            disabled={monitorMut.isPending}
+          >
+            {monitorMut.isPending ? 'Sweeping...' : 'Health Sweep'}
+          </button>
+          <button
+            style={{ ...styles.btnSmall, background: '#22c55e' }}
+            onClick={() => autoHealMut.mutate()}
+            disabled={autoHealMut.isPending}
+          >
+            {autoHealMut.isPending ? 'Healing...' : 'Auto-Heal'}
+          </button>
+        </div>
+      </div>
+      {monitorMut.data && (
+        <div style={{ fontSize: 11, color: '#6ee7b7', marginBottom: 8 }}>
+          Checked {(monitorMut.data as { workspacesChecked: number }).workspacesChecked} workspaces,{' '}
+          {(monitorMut.data as { issues: unknown[] }).issues.length} issues found
+        </div>
+      )}
+      {healthData.length > 0 && (
+        <div
+          style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, marginBottom: 12 }}
+        >
+          {healthData.map((h) => (
+            <div
+              key={h.workspaceId}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 12px',
+                background: '#111827',
+                borderRadius: 4,
+                fontSize: 12,
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: h.errorAgents > 0 ? '#ef4444' : '#22c55e',
+                }}
+              />
+              <span style={{ flex: 1 }}>{h.workspaceName}</span>
+              <span style={{ color: '#6b7280' }}>{h.agentCount} agents</span>
+              <span style={{ color: '#22c55e' }}>{h.idleAgents} idle</span>
+              {h.errorAgents > 0 && <span style={{ color: '#ef4444' }}>{h.errorAgents} error</span>}
+              {!h.hasOrchestrator && <span style={{ color: '#f97316' }}>no orchestrator!</span>}
+            </div>
+          ))}
+        </div>
+      )}
+      {healingLog.length > 0 && (
+        <>
+          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
+            Recent Healing Actions
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+            {healingLog.map((log) => (
+              <div
+                key={log.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '3px 10px',
+                  background: '#111827',
+                  borderRadius: 3,
+                  fontSize: 11,
+                }}
+              >
+                <span
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: '50%',
+                    background: log.success ? '#22c55e' : '#ef4444',
+                  }}
+                />
+                <span style={{ flex: 1, fontFamily: 'monospace' }}>{log.action}</span>
+                <span style={{ color: '#6b7280' }}>{log.target}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function RoutesSection() {
+  const [showAddRoute, setShowAddRoute] = useState(false)
+  const [fromWs, setFromWs] = useState('')
+  const [toWs, setToWs] = useState('')
+  const [rule, setRule] = useState('')
+  const [priority, setPriority] = useState(0)
+
+  const routesQuery = trpc.platform.routes.useQuery({})
+  const wsQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
+  const utils = trpc.useUtils()
+  const addRouteMut = trpc.platform.addRoute.useMutation({
+    onSuccess: () => {
+      utils.platform.routes.invalidate()
+      setShowAddRoute(false)
+    },
+  })
+  const deleteRouteMut = trpc.platform.deleteRoute.useMutation({
+    onSuccess: () => utils.platform.routes.invalidate(),
+  })
+
+  const routes = (routesQuery.data ?? []) as Array<{
+    id: string
+    fromWorkspace: string | null
+    toWorkspace: string | null
+    rule: string | null
+    priority: number | null
+  }>
+  const workspaces = (wsQuery.data ?? []) as Array<{ id: string; name: string }>
+
+  return (
+    <div style={styles.section}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 10,
+        }}
+      >
+        <div style={styles.sectionTitle}>Cross-Workspace Routes ({routes.length})</div>
+        <button style={styles.btnSmall} onClick={() => setShowAddRoute(!showAddRoute)}>
+          {showAddRoute ? 'Cancel' : '+ Add Route'}
+        </button>
+      </div>
+      {showAddRoute && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' as const }}>
+          <select
+            style={{ ...styles.select, flex: 1, minWidth: 120 }}
+            value={fromWs}
+            onChange={(e) => setFromWs(e.target.value)}
+          >
+            <option value="">From workspace</option>
+            {workspaces.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name}
+              </option>
+            ))}
+          </select>
+          <select
+            style={{ ...styles.select, flex: 1, minWidth: 120 }}
+            value={toWs}
+            onChange={(e) => setToWs(e.target.value)}
+          >
+            <option value="">To workspace</option>
+            {workspaces.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name}
+              </option>
+            ))}
+          </select>
+          <input
+            style={{ ...styles.input, flex: 1, minWidth: 100 }}
+            placeholder="Rule..."
+            value={rule}
+            onChange={(e) => setRule(e.target.value)}
+          />
+          <input
+            style={{ ...styles.input, width: 60 }}
+            type="number"
+            placeholder="Priority"
+            value={priority}
+            onChange={(e) => setPriority(parseInt(e.target.value) || 0)}
+          />
+          <button
+            style={{ ...styles.btnCreate, padding: '4px 10px' }}
+            onClick={() =>
+              fromWs &&
+              toWs &&
+              addRouteMut.mutate({
+                fromWorkspace: fromWs,
+                toWorkspace: toWs,
+                rule: rule || '*',
+                priority,
+              })
+            }
+            disabled={!fromWs || !toWs || addRouteMut.isPending}
+          >
+            Add
+          </button>
+        </div>
+      )}
+      {routes.length === 0 ? (
+        <div style={{ color: '#4b5563', fontSize: 12, textAlign: 'center' as const, padding: 12 }}>
+          No routes configured.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+          {routes.map((r) => (
+            <div
+              key={r.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 12px',
+                background: '#111827',
+                borderRadius: 4,
+                fontSize: 12,
+              }}
+            >
+              <span style={{ flex: 1 }}>
+                {workspaces.find((w) => w.id === r.fromWorkspace)?.name ??
+                  r.fromWorkspace?.slice(0, 8)}
+                {' → '}
+                {workspaces.find((w) => w.id === r.toWorkspace)?.name ?? r.toWorkspace?.slice(0, 8)}
+              </span>
+              {r.rule && (
+                <span style={{ color: '#6b7280', fontFamily: 'monospace' }}>{r.rule}</span>
+              )}
+              <span style={{ color: '#4b5563' }}>P{r.priority}</span>
+              <button
+                style={{ ...styles.btnSmall, background: '#ef4444', padding: '1px 6px' }}
+                onClick={() => deleteRouteMut.mutate({ id: r.id })}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BudgetSection() {
+  const budgetQuery = trpc.systemOrchestrator.budgetSummary.useQuery()
+  const budget = budgetQuery.data as
+    | {
+        totalWorkspaces: number
+        activeWorkspaces: number
+        workspacesOverBudget: number
+        budgetDetails: Array<{ entityId: string; entityName: string; spent: number; limit: number }>
+      }
+    | undefined
+
+  return (
+    <div style={styles.section}>
+      <div style={styles.sectionTitle}>System Budget</div>
+      {!budget ? (
+        <div style={{ color: '#4b5563', fontSize: 12 }}>Loading budget data...</div>
+      ) : (
+        <>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            <div
+              style={{
+                background: '#111827',
+                borderRadius: 6,
+                padding: 10,
+                textAlign: 'center' as const,
+              }}
+            >
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#22c55e' }}>
+                {budget.activeWorkspaces}
+              </div>
+              <div style={{ fontSize: 10, color: '#6b7280' }}>Active</div>
+            </div>
+            <div
+              style={{
+                background: '#111827',
+                borderRadius: 6,
+                padding: 10,
+                textAlign: 'center' as const,
+              }}
+            >
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{budget.totalWorkspaces}</div>
+              <div style={{ fontSize: 10, color: '#6b7280' }}>Total</div>
+            </div>
+            <div
+              style={{
+                background: '#111827',
+                borderRadius: 6,
+                padding: 10,
+                textAlign: 'center' as const,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: budget.workspacesOverBudget > 0 ? '#ef4444' : '#22c55e',
+                }}
+              >
+                {budget.workspacesOverBudget}
+              </div>
+              <div style={{ fontSize: 10, color: '#6b7280' }}>Over Budget</div>
+            </div>
+          </div>
+          {budget.budgetDetails.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+              {budget.budgetDetails.map((d) => (
+                <div
+                  key={d.entityId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '4px 10px',
+                    background: '#111827',
+                    borderRadius: 4,
+                    fontSize: 12,
+                  }}
+                >
+                  <span style={{ flex: 1 }}>{d.entityName}</span>
+                  <span style={{ color: d.spent > d.limit ? '#ef4444' : '#22c55e' }}>
+                    ${d.spent.toFixed(4)}
+                  </span>
+                  <span style={{ color: '#6b7280' }}>/ ${d.limit.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
