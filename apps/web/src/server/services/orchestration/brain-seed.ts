@@ -1,76 +1,116 @@
 /**
- * Brain Seed — provisions the 10 category workspaces with orchestrators and starter agents.
- *
- * Based on https://github.com/VoltAgent/awesome-claude-code-subagents categories:
- * Core Development, Language Specialists, Infrastructure, Quality & Security,
- * Data & AI, Developer Experience, Specialized Domains, Business & Product,
- * Meta & Orchestration, Research & Analysis.
+ * Brain Seed — provisions 10 category workspaces with all 141 agents from
+ * https://github.com/VoltAgent/awesome-claude-code-subagents
  *
  * Idempotent — skips workspaces that already exist (matched by name).
+ * Also adds missing agents to existing workspaces.
  */
 
 import type { Database } from '@solarc/db'
 import { workspaces, agents, workspaceLifecycleEvents } from '@solarc/db'
 import { eq, and } from 'drizzle-orm'
 
-interface AgentDef {
-  name: string
-  type: string
-  soul: string
-  requiredModelType:
-    | 'reasoning'
-    | 'agentic'
-    | 'coder'
-    | 'flash'
-    | 'vision'
-    | 'multimodal'
-    | 'guard'
-    | 'judge'
-    | 'router'
-    | 'embedding'
-  skills: string[]
-  tags: string[]
-}
+type Cap =
+  | 'reasoning'
+  | 'agentic'
+  | 'coder'
+  | 'flash'
+  | 'vision'
+  | 'multimodal'
+  | 'guard'
+  | 'judge'
+  | 'router'
+  | 'embedding'
+type AType = 'executor' | 'planner' | 'reviewer' | 'specialist'
+
+// Compact agent definition: [name, type, capability, skills[], description]
+type AgentTuple = [string, AType, Cap, string[], string]
 
 interface WorkspaceDef {
   name: string
   type: 'general' | 'development' | 'staging' | 'system'
   goal: string
   icon: string
-  agents: AgentDef[]
+  agents: AgentTuple[]
 }
 
-const BRAIN_WORKSPACES: WorkspaceDef[] = [
+const W: WorkspaceDef[] = [
   {
     name: 'Core Development',
     type: 'development',
     goal: 'Build and ship production code — APIs, frontends, backends, and microservices',
     icon: 'code',
     agents: [
-      {
-        name: 'Backend Developer',
-        type: 'executor',
-        soul: 'You are a senior backend developer. Design scalable APIs, write clean server-side code, handle databases, authentication, and infrastructure concerns. Prioritize reliability, security, and performance.',
-        requiredModelType: 'coder',
-        skills: ['nodejs', 'typescript', 'postgres', 'api-design', 'rest', 'graphql'],
-        tags: ['backend', 'core'],
-      },
-      {
-        name: 'Frontend Developer',
-        type: 'executor',
-        soul: 'You are a senior frontend developer specializing in React and modern web technologies. Build responsive, accessible UIs with excellent user experience. Follow component-driven architecture and design system principles.',
-        requiredModelType: 'coder',
-        skills: ['react', 'typescript', 'css', 'nextjs', 'tailwind', 'accessibility'],
-        tags: ['frontend', 'core'],
-      },
-      {
-        name: 'Full-Stack Engineer',
-        type: 'executor',
-        soul: 'You are a full-stack engineer who bridges frontend and backend. Architect end-to-end features from database schema to UI. Optimize for developer velocity while maintaining code quality.',
-        requiredModelType: 'agentic',
-        skills: ['react', 'nodejs', 'typescript', 'postgres', 'deployment'],
-        tags: ['fullstack', 'core'],
-      },
+      [
+        'API Designer',
+        'planner',
+        'coder',
+        ['rest', 'graphql', 'openapi', 'api-design'],
+        'REST and GraphQL API architect',
+      ],
+      [
+        'Backend Developer',
+        'executor',
+        'coder',
+        ['nodejs', 'typescript', 'postgres', 'api-design'],
+        'Server-side expert for scalable APIs',
+      ],
+      [
+        'Electron Pro',
+        'specialist',
+        'coder',
+        ['electron', 'desktop', 'nodejs', 'cross-platform'],
+        'Desktop application expert',
+      ],
+      [
+        'Frontend Developer',
+        'executor',
+        'coder',
+        ['react', 'typescript', 'css', 'nextjs'],
+        'UI/UX specialist for React, Vue, and Angular',
+      ],
+      [
+        'Full-Stack Developer',
+        'executor',
+        'agentic',
+        ['react', 'nodejs', 'postgres', 'deployment'],
+        'End-to-end feature development',
+      ],
+      [
+        'GraphQL Architect',
+        'specialist',
+        'coder',
+        ['graphql', 'federation', 'apollo', 'schema-design'],
+        'GraphQL schema and federation expert',
+      ],
+      [
+        'Microservices Architect',
+        'planner',
+        'reasoning',
+        ['microservices', 'distributed-systems', 'event-driven', 'docker'],
+        'Distributed systems designer',
+      ],
+      [
+        'Mobile Developer',
+        'executor',
+        'coder',
+        ['react-native', 'ios', 'android', 'cross-platform'],
+        'Cross-platform mobile specialist',
+      ],
+      [
+        'UI Designer',
+        'specialist',
+        'vision',
+        ['figma', 'design-systems', 'accessibility', 'prototyping'],
+        'Visual design and interaction specialist',
+      ],
+      [
+        'WebSocket Engineer',
+        'specialist',
+        'coder',
+        ['websockets', 'real-time', 'socket.io', 'streaming'],
+        'Real-time communication specialist',
+      ],
     ],
   },
   {
@@ -79,30 +119,195 @@ const BRAIN_WORKSPACES: WorkspaceDef[] = [
     goal: 'Deep language-specific expertise for TypeScript, Python, Rust, Go, and more',
     icon: 'languages',
     agents: [
-      {
-        name: 'TypeScript Expert',
-        type: 'specialist',
-        soul: 'You are a TypeScript expert with deep knowledge of the type system, generics, conditional types, and advanced patterns. Help design type-safe architectures and resolve complex type errors.',
-        requiredModelType: 'coder',
-        skills: ['typescript', 'type-system', 'generics', 'zod', 'tRPC'],
-        tags: ['typescript', 'language'],
-      },
-      {
-        name: 'Python Expert',
-        type: 'specialist',
-        soul: 'You are a Python expert specializing in data processing, automation, and backend services. Expert in asyncio, FastAPI, pandas, and the Python ecosystem.',
-        requiredModelType: 'coder',
-        skills: ['python', 'fastapi', 'pandas', 'asyncio', 'testing'],
-        tags: ['python', 'language'],
-      },
-      {
-        name: 'Rust Expert',
-        type: 'specialist',
-        soul: 'You are a Rust expert focused on systems programming, performance, and memory safety. Guide developers through ownership, lifetimes, and async Rust patterns.',
-        requiredModelType: 'coder',
-        skills: ['rust', 'systems-programming', 'concurrency', 'wasm', 'performance'],
-        tags: ['rust', 'language'],
-      },
+      [
+        'TypeScript Pro',
+        'specialist',
+        'coder',
+        ['typescript', 'type-system', 'generics', 'zod'],
+        'TypeScript specialist',
+      ],
+      [
+        'SQL Pro',
+        'specialist',
+        'coder',
+        ['sql', 'postgres', 'mysql', 'query-optimization'],
+        'Database query expert',
+      ],
+      [
+        'Swift Expert',
+        'specialist',
+        'coder',
+        ['swift', 'ios', 'macos', 'swiftui'],
+        'iOS and macOS specialist',
+      ],
+      [
+        'Vue Expert',
+        'specialist',
+        'coder',
+        ['vue', 'composition-api', 'pinia', 'nuxt'],
+        'Vue 3 Composition API expert',
+      ],
+      [
+        'Angular Architect',
+        'specialist',
+        'coder',
+        ['angular', 'rxjs', 'ngrx', 'enterprise'],
+        'Angular 15+ enterprise patterns expert',
+      ],
+      [
+        'C++ Pro',
+        'specialist',
+        'coder',
+        ['cpp', 'performance', 'memory', 'systems'],
+        'C++ performance expert',
+      ],
+      [
+        'C# Developer',
+        'specialist',
+        'coder',
+        ['csharp', 'dotnet', 'aspnet', 'entity-framework'],
+        '.NET ecosystem specialist',
+      ],
+      [
+        'Django Developer',
+        'specialist',
+        'coder',
+        ['django', 'python', 'orm', 'rest-framework'],
+        'Django 4+ web development expert',
+      ],
+      [
+        '.NET Core Expert',
+        'specialist',
+        'coder',
+        ['dotnet-core', 'aspnet-core', 'blazor', 'grpc'],
+        '.NET 8 cross-platform specialist',
+      ],
+      [
+        'Elixir Expert',
+        'specialist',
+        'coder',
+        ['elixir', 'otp', 'phoenix', 'fault-tolerance'],
+        'Elixir and OTP fault-tolerant systems expert',
+      ],
+      [
+        'React Native Expert',
+        'specialist',
+        'coder',
+        ['expo', 'react-native', 'mobile', 'navigation'],
+        'Expo and React Native mobile development expert',
+      ],
+      [
+        'FastAPI Developer',
+        'specialist',
+        'coder',
+        ['fastapi', 'python', 'async', 'pydantic'],
+        'Modern async Python API framework expert',
+      ],
+      [
+        'Flutter Expert',
+        'specialist',
+        'coder',
+        ['flutter', 'dart', 'mobile', 'cross-platform'],
+        'Flutter 3+ cross-platform mobile expert',
+      ],
+      [
+        'Go Pro',
+        'specialist',
+        'coder',
+        ['golang', 'concurrency', 'goroutines', 'microservices'],
+        'Go concurrency specialist',
+      ],
+      [
+        'Java Architect',
+        'specialist',
+        'reasoning',
+        ['java', 'spring', 'enterprise', 'jvm'],
+        'Enterprise Java expert',
+      ],
+      [
+        'JavaScript Pro',
+        'specialist',
+        'coder',
+        ['javascript', 'es2024', 'node', 'browser'],
+        'JavaScript development expert',
+      ],
+      [
+        'PowerShell 5.1 Expert',
+        'specialist',
+        'coder',
+        ['powershell', 'windows', 'dotnet-framework', 'automation'],
+        'Windows PowerShell 5.1 automation specialist',
+      ],
+      [
+        'PowerShell 7 Expert',
+        'specialist',
+        'coder',
+        ['powershell-7', 'cross-platform', 'dotnet-core', 'automation'],
+        'Cross-platform PowerShell 7+ automation specialist',
+      ],
+      [
+        'Kotlin Specialist',
+        'specialist',
+        'coder',
+        ['kotlin', 'android', 'coroutines', 'jvm'],
+        'Modern JVM language expert',
+      ],
+      [
+        'Laravel Specialist',
+        'specialist',
+        'coder',
+        ['laravel', 'php', 'eloquent', 'blade'],
+        'Laravel 10+ PHP framework expert',
+      ],
+      [
+        'Next.js Developer',
+        'specialist',
+        'coder',
+        ['nextjs', 'react', 'server-components', 'app-router'],
+        'Next.js 14+ full-stack specialist',
+      ],
+      [
+        'PHP Pro',
+        'specialist',
+        'coder',
+        ['php', 'composer', 'psr', 'symfony'],
+        'PHP web development expert',
+      ],
+      [
+        'Python Pro',
+        'specialist',
+        'coder',
+        ['python', 'asyncio', 'typing', 'packaging'],
+        'Python ecosystem master',
+      ],
+      [
+        'Rails Expert',
+        'specialist',
+        'coder',
+        ['rails', 'ruby', 'activerecord', 'hotwire'],
+        'Rails 8.1 rapid development expert',
+      ],
+      [
+        'React Specialist',
+        'specialist',
+        'coder',
+        ['react', 'hooks', 'server-components', 'suspense'],
+        'React 18+ modern patterns expert',
+      ],
+      [
+        'Rust Engineer',
+        'specialist',
+        'coder',
+        ['rust', 'ownership', 'async', 'wasm'],
+        'Systems programming expert',
+      ],
+      [
+        'Spring Boot Engineer',
+        'specialist',
+        'coder',
+        ['spring-boot', 'java', 'microservices', 'jpa'],
+        'Spring Boot 3+ microservices expert',
+      ],
     ],
   },
   {
@@ -111,30 +316,118 @@ const BRAIN_WORKSPACES: WorkspaceDef[] = [
     goal: 'DevOps, cloud deployment, CI/CD, and infrastructure automation',
     icon: 'cloud',
     agents: [
-      {
-        name: 'Kubernetes Specialist',
-        type: 'specialist',
-        soul: 'You are a Kubernetes specialist. Design and troubleshoot container orchestration, manage deployments, services, ingress, and observability. Follow GitOps principles.',
-        requiredModelType: 'agentic',
-        skills: ['kubernetes', 'docker', 'helm', 'gitops', 'monitoring'],
-        tags: ['k8s', 'infra'],
-      },
-      {
-        name: 'Terraform Expert',
-        type: 'specialist',
-        soul: 'You are a Terraform and IaC expert. Design cloud infrastructure as code, manage state, create reusable modules, and implement multi-cloud strategies.',
-        requiredModelType: 'coder',
-        skills: ['terraform', 'aws', 'gcp', 'azure', 'iac'],
-        tags: ['terraform', 'infra'],
-      },
-      {
-        name: 'CI/CD Engineer',
-        type: 'executor',
-        soul: 'You are a CI/CD engineer. Design and optimize build pipelines, automated testing, deployment strategies (blue-green, canary), and release management.',
-        requiredModelType: 'agentic',
-        skills: ['github-actions', 'ci-cd', 'docker', 'testing', 'deployment'],
-        tags: ['cicd', 'infra'],
-      },
+      [
+        'Azure Infra Engineer',
+        'specialist',
+        'agentic',
+        ['azure', 'az-powershell', 'arm-templates', 'devops'],
+        'Azure infrastructure and Az PowerShell automation expert',
+      ],
+      [
+        'Cloud Architect',
+        'planner',
+        'reasoning',
+        ['aws', 'gcp', 'azure', 'multi-cloud'],
+        'AWS/GCP/Azure specialist',
+      ],
+      [
+        'Database Administrator',
+        'specialist',
+        'coder',
+        ['postgres', 'mysql', 'redis', 'replication'],
+        'Database management expert',
+      ],
+      [
+        'Docker Expert',
+        'specialist',
+        'agentic',
+        ['docker', 'dockerfile', 'compose', 'optimization'],
+        'Docker containerization and optimization expert',
+      ],
+      [
+        'Deployment Engineer',
+        'executor',
+        'agentic',
+        ['deployment', 'blue-green', 'canary', 'rollback'],
+        'Deployment automation specialist',
+      ],
+      [
+        'DevOps Engineer',
+        'executor',
+        'agentic',
+        ['ci-cd', 'github-actions', 'terraform', 'docker'],
+        'CI/CD and automation expert',
+      ],
+      [
+        'DevOps Incident Responder',
+        'executor',
+        'flash',
+        ['incident-response', 'monitoring', 'alerting', 'runbooks'],
+        'DevOps incident management',
+      ],
+      [
+        'Incident Responder',
+        'executor',
+        'flash',
+        ['incident-response', 'triage', 'communication', 'post-mortem'],
+        'System incident response expert',
+      ],
+      [
+        'Kubernetes Specialist',
+        'specialist',
+        'agentic',
+        ['kubernetes', 'helm', 'gitops', 'service-mesh'],
+        'Container orchestration master',
+      ],
+      [
+        'Network Engineer',
+        'specialist',
+        'coder',
+        ['networking', 'dns', 'load-balancing', 'vpn'],
+        'Network infrastructure specialist',
+      ],
+      [
+        'Platform Engineer',
+        'planner',
+        'reasoning',
+        ['platform', 'developer-portal', 'self-service', 'idp'],
+        'Platform architecture expert',
+      ],
+      [
+        'Security Engineer',
+        'specialist',
+        'guard',
+        ['security', 'iam', 'encryption', 'compliance'],
+        'Infrastructure security specialist',
+      ],
+      [
+        'SRE Engineer',
+        'specialist',
+        'agentic',
+        ['sre', 'observability', 'slo', 'error-budgets'],
+        'Site reliability engineering expert',
+      ],
+      [
+        'Terraform Engineer',
+        'specialist',
+        'coder',
+        ['terraform', 'hcl', 'state-management', 'modules'],
+        'Infrastructure as Code expert',
+      ],
+      [
+        'Terragrunt Expert',
+        'specialist',
+        'coder',
+        ['terragrunt', 'dry-iac', 'multi-env', 'modules'],
+        'Terragrunt orchestration and DRY IaC specialist',
+      ],
+      [
+        'Windows Infra Admin',
+        'specialist',
+        'agentic',
+        ['active-directory', 'dns', 'dhcp', 'gpo'],
+        'Active Directory, DNS, DHCP, and GPO automation specialist',
+      ],
     ],
   },
   {
@@ -143,30 +436,104 @@ const BRAIN_WORKSPACES: WorkspaceDef[] = [
     goal: 'Testing, security auditing, code review, and quality assurance',
     icon: 'shield',
     agents: [
-      {
-        name: 'QA Engineer',
-        type: 'reviewer',
-        soul: 'You are a QA engineer. Design comprehensive test strategies, write unit/integration/e2e tests, identify edge cases, and ensure software reliability. Never ship without proper test coverage.',
-        requiredModelType: 'agentic',
-        skills: ['testing', 'jest', 'playwright', 'e2e', 'test-design'],
-        tags: ['qa', 'quality'],
-      },
-      {
-        name: 'Security Auditor',
-        type: 'reviewer',
-        soul: 'You are a security auditor specializing in application security. Identify OWASP Top 10 vulnerabilities, review authentication flows, check for injection attacks, and recommend security hardening.',
-        requiredModelType: 'reasoning',
-        skills: ['security', 'owasp', 'auth', 'penetration-testing', 'crypto'],
-        tags: ['security', 'quality'],
-      },
-      {
-        name: 'Code Reviewer',
-        type: 'reviewer',
-        soul: 'You are a meticulous code reviewer. Analyze code for correctness, performance, maintainability, and adherence to team conventions. Be constructive but thorough — catch bugs before they ship.',
-        requiredModelType: 'reasoning',
-        skills: ['code-review', 'patterns', 'performance', 'best-practices'],
-        tags: ['review', 'quality'],
-      },
+      [
+        'Accessibility Tester',
+        'reviewer',
+        'vision',
+        ['a11y', 'wcag', 'screen-readers', 'aria'],
+        'A11y compliance expert',
+      ],
+      [
+        'AD Security Reviewer',
+        'reviewer',
+        'guard',
+        ['active-directory', 'gpo-audit', 'security', 'compliance'],
+        'Active Directory security and GPO audit specialist',
+      ],
+      [
+        'Architect Reviewer',
+        'reviewer',
+        'reasoning',
+        ['architecture', 'design-review', 'patterns', 'scalability'],
+        'Architecture review specialist',
+      ],
+      [
+        'Chaos Engineer',
+        'specialist',
+        'agentic',
+        ['chaos-engineering', 'resilience', 'fault-injection', 'gameday'],
+        'System resilience testing expert',
+      ],
+      [
+        'Code Reviewer',
+        'reviewer',
+        'reasoning',
+        ['code-review', 'best-practices', 'performance', 'maintainability'],
+        'Code quality guardian',
+      ],
+      [
+        'Compliance Auditor',
+        'reviewer',
+        'guard',
+        ['compliance', 'gdpr', 'sox', 'hipaa'],
+        'Regulatory compliance expert',
+      ],
+      [
+        'Debugger',
+        'executor',
+        'flash',
+        ['debugging', 'profiling', 'stack-traces', 'root-cause'],
+        'Advanced debugging specialist',
+      ],
+      [
+        'Error Detective',
+        'executor',
+        'flash',
+        ['error-analysis', 'logs', 'monitoring', 'resolution'],
+        'Error analysis and resolution expert',
+      ],
+      [
+        'Penetration Tester',
+        'specialist',
+        'guard',
+        ['pentesting', 'owasp', 'burpsuite', 'vulnerability-scan'],
+        'Ethical hacking specialist',
+      ],
+      [
+        'Performance Engineer',
+        'specialist',
+        'reasoning',
+        ['performance', 'profiling', 'benchmarking', 'optimization'],
+        'Performance optimization expert',
+      ],
+      [
+        'PS Security Hardening',
+        'specialist',
+        'guard',
+        ['powershell-security', 'hardening', 'jea', 'constrained-language'],
+        'PowerShell security hardening specialist',
+      ],
+      [
+        'QA Expert',
+        'reviewer',
+        'agentic',
+        ['testing', 'jest', 'playwright', 'e2e'],
+        'Test automation specialist',
+      ],
+      [
+        'Security Auditor',
+        'reviewer',
+        'guard',
+        ['security-audit', 'owasp', 'auth', 'crypto'],
+        'Security vulnerability expert',
+      ],
+      [
+        'Test Automator',
+        'executor',
+        'agentic',
+        ['test-automation', 'ci', 'coverage', 'frameworks'],
+        'Test automation framework expert',
+      ],
     ],
   },
   {
@@ -175,30 +542,90 @@ const BRAIN_WORKSPACES: WorkspaceDef[] = [
     goal: 'Machine learning, data science, analytics, and AI/ML engineering',
     icon: 'brain',
     agents: [
-      {
-        name: 'ML Engineer',
-        type: 'specialist',
-        soul: 'You are an ML engineer. Design model training pipelines, optimize hyperparameters, handle feature engineering, and deploy models to production. Balance accuracy with inference speed.',
-        requiredModelType: 'reasoning',
-        skills: ['ml', 'pytorch', 'tensorflow', 'mlops', 'feature-engineering'],
-        tags: ['ml', 'data'],
-      },
-      {
-        name: 'Data Scientist',
-        type: 'specialist',
-        soul: 'You are a data scientist. Analyze datasets, build statistical models, create visualizations, and extract actionable insights. Communicate findings clearly to non-technical stakeholders.',
-        requiredModelType: 'reasoning',
-        skills: ['statistics', 'python', 'sql', 'visualization', 'analytics'],
-        tags: ['data-science', 'data'],
-      },
-      {
-        name: 'NLP Specialist',
-        type: 'specialist',
-        soul: 'You are an NLP specialist. Design text processing pipelines, fine-tune language models, implement RAG systems, and build conversational AI. Expert in embeddings, tokenization, and prompt engineering.',
-        requiredModelType: 'reasoning',
-        skills: ['nlp', 'embeddings', 'rag', 'prompt-engineering', 'transformers'],
-        tags: ['nlp', 'data'],
-      },
+      [
+        'AI Engineer',
+        'specialist',
+        'reasoning',
+        ['ai-systems', 'model-deployment', 'inference', 'optimization'],
+        'AI system design and deployment expert',
+      ],
+      [
+        'Data Analyst',
+        'specialist',
+        'reasoning',
+        ['sql', 'visualization', 'dashboards', 'insights'],
+        'Data insights and visualization specialist',
+      ],
+      [
+        'Data Engineer',
+        'executor',
+        'coder',
+        ['etl', 'spark', 'airflow', 'data-pipelines'],
+        'Data pipeline architect',
+      ],
+      [
+        'Data Scientist',
+        'specialist',
+        'reasoning',
+        ['statistics', 'python', 'ml', 'experimentation'],
+        'Analytics and insights expert',
+      ],
+      [
+        'Database Optimizer',
+        'specialist',
+        'coder',
+        ['query-optimization', 'indexing', 'postgres', 'explain-analyze'],
+        'Database performance specialist',
+      ],
+      [
+        'LLM Architect',
+        'planner',
+        'reasoning',
+        ['llm', 'fine-tuning', 'rag', 'prompt-engineering'],
+        'Large language model architect',
+      ],
+      [
+        'ML Engineer',
+        'specialist',
+        'reasoning',
+        ['pytorch', 'tensorflow', 'mlops', 'feature-engineering'],
+        'Machine learning systems expert',
+      ],
+      [
+        'MLOps Engineer',
+        'executor',
+        'agentic',
+        ['mlops', 'model-registry', 'a-b-testing', 'monitoring'],
+        'MLOps and model deployment expert',
+      ],
+      [
+        'NLP Engineer',
+        'specialist',
+        'reasoning',
+        ['nlp', 'transformers', 'embeddings', 'tokenization'],
+        'Natural language processing expert',
+      ],
+      [
+        'Postgres Pro',
+        'specialist',
+        'coder',
+        ['postgresql', 'extensions', 'replication', 'performance'],
+        'PostgreSQL database expert',
+      ],
+      [
+        'Prompt Engineer',
+        'specialist',
+        'reasoning',
+        ['prompt-engineering', 'few-shot', 'chain-of-thought', 'evaluation'],
+        'Prompt optimization specialist',
+      ],
+      [
+        'RL Engineer',
+        'specialist',
+        'reasoning',
+        ['reinforcement-learning', 'agents', 'reward-shaping', 'simulation'],
+        'Reinforcement learning and agent training expert',
+      ],
     ],
   },
   {
@@ -207,30 +634,97 @@ const BRAIN_WORKSPACES: WorkspaceDef[] = [
     goal: 'Tooling, documentation, refactoring, and developer productivity',
     icon: 'tools',
     agents: [
-      {
-        name: 'CLI Developer',
-        type: 'executor',
-        soul: 'You are a CLI tool developer. Build intuitive command-line interfaces with excellent help text, argument parsing, and user experience. Follow Unix philosophy — do one thing well.',
-        requiredModelType: 'coder',
-        skills: ['cli', 'nodejs', 'shell', 'ux', 'documentation'],
-        tags: ['cli', 'dx'],
-      },
-      {
-        name: 'Documentation Writer',
-        type: 'specialist',
-        soul: 'You are a technical documentation writer. Create clear, well-structured docs with examples, guides, and API references. Make complex concepts accessible. Always include code samples.',
-        requiredModelType: 'agentic',
-        skills: ['documentation', 'markdown', 'api-docs', 'tutorials', 'technical-writing'],
-        tags: ['docs', 'dx'],
-      },
-      {
-        name: 'Refactoring Expert',
-        type: 'specialist',
-        soul: 'You are a refactoring expert. Identify code smells, reduce complexity, improve naming, extract functions, and modernize legacy code. Never break existing behavior — refactor incrementally with tests.',
-        requiredModelType: 'reasoning',
-        skills: ['refactoring', 'patterns', 'testing', 'code-quality', 'legacy'],
-        tags: ['refactoring', 'dx'],
-      },
+      [
+        'Build Engineer',
+        'executor',
+        'coder',
+        ['webpack', 'vite', 'turbo', 'build-systems'],
+        'Build system specialist',
+      ],
+      [
+        'CLI Developer',
+        'executor',
+        'coder',
+        ['cli', 'commander', 'yargs', 'ux'],
+        'Command-line tool creator',
+      ],
+      [
+        'Dependency Manager',
+        'specialist',
+        'flash',
+        ['npm', 'pnpm', 'yarn', 'dependency-audit'],
+        'Package and dependency specialist',
+      ],
+      [
+        'Documentation Engineer',
+        'specialist',
+        'agentic',
+        ['docs', 'markdown', 'docusaurus', 'api-docs'],
+        'Technical documentation expert',
+      ],
+      [
+        'DX Optimizer',
+        'specialist',
+        'reasoning',
+        ['dx', 'onboarding', 'dev-tools', 'productivity'],
+        'Developer experience optimization specialist',
+      ],
+      [
+        'Git Workflow Manager',
+        'specialist',
+        'flash',
+        ['git', 'branching', 'pr-review', 'monorepo'],
+        'Git workflow and branching expert',
+      ],
+      [
+        'Legacy Modernizer',
+        'specialist',
+        'reasoning',
+        ['legacy-code', 'migration', 'modernization', 'strangler-fig'],
+        'Legacy code modernization specialist',
+      ],
+      [
+        'MCP Developer',
+        'specialist',
+        'coder',
+        ['mcp', 'model-context-protocol', 'tool-use', 'servers'],
+        'Model Context Protocol specialist',
+      ],
+      [
+        'PS UI Architect',
+        'specialist',
+        'coder',
+        ['powershell-ui', 'winforms', 'wpf', 'tui'],
+        'PowerShell UI/UX specialist',
+      ],
+      [
+        'PS Module Architect',
+        'specialist',
+        'coder',
+        ['powershell-modules', 'profiles', 'packaging', 'psgallery'],
+        'PowerShell module and profile architect',
+      ],
+      [
+        'Refactoring Specialist',
+        'specialist',
+        'reasoning',
+        ['refactoring', 'patterns', 'code-smells', 'incremental'],
+        'Code refactoring expert',
+      ],
+      [
+        'Slack Expert',
+        'specialist',
+        'coder',
+        ['slack', 'bolt', 'blocks', 'integrations'],
+        'Slack platform and @slack/bolt specialist',
+      ],
+      [
+        'Tooling Engineer',
+        'executor',
+        'coder',
+        ['dev-tools', 'linters', 'formatters', 'code-generation'],
+        'Developer tooling specialist',
+      ],
     ],
   },
   {
@@ -239,30 +733,90 @@ const BRAIN_WORKSPACES: WorkspaceDef[] = [
     goal: 'Niche technologies — blockchain, game dev, fintech, IoT, and more',
     icon: 'star',
     agents: [
-      {
-        name: 'Blockchain Developer',
-        type: 'specialist',
-        soul: 'You are a blockchain developer specializing in smart contracts, DeFi protocols, and Web3. Expert in Solidity, Ethereum, and decentralized application architecture.',
-        requiredModelType: 'coder',
-        skills: ['solidity', 'ethereum', 'web3', 'defi', 'smart-contracts'],
-        tags: ['blockchain', 'specialized'],
-      },
-      {
-        name: 'Game Developer',
-        type: 'specialist',
-        soul: 'You are a game developer. Design game mechanics, physics systems, rendering pipelines, and player experiences. Expert in Unity, Unreal, or custom engines.',
-        requiredModelType: 'coder',
-        skills: ['game-dev', 'unity', 'graphics', 'physics', 'game-design'],
-        tags: ['gamedev', 'specialized'],
-      },
-      {
-        name: 'Fintech Expert',
-        type: 'specialist',
-        soul: 'You are a fintech expert. Build payment systems, trading platforms, and financial tools. Ensure regulatory compliance, handle precision arithmetic, and implement robust error handling.',
-        requiredModelType: 'reasoning',
-        skills: ['payments', 'trading', 'compliance', 'financial-modeling', 'security'],
-        tags: ['fintech', 'specialized'],
-      },
+      [
+        'API Documenter',
+        'specialist',
+        'coder',
+        ['openapi', 'swagger', 'postman', 'api-docs'],
+        'API documentation specialist',
+      ],
+      [
+        'Blockchain Developer',
+        'specialist',
+        'coder',
+        ['solidity', 'ethereum', 'web3', 'smart-contracts'],
+        'Web3 and crypto specialist',
+      ],
+      [
+        'Embedded Systems',
+        'specialist',
+        'coder',
+        ['embedded', 'rtos', 'c', 'firmware'],
+        'Embedded and real-time systems expert',
+      ],
+      [
+        'Fintech Engineer',
+        'specialist',
+        'reasoning',
+        ['payments', 'trading', 'compliance', 'precision-math'],
+        'Financial technology specialist',
+      ],
+      [
+        'Game Developer',
+        'specialist',
+        'coder',
+        ['unity', 'unreal', 'game-design', 'physics'],
+        'Game development expert',
+      ],
+      [
+        'IoT Engineer',
+        'specialist',
+        'coder',
+        ['iot', 'mqtt', 'edge-computing', 'sensors'],
+        'IoT systems developer',
+      ],
+      [
+        'M365 Admin',
+        'specialist',
+        'agentic',
+        ['microsoft-365', 'exchange', 'teams', 'sharepoint'],
+        'Microsoft 365 administration specialist',
+      ],
+      [
+        'Mobile App Developer',
+        'executor',
+        'coder',
+        ['mobile', 'ios', 'android', 'app-store'],
+        'Mobile application specialist',
+      ],
+      [
+        'Payment Integration',
+        'specialist',
+        'coder',
+        ['stripe', 'payments', 'webhooks', 'pci-dss'],
+        'Payment systems expert',
+      ],
+      [
+        'Quant Analyst',
+        'specialist',
+        'reasoning',
+        ['quantitative', 'algorithms', 'backtesting', 'risk-models'],
+        'Quantitative analysis specialist',
+      ],
+      [
+        'Risk Manager',
+        'specialist',
+        'reasoning',
+        ['risk-assessment', 'mitigation', 'compliance', 'frameworks'],
+        'Risk assessment and management expert',
+      ],
+      [
+        'SEO Specialist',
+        'specialist',
+        'flash',
+        ['seo', 'schema-markup', 'core-web-vitals', 'analytics'],
+        'Search engine optimization expert',
+      ],
     ],
   },
   {
@@ -271,30 +825,83 @@ const BRAIN_WORKSPACES: WorkspaceDef[] = [
     goal: 'Product strategy, business analysis, UX research, and requirements',
     icon: 'briefcase',
     agents: [
-      {
-        name: 'Product Manager',
-        type: 'planner',
-        soul: 'You are a product manager. Define product vision, prioritize features, write clear user stories, and align engineering with business goals. Balance user needs, technical feasibility, and business value.',
-        requiredModelType: 'reasoning',
-        skills: ['product-strategy', 'user-stories', 'prioritization', 'roadmapping', 'metrics'],
-        tags: ['product', 'business'],
-      },
-      {
-        name: 'Business Analyst',
-        type: 'planner',
-        soul: 'You are a business analyst. Gather requirements, model processes, identify inefficiencies, and propose solutions. Translate business needs into technical specifications.',
-        requiredModelType: 'reasoning',
-        skills: ['requirements', 'process-modeling', 'stakeholder-management', 'specifications'],
-        tags: ['analysis', 'business'],
-      },
-      {
-        name: 'UX Researcher',
-        type: 'reviewer',
-        soul: 'You are a UX researcher. Conduct user research, analyze behavior patterns, design usability tests, and advocate for the user. Ground every decision in evidence and real user feedback.',
-        requiredModelType: 'reasoning',
-        skills: ['ux-research', 'usability-testing', 'user-interviews', 'analytics', 'personas'],
-        tags: ['ux', 'business'],
-      },
+      [
+        'Business Analyst',
+        'planner',
+        'reasoning',
+        ['requirements', 'process-modeling', 'specifications', 'stakeholders'],
+        'Requirements specialist',
+      ],
+      [
+        'Content Marketer',
+        'executor',
+        'agentic',
+        ['content-marketing', 'copywriting', 'seo-content', 'social'],
+        'Content marketing specialist',
+      ],
+      [
+        'Customer Success Manager',
+        'specialist',
+        'reasoning',
+        ['customer-success', 'onboarding', 'retention', 'nps'],
+        'Customer success expert',
+      ],
+      [
+        'Legal Advisor',
+        'reviewer',
+        'reasoning',
+        ['legal', 'contracts', 'compliance', 'ip'],
+        'Legal and compliance specialist',
+      ],
+      [
+        'Product Manager',
+        'planner',
+        'reasoning',
+        ['product-strategy', 'user-stories', 'roadmapping', 'metrics'],
+        'Product strategy expert',
+      ],
+      [
+        'Project Manager',
+        'planner',
+        'agentic',
+        ['project-management', 'gantt', 'risk', 'stakeholders'],
+        'Project management specialist',
+      ],
+      [
+        'Sales Engineer',
+        'specialist',
+        'reasoning',
+        ['technical-sales', 'demos', 'poc', 'solution-architecture'],
+        'Technical sales expert',
+      ],
+      [
+        'Scrum Master',
+        'specialist',
+        'agentic',
+        ['agile', 'scrum', 'retrospectives', 'velocity'],
+        'Agile methodology expert',
+      ],
+      [
+        'Technical Writer',
+        'specialist',
+        'agentic',
+        ['technical-writing', 'manuals', 'api-docs', 'tutorials'],
+        'Technical documentation specialist',
+      ],
+      [
+        'UX Researcher',
+        'reviewer',
+        'reasoning',
+        ['ux-research', 'usability-testing', 'interviews', 'personas'],
+        'User research expert',
+      ],
+      [
+        'WordPress Master',
+        'specialist',
+        'coder',
+        ['wordpress', 'php', 'themes', 'plugins'],
+        'WordPress development and optimization expert',
+      ],
     ],
   },
   {
@@ -303,30 +910,90 @@ const BRAIN_WORKSPACES: WorkspaceDef[] = [
     goal: 'Multi-agent coordination, task routing, and workflow automation',
     icon: 'network',
     agents: [
-      {
-        name: 'Task Router',
-        type: 'executor',
-        soul: 'You are a task routing agent. Analyze incoming tasks, determine the best workspace and agent for each, and route accordingly. Consider agent skills, workload, and priority.',
-        requiredModelType: 'router',
-        skills: ['task-routing', 'classification', 'load-balancing', 'priority-management'],
-        tags: ['routing', 'meta'],
-      },
-      {
-        name: 'Workflow Designer',
-        type: 'planner',
-        soul: 'You are a workflow designer. Create multi-step execution plans, design agent collaboration patterns, and optimize for throughput. Break complex goals into parallelizable tasks.',
-        requiredModelType: 'reasoning',
-        skills: ['workflow-design', 'orchestration', 'dag-planning', 'optimization'],
-        tags: ['workflow', 'meta'],
-      },
-      {
-        name: 'Agent Coordinator',
-        type: 'executor',
-        soul: 'You are an agent coordinator. Monitor agent health, manage inter-agent communication, resolve conflicts, and ensure smooth multi-agent collaboration. Escalate when agents are stuck.',
-        requiredModelType: 'agentic',
-        skills: ['coordination', 'monitoring', 'conflict-resolution', 'a2a'],
-        tags: ['coordination', 'meta'],
-      },
+      [
+        'Agent Installer',
+        'executor',
+        'agentic',
+        ['agent-install', 'github', 'marketplace', 'configuration'],
+        'Browse and install agents from repository',
+      ],
+      [
+        'Agent Organizer',
+        'executor',
+        'router',
+        ['agent-management', 'coordination', 'hierarchy', 'roles'],
+        'Multi-agent coordinator',
+      ],
+      [
+        'Context Manager',
+        'specialist',
+        'flash',
+        ['context-optimization', 'token-management', 'summarization', 'pruning'],
+        'Context optimization expert',
+      ],
+      [
+        'Error Coordinator',
+        'executor',
+        'flash',
+        ['error-handling', 'recovery', 'retry', 'escalation'],
+        'Error handling and recovery specialist',
+      ],
+      [
+        'IT Ops Orchestrator',
+        'executor',
+        'agentic',
+        ['it-ops', 'automation', 'runbooks', 'incident-management'],
+        'IT operations workflow orchestration specialist',
+      ],
+      [
+        'Knowledge Synthesizer',
+        'specialist',
+        'reasoning',
+        ['knowledge-aggregation', 'synthesis', 'cross-domain', 'insights'],
+        'Knowledge aggregation expert',
+      ],
+      [
+        'Multi-Agent Coordinator',
+        'executor',
+        'router',
+        ['multi-agent', 'coordination', 'delegation', 'a2a'],
+        'Advanced multi-agent orchestration',
+      ],
+      [
+        'Performance Monitor',
+        'specialist',
+        'flash',
+        ['agent-performance', 'metrics', 'optimization', 'cost'],
+        'Agent performance optimization',
+      ],
+      [
+        'Pied Piper',
+        'executor',
+        'router',
+        ['sdlc', 'team-orchestration', 'workflows', 'automation'],
+        'Orchestrate team of AI subagents for SDLC workflows',
+      ],
+      [
+        'Task Distributor',
+        'executor',
+        'router',
+        ['task-routing', 'load-balancing', 'priority', 'scheduling'],
+        'Task allocation specialist',
+      ],
+      [
+        'Taskade',
+        'specialist',
+        'agentic',
+        ['workspace', 'collaboration', 'mcp', 'workflow-automation'],
+        'AI-powered workspace with autonomous agents',
+      ],
+      [
+        'Workflow Orchestrator',
+        'planner',
+        'agentic',
+        ['workflow', 'dag', 'parallel', 'conditional'],
+        'Complex workflow automation',
+      ],
     ],
   },
   {
@@ -335,37 +1002,67 @@ const BRAIN_WORKSPACES: WorkspaceDef[] = [
     goal: 'Information gathering, trend analysis, and competitive intelligence',
     icon: 'search',
     agents: [
-      {
-        name: 'Web Researcher',
-        type: 'executor',
-        soul: 'You are a web researcher. Find, verify, and synthesize information from diverse sources. Fact-check claims, identify primary sources, and present findings with citations.',
-        requiredModelType: 'agentic',
-        skills: ['web-research', 'fact-checking', 'synthesis', 'citations'],
-        tags: ['research', 'analysis'],
-      },
-      {
-        name: 'Trend Analyst',
-        type: 'specialist',
-        soul: 'You are a trend analyst. Monitor technology trends, emerging tools, and industry shifts. Identify opportunities and risks. Provide actionable insights for decision-making.',
-        requiredModelType: 'reasoning',
-        skills: ['trend-analysis', 'market-research', 'forecasting', 'reporting'],
-        tags: ['trends', 'analysis'],
-      },
-      {
-        name: 'Competitive Intel',
-        type: 'specialist',
-        soul: 'You are a competitive intelligence analyst. Research competitors, analyze their products, identify differentiators, and map the competitive landscape. Support strategic decision-making.',
-        requiredModelType: 'reasoning',
-        skills: ['competitive-analysis', 'market-mapping', 'product-comparison', 'strategy'],
-        tags: ['competitive', 'analysis'],
-      },
+      [
+        'Research Analyst',
+        'specialist',
+        'reasoning',
+        ['research', 'analysis', 'synthesis', 'reports'],
+        'Comprehensive research specialist',
+      ],
+      [
+        'Search Specialist',
+        'executor',
+        'agentic',
+        ['search', 'information-retrieval', 'ranking', 'filtering'],
+        'Advanced information retrieval expert',
+      ],
+      [
+        'Trend Analyst',
+        'specialist',
+        'reasoning',
+        ['trends', 'forecasting', 'emerging-tech', 'market-signals'],
+        'Emerging trends and forecasting expert',
+      ],
+      [
+        'Competitive Analyst',
+        'specialist',
+        'reasoning',
+        ['competitive-intel', 'market-mapping', 'product-comparison', 'swot'],
+        'Competitive intelligence specialist',
+      ],
+      [
+        'Market Researcher',
+        'specialist',
+        'reasoning',
+        ['market-research', 'consumer-insights', 'segmentation', 'surveys'],
+        'Market analysis and consumer insights',
+      ],
+      [
+        'Data Researcher',
+        'executor',
+        'agentic',
+        ['data-discovery', 'datasets', 'analysis', 'verification'],
+        'Data discovery and analysis expert',
+      ],
+      [
+        'Scientific Researcher',
+        'specialist',
+        'reasoning',
+        ['scientific-literature', 'papers', 'evidence-synthesis', 'citations'],
+        'Scientific paper search and evidence synthesis',
+      ],
     ],
   },
 ]
 
+/** Generate a soul (system prompt) from agent definition */
+function makeSoul(name: string, desc: string, skills: string[]): string {
+  return `You are ${name}, a specialized AI agent. ${desc}. Your core skills: ${skills.join(', ')}. Be precise, thorough, and actionable in your responses.`
+}
+
 /**
- * Seed the brain with 10 category workspaces and 30 starter agents.
- * Idempotent — skips workspaces that already exist by name.
+ * Seed the brain with 10 category workspaces and 141 agents.
+ * Idempotent — skips workspaces that already exist, adds missing agents.
  */
 export async function seedBrainWorkspaces(db: Database): Promise<{
   workspacesCreated: number
@@ -378,7 +1075,7 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
 
   // Find system orchestrator for parent linking
   const systemWs = await db.query.workspaces.findFirst({
-    where: eq(workspaces.type, 'system'),
+    where: eq(workspaces.isSystemProtected, true),
   })
   let parentOrchestratorId: string | null = null
   if (systemWs) {
@@ -388,18 +1085,39 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
     parentOrchestratorId = systemOrch?.id ?? null
   }
 
-  for (const wsDef of BRAIN_WORKSPACES) {
+  for (const wsDef of W) {
     // Check if workspace already exists
-    const existing = await db.query.workspaces.findFirst({
+    let ws = await db.query.workspaces.findFirst({
       where: eq(workspaces.name, wsDef.name),
     })
-    if (existing) {
+
+    if (ws) {
+      // Workspace exists — add any missing agents
+      const existingAgents = await db.query.agents.findMany({
+        where: eq(agents.workspaceId, ws.id),
+      })
+      const existingNames = new Set(existingAgents.map((a) => a.name))
+
+      for (const [name, type, cap, skills, desc] of wsDef.agents) {
+        if (existingNames.has(name)) continue
+        await db.insert(agents).values({
+          name,
+          type,
+          workspaceId: ws.id,
+          description: desc,
+          soul: makeSoul(name, desc, skills),
+          requiredModelType: cap,
+          skills,
+          tags: [wsDef.name.toLowerCase().replace(/\s+/g, '-'), type],
+        })
+        agentsCreated++
+      }
       skipped.push(wsDef.name)
       continue
     }
 
     // Create workspace
-    const [ws] = await db
+    const [created] = await db
       .insert(workspaces)
       .values({
         name: wsDef.name,
@@ -408,7 +1126,8 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
         icon: wsDef.icon,
       })
       .returning()
-    if (!ws) continue
+    if (!created) continue
+    ws = created
     workspacesCreated++
 
     // Log lifecycle event
@@ -419,31 +1138,31 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
       payload: { name: ws.name, type: ws.type, seededBy: 'brain-seed' },
     })
 
-    // Create orchestrator agent
+    // Create orchestrator
     await db.insert(agents).values({
       name: `${wsDef.name} Orchestrator`,
       type: 'orchestrator',
       workspaceId: ws.id,
       isWsOrchestrator: true,
       parentOrchestratorId,
-      description: `Orchestrator for the ${wsDef.name} workspace — coordinates all agents within this domain.`,
-      soul: `You are the orchestrator for the ${wsDef.name} workspace. Your role is to coordinate agents, route tasks to the best-suited specialist, monitor progress, and escalate when needed. Goal: ${wsDef.goal}`,
+      description: `Orchestrator for ${wsDef.name} — coordinates all agents within this domain.`,
+      soul: `You are the orchestrator for the ${wsDef.name} workspace. Coordinate agents, route tasks to the best specialist, monitor progress, and escalate when needed. Goal: ${wsDef.goal}`,
       skills: ['coordination', 'task-routing', 'monitoring', 'escalation'],
       requiredModelType: 'router',
       tags: ['orchestrator', wsDef.name.toLowerCase().replace(/\s+/g, '-')],
     })
 
-    // Create starter agents
-    for (const agentDef of wsDef.agents) {
+    // Create all agents
+    for (const [name, type, cap, skills, desc] of wsDef.agents) {
       await db.insert(agents).values({
-        name: agentDef.name,
-        type: agentDef.type,
+        name,
+        type,
         workspaceId: ws.id,
-        description: agentDef.soul.slice(0, 200),
-        soul: agentDef.soul,
-        requiredModelType: agentDef.requiredModelType,
-        skills: agentDef.skills,
-        tags: agentDef.tags,
+        description: desc,
+        soul: makeSoul(name, desc, skills),
+        requiredModelType: cap,
+        skills,
+        tags: [wsDef.name.toLowerCase().replace(/\s+/g, '-'), type],
       })
       agentsCreated++
     }
