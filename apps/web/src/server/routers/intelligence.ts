@@ -36,7 +36,11 @@ export const intelligenceRouter = router({
   // === Cognition State ===
 
   features: protectedProcedure.query(async ({ ctx }) => {
-    return getCognition(ctx.db).getFeatures()
+    try {
+      return await getCognition(ctx.db).getFeatures()
+    } catch {
+      return {}
+    }
   }),
 
   setFeature: protectedProcedure
@@ -52,7 +56,11 @@ export const intelligenceRouter = router({
     }),
 
   policies: protectedProcedure.query(async ({ ctx }) => {
-    return getCognition(ctx.db).getPolicies()
+    try {
+      return await getCognition(ctx.db).getPolicies()
+    } catch {
+      return {}
+    }
   }),
 
   setPolicy: protectedProcedure
@@ -73,7 +81,13 @@ export const intelligenceRouter = router({
     }),
 
   cognitionState: protectedProcedure.query(async ({ ctx }) => {
-    return getCognition(ctx.db).getState()
+    try {
+      const state = await getCognition(ctx.db).getState()
+      // Return safe default when table is empty (no singleton row yet)
+      return state ?? { id: '1', features: {}, policies: {}, updatedAt: new Date() }
+    } catch {
+      return { id: '1', features: {}, policies: {}, updatedAt: new Date() }
+    }
   }),
 
   // === Prompt Overlays ===
