@@ -5,8 +5,10 @@
  */
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { trpc } from '../../../utils/trpc'
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import ConfirmDialog from '../../../components/ui/confirm-dialog'
 
 interface Workspace {
   id: string
@@ -55,10 +57,12 @@ const BINDING_ICONS: Record<string, string> = {
 
 export default function WorkspacesPage() {
   const [showForm, setShowForm] = useState(false)
+  const [showSeedConfirm, setShowSeedConfirm] = useState(false)
   const [name, setName] = useState('')
   const [type, setType] = useState('')
   const [goal, setGoal] = useState('')
   const [search, setSearch] = useState('')
+  const navRouter = useRouter()
   const { data, isLoading, error } = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
 
   const utils = trpc.useUtils()
@@ -69,6 +73,12 @@ export default function WorkspacesPage() {
       setName('')
       setType('')
       setGoal('')
+    },
+  })
+  const seedBrainMut = trpc.systemOrchestrator.seedBrain.useMutation({
+    onSuccess: () => {
+      utils.workspaces.list.invalidate()
+      utils.agents.list.invalidate()
     },
   })
 
@@ -109,21 +119,39 @@ export default function WorkspacesPage() {
       <div style={styles.header}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={styles.title}>Workspaces ({allWorkspaces.length})</h2>
-          <button
-            style={{
-              background: '#818cf8',
-              color: '#f9fafb',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-            onClick={() => setShowForm(!showForm)}
-          >
-            {showForm ? 'Cancel' : '+ New Workspace'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              style={{
+                background: '#7c3aed',
+                color: '#f9fafb',
+                border: 'none',
+                borderRadius: 6,
+                padding: '6px 14px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              onClick={() => setShowSeedConfirm(true)}
+              disabled={seedBrainMut.isPending}
+            >
+              {seedBrainMut.isPending ? 'Seeding...' : 'Initialize Brain'}
+            </button>
+            <button
+              style={{
+                background: '#818cf8',
+                color: '#f9fafb',
+                border: 'none',
+                borderRadius: 6,
+                padding: '6px 14px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              onClick={() => setShowForm(!showForm)}
+            >
+              {showForm ? 'Cancel' : '+ New Workspace'}
+            </button>
+          </div>
         </div>
         <p style={styles.subtitle}>
           Lifecycle-managed organizational units with bindings, goals, and execution boundaries.
@@ -236,15 +264,70 @@ export default function WorkspacesPage() {
           </div>
         </div>
       )}
+      {seedBrainMut.data && (
+        <div
+          style={{
+            background: '#064e3b',
+            border: '1px solid #22c55e',
+            borderRadius: 6,
+            padding: '8px 12px',
+            marginBottom: 12,
+            fontSize: 12,
+            color: '#6ee7b7',
+          }}
+        >
+          Brain initialized: {seedBrainMut.data.workspacesCreated} workspaces,{' '}
+          {seedBrainMut.data.agentsCreated} agents created.
+          {seedBrainMut.data.skipped.length > 0 &&
+            ` Skipped: ${seedBrainMut.data.skipped.join(', ')}`}
+        </div>
+      )}
+      {seedBrainMut.error && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            border: '1px solid #ef4444',
+            borderRadius: 6,
+            padding: '8px 12px',
+            marginBottom: 12,
+            fontSize: 12,
+            color: '#fca5a5',
+          }}
+        >
+          Seed failed: {seedBrainMut.error.message}
+        </div>
+      )}
+
       {workspaces.length === 0 ? (
-        <div style={styles.empty}>No workspaces found. Create one to get started.</div>
+        <div style={styles.empty}>
+          No workspaces found. Click &quot;Initialize Brain&quot; to create 10 category workspaces
+          with 30+ agents.
+        </div>
       ) : (
         <div style={styles.grid}>
           {workspaces.map((ws) => (
-            <WorkspaceCard key={ws.id} workspace={ws} />
+            <div
+              key={ws.id}
+              onClick={() => navRouter.push(`/workspaces/${ws.id}`)}
+              style={{ cursor: 'pointer' }}
+            >
+              <WorkspaceCard workspace={ws} />
+            </div>
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={showSeedConfirm}
+        title="Initialize Brain"
+        message="This will create 10 category workspaces (Core Development, Language Specialists, Infrastructure, etc.) with 30+ specialized agents, each with its own orchestrator connected to the system orchestrator. Existing workspaces with the same name will be skipped."
+        confirmLabel="Initialize"
+        onConfirm={() => {
+          seedBrainMut.mutate()
+          setShowSeedConfirm(false)
+        }}
+        onCancel={() => setShowSeedConfirm(false)}
+      />
     </div>
   )
 }

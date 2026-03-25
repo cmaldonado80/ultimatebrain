@@ -124,4 +124,15 @@ export const systemOrchestratorRouter = router({
   budgetSummary: protectedProcedure.query(async ({ ctx }) => {
     return getSystemOrchestrator(ctx.db).getSystemBudgetSummary()
   }),
+
+  // ── Brain Seeding ──────────────────────────────────────────────────
+
+  /** Seed 10 category workspaces with orchestrators and 30 starter agents */
+  seedBrain: protectedProcedure.mutation(async ({ ctx }) => {
+    // Ensure system workspace exists first
+    await getSystemOrchestrator(ctx.db).ensureSystemWorkspace()
+
+    const { seedBrainWorkspaces } = await import('../services/orchestration/brain-seed')
+    return seedBrainWorkspaces(ctx.db)
+  }),
 })
