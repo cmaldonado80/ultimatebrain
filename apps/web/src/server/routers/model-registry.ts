@@ -8,7 +8,7 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
-import { modelRegistry } from '@solarc/db'
+import { modelRegistry, ollamaModels } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 import { ModelTypeDetector } from '../services/gateway/model-type-detector'
 
@@ -71,6 +71,48 @@ export const modelRegistryRouter = router({
         where: and(eq(modelRegistry.modelType, input.modelType), eq(modelRegistry.isActive, true)),
       })
     }),
+
+  /** All available models: model_registry + Ollama models, for agent dropdowns */
+  availableModels: protectedProcedure.query(async ({ ctx }) => {
+    try {
+      const [registryModels, ollamaRows] = await Promise.all([
+        ctx.db.query.modelRegistry.findMany({
+          where: eq(modelRegistry.isActive, true),
+        }),
+        ctx.db
+          .select()
+          .from(ollamaModels)
+          .catch(() => []),
+      ])
+
+      const models = registryModels.map((m) => ({
+        modelId: m.modelId,
+        displayName: m.displayName,
+        provider: m.provider,
+        modelType: m.modelType,
+        speedTier: m.speedTier,
+      }))
+
+      // Append Ollama models not already in registry
+      const registryIds = new Set(models.map((m) => m.modelId))
+      for (const om of ollamaRows) {
+        const id = `ollama/${om.name}`
+        if (!registryIds.has(id)) {
+          models.push({
+            modelId: id,
+            displayName: om.name,
+            provider: 'ollama',
+            modelType: 'reasoning',
+            speedTier: 'medium',
+          })
+        }
+      }
+
+      return models
+    } catch {
+      return []
+    }
+  }),
 
   // ── Registration ──────────────────────────────────────────────────
 

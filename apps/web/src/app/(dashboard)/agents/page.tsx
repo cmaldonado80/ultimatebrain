@@ -2,9 +2,10 @@
 
 /**
  * Agents — list all AI agent instances from the database.
+ * Supports capability-based model selection, export/import of portable manifests.
  */
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { trpc } from '../../../utils/trpc'
 import ConfirmDialog from '../../../components/ui/confirm-dialog'
 import { DbErrorBanner } from '../../../components/db-error-banner'
@@ -16,6 +17,7 @@ interface Agent {
   workspaceId: string | null
   status: string
   model: string | null
+  requiredModelType: string | null
   color: string | null
   bg: string | null
   description: string | null
@@ -26,6 +28,19 @@ interface Agent {
   createdAt: Date
   updatedAt: Date
 }
+
+const CAPABILITIES = [
+  { value: 'reasoning', label: 'Reasoning', desc: 'Complex analysis & planning' },
+  { value: 'agentic', label: 'Agentic', desc: 'Tool use & autonomous work' },
+  { value: 'coder', label: 'Coder', desc: 'Code generation & review' },
+  { value: 'vision', label: 'Vision', desc: 'Image understanding' },
+  { value: 'flash', label: 'Flash', desc: 'Fast & cheap tasks' },
+  { value: 'multimodal', label: 'Multimodal', desc: 'Text + image + audio' },
+  { value: 'embedding', label: 'Embedding', desc: 'Vector embeddings' },
+  { value: 'guard', label: 'Guard', desc: 'Safety & guardrails' },
+  { value: 'judge', label: 'Judge', desc: 'Evaluation & scoring' },
+  { value: 'router', label: 'Router', desc: 'Classification & routing' },
+]
 
 function StatusDot({ status }: { status: string }) {
   const color =
@@ -53,36 +68,28 @@ function StatusDot({ status }: { status: string }) {
   )
 }
 
-const BUILT_IN_MODELS = [
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-  { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
-  { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
-  { value: 'gpt-4o', label: 'GPT-4o' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-]
-
 export default function AgentsPage() {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [type, setType] = useState('')
-  const [model, setModel] = useState('claude-sonnet-4-6')
+  const [capability, setCapability] = useState('agentic')
+  const [modelOverride, setModelOverride] = useState('')
+  const [showModelOverride, setShowModelOverride] = useState(false)
   const [description, setDescription] = useState('')
   const [search, setSearch] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [editingModel, setEditingModel] = useState<string | null>(null)
-  const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
-  const ollamaModelsQuery = trpc.gateway.ollamaModels.useQuery()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Build dynamic model list: built-in + Ollama models from DB
-  const ollamaModels =
-    (ollamaModelsQuery.data as Array<{ id: string; name: string; addedAt: Date }> | undefined) ?? []
-  const allModels = [
-    ...BUILT_IN_MODELS,
-    ...ollamaModels.map((m) => ({
-      value: `ollama/${m.name}`,
-      label: `Ollama: ${m.name}`,
-    })),
-  ]
+  const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
+  const modelsQuery = trpc.models.availableModels.useQuery()
+  const availableModels = (modelsQuery.data ?? []) as Array<{
+    modelId: string
+    displayName: string
+    provider: string
+    modelType: string
+    speedTier: string | null
+  }>
 
   const utils = trpc.useUtils()
   const createMut = trpc.agents.create.useMutation({
@@ -92,12 +99,12 @@ export default function AgentsPage() {
       setName('')
       setType('')
       setDescription('')
+      setModelOverride('')
+      setShowModelOverride(false)
     },
   })
   const deleteMut = trpc.agents.delete.useMutation({
-    onSuccess: () => {
-      utils.agents.list.invalidate()
-    },
+    onSuccess: () => utils.agents.list.invalidate(),
   })
   const updateMut = trpc.agents.update.useMutation({
     onSuccess: () => {
@@ -105,6 +112,36 @@ export default function AgentsPage() {
       setEditingModel(null)
     },
   })
+  const importMut = trpc.agents.importAgent.useMutation({
+    onSuccess: () => utils.agents.list.invalidate(),
+  })
+
+  const handleExport = async (agentId: string, agentName: string) => {
+    const manifest = utils.agents.exportAgent.fetch({ id: agentId })
+    const blob = new Blob([JSON.stringify(await manifest, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${agentName.toLowerCase().replace(/\s+/g, '-')}-agent.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const manifest = JSON.parse(reader.result as string)
+        importMut.mutate(manifest)
+      } catch {
+        alert('Invalid manifest JSON file')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   if (error) {
     return (
@@ -142,29 +179,39 @@ export default function AgentsPage() {
       )
     : allAgents
 
+  // Group available models by provider
+  const modelsByProvider = availableModels.reduce(
+    (acc, m) => {
+      const key = m.provider.charAt(0).toUpperCase() + m.provider.slice(1)
+      ;(acc[key] ??= []).push(m)
+      return acc
+    },
+    {} as Record<string, typeof availableModels>,
+  )
+
   return (
     <div style={styles.page}>
       <div style={styles.header}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={styles.title}>Agents ({allAgents.length})</h2>
-          <button
-            style={{
-              background: '#818cf8',
-              color: '#f9fafb',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-            onClick={() => setShowForm(!showForm)}
-          >
-            {showForm ? 'Cancel' : '+ New Agent'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button style={styles.btnSecondary} onClick={() => fileInputRef.current?.click()}>
+              Import
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleImport}
+            />
+            <button style={styles.btnPrimary} onClick={() => setShowForm(!showForm)}>
+              {showForm ? 'Cancel' : '+ New Agent'}
+            </button>
+          </div>
         </div>
         <p style={styles.subtitle}>
-          Manage AI agent instances — executors, reviewers, planners, and specialists.
+          Portable AI agents — define by capability, deploy on any provider.
         </p>
       </div>
 
@@ -176,40 +223,17 @@ export default function AgentsPage() {
       />
 
       {showForm && (
-        <div
-          style={{
-            background: '#1f2937',
-            borderRadius: 8,
-            padding: 16,
-            border: '1px solid #374151',
-            marginBottom: 16,
-          }}
-        >
+        <div style={styles.formCard}>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
             <input
-              style={{
-                background: '#111827',
-                color: '#f9fafb',
-                border: '1px solid #374151',
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 13,
-              }}
+              style={styles.input}
               placeholder="Agent name..."
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
             <div style={{ display: 'flex', gap: 8 }}>
               <select
-                style={{
-                  background: '#111827',
-                  color: '#f9fafb',
-                  border: '1px solid #374151',
-                  borderRadius: 6,
-                  padding: '6px 10px',
-                  fontSize: 12,
-                  flex: 1,
-                }}
+                style={{ ...styles.select, flex: 1 }}
                 value={type}
                 onChange={(e) => setType(e.target.value)}
               >
@@ -220,67 +244,85 @@ export default function AgentsPage() {
                 <option value="specialist">Specialist</option>
               </select>
               <select
-                style={{
-                  background: '#111827',
-                  color: '#f9fafb',
-                  border: '1px solid #374151',
-                  borderRadius: 6,
-                  padding: '6px 10px',
-                  fontSize: 12,
-                  flex: 1,
-                }}
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
+                style={{ ...styles.select, flex: 1, borderColor: '#818cf8' }}
+                value={capability}
+                onChange={(e) => setCapability(e.target.value)}
               >
-                <optgroup label="Built-in">
-                  {BUILT_IN_MODELS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </optgroup>
-                {ollamaModels.length > 0 && (
-                  <optgroup label="Ollama Cloud">
-                    {ollamaModels.map((m) => (
-                      <option key={m.id} value={`ollama/${m.name}`}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
+                {CAPABILITIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label} — {c.desc}
+                  </option>
+                ))}
               </select>
             </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label
+                style={{
+                  fontSize: 11,
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={showModelOverride}
+                  onChange={(e) => {
+                    setShowModelOverride(e.target.checked)
+                    if (!e.target.checked) setModelOverride('')
+                  }}
+                />
+                Override model
+              </label>
+              {showModelOverride && (
+                <select
+                  style={{ ...styles.select, flex: 1 }}
+                  value={modelOverride}
+                  onChange={(e) => setModelOverride(e.target.value)}
+                >
+                  <option value="">Auto-resolve by capability</option>
+                  {Object.entries(modelsByProvider).map(([provider, models]) => (
+                    <optgroup key={provider} label={provider}>
+                      {models.map((m) => (
+                        <option key={m.modelId} value={m.modelId}>
+                          {m.displayName}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              )}
+            </div>
+
             <input
-              style={{
-                background: '#111827',
-                color: '#f9fafb',
-                border: '1px solid #374151',
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 13,
-              }}
+              style={styles.input}
               placeholder="Description (optional)..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
-                style={{
-                  background: '#22c55e',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                style={styles.btnCreate}
                 onClick={() =>
                   name.trim() &&
                   createMut.mutate({
                     name: name.trim(),
                     type: type || undefined,
-                    model,
+                    model: modelOverride || undefined,
+                    requiredModelType: capability as
+                      | 'reasoning'
+                      | 'agentic'
+                      | 'coder'
+                      | 'vision'
+                      | 'flash'
+                      | 'multimodal'
+                      | 'embedding'
+                      | 'guard'
+                      | 'judge'
+                      | 'router',
                     description: description.trim() || undefined,
                   })
                 }
@@ -295,8 +337,27 @@ export default function AgentsPage() {
           </div>
         </div>
       )}
+
+      {importMut.error && (
+        <div
+          style={{
+            background: '#1e1b4b',
+            border: '1px solid #ef4444',
+            borderRadius: 6,
+            padding: '8px 12px',
+            marginBottom: 12,
+            fontSize: 12,
+            color: '#fca5a5',
+          }}
+        >
+          Import failed: {importMut.error.message}
+        </div>
+      )}
+
       {agents.length === 0 ? (
-        <div style={styles.empty}>No agents found. Create one to get started.</div>
+        <div style={styles.empty}>
+          No agents found. Create one or import a manifest to get started.
+        </div>
       ) : (
         <div style={styles.grid}>
           {agents.map((agent) => (
@@ -305,15 +366,18 @@ export default function AgentsPage() {
                 <StatusDot status={agent.status} />
                 <span style={styles.cardName}>{agent.name}</span>
                 {agent.type && <span style={styles.typeBadge}>{agent.type}</span>}
+                {agent.requiredModelType && (
+                  <span style={styles.capBadge}>{agent.requiredModelType}</span>
+                )}
                 <button
-                  style={{
-                    background: 'transparent',
-                    color: '#6b7280',
-                    border: 'none',
-                    fontSize: 11,
-                    cursor: 'pointer',
-                    marginLeft: 'auto',
-                  }}
+                  style={styles.btnIcon}
+                  onClick={() => handleExport(agent.id, agent.name)}
+                  title="Export manifest"
+                >
+                  Exp
+                </button>
+                <button
+                  style={styles.btnIcon}
                   onClick={() => setDeleteTarget({ id: agent.id, name: agent.name })}
                 >
                   Del
@@ -324,22 +388,25 @@ export default function AgentsPage() {
                 {editingModel === agent.id ? (
                   <select
                     style={{
-                      background: '#111827',
-                      color: '#f9fafb',
-                      border: '1px solid #818cf8',
-                      borderRadius: 4,
-                      padding: '2px 6px',
+                      ...styles.select,
                       fontSize: 11,
+                      padding: '2px 6px',
+                      border: '1px solid #818cf8',
                     }}
                     value={agent.model ?? ''}
                     onChange={(e) => updateMut.mutate({ id: agent.id, model: e.target.value })}
                     onBlur={() => setEditingModel(null)}
                     autoFocus
                   >
-                    {allModels.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
-                      </option>
+                    <option value="">Auto (by capability)</option>
+                    {Object.entries(modelsByProvider).map(([provider, models]) => (
+                      <optgroup key={provider} label={provider}>
+                        {models.map((m) => (
+                          <option key={m.modelId} value={m.modelId}>
+                            {m.displayName}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 ) : (
@@ -348,7 +415,7 @@ export default function AgentsPage() {
                     onClick={() => setEditingModel(agent.id)}
                     title="Click to change model"
                   >
-                    Model: {agent.model || 'N/A'}
+                    Model: {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
                   </span>
                 )}
                 <span>Status: {agent.status}</span>
@@ -407,6 +474,66 @@ const styles = {
     fontSize: 13,
     boxSizing: 'border-box' as const,
   },
+  input: {
+    background: '#111827',
+    color: '#f9fafb',
+    border: '1px solid #374151',
+    borderRadius: 6,
+    padding: '8px 12px',
+    fontSize: 13,
+  },
+  select: {
+    background: '#111827',
+    color: '#f9fafb',
+    border: '1px solid #374151',
+    borderRadius: 6,
+    padding: '6px 10px',
+    fontSize: 12,
+  },
+  formCard: {
+    background: '#1f2937',
+    borderRadius: 8,
+    padding: 16,
+    border: '1px solid #374151',
+    marginBottom: 16,
+  },
+  btnPrimary: {
+    background: '#818cf8',
+    color: '#f9fafb',
+    border: 'none',
+    borderRadius: 6,
+    padding: '6px 14px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  btnSecondary: {
+    background: '#374151',
+    color: '#d1d5db',
+    border: 'none',
+    borderRadius: 6,
+    padding: '6px 14px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  btnCreate: {
+    background: '#22c55e',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    padding: '6px 14px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  btnIcon: {
+    background: 'transparent',
+    color: '#6b7280',
+    border: 'none',
+    fontSize: 11,
+    cursor: 'pointer',
+  },
   empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 },
   card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
@@ -416,6 +543,13 @@ const styles = {
     fontSize: 10,
     background: '#1e3a5f',
     color: '#93c5fd',
+    padding: '2px 8px',
+    borderRadius: 4,
+  },
+  capBadge: {
+    fontSize: 10,
+    background: '#1e1b4b',
+    color: '#a78bfa',
     padding: '2px 8px',
     borderRadius: 4,
   },

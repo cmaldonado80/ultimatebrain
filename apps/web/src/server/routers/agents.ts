@@ -159,4 +159,83 @@ export const agentsRouter = router({
       await ctx.db.delete(agents).where(eq(agents.id, input.id))
       return { deleted: true }
     }),
+
+  /** Export an agent as a portable manifest JSON */
+  exportAgent: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const agent = await ctx.db.query.agents.findFirst({ where: eq(agents.id, input.id) })
+      if (!agent) throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' })
+
+      return {
+        version: '1.0' as const,
+        name: agent.name,
+        description: agent.description ?? undefined,
+        type: agent.type ?? undefined,
+        requiredCapability: (agent.requiredModelType as string) ?? 'reasoning',
+        preferredModel: agent.model ?? undefined,
+        skills: agent.skills ?? [],
+        tags: agent.tags ?? [],
+      }
+    }),
+
+  /** Import an agent from a portable manifest JSON */
+  importAgent: protectedProcedure
+    .input(
+      z.object({
+        version: z.literal('1.0'),
+        name: z.string().min(1),
+        description: z.string().optional(),
+        type: z.string().optional(),
+        requiredCapability: z.string().default('reasoning'),
+        preferredModel: z.string().optional(),
+        skills: z.array(z.string()).default([]),
+        tags: z.array(z.string()).default([]),
+        workspaceId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const modelTypeValues = [
+        'vision',
+        'reasoning',
+        'agentic',
+        'coder',
+        'embedding',
+        'flash',
+        'guard',
+        'judge',
+        'router',
+        'multimodal',
+      ]
+      const reqType = modelTypeValues.includes(input.requiredCapability)
+        ? (input.requiredCapability as
+            | 'vision'
+            | 'reasoning'
+            | 'agentic'
+            | 'coder'
+            | 'embedding'
+            | 'flash'
+            | 'guard'
+            | 'judge'
+            | 'router'
+            | 'multimodal')
+        : 'reasoning'
+
+      const [agent] = await ctx.db
+        .insert(agents)
+        .values({
+          name: input.name,
+          description: input.description,
+          type: input.type,
+          model: input.preferredModel,
+          requiredModelType: reqType,
+          skills: input.skills,
+          tags: input.tags,
+          workspaceId: input.workspaceId,
+        })
+        .returning()
+      if (!agent)
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to import agent' })
+      return agent
+    }),
 })
