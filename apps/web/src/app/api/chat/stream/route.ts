@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-import { createDb, type Database } from '@solarc/db'
+import { createDb, waitForSchema, type Database } from '@solarc/db'
 import { chatSessions, chatMessages } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
 import { GatewayRouter } from '../../../../server/services/gateway'
@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     return new Response('Missing sessionId or text', { status: 400 })
   }
 
+  await waitForSchema()
   const db = getDb()
   const gateway = getGateway()
 

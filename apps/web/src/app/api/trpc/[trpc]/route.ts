@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createDb, type Database } from '@solarc/db'
+import { createDb, waitForSchema, type Database } from '@solarc/db'
 import { auth } from '../../../../server/auth'
 
 /** Singleton DB pool — survives across Vercel hot reloads / Lambda reuse */
@@ -17,6 +17,9 @@ function getDb(): Database {
 async function handler(req: Request) {
   const { fetchRequestHandler } = await import('@trpc/server/adapters/fetch')
   const { appRouter } = await import('../../../../server/routers/_app')
+
+  // Ensure all DB tables exist before handling any query
+  await waitForSchema()
 
   const session = await auth()
 
