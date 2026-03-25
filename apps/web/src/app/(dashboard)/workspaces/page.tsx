@@ -334,9 +334,11 @@ export default function WorkspacesPage() {
 function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
   const bindingsQuery = trpc.workspaces.listBindings.useQuery({ workspaceId: ws.id })
   const goalsQuery = trpc.workspaces.listGoals.useQuery({ workspaceId: ws.id })
+  const agentsQuery = trpc.agents.byWorkspace.useQuery({ workspaceId: ws.id })
 
   const bindings: Binding[] = (bindingsQuery.data as Binding[]) ?? []
   const goals: Goal[] = (goalsQuery.data as Goal[]) ?? []
+  const agentCount = (agentsQuery.data as unknown[] | undefined)?.length ?? 0
   const lifecycleColor = LIFECYCLE_COLORS[ws.lifecycleState] || '#6b7280'
 
   return (
@@ -373,6 +375,7 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
 
       <div style={styles.cardMeta}>
         {ws.type && <span>{ws.type}</span>}
+        <span>{agentCount} agents</span>
         <span>Autonomy: {ws.autonomyLevel ?? 1}/5</span>
       </div>
 

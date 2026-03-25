@@ -127,9 +127,15 @@ export const systemOrchestratorRouter = router({
 
   // ── Brain Seeding ──────────────────────────────────────────────────
 
-  /** Seed 10 category workspaces with orchestrators and 30 starter agents */
+  /** Remove duplicate system workspaces */
+  cleanupDuplicates: protectedProcedure.mutation(async ({ ctx }) => {
+    return getSystemOrchestrator(ctx.db).cleanupDuplicates()
+  }),
+
+  /** Seed 10 category workspaces with orchestrators and all starter agents */
   seedBrain: protectedProcedure.mutation(async ({ ctx }) => {
-    // Ensure system workspace exists first
+    // Cleanup duplicates first, then ensure system workspace
+    await getSystemOrchestrator(ctx.db).cleanupDuplicates()
     await getSystemOrchestrator(ctx.db).ensureSystemWorkspace()
 
     const { seedBrainWorkspaces } = await import('../services/orchestration/brain-seed')

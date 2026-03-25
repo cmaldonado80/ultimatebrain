@@ -19,7 +19,7 @@ import {
   orchestratorRoutes,
   tokenLedger,
 } from '@solarc/db'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, or, desc } from 'drizzle-orm'
 import { NotFoundError, ValidationError } from '../../errors'
 
 // ── Types ───────────────────────────────────────────────────────────────
@@ -78,10 +78,18 @@ export class SystemOrchestrator {
    * Idempotent — safe to call multiple times.
    */
   async ensureSystemWorkspace(): Promise<{ workspaceId: string; orchestratorId: string }> {
-    // Check if system workspace already exists
+    // Check if system workspace already exists (by name, not just type — avoids confusing with
+    // other 'system' type workspaces like Quality & Security)
     let systemWs = await this.db.query.workspaces.findFirst({
-      where: eq(workspaces.type, 'system'),
+      where: and(eq(workspaces.name, 'System Orchestrator'), eq(workspaces.type, 'system')),
     })
+
+    // Fallback: check by isSystemProtected flag
+    if (!systemWs) {
+      systemWs = await this.db.query.workspaces.findFirst({
+        where: eq(workspaces.isSystemProtected, true),
+      })
+    }
 
     if (!systemWs) {
       const [created] = await this.db
@@ -625,5 +633,46 @@ export class SystemOrchestrator {
       workspacesChecked: healthReports.length,
       issues,
     }
+  }
+
+  /**
+   * Remove duplicate system workspaces and orphaned agents.
+   * Keeps the first system workspace (by creation date) and removes the rest.
+   */
+  async cleanupDuplicates(): Promise<{ removedWorkspaces: number; removedAgents: number }> {
+    // Find all system workspaces with isSystemProtected or name='System Orchestrator'
+    const systemWorkspaces = await this.db.query.workspaces.findMany({
+      where: or(
+        eq(workspaces.isSystemProtected, true),
+        and(eq(workspaces.name, 'System Orchestrator'), eq(workspaces.type, 'system')),
+      ),
+    })
+
+    if (systemWorkspaces.length <= 1) return { removedWorkspaces: 0, removedAgents: 0 }
+
+    // Keep the oldest, remove the rest
+    const sorted = systemWorkspaces.sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    )
+    const toRemove = sorted.slice(1)
+
+    let removedAgents = 0
+    for (const ws of toRemove) {
+      // Delete agents in the duplicate workspace
+      const wsAgents = await this.db.query.agents.findMany({
+        where: eq(agents.workspaceId, ws.id),
+      })
+      for (const agent of wsAgents) {
+        await this.db.delete(agents).where(eq(agents.id, agent.id))
+        removedAgents++
+      }
+      // Delete the workspace
+      await this.db
+        .delete(workspaces)
+        .where(eq(workspaces.id, ws.id))
+        .catch(() => {})
+    }
+
+    return { removedWorkspaces: toRemove.length, removedAgents }
   }
 }
