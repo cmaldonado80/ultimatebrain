@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   ...(process.env.VERCEL ? {} : { output: 'standalone' as const }),
   images: { formats: ['image/avif', 'image/webp'] },
   transpilePackages: ['@solarc/db', '@solarc/types', '@solarc/engine-contracts'],
+  serverExternalPackages: ['swisseph'],
   poweredByHeader: false,
   compress: true,
   async headers() {

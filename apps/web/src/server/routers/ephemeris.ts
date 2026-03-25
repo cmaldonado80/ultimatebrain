@@ -1,140 +1,133 @@
 /**
  * Ephemeris Router — exposes the Swiss Ephemeris engine as tRPC endpoints.
  * Agents and mini-brains can call these to get planetary data.
+ *
+ * Uses the production swisseph native binding for < 1 arcminute accuracy.
  */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
-import { EphemerisEngine, HOUSE_SYSTEMS, PLANET_NAMES } from '../services/ephemeris/engine'
+import {
+  run,
+  isAvailable,
+  calcAllPlanets,
+  calcHouses,
+  assignHouses,
+  calcAspects,
+  julianDay,
+  type HouseSystem,
+  type SwissEphemerisInput,
+} from '../services/engines/swiss-ephemeris/engine'
 
-const engine = new EphemerisEngine()
-
-const planetaryPositionsSchema = z.record(
-  z.enum(PLANET_NAMES),
-  z.object({
-    planet: z.enum(PLANET_NAMES),
-    glyph: z.string(),
-    sign: z.string(),
-    degree: z.number(),
-    minute: z.number(),
-    notation: z.string(),
-    longitude: z.number(),
-    retrograde: z.boolean(),
-    house: z.number().optional(),
-  }),
-)
+const HOUSE_SYSTEMS = ['P', 'K', 'O', 'R', 'E', 'W'] as const
 
 export const ephemerisRouter = router({
   /**
-   * Get planetary positions for any date/time.
+   * Check if the Swiss Ephemeris engine is available.
+   */
+  status: protectedProcedure.query(() => {
+    return { available: isAvailable() }
+  }),
+
+  /**
+   * Full natal chart — the primary endpoint.
+   * Accepts SwissEphemerisInput, returns EngineResult with full chart + summary.
+   */
+  natalChart: protectedProcedure
+    .input(
+      z.object({
+        birthYear: z.number().int(),
+        birthMonth: z.number().int().min(1).max(12),
+        birthDay: z.number().int().min(1).max(31),
+        birthHour: z.number().min(0).max(24),
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        timezone: z.number().optional(),
+        birthTimeConfirmed: z.boolean().optional(),
+        houseSystem: z.enum(HOUSE_SYSTEMS).optional(),
+        sidereal: z.boolean().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      return run(input as SwissEphemerisInput)
+    }),
+
+  /**
+   * Get planetary positions for any date/time (decimal hour UTC).
    */
   planetaryPositions: protectedProcedure
     .input(
       z.object({
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
-        time: z.string().optional(),
-        timezone: z.string().optional(),
+        year: z.number().int(),
+        month: z.number().int().min(1).max(12),
+        day: z.number().int().min(1).max(31),
+        hour: z.number().min(0).max(24).default(12),
+        sidereal: z.boolean().optional(),
       }),
     )
     .query(async ({ input }) => {
-      return engine.getPlanetaryPositions(input.date, input.time, input.timezone)
+      const jd = julianDay(input.year, input.month, input.day, input.hour)
+      return calcAllPlanets(jd, input.sidereal)
     }),
 
   /**
-   * Get current (today's) planetary positions.
+   * Get current (now) planetary positions.
    */
   currentTransits: protectedProcedure.query(async () => {
-    return engine.getCurrentTransits()
+    const now = new Date()
+    const jd = julianDay(
+      now.getUTCFullYear(),
+      now.getUTCMonth() + 1,
+      now.getUTCDate(),
+      now.getUTCHours() + now.getUTCMinutes() / 60,
+    )
+    return calcAllPlanets(jd, false)
   }),
 
   /**
-   * Calculate 12 house cusps for a birth time + location.
+   * Calculate house cusps for a date/time/location.
    */
   houseCusps: protectedProcedure
     .input(
       z.object({
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        time: z.string(),
+        year: z.number().int(),
+        month: z.number().int().min(1).max(12),
+        day: z.number().int().min(1).max(31),
+        hour: z.number().min(0).max(24),
         latitude: z.number().min(-90).max(90),
         longitude: z.number().min(-180).max(180),
         system: z.enum(HOUSE_SYSTEMS).optional(),
       }),
     )
     .query(async ({ input }) => {
-      return engine.getHouseCusps(
-        input.date,
-        input.time,
-        input.latitude,
-        input.longitude,
-        input.system,
-      )
+      const jd = julianDay(input.year, input.month, input.day, input.hour)
+      return calcHouses(jd, input.latitude, input.longitude, (input.system ?? 'P') as HouseSystem)
     }),
 
   /**
-   * Get all aspects from a set of planetary positions.
+   * Get aspects between planets for a given date.
    */
   aspects: protectedProcedure
-    .input(z.object({ positions: planetaryPositionsSchema }))
-    .query(async ({ input }) => {
-      return engine.getAspects(input.positions as Parameters<typeof engine.getAspects>[0])
-    }),
-
-  /**
-   * Find transits to a natal chart for a given date.
-   */
-  transitsToNatal: protectedProcedure
     .input(
       z.object({
-        natalPositions: planetaryPositionsSchema,
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      }),
-    )
-    .query(async ({ input }) => {
-      return engine.getTransitsToNatal(
-        input.natalPositions as Parameters<typeof engine.getTransitsToNatal>[0],
-        input.date,
-      )
-    }),
-
-  /**
-   * Get retrograde periods within a date range.
-   */
-  retrogrades: protectedProcedure
-    .input(
-      z.object({
-        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      }),
-    )
-    .query(async ({ input }) => {
-      return engine.getRetrogrades(input.startDate, input.endDate)
-    }),
-
-  /**
-   * Full natal chart: positions + house cusps + aspects in one call.
-   */
-  natalChart: protectedProcedure
-    .input(
-      z.object({
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        time: z.string(),
+        year: z.number().int(),
+        month: z.number().int().min(1).max(12),
+        day: z.number().int().min(1).max(31),
+        hour: z.number().min(0).max(24).default(12),
         latitude: z.number().min(-90).max(90),
         longitude: z.number().min(-180).max(180),
-        timezone: z.string().optional(),
-        houseSystem: z.enum(HOUSE_SYSTEMS).optional(),
+        system: z.enum(HOUSE_SYSTEMS).optional(),
       }),
     )
     .query(async ({ input }) => {
-      const [positions, cusps] = await Promise.all([
-        engine.getPlanetaryPositions(input.date, input.time, input.timezone),
-        engine.getHouseCusps(
-          input.date,
-          input.time,
-          input.latitude,
-          input.longitude,
-          input.houseSystem,
-        ),
-      ])
-      const aspects = await engine.getAspects(positions)
-      return { positions, cusps, aspects }
+      const jd = julianDay(input.year, input.month, input.day, input.hour)
+      const rawPlanets = calcAllPlanets(jd, false)
+      const houses = calcHouses(
+        jd,
+        input.latitude,
+        input.longitude,
+        (input.system ?? 'P') as HouseSystem,
+      )
+      const planets = assignHouses(rawPlanets, houses)
+      return calcAspects(planets)
     }),
 })

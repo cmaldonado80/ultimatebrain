@@ -10,24 +10,22 @@ import { useState } from 'react'
 import { trpc } from '../../../../../utils/trpc'
 import { use } from 'react'
 
-// Swiss Ephemeris source (read at build-time via import)
+// Swiss Ephemeris source overview
 const SWISS_EPHEMERIS_SOURCE = `/**
- * Swiss Ephemeris Engine
- *
- * Provides planetary positions, house cusps, aspect calculations, transit
- * tracking, and retrograde period detection.
- *
- * Production integration: replace computation stubs with calls to the
- * swisseph npm package or a REST wrapper around the C library.
+ * Swiss Ephemeris Engine — Production Implementation
+ * Uses swisseph Node.js native binding (C library)
+ * Accuracy: < 1 arcminute with .se1 data files
  */
 
-export class EphemerisEngine {
-  async getPlanetaryPositions(date, time?, timezone?) { ... }
-  async getHouseCusps(date, time, latitude, longitude, system?) { ... }
-  async getAspects(positions) { ... }
-  async getCurrentTransits() { ... }
-  async getTransitsToNatal(natalPositions, date) { ... }
-  async getRetrogrades(startDate, endDate) { ... }
+// 14 celestial bodies: Sun, Moon, Mercury–Pluto, NorthNode, SouthNode, Chiron, Lilith
+// 6 house systems: Placidus, Koch, Porphyry, Regiomontanus, Equal, WholeSign
+// 8 aspect types: Conjunction, Sextile, Square, Trine, Opposition, Quincunx, SemiSquare, Sesquiquadrate
+// Full dignity assessment: domicile, exaltation, detriment, fall, triplicity, term, face
+
+export async function run(input: SwissEphemerisInput): Promise<EngineResult> {
+  // JD → planets (14) → houses (12 cusps) → aspects → dignities
+  // → chart shape → dominant element/mode → lots (fortune, spirit, eros)
+  // → summary string: "Sun 25° Gem · Moon 12° Sco · ASC 04° Aqu"
 }
 `
 
@@ -39,15 +37,14 @@ const ENGINE_DOCS: Record<
     title: 'Swiss Ephemeris Engine',
     description:
       'Planetary positions, house cusps, aspect calculations, transit tracking, and retrograde detection. Used by Astrology Brain mini-brains.',
-    filePath: 'templates/astrology/src/engines/ephemeris/engine.ts',
+    filePath: 'apps/web/src/server/services/engines/swiss-ephemeris/engine.ts',
     endpoints: [
-      'ephemeris.planetaryPositions — Get positions for any date/time',
-      "ephemeris.currentTransits — Today's planetary positions",
-      'ephemeris.houseCusps — 12 house cusps (needs lat/lon)',
-      'ephemeris.aspects — Aspects from a set of positions',
-      'ephemeris.transitsToNatal — Transits hitting a natal chart',
-      'ephemeris.retrogrades — Retrograde periods in date range',
-      'ephemeris.natalChart — Full chart (positions + cusps + aspects)',
+      'ephemeris.natalChart — Full natal chart (planets + houses + aspects + dignities + lots)',
+      'ephemeris.planetaryPositions — Planet positions for any date/time',
+      "ephemeris.currentTransits — Today's planetary positions (live)",
+      'ephemeris.houseCusps — 12 house cusps by lat/lon + house system',
+      'ephemeris.aspects — All aspects between planets for a date',
+      'ephemeris.status — Check if swisseph native module is loaded',
     ],
   },
   llm: {
@@ -78,10 +75,13 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
   const transitsQuery = trpc.ephemeris.currentTransits.useQuery(undefined, {
     enabled: false,
   })
+  const [dateParts, timeParts] = [testDate.split('-').map(Number), testTime.split(':').map(Number)]
   const natalChartQuery = trpc.ephemeris.natalChart.useQuery(
     {
-      date: testDate,
-      time: testTime,
+      birthYear: dateParts[0] ?? 2000,
+      birthMonth: dateParts[1] ?? 1,
+      birthDay: dateParts[2] ?? 1,
+      birthHour: (timeParts[0] ?? 12) + (timeParts[1] ?? 0) / 60,
       latitude: parseFloat(testLat),
       longitude: parseFloat(testLon),
     },
@@ -98,16 +98,26 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
         setTestResult(JSON.stringify(result.data, null, 2))
       } else {
         const result = await natalChartQuery.refetch()
-        const data = result.data
-        if (data) {
-          const summary = {
-            planets: Object.values(data.positions).map(
-              (p) => `${p.planet}: ${p.notation}${p.retrograde ? ' Rx' : ''}`,
+        const engineResult = result.data
+        if (engineResult) {
+          const chart = engineResult.data
+          const display = {
+            summary: engineResult.summary,
+            planets: Object.entries(chart.planets).map(
+              ([name, p]) =>
+                `${name}: ${p.degree}°${String(p.minutes).padStart(2, '0')}' ${p.sign}${p.retrograde ? ' Rx' : ''} (House ${p.house})`,
             ),
-            aspects: data.aspects.slice(0, 5).map((a) => a.label),
-            cusps: data.cusps.map((c) => `House ${c.house}: ${c.notation}`),
+            aspects: chart.aspects
+              .slice(0, 8)
+              .map(
+                (a) =>
+                  `${a.planet1} ${a.type} ${a.planet2} (orb ${a.orb}°${a.applying ? ' applying' : ''})`,
+              ),
+            chartShape: chart.chartShape,
+            dominantElement: chart.dominantElement,
+            dominantMode: chart.dominantMode,
           }
-          setTestResult(JSON.stringify(summary, null, 2))
+          setTestResult(JSON.stringify(display, null, 2))
         }
       }
     } catch (err) {
@@ -284,11 +294,11 @@ const chart = await trpc.ephemeris.natalChart.query({
                 <span style={{ fontSize: 12, color: '#6b7280' }}>
                   Source:{' '}
                   <code style={{ color: '#818cf8' }}>
-                    templates/astrology/src/engines/ephemeris/engine.ts
+                    apps/web/src/server/services/engines/swiss-ephemeris/engine.ts
                   </code>
                 </span>
                 <a
-                  href="https://github.com/cmaldonado80/ultimatebrain/blob/main/templates/astrology/src/engines/ephemeris/engine.ts"
+                  href="https://github.com/cmaldonado80/ultimatebrain/blob/main/apps/web/src/server/services/engines/swiss-ephemeris/engine.ts"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ fontSize: 11, color: '#818cf8', textDecoration: 'none' }}
@@ -306,18 +316,23 @@ const chart = await trpc.ephemeris.natalChart.query({
                   border: '1px solid #374151',
                 }}
               >
-                <div style={{ fontSize: 11, color: '#f59e0b', marginBottom: 6, fontWeight: 600 }}>
-                  Production Upgrade
+                <div style={{ fontSize: 11, color: '#22c55e', marginBottom: 6, fontWeight: 600 }}>
+                  Production Ready
                 </div>
                 <div style={{ fontSize: 12, color: '#9ca3af', lineHeight: 1.6 }}>
-                  The current implementation uses deterministic stubs for development. To use real
-                  Swiss Ephemeris data, replace the private computation methods with:
+                  This engine uses the swisseph native C binding for &lt; 1 arcminute accuracy. For
+                  maximum precision, download .se1 ephemeris data files:
                 </div>
-                <pre style={{ ...styles.preBlock, marginTop: 8 }}>{`npm install swisseph
-// Then in engine.ts, replace computeLongitude() with:
-import swisseph from 'swisseph'
-const result = swisseph.calc_ut(julianDay, swisseph.SE_SUN, swisseph.SEFLG_SPEED)
-// result.longitude gives the true ecliptic longitude`}</pre>
+                <pre
+                  style={{ ...styles.preBlock, marginTop: 8 }}
+                >{`# Download from https://www.astro.com/ftp/swisseph/ephe/
+# Place in apps/web/ephe/
+# Required files (~30 MB total):
+sepl_18.se1  — Outer planets 1800–2400
+semo_18.se1  — Moon 1800–2400
+seas_18.se1  — Asteroids (Chiron, etc.) 1800–2400
+
+# Without .se1 files, swisseph uses Moshier approximations (~1° accuracy)`}</pre>
               </div>
             </>
           ) : (
