@@ -31,10 +31,11 @@ interface Agent {
 
 export default function ChatPage() {
   const [selectedSession, setSelectedSession] = useState<string | null>(null)
-  const [selectedAgent, setSelectedAgent] = useState<string>('')
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [streamText, setStreamText] = useState('')
+  const [streamAgentName, setStreamAgentName] = useState<string | null>(null)
   const [streamError, setStreamError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -50,7 +51,7 @@ export default function ChatPage() {
 
   const handleNewSession = async () => {
     const session = await createSessionMut.mutateAsync({
-      agentId: selectedAgent || undefined,
+      agentId: selectedAgents[0] || undefined,
     })
     utils.intelligence.chatSessions.invalidate()
     if (session) setSelectedSession(session.id)
@@ -62,6 +63,7 @@ export default function ChatPage() {
     setNewMessage('')
     setStreaming(true)
     setStreamText('')
+    setStreamAgentName(null)
     setStreamError(null)
 
     const controller = new AbortController()
@@ -71,7 +73,11 @@ export default function ChatPage() {
       const res = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: selectedSession, text }),
+        body: JSON.stringify({
+          sessionId: selectedSession,
+          text,
+          agentIds: selectedAgents.length > 0 ? selectedAgents : undefined,
+        }),
         signal: controller.signal,
       })
 
@@ -98,10 +104,16 @@ export default function ChatPage() {
               text?: string
               done?: boolean
               error?: string
+              agentStart?: string
+              agentName?: string
             }
             if (event.error) {
               setStreamError(event.error)
               break
+            }
+            if (event.agentStart) {
+              setStreamAgentName(event.agentStart)
+              setStreamText('')
             }
             if (event.text) setStreamText((prev) => prev + event.text)
             if (event.done) break
@@ -121,7 +133,7 @@ export default function ChatPage() {
       await utils.intelligence.chatSession.invalidate({ id: selectedSession })
       setStreamText('')
     }
-  }, [selectedSession, newMessage, streaming, utils])
+  }, [selectedSession, selectedAgents, newMessage, streaming, utils])
 
   if (sessionsQuery.error) {
     return (
@@ -168,28 +180,37 @@ export default function ChatPage() {
               + New
             </button>
           </div>
-          <select
-            style={{
-              width: '100%',
-              background: '#1f2937',
-              color: '#f9fafb',
-              border: '1px solid #374151',
-              borderRadius: 4,
-              padding: '4px 8px',
-              fontSize: 11,
-              marginBottom: 8,
-            }}
-            value={selectedAgent}
-            onChange={(e) => setSelectedAgent(e.target.value)}
-          >
-            <option value="">Default Assistant</option>
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
+          <div style={{ maxHeight: 120, overflowY: 'auto', marginBottom: 8, fontSize: 11 }}>
+            {agents.slice(0, 20).map((a) => (
+              <label
+                key={a.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '2px 4px',
+                  cursor: 'pointer',
+                  color: selectedAgents.includes(a.id) ? '#818cf8' : '#9ca3af',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedAgents.includes(a.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) setSelectedAgents((prev) => [...prev, a.id])
+                    else setSelectedAgents((prev) => prev.filter((id) => id !== a.id))
+                  }}
+                  style={{ width: 12, height: 12 }}
+                />
                 {a.name}
-                {a.soul ? ' *' : ''}
-              </option>
+              </label>
             ))}
-          </select>
+            {selectedAgents.length > 1 && (
+              <div style={{ color: '#818cf8', padding: '2px 4px', fontWeight: 600 }}>
+                Crew mode: {selectedAgents.length} agents
+              </div>
+            )}
+          </div>
           {sessions.length === 0 ? (
             <div style={styles.sidebarEmpty}>No sessions yet.</div>
           ) : (
@@ -233,7 +254,7 @@ export default function ChatPage() {
                     ))}
                     {streaming && streamText && (
                       <div style={styles.msgAgent}>
-                        <div style={styles.msgRole}>assistant</div>
+                        <div style={styles.msgRole}>{streamAgentName ?? 'assistant'}</div>
                         <div style={styles.msgText}>
                           {streamText}
                           <span style={{ opacity: 0.4 }}>|</span>
