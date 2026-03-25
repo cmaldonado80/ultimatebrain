@@ -51,6 +51,20 @@ export const agentsRouter = router({
         type: z.string().optional(),
         workspaceId: z.string().uuid().optional(),
         model: z.string().optional(),
+        requiredModelType: z
+          .enum([
+            'vision',
+            'reasoning',
+            'agentic',
+            'coder',
+            'embedding',
+            'flash',
+            'guard',
+            'judge',
+            'router',
+            'multimodal',
+          ])
+          .optional(),
         description: z.string().optional(),
         skills: z.array(z.string()).optional(),
         tags: z.array(z.string()).optional(),
@@ -69,6 +83,20 @@ export const agentsRouter = router({
         name: z.string().min(1).optional(),
         type: z.string().optional(),
         model: z.string().optional(),
+        requiredModelType: z
+          .enum([
+            'vision',
+            'reasoning',
+            'agentic',
+            'coder',
+            'embedding',
+            'flash',
+            'guard',
+            'judge',
+            'router',
+            'multimodal',
+          ])
+          .optional(),
         description: z.string().optional(),
         skills: z.array(z.string()).optional(),
         tags: z.array(z.string()).optional(),

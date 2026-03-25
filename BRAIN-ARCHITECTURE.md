@@ -294,6 +294,58 @@ is_system_protected BOOLEAN DEFAULT false  -- prevents deletion of system worksp
 orchestrator_id UUID REFERENCES agents(id)  -- orchestrator responsible for this route
 ```
 
+### Model Type System
+
+Every model registered in the Brain is classified into one of **10 types**, and every agent declares what type of model it requires. The gateway uses this to auto-select the right model.
+
+**Model Types:**
+
+| Type           | Purpose                    | Key Attribute              | Example Models                                 |
+| -------------- | -------------------------- | -------------------------- | ---------------------------------------------- |
+| **vision**     | Visual analysis / OCR      | Image input support        | Llama 3.2 Vision, GPT-4o (secondary)           |
+| **reasoning**  | Hard logic / math          | "Thinking" output          | Claude Opus, o3, o4-mini, Gemini 2.5 Pro       |
+| **agentic**    | Running apps / APIs        | High tool-use accuracy     | Claude Sonnet, GPT-4o, Llama 3.3 70B           |
+| **coder**      | Software engineering       | High HumanEval scores      | GPT-4.1, Qwen Coder, DeepSeek Coder, Codestral |
+| **embedding**  | Search / RAG / memory      | Vector generation          | text-embedding-3-large, nomic-embed-text       |
+| **flash**      | Real-time chat / UI        | 100+ tokens/sec            | Claude Haiku, GPT-4o Mini, Gemini Flash        |
+| **guard**      | Safety classification      | Low latency, high recall   | Llama Guard 3                                  |
+| **judge**      | Eval scoring / QA          | Structured output accuracy | Claude Opus (as judge), GPT-4o (as judge)      |
+| **router**     | Task/intent classification | Fast + cheap + accurate    | GPT-4.1 Nano, Claude Haiku (secondary)         |
+| **multimodal** | Audio + video + docs       | Multi-input support        | Gemini 2.5 Pro (secondary), Gemini Flash       |
+
+**How it works:**
+
+```
+1. Model is added to system (via modelRegistry.register)
+   → ModelTypeDetector auto-detects type from known DB + name heuristics
+   → Stored in model_registry table with type, secondary types, capabilities
+
+2. Agent is created with requiredModelType (e.g. 'coder')
+   → Stored in agents.required_model_type column
+
+3. Gateway receives chat request with agentId
+   → Looks up agent's requiredModelType
+   → Queries model_registry for best active model of that type
+   → Routes to appropriate provider
+```
+
+**Database support:**
+
+```sql
+-- model_registry table
+model_id TEXT UNIQUE NOT NULL        -- e.g. 'claude-sonnet-4-6'
+model_type model_type NOT NULL       -- enum: vision, reasoning, agentic, ...
+secondary_types TEXT[]               -- additional capabilities
+provider TEXT NOT NULL               -- anthropic, openai, google, ollama
+supports_vision BOOLEAN
+supports_tools BOOLEAN
+input_cost_per_m_token REAL
+speed_tier TEXT                      -- fast, medium, slow
+
+-- agents table
+required_model_type model_type       -- what type of model this agent needs
+```
+
 ---
 
 ## What Each Tier Owns
