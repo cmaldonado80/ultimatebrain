@@ -249,10 +249,11 @@ export const gatewayRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Ollama adapter not available' })
       }
 
-      // Resolve URL and API key from vault
+      // Resolve URL and API key from vault (fall back to env vars)
       const storedUrl = await gw.keyVault.getKey('ollama_url')
       if (storedUrl) ollamaAdapter.resolvedUrl = storedUrl
-      const apiKey = await gw.keyVault.getKey('ollama')
+      else if (process.env.OLLAMA_BASE_URL) ollamaAdapter.resolvedUrl = process.env.OLLAMA_BASE_URL
+      const apiKey = (await gw.keyVault.getKey('ollama')) ?? process.env.OLLAMA_API_KEY ?? null
 
       const result = await ollamaAdapter.pullModel(input.name.trim(), apiKey ?? undefined)
 
@@ -279,7 +280,8 @@ export const gatewayRouter = router({
 
     const storedUrl = await gw.keyVault.getKey('ollama_url')
     if (storedUrl) ollamaAdapter.resolvedUrl = storedUrl
-    const apiKey = await gw.keyVault.getKey('ollama')
+    else if (process.env.OLLAMA_BASE_URL) ollamaAdapter.resolvedUrl = process.env.OLLAMA_BASE_URL
+    const apiKey = (await gw.keyVault.getKey('ollama')) ?? process.env.OLLAMA_API_KEY ?? null
 
     return ollamaAdapter.listModels(apiKey ?? undefined)
   }),
