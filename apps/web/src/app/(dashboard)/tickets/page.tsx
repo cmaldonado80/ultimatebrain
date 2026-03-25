@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
 import ConfirmDialog from '../../../components/ui/confirm-dialog'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 interface Ticket {
   id: string
@@ -254,28 +255,7 @@ export default function TicketsPage() {
         </div>
       )}
 
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
+      {error && <DbErrorBanner error={error} />}
       {tickets.length === 0 ? (
         <div style={styles.empty}>No tickets found. Create one to get started.</div>
       ) : (

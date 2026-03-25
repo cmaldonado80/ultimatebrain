@@ -5,6 +5,7 @@
  */
 
 import { trpc } from '../../../utils/trpc'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 export default function DLQPage() {
   const diagnoseQuery = trpc.healing.diagnose.useQuery()
@@ -55,28 +56,7 @@ export default function DLQPage() {
         </p>
       </div>
 
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
+      {error && <DbErrorBanner error={error} />}
       {health && (
         <div style={styles.healthCard}>
           <div style={styles.healthTop}>

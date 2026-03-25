@@ -11,6 +11,7 @@
 
 import { useState, useEffect } from 'react'
 import { trpc } from '../../../utils/trpc'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 // ── Types (mirroring server types for client use) ─────────────────────────
 
@@ -268,27 +269,7 @@ export default function EvalsPage() {
         </div>
       </div>
 
-      {datasetsQuery.error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
+      {datasetsQuery.error && <DbErrorBanner error={datasetsQuery.error} />}
 
       <div style={styles.layout}>
         {/* Sidebar — Dataset List */}
