@@ -42,6 +42,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'DLQ', href: '/ops/dlq', icon: '⚠' },
       { label: 'Guardrails', href: '/ops/guardrails', icon: '⛊' },
       { label: 'Checkpoints', href: '/ops/checkpoints', icon: '⟲' },
+      { label: 'Live Viewer', href: '/ops/live', icon: '◉' },
     ],
   },
   {

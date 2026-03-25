@@ -67,6 +67,7 @@ export const chatMessages = pgTable(
       .notNull(),
     role: text('role').notNull(),
     text: text('text').notNull(),
+    sourceAgentId: uuid('source_agent_id'),
     attachment: jsonb('attachment'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow(),
