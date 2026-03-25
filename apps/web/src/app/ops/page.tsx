@@ -12,6 +12,7 @@ export default function OpsOverviewPage() {
   const tracesQuery = trpc.traces.recent.useQuery({ limit: 10 })
   const approvalsQuery = trpc.approvals.pending.useQuery()
   const gatewayHealthQuery = trpc.gateway.health.useQuery()
+  const costQuery = trpc.gateway.costSummary.useQuery()
 
   const isLoading =
     healthQuery.isLoading ||
@@ -102,6 +103,98 @@ export default function OpsOverviewPage() {
           <div style={styles.statLabel}>Pending Approvals</div>
         </div>
       </div>
+
+      {/* Cost & Performance Summary */}
+      {costQuery.data && (
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>Cost & Performance</div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 10,
+              marginBottom: 16,
+            }}
+          >
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statValue, color: '#22c55e' }}>
+                ${costQuery.data.totalCostUsd.toFixed(4)}
+              </div>
+              <div style={styles.statLabel}>Total Cost</div>
+            </div>
+            <div style={styles.statCard}>
+              <div style={styles.statValue}>
+                {(costQuery.data.totalTokensIn + costQuery.data.totalTokensOut).toLocaleString()}
+              </div>
+              <div style={styles.statLabel}>Total Tokens</div>
+            </div>
+            <div style={styles.statCard}>
+              <div style={styles.statValue}>{costQuery.data.avgLatencyMs}ms</div>
+              <div style={styles.statLabel}>Avg Latency</div>
+            </div>
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statValue, color: '#818cf8' }}>
+                {costQuery.data.cacheHitRate}%
+              </div>
+              <div style={styles.statLabel}>Cache Hit Rate</div>
+            </div>
+          </div>
+          {costQuery.data.byProvider.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
+                Cost by Provider
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+                {costQuery.data.byProvider.map((p) => (
+                  <div
+                    key={p.provider}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '4px 12px',
+                      background: '#111827',
+                      borderRadius: 4,
+                      fontSize: 12,
+                    }}
+                  >
+                    <span style={{ flex: 1, fontFamily: 'monospace' }}>{p.provider}</span>
+                    <span style={{ color: '#22c55e' }}>${p.cost.toFixed(4)}</span>
+                    <span style={{ color: '#6b7280' }}>{p.tokens.toLocaleString()} tokens</span>
+                    <span style={{ color: '#4b5563' }}>{p.count} calls</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {costQuery.data.byModel.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Cost by Model</div>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+                {costQuery.data.byModel.map((m) => (
+                  <div
+                    key={m.model}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '4px 12px',
+                      background: '#111827',
+                      borderRadius: 4,
+                      fontSize: 12,
+                    }}
+                  >
+                    <span style={{ flex: 1, fontFamily: 'monospace' }}>{m.model}</span>
+                    <span style={{ color: '#22c55e' }}>${m.cost.toFixed(4)}</span>
+                    <span style={{ color: '#6b7280' }}>{m.tokens.toLocaleString()} tokens</span>
+                    <span style={{ color: '#4b5563' }}>{m.count} calls</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {health?.checks && (
         <div style={styles.section}>

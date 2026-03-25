@@ -5,6 +5,7 @@ import { createDb, waitForSchema, type Database } from '@solarc/db'
 import { chatSessions, chatMessages, agents } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
 import { GatewayRouter } from '../../../../server/services/gateway'
+import { MemoryService } from '../../../../server/services/memory/memory-service'
 
 let _db: Database | undefined
 function getDb(): Database {
@@ -68,6 +69,20 @@ export async function POST(req: Request) {
     }
   }
 
+  // 2b. Recall relevant memories for context enrichment
+  let memoryContext = ''
+  try {
+    const memoryService = new MemoryService(db)
+    const recalled = await memoryService.search(body.text, { limit: 5 })
+    if (recalled.length > 0) {
+      memoryContext =
+        '\n\nRelevant memories from past interactions:\n' +
+        recalled.map((m) => `- [${m.tier}] ${m.content}`).join('\n')
+    }
+  } catch {
+    // Memory search is best-effort — don't block chat if it fails
+  }
+
   // 3. Load conversation history
   const msgs = await db.query.chatMessages.findMany({
     where: eq(chatMessages.sessionId, body.sessionId),
@@ -115,7 +130,7 @@ export async function POST(req: Request) {
 
         const gen = gateway.chatStream({
           model: agentModel,
-          messages: [{ role: 'system', content: agentSoul }, ...history],
+          messages: [{ role: 'system', content: agentSoul + memoryContext }, ...history],
           temperature: agentTemperature,
           maxTokens: agentMaxTokens,
         })

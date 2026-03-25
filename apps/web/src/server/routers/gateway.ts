@@ -204,6 +204,86 @@ export const gatewayRouter = router({
     return CostTracker.getPricing()
   }),
 
+  /** Aggregated cost summary for the ops dashboard */
+  costSummary: protectedProcedure.query(async ({ ctx }) => {
+    try {
+      const allMetrics = await ctx.db.query.gatewayMetrics.findMany({
+        limit: 10000,
+        orderBy: (m, { desc: d }) => [d(m.createdAt)],
+      })
+
+      const totalCostUsd = allMetrics.reduce((s, m) => s + (m.costUsd ?? 0), 0)
+      const totalTokensIn = allMetrics.reduce((s, m) => s + (m.tokensIn ?? 0), 0)
+      const totalTokensOut = allMetrics.reduce((s, m) => s + (m.tokensOut ?? 0), 0)
+      const avgLatencyMs =
+        allMetrics.length > 0
+          ? Math.round(allMetrics.reduce((s, m) => s + (m.latencyMs ?? 0), 0) / allMetrics.length)
+          : 0
+      const cachedCount = allMetrics.filter((m) => m.cached).length
+      const cacheHitRate = allMetrics.length > 0 ? cachedCount / allMetrics.length : 0
+
+      // Group by provider
+      const byProviderMap = new Map<string, { cost: number; tokens: number; count: number }>()
+      for (const m of allMetrics) {
+        const entry = byProviderMap.get(m.provider) ?? { cost: 0, tokens: 0, count: 0 }
+        entry.cost += m.costUsd ?? 0
+        entry.tokens += (m.tokensIn ?? 0) + (m.tokensOut ?? 0)
+        entry.count++
+        byProviderMap.set(m.provider, entry)
+      }
+      const byProvider = [...byProviderMap.entries()].map(([provider, v]) => ({ provider, ...v }))
+
+      // Group by model
+      const byModelMap = new Map<string, { cost: number; tokens: number; count: number }>()
+      for (const m of allMetrics) {
+        const entry = byModelMap.get(m.model) ?? { cost: 0, tokens: 0, count: 0 }
+        entry.cost += m.costUsd ?? 0
+        entry.tokens += (m.tokensIn ?? 0) + (m.tokensOut ?? 0)
+        entry.count++
+        byModelMap.set(m.model, entry)
+      }
+      const byModel = [...byModelMap.entries()].map(([model, v]) => ({ model, ...v }))
+
+      // Top agents by cost
+      const byAgentMap = new Map<string, { cost: number; tokens: number }>()
+      for (const m of allMetrics) {
+        if (!m.agentId) continue
+        const entry = byAgentMap.get(m.agentId) ?? { cost: 0, tokens: 0 }
+        entry.cost += m.costUsd ?? 0
+        entry.tokens += (m.tokensIn ?? 0) + (m.tokensOut ?? 0)
+        byAgentMap.set(m.agentId, entry)
+      }
+      const topAgents = [...byAgentMap.entries()]
+        .map(([agentId, v]) => ({ agentId, ...v }))
+        .sort((a, b) => b.cost - a.cost)
+        .slice(0, 10)
+
+      return {
+        totalCostUsd: Math.round(totalCostUsd * 10000) / 10000,
+        totalTokensIn,
+        totalTokensOut,
+        totalCalls: allMetrics.length,
+        avgLatencyMs,
+        cacheHitRate: Math.round(cacheHitRate * 100),
+        byProvider,
+        byModel,
+        topAgents,
+      }
+    } catch {
+      return {
+        totalCostUsd: 0,
+        totalTokensIn: 0,
+        totalTokensOut: 0,
+        totalCalls: 0,
+        avgLatencyMs: 0,
+        cacheHitRate: 0,
+        byProvider: [],
+        byModel: [],
+        topAgents: [],
+      }
+    }
+  }),
+
   /** Prune expired cache entries */
   pruneCache: protectedProcedure.mutation(async ({ ctx }) => {
     const gw = getGateway(ctx.db)
