@@ -101,4 +101,16 @@ export class OpenClawProviders implements ProviderAdapter {
       })
     })
   }
+
+  /** Graceful chatStream — wraps chat() and yields the full response as a single chunk */
+  async *chatStream(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    apiKey?: string
+    temperature?: number
+    maxTokens?: number
+  }): AsyncGenerator<string, void, unknown> {
+    const result = await this.chat(params)
+    yield result.content
+  }
 }

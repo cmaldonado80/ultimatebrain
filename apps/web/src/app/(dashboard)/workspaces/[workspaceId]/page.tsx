@@ -33,6 +33,17 @@ export default function WorkspaceDetailPage() {
   const agentsQuery = trpc.agents.byWorkspace.useQuery({ workspaceId })
   const bindingsQuery = trpc.workspaces.listBindings.useQuery({ workspaceId })
   const goalsQuery = trpc.workspaces.listGoals.useQuery({ workspaceId })
+  const utils = trpc.useUtils()
+
+  const activateMut = trpc.workspaces.activate.useMutation({
+    onSuccess: () => utils.workspaces.byId.invalidate({ id: workspaceId }),
+  })
+  const pauseMut = trpc.workspaces.pause.useMutation({
+    onSuccess: () => utils.workspaces.byId.invalidate({ id: workspaceId }),
+  })
+  const retireMut = trpc.workspaces.retire.useMutation({
+    onSuccess: () => utils.workspaces.byId.invalidate({ id: workspaceId }),
+  })
 
   if (wsQuery.error) {
     return (
@@ -103,6 +114,85 @@ export default function WorkspaceDetailPage() {
             {ws.lifecycleState}
           </span>
         </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          {ws.lifecycleState === 'draft' && (
+            <button
+              style={{
+                background: '#22c55e',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                padding: '4px 12px',
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              onClick={() => activateMut.mutate({ id: workspaceId })}
+              disabled={activateMut.isPending}
+            >
+              {activateMut.isPending ? 'Activating...' : 'Activate'}
+            </button>
+          )}
+          {ws.lifecycleState === 'active' && (
+            <button
+              style={{
+                background: '#eab308',
+                color: '#000',
+                border: 'none',
+                borderRadius: 4,
+                padding: '4px 12px',
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              onClick={() => pauseMut.mutate({ id: workspaceId })}
+              disabled={pauseMut.isPending}
+            >
+              {pauseMut.isPending ? 'Pausing...' : 'Pause'}
+            </button>
+          )}
+          {ws.lifecycleState === 'paused' && (
+            <>
+              <button
+                style={{
+                  background: '#22c55e',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '4px 12px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onClick={() => activateMut.mutate({ id: workspaceId })}
+                disabled={activateMut.isPending}
+              >
+                Resume
+              </button>
+              <button
+                style={{
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '4px 12px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onClick={() => retireMut.mutate({ id: workspaceId })}
+                disabled={retireMut.isPending}
+              >
+                Retire
+              </button>
+            </>
+          )}
+        </div>
+        {(activateMut.error || pauseMut.error || retireMut.error) && (
+          <div style={{ color: '#fca5a5', fontSize: 11, marginTop: 4 }}>
+            {activateMut.error?.message || pauseMut.error?.message || retireMut.error?.message}
+          </div>
+        )}
         <p style={styles.subtitle}>{ws.goal || 'No goal set'}</p>
         <div style={{ fontSize: 11, color: '#4b5563', marginTop: 4 }}>
           Autonomy: {ws.autonomyLevel ?? 1}/5 | Agents: {agents.length} | Bindings:{' '}
