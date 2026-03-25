@@ -13,6 +13,7 @@ import {
   brainEntityAgents,
 } from '@solarc/db'
 import { eq, and } from 'drizzle-orm'
+import { createNeonBranch, deleteNeonBranch, maskConnectionUri } from '../services/neon/neon-api'
 
 let _factory: MiniBrainFactory | null = null
 function getFactory() {
@@ -219,11 +220,44 @@ export const miniBrainFactoryRouter = router({
         .set({ status: 'active' })
         .where(eq(brainEntities.id, entity.id))
 
+      // 9. Auto-provision Neon database (non-blocking)
+      let databaseHost: string | null = null
+      const apiKey = process.env.NEON_API_KEY
+      const projectId = process.env.NEON_PROJECT_ID
+
+      if (apiKey && projectId) {
+        try {
+          const branchName = `mb-${entity.id.slice(0, 8)}-${input.name.replace(/\W/g, '-').toLowerCase().slice(0, 20)}`
+          const result = await createNeonBranch({ apiKey, projectId, branchName })
+
+          await ctx.db
+            .update(brainEntities)
+            .set({
+              databaseUrl: result.connectionUri,
+              config: {
+                neon: {
+                  branchId: result.branchId,
+                  endpointId: result.endpointId,
+                  host: result.host,
+                  databaseName: result.databaseName,
+                  createdAt: new Date().toISOString(),
+                },
+              },
+            })
+            .where(eq(brainEntities.id, entity.id))
+
+          databaseHost = result.host
+        } catch (err) {
+          console.warn(`[smartCreate] Neon auto-provision failed for ${entity.id}:`, err)
+        }
+      }
+
       return {
         entity: { id: entity.id, name: entity.name, tier: entity.tier, status: 'active' },
         workspace: { id: ws.id, name: ws.name },
         agentCount: agentIds.length + 1, // +1 for orchestrator
         template: template.id,
+        database: databaseHost ? { host: databaseHost, provisioned: true } : null,
       }
     }),
 
@@ -313,9 +347,177 @@ export const miniBrainFactoryRouter = router({
         .set({ status: 'active' })
         .where(eq(brainEntities.id, entity.id))
 
+      // 7. Auto-provision Neon database (non-blocking)
+      let databaseHost: string | null = null
+      const apiKey = process.env.NEON_API_KEY
+      const projectId = process.env.NEON_PROJECT_ID
+
+      if (apiKey && projectId) {
+        try {
+          const branchName = `dev-${entity.id.slice(0, 8)}-${input.name.replace(/\W/g, '-').toLowerCase().slice(0, 20)}`
+          const result = await createNeonBranch({ apiKey, projectId, branchName })
+
+          await ctx.db
+            .update(brainEntities)
+            .set({
+              databaseUrl: result.connectionUri,
+              config: {
+                neon: {
+                  branchId: result.branchId,
+                  endpointId: result.endpointId,
+                  host: result.host,
+                  databaseName: result.databaseName,
+                  createdAt: new Date().toISOString(),
+                },
+              },
+            })
+            .where(eq(brainEntities.id, entity.id))
+
+          databaseHost = result.host
+        } catch (err) {
+          console.warn(`[smartCreateDev] Neon auto-provision failed for ${entity.id}:`, err)
+        }
+      }
+
       return {
         entity: { id: entity.id, name: entity.name, tier: 'development', status: 'active' },
         workspace: { id: ws.id, name: ws.name },
+        database: databaseHost ? { host: databaseHost, provisioned: true } : null,
       }
+    }),
+
+  // ── Database Provisioning ──────────────────────────────────────────────
+
+  /**
+   * Check whether Neon provisioning is available and get database status for an entity.
+   */
+  databaseStatus: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const entity = await ctx.db.query.brainEntities.findFirst({
+        where: eq(brainEntities.id, input.entityId),
+      })
+      if (!entity) throw new Error('Entity not found')
+
+      const neonAvailable = !!(process.env.NEON_API_KEY && process.env.NEON_PROJECT_ID)
+      const config = (entity.config as Record<string, unknown>) ?? {}
+      const neonConfig = config.neon as { branchId?: string } | undefined
+
+      return {
+        provisioned: !!entity.databaseUrl,
+        host: entity.databaseUrl ? maskConnectionUri(entity.databaseUrl) : null,
+        branchId: neonConfig?.branchId ?? null,
+        neonAvailable,
+      }
+    }),
+
+  /**
+   * Provision a dedicated Neon database branch for a mini-brain.
+   */
+  provisionDatabase: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const apiKey = process.env.NEON_API_KEY
+      const projectId = process.env.NEON_PROJECT_ID
+      if (!apiKey || !projectId) {
+        throw new Error(
+          'Neon API not configured. Set NEON_API_KEY and NEON_PROJECT_ID in environment.',
+        )
+      }
+
+      const entity = await ctx.db.query.brainEntities.findFirst({
+        where: eq(brainEntities.id, input.entityId),
+      })
+      if (!entity) throw new Error('Entity not found')
+      if (entity.databaseUrl) throw new Error('Database already provisioned for this entity')
+
+      // Set provisioning status
+      await ctx.db
+        .update(brainEntities)
+        .set({ status: 'provisioning' })
+        .where(eq(brainEntities.id, input.entityId))
+
+      try {
+        const branchName = `mb-${input.entityId.slice(0, 8)}-${entity.name.replace(/\W/g, '-').toLowerCase().slice(0, 20)}`
+        const result = await createNeonBranch({
+          apiKey,
+          projectId,
+          branchName,
+        })
+
+        // Store database URL and branch metadata
+        const existingConfig = (entity.config as Record<string, unknown>) ?? {}
+        await ctx.db
+          .update(brainEntities)
+          .set({
+            databaseUrl: result.connectionUri,
+            status: 'active',
+            config: {
+              ...existingConfig,
+              neon: {
+                branchId: result.branchId,
+                endpointId: result.endpointId,
+                host: result.host,
+                databaseName: result.databaseName,
+                createdAt: new Date().toISOString(),
+              },
+            },
+          })
+          .where(eq(brainEntities.id, input.entityId))
+
+        return {
+          success: true,
+          branchId: result.branchId,
+          host: result.host,
+          maskedUri: maskConnectionUri(result.connectionUri),
+        }
+      } catch (err) {
+        // Restore active status on failure
+        await ctx.db
+          .update(brainEntities)
+          .set({ status: 'active' })
+          .where(eq(brainEntities.id, input.entityId))
+        throw err
+      }
+    }),
+
+  /**
+   * Deprovision (delete) a mini-brain's dedicated database branch.
+   */
+  deprovisionDatabase: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const apiKey = process.env.NEON_API_KEY
+      const projectId = process.env.NEON_PROJECT_ID
+      if (!apiKey || !projectId) {
+        throw new Error('Neon API not configured')
+      }
+
+      const entity = await ctx.db.query.brainEntities.findFirst({
+        where: eq(brainEntities.id, input.entityId),
+      })
+      if (!entity) throw new Error('Entity not found')
+
+      const config = (entity.config as Record<string, unknown>) ?? {}
+      const neonConfig = config.neon as { branchId?: string } | undefined
+      if (!neonConfig?.branchId) throw new Error('No Neon branch found for this entity')
+
+      await deleteNeonBranch({
+        apiKey,
+        projectId,
+        branchId: neonConfig.branchId,
+      })
+
+      // Clear database URL and neon config
+      const { neon: _, ...restConfig } = config
+      await ctx.db
+        .update(brainEntities)
+        .set({
+          databaseUrl: null,
+          config: Object.keys(restConfig).length > 0 ? restConfig : null,
+        })
+        .where(eq(brainEntities.id, input.entityId))
+
+      return { success: true }
     }),
 })

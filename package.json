@@ -37,5 +37,10 @@
     "*.{json,md}": [
       "prettier --write"
     ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "swisseph"
+    ]
   }
 }

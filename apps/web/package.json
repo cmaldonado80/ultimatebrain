@@ -29,6 +29,9 @@
     "superjson": "^2.2.0",
     "zod": "^3.24.0"
   },
+  "optionalDependencies": {
+    "swisseph": "^0.5.17"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
     "@types/react": "^19.0.0",

@@ -789,6 +789,7 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `ALTER TABLE memories ADD COLUMN IF NOT EXISTS last_accessed_at timestamp`,
       `ALTER TABLE orchestrator_routes ADD COLUMN IF NOT EXISTS orchestrator_id uuid`,
       `ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS source_agent_id uuid`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS database_url text`,
     ]
     for (const stmt of alterStatements) {
       await client.query(stmt).catch(() => {})
@@ -969,3 +970,17 @@ export function waitForSchema(): Promise<void> {
 }
 
 export type Database = ReturnType<typeof createDb>
+
+/**
+ * Create a lightweight database connection for a mini-brain's dedicated database.
+ * Does NOT run ensureSchema() — the Neon branch inherits schema from the parent.
+ */
+export function createMiniBrainDb(connectionString: string) {
+  const pool = new pg.Pool({
+    connectionString,
+    max: 3,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 5_000,
+  })
+  return drizzle(pool, { schema })
+}

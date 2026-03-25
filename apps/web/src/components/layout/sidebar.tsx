@@ -43,6 +43,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Guardrails', href: '/ops/guardrails', icon: '⛊' },
       { label: 'Checkpoints', href: '/ops/checkpoints', icon: '⟲' },
       { label: 'Live Viewer', href: '/ops/live', icon: '◉' },
+      { label: 'Databases', href: '/ops/databases', icon: '⊟' },
     ],
   },
   {
