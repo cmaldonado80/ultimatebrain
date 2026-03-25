@@ -15,6 +15,8 @@ export const LlmChatInput = z.object({
     )
     .optional(),
   stream: z.boolean().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().min(1).max(200000).optional(),
   agentId: z.string().uuid().optional(),
   ticketId: z.string().uuid().optional(),
 })

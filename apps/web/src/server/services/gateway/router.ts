@@ -121,6 +121,8 @@ export interface ProviderAdapter {
     messages: Array<{ role: string; content: string }>
     tools?: unknown[]
     apiKey?: string
+    temperature?: number
+    maxTokens?: number
   }): Promise<{
     content: string
     tokensIn: number
@@ -131,6 +133,8 @@ export interface ProviderAdapter {
     model: string
     messages: Array<{ role: string; content: string }>
     apiKey?: string
+    temperature?: number
+    maxTokens?: number
   }): AsyncGenerator<string, void, unknown>
 
   embed?(params: { text: string; model?: string; apiKey?: string }): Promise<{
@@ -164,6 +168,8 @@ class AnthropicAdapter implements ProviderAdapter {
     messages: Array<{ role: string; content: string }>
     tools?: unknown[]
     apiKey?: string
+    temperature?: number
+    maxTokens?: number
   }) {
     const apiKey = params.apiKey ?? process.env.ANTHROPIC_API_KEY
     if (!apiKey) throw new Error('No Anthropic API key available')
@@ -171,13 +177,14 @@ class AnthropicAdapter implements ProviderAdapter {
     const nonSystemMsgs = params.messages.filter((m) => m.role !== 'system')
     const body: Record<string, unknown> = {
       model: params.model,
-      max_tokens: 4096,
+      max_tokens: params.maxTokens ?? 4096,
       messages: nonSystemMsgs.map((m) => ({
         role: m.role === 'agent' ? 'assistant' : m.role,
         content: m.content,
       })),
     }
     if (systemMsg) body.system = systemMsg.content
+    if (params.temperature != null) body.temperature = params.temperature
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -206,6 +213,8 @@ class AnthropicAdapter implements ProviderAdapter {
     model: string
     messages: Array<{ role: string; content: string }>
     apiKey?: string
+    temperature?: number
+    maxTokens?: number
   }): AsyncGenerator<string, void, unknown> {
     const apiKey = params.apiKey ?? process.env.ANTHROPIC_API_KEY
     if (!apiKey) throw new Error('No Anthropic API key available')
@@ -213,7 +222,7 @@ class AnthropicAdapter implements ProviderAdapter {
     const nonSystemMsgs = params.messages.filter((m) => m.role !== 'system')
     const body: Record<string, unknown> = {
       model: params.model,
-      max_tokens: 4096,
+      max_tokens: params.maxTokens ?? 4096,
       stream: true,
       messages: nonSystemMsgs.map((m) => ({
         role: m.role === 'agent' ? 'assistant' : m.role,
@@ -221,6 +230,7 @@ class AnthropicAdapter implements ProviderAdapter {
       })),
     }
     if (systemMsg) body.system = systemMsg.content
+    if (params.temperature != null) body.temperature = params.temperature
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -266,6 +276,8 @@ class OpenAIAdapter implements ProviderAdapter {
     messages: Array<{ role: string; content: string }>
     tools?: unknown[]
     apiKey?: string
+    temperature?: number
+    maxTokens?: number
   }) {
     const apiKey = params.apiKey ?? process.env.OPENAI_API_KEY
     if (!apiKey) throw new Error('No OpenAI API key available')
@@ -276,6 +288,8 @@ class OpenAIAdapter implements ProviderAdapter {
         content: m.content,
       })),
     }
+    if (params.temperature != null) body.temperature = params.temperature
+    if (params.maxTokens != null) body.max_tokens = params.maxTokens
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -429,9 +443,11 @@ class OllamaAdapter implements ProviderAdapter {
     messages: Array<{ role: string; content: string }>
     tools?: unknown[]
     apiKey?: string
+    temperature?: number
+    maxTokens?: number
   }) {
     const baseUrl = this.getBaseUrl()
-    const body = {
+    const body: Record<string, unknown> = {
       model: params.model.replace('ollama/', ''),
       messages: params.messages.map((m) => ({
         role: m.role === 'agent' ? 'assistant' : m.role,
@@ -439,6 +455,8 @@ class OllamaAdapter implements ProviderAdapter {
       })),
       stream: false,
     }
+    if (params.temperature != null) body.temperature = params.temperature
+    if (params.maxTokens != null) body.num_predict = params.maxTokens
     const res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
       headers: this.buildHeaders(params.apiKey),
@@ -761,6 +779,8 @@ export class GatewayRouter {
             messages,
             tools: input.tools,
             apiKey: apiKey ?? undefined,
+            temperature: input.temperature,
+            maxTokens: input.maxTokens,
           })
 
           this.circuitBreaker.recordSuccess(provider)
@@ -874,6 +894,8 @@ export class GatewayRouter {
             model: targetModel,
             messages: input.messages,
             apiKey: apiKey ?? undefined,
+            temperature: input.temperature,
+            maxTokens: input.maxTokens,
           })
           this.circuitBreaker.recordSuccess(provider)
           return
@@ -884,6 +906,8 @@ export class GatewayRouter {
           model: targetModel,
           messages: input.messages,
           apiKey: apiKey ?? undefined,
+          temperature: input.temperature,
+          maxTokens: input.maxTokens,
         })
         this.circuitBreaker.recordSuccess(provider)
         yield result.content
