@@ -28,6 +28,7 @@ const TIER_COLORS: Record<string, string> = {
 
 export default function MemoryPage() {
   const [filterTier, setFilterTier] = useState<string | undefined>(undefined)
+  const [searchQuery, setSearchQuery] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [memKey, setMemKey] = useState('')
   const [memContent, setMemContent] = useState('')
@@ -78,7 +79,14 @@ export default function MemoryPage() {
     )
   }
 
-  const memories: Memory[] = (listQuery.data as Memory[]) ?? []
+  const allMemories: Memory[] = (listQuery.data as Memory[]) ?? []
+  const memories = searchQuery
+    ? allMemories.filter(
+        (m) =>
+          m.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.content.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : allMemories
   const stats = statsQuery.data as Record<string, number> | undefined
 
   return (
@@ -202,6 +210,23 @@ export default function MemoryPage() {
           ))}
         </div>
       )}
+
+      <input
+        style={{
+          width: '100%',
+          background: '#1f2937',
+          color: '#f9fafb',
+          border: '1px solid #374151',
+          borderRadius: 6,
+          padding: '8px 12px',
+          fontSize: 13,
+          boxSizing: 'border-box' as const,
+          marginBottom: 10,
+        }}
+        placeholder="Search memories by key or content..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
 
       <div style={styles.filters}>
         <button

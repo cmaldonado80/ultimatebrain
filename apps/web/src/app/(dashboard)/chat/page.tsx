@@ -116,9 +116,10 @@ export default function ChatPage() {
       }
     } finally {
       setStreaming(false)
-      setStreamText('')
       abortRef.current = null
-      utils.intelligence.chatSession.invalidate({ id: selectedSession })
+      // Reload messages from DB first, then clear streaming text
+      await utils.intelligence.chatSession.invalidate({ id: selectedSession })
+      setStreamText('')
     }
   }, [selectedSession, newMessage, streaming, utils])
 
@@ -268,9 +269,18 @@ export default function ChatPage() {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 />
-                <button style={styles.sendBtn} onClick={handleSend} disabled={streaming}>
-                  {streaming ? 'Streaming...' : 'Send'}
-                </button>
+                {streaming ? (
+                  <button
+                    style={{ ...styles.sendBtn, background: '#ef4444' }}
+                    onClick={() => abortRef.current?.abort()}
+                  >
+                    Cancel
+                  </button>
+                ) : (
+                  <button style={styles.sendBtn} onClick={handleSend}>
+                    Send
+                  </button>
+                )}
               </div>
             </>
           )}

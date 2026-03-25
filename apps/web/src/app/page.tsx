@@ -75,6 +75,7 @@ interface StatCardData {
   change?: { value: number; label: string }
   sparkline?: number[]
   color: string
+  href?: string
 }
 
 interface RecentItem {
@@ -132,8 +133,17 @@ function Sparkline({
 // ── Stat Card ─────────────────────────────────────────────────────────────
 
 function StatCard({ stat }: { stat: StatCardData }) {
+  const Wrapper = stat.href ? 'a' : 'div'
   return (
-    <div style={styles.statCard}>
+    <Wrapper
+      href={stat.href}
+      style={{
+        ...styles.statCard,
+        textDecoration: 'none',
+        color: 'inherit',
+        cursor: stat.href ? 'pointer' : 'default',
+      }}
+    >
       <div style={styles.statTop}>
         <div>
           <div style={styles.statValue}>{stat.value}</div>
@@ -148,7 +158,7 @@ function StatCard({ stat }: { stat: StatCardData }) {
           {stat.change.value >= 0 ? '↑' : '↓'} {Math.abs(stat.change.value)} {stat.change.label}
         </div>
       )}
-    </div>
+    </Wrapper>
   )
 }
 
@@ -219,10 +229,15 @@ export default function DashboardPage() {
   ).length
 
   const STATS: StatCardData[] = [
-    { label: 'Active Agents', value: String(activeAgents), color: '#818cf8' },
-    { label: 'Open Tickets', value: String(openTickets), color: '#f97316' },
-    { label: 'Total Tickets', value: String(tickets.length), color: '#22c55e' },
-    { label: 'Workspaces', value: String(workspacesData.length), color: '#eab308' },
+    { label: 'Active Agents', value: String(activeAgents), color: '#818cf8', href: '/agents' },
+    { label: 'Open Tickets', value: String(openTickets), color: '#f97316', href: '/tickets' },
+    { label: 'Total Tickets', value: String(tickets.length), color: '#22c55e', href: '/tickets' },
+    {
+      label: 'Workspaces',
+      value: String(workspacesData.length),
+      color: '#eab308',
+      href: '/workspaces',
+    },
   ]
 
   // Build recent activity from tickets
