@@ -47,7 +47,8 @@ function createMockDb() {
     where: whereFn,
     orderBy: orderByFn,
   }))
-  const insertValuesFn = vi.fn().mockResolvedValue(undefined)
+  const insertCatchFn = vi.fn().mockReturnValue(undefined)
+  const insertValuesFn = vi.fn().mockReturnValue({ catch: insertCatchFn })
 
   return {
     query: {
@@ -63,7 +64,7 @@ function createMockDb() {
     insert: vi.fn().mockReturnValue({
       values: insertValuesFn,
     }),
-    _mock: { whereFn, setFn, fromFn, limitFn, orderByFn, insertValuesFn },
+    _mock: { whereFn, setFn, fromFn, limitFn, orderByFn, insertValuesFn, insertCatchFn },
   } as any
 }
 
@@ -275,12 +276,12 @@ describe('HealingEngine', () => {
       )
     })
 
-    it('should log the restart action on success', async () => {
+    it('should log the restart action to the DB', async () => {
       await engine.restartAgent('agent-1', 'Health check triggered')
 
-      const log = engine.getHealingLog()
-      expect(log).toHaveLength(1)
-      expect(log[0]).toEqual(
+      // log() fires db.insert(healingLogs).values(...)
+      expect(db.insert).toHaveBeenCalled()
+      expect(db._mock.insertValuesFn).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'restart_agent',
           target: 'agent-1',
@@ -307,9 +308,14 @@ describe('HealingEngine', () => {
 
       await engine.restartAgent('agent-1', 'Retry after error')
 
-      const log = engine.getHealingLog()
-      expect(log).toHaveLength(1)
-      expect(log[0].success).toBe(false)
+      expect(db.insert).toHaveBeenCalled()
+      expect(db._mock.insertValuesFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'restart_agent',
+          target: 'agent-1',
+          success: false,
+        }),
+      )
     })
   })
 
@@ -342,7 +348,7 @@ describe('HealingEngine', () => {
       expect(db.update).toHaveBeenCalledTimes(4)
     })
 
-    it('should log each cleared lease', async () => {
+    it('should log each cleared lease to the DB', async () => {
       const expiredLeases = [
         { ticketId: 't1', lockOwner: 'a1' },
         { ticketId: 't2', lockOwner: 'a2' },
@@ -353,11 +359,14 @@ describe('HealingEngine', () => {
 
       await engine.clearExpiredLeases()
 
-      const log = engine.getHealingLog()
-      expect(log).toHaveLength(2)
-      expect(log[0].action).toBe('clear_lock')
-      expect(log[0].target).toBe('t1')
-      expect(log[1].target).toBe('t2')
+      // log() is called once per lease
+      expect(db._mock.insertValuesFn).toHaveBeenCalledTimes(2)
+      expect(db._mock.insertValuesFn).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'clear_lock', target: 't1' }),
+      )
+      expect(db._mock.insertValuesFn).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'clear_lock', target: 't2' }),
+      )
     })
 
     it('should set ticket status to queued and clear assignedAgentId', async () => {
@@ -393,12 +402,11 @@ describe('HealingEngine', () => {
       )
     })
 
-    it('should log the requeue action', async () => {
+    it('should log the requeue action to the DB', async () => {
       await engine.requeueTicket('t1', 'Retry failed ticket')
 
-      const log = engine.getHealingLog()
-      expect(log).toHaveLength(1)
-      expect(log[0]).toEqual(
+      expect(db.insert).toHaveBeenCalled()
+      expect(db._mock.insertValuesFn).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'requeue_ticket',
           target: 't1',
@@ -425,9 +433,14 @@ describe('HealingEngine', () => {
 
       await engine.requeueTicket('t1', 'Error retry')
 
-      const log = engine.getHealingLog()
-      expect(log).toHaveLength(1)
-      expect(log[0].success).toBe(false)
+      expect(db.insert).toHaveBeenCalled()
+      expect(db._mock.insertValuesFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'requeue_ticket',
+          target: 't1',
+          success: false,
+        }),
+      )
     })
   })
 
@@ -507,44 +520,76 @@ describe('HealingEngine', () => {
   // ── getHealingLog ───────────────────────────────────────────────────────
 
   describe('getHealingLog', () => {
-    it('should return empty log initially', () => {
-      const log = engine.getHealingLog()
+    it('should return empty log when DB has no entries', async () => {
+      // Default mock: select().from().orderBy().limit() resolves to []
+      const log = await engine.getHealingLog()
       expect(log).toEqual([])
     })
 
-    it('should return all log entries after actions', async () => {
-      await engine.restartAgent('a1', 'Reason 1')
-      await engine.requeueTicket('t1', 'Reason 2')
+    it('should return mapped log entries from DB', async () => {
+      const now = new Date()
+      const limitFn = vi.fn().mockResolvedValue([
+        {
+          action: 'restart_agent',
+          target: 'a1',
+          reason: 'Reason 1',
+          createdAt: now,
+          success: true,
+        },
+        {
+          action: 'requeue_ticket',
+          target: 't1',
+          reason: 'Reason 2',
+          createdAt: now,
+          success: true,
+        },
+      ])
+      const orderByFn = vi.fn().mockReturnValue({ limit: limitFn })
+      const fromFn = vi.fn().mockReturnValue({ orderBy: orderByFn })
+      db.select.mockReturnValue({ from: fromFn })
 
-      const log = engine.getHealingLog()
+      const log = await engine.getHealingLog()
 
       expect(log).toHaveLength(2)
       expect(log[0].action).toBe('restart_agent')
       expect(log[1].action).toBe('requeue_ticket')
     })
 
-    it('should respect the limit parameter', async () => {
-      await engine.restartAgent('a1', 'R1')
-      await engine.restartAgent('a2', 'R2')
-      await engine.restartAgent('a3', 'R3')
+    it('should pass limit parameter to DB query', async () => {
+      const limitFn = vi.fn().mockResolvedValue([])
+      const orderByFn = vi.fn().mockReturnValue({ limit: limitFn })
+      const fromFn = vi.fn().mockReturnValue({ orderBy: orderByFn })
+      db.select.mockReturnValue({ from: fromFn })
 
-      const log = engine.getHealingLog(2)
+      await engine.getHealingLog(2)
 
-      expect(log).toHaveLength(2)
-      expect(log[0].target).toBe('a2')
-      expect(log[1].target).toBe('a3')
+      expect(limitFn).toHaveBeenCalledWith(2)
     })
 
     it('should default to 50 entries', async () => {
-      // Just verify it works with default parameter
-      const log = engine.getHealingLog()
+      const limitFn = vi.fn().mockResolvedValue([])
+      const orderByFn = vi.fn().mockReturnValue({ limit: limitFn })
+      const fromFn = vi.fn().mockReturnValue({ orderBy: orderByFn })
+      db.select.mockReturnValue({ from: fromFn })
+
+      const log = await engine.getHealingLog()
+
       expect(log).toEqual([])
+      expect(limitFn).toHaveBeenCalledWith(50)
     })
 
     it('should include timestamp in log entries', async () => {
-      await engine.restartAgent('a1', 'Test')
+      const now = new Date()
+      const limitFn = vi
+        .fn()
+        .mockResolvedValue([
+          { action: 'restart_agent', target: 'a1', reason: 'Test', createdAt: now, success: true },
+        ])
+      const orderByFn = vi.fn().mockReturnValue({ limit: limitFn })
+      const fromFn = vi.fn().mockReturnValue({ orderBy: orderByFn })
+      db.select.mockReturnValue({ from: fromFn })
 
-      const log = engine.getHealingLog()
+      const log = await engine.getHealingLog()
       expect(log[0].timestamp).toBeInstanceOf(Date)
     })
   })
