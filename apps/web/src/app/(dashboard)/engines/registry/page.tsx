@@ -236,7 +236,16 @@ export default function EngineRegistryPage() {
           const catColor = CATEGORY_COLORS[engine.category] ?? '#6b7280'
           const statusColor = STATUS_COLORS[engine.status] ?? '#6b7280'
           return (
-            <div key={engine.id} style={styles.card}>
+            <a
+              key={engine.id}
+              href={`/engines/registry/${engine.id}`}
+              style={{
+                ...styles.card,
+                textDecoration: 'none',
+                display: 'block',
+                cursor: 'pointer',
+              }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <span
                   style={{
@@ -275,7 +284,7 @@ export default function EngineRegistryPage() {
                   Connected: {engine.connectedApps.length} apps
                 </div>
               )}
-            </div>
+            </a>
           )
         })}
       </div>

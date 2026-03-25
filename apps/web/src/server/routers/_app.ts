@@ -32,6 +32,7 @@ import { adaptiveRouter } from './adaptive'
 import { miniBrainFactoryRouter } from './mini-brain-factory'
 import { systemOrchestratorRouter } from './system-orchestrator'
 import { modelRegistryRouter } from './model-registry'
+import { ephemerisRouter } from './ephemeris'
 
 export const appRouter = router({
   workspaces: workspacesRouter,
@@ -67,6 +68,7 @@ export const appRouter = router({
   factory: miniBrainFactoryRouter,
   systemOrchestrator: systemOrchestratorRouter,
   models: modelRegistryRouter,
+  ephemeris: ephemerisRouter,
 })
 
 export type AppRouter = typeof appRouter
