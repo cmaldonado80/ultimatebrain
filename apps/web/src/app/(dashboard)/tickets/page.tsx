@@ -46,11 +46,22 @@ export default function TicketsPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium')
+  const [wsId, setWsId] = useState('')
+  const [agentId, setAgentId] = useState('')
+  const [expandedTicket, setExpandedTicket] = useState<string | null>(null)
   const [executing, setExecuting] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const { data, isLoading, error } = trpc.tickets.list.useQuery()
+  const wsQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
+  const agentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
+  const allWorkspaces = (wsQuery.data ?? []) as Array<{ id: string; name: string }>
+  const allAgents = (agentsQuery.data ?? []) as Array<{
+    id: string
+    name: string
+    workspaceId: string | null
+  }>
 
   const utils = trpc.useUtils()
   const createMut = trpc.tickets.create.useMutation({
@@ -213,7 +224,9 @@ export default function TicketsPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div
+              style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const }}
+            >
               <select
                 style={{
                   background: '#111827',
@@ -233,6 +246,44 @@ export default function TicketsPage() {
                 <option value="high">High</option>
                 <option value="critical">Critical</option>
               </select>
+              <select
+                style={{
+                  background: '#111827',
+                  color: '#f9fafb',
+                  border: '1px solid #374151',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  fontSize: 12,
+                }}
+                value={wsId}
+                onChange={(e) => setWsId(e.target.value)}
+              >
+                <option value="">Workspace (optional)</option>
+                {allWorkspaces.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                style={{
+                  background: '#111827',
+                  color: '#f9fafb',
+                  border: '1px solid #374151',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  fontSize: 12,
+                }}
+                value={agentId}
+                onChange={(e) => setAgentId(e.target.value)}
+              >
+                <option value="">Agent (optional)</option>
+                {(wsId ? allAgents.filter((a) => a.workspaceId === wsId) : allAgents).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
               <button
                 style={{
                   background: '#22c55e',
@@ -250,6 +301,8 @@ export default function TicketsPage() {
                     title: title.trim(),
                     description: description.trim() || undefined,
                     priority,
+                    workspaceId: wsId || undefined,
+                    assignedAgentId: agentId || undefined,
                   })
                 }
                 disabled={createMut.isPending || !title.trim()}
@@ -275,57 +328,105 @@ export default function TicketsPage() {
             <span style={styles.th}>Actions</span>
           </div>
           {tickets.map((t) => (
-            <div key={t.id} style={styles.tableRow}>
-              <span style={{ ...styles.td, flex: 2, fontWeight: 600 }}>{t.title}</span>
-              <span style={styles.td}>
-                <span style={{ ...styles.badge, color: STATUS_COLORS[t.status] || '#6b7280' }}>
-                  {t.status}
+            <div key={t.id}>
+              <div style={styles.tableRow}>
+                <span
+                  style={{
+                    ...styles.td,
+                    flex: 2,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    borderBottom: '1px dashed #4b5563',
+                  }}
+                  onClick={() => setExpandedTicket(expandedTicket === t.id ? null : t.id)}
+                  title="Click to expand"
+                >
+                  {t.title}
                 </span>
-              </span>
-              <span style={styles.td}>
-                <span style={{ ...styles.badge, color: PRIORITY_COLORS[t.priority] || '#6b7280' }}>
-                  {t.priority}
+                <span style={styles.td}>
+                  <span style={{ ...styles.badge, color: STATUS_COLORS[t.status] || '#6b7280' }}>
+                    {t.status}
+                  </span>
                 </span>
-              </span>
-              <span style={styles.td}>{t.complexity}</span>
-              <span style={styles.td}>
-                {['backlog', 'queued', 'failed'].includes(t.status) ? (
+                <span style={styles.td}>
+                  <span
+                    style={{ ...styles.badge, color: PRIORITY_COLORS[t.priority] || '#6b7280' }}
+                  >
+                    {t.priority}
+                  </span>
+                </span>
+                <span style={styles.td}>{t.complexity}</span>
+                <span style={styles.td}>
+                  {['backlog', 'queued', 'failed'].includes(t.status) ? (
+                    <button
+                      style={{
+                        background: '#818cf8',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 4,
+                        padding: '3px 10px',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                      disabled={executing === t.id}
+                      onClick={() => {
+                        setExecuting(t.id)
+                        executeMut.mutate({ ticketId: t.id, prompt: t.title })
+                      }}
+                    >
+                      {executing === t.id ? 'Running...' : 'Execute'}
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: 11, color: '#6b7280' }}>{t.executionMode || '—'}</span>
+                  )}
                   <button
                     style={{
-                      background: '#818cf8',
-                      color: '#fff',
+                      background: 'transparent',
+                      color: '#6b7280',
                       border: 'none',
-                      borderRadius: 4,
-                      padding: '3px 10px',
                       fontSize: 11,
                       cursor: 'pointer',
-                      fontWeight: 600,
+                      marginLeft: 6,
                     }}
-                    disabled={executing === t.id}
-                    onClick={() => {
-                      setExecuting(t.id)
-                      executeMut.mutate({ ticketId: t.id, prompt: t.title })
-                    }}
+                    onClick={() => setDeleteTarget(t.id)}
                   >
-                    {executing === t.id ? 'Running...' : 'Execute'}
+                    Del
                   </button>
-                ) : (
-                  <span style={{ fontSize: 11, color: '#6b7280' }}>{t.executionMode || '—'}</span>
-                )}
-                <button
+                </span>
+              </div>
+              {expandedTicket === t.id && (
+                <div
                   style={{
-                    background: 'transparent',
-                    color: '#6b7280',
-                    border: 'none',
-                    fontSize: 11,
-                    cursor: 'pointer',
-                    marginLeft: 6,
+                    padding: '8px 16px 12px',
+                    background: '#111827',
+                    borderBottom: '1px solid #374151',
+                    fontSize: 12,
+                    color: '#9ca3af',
                   }}
-                  onClick={() => setDeleteTarget(t.id)}
                 >
-                  Del
-                </button>
-              </span>
+                  <div style={{ marginBottom: 4 }}>
+                    <strong>Description:</strong> {t.description || 'None'}
+                  </div>
+                  <div style={{ display: 'flex', gap: 16 }}>
+                    <span>
+                      Workspace:{' '}
+                      {t.workspaceId
+                        ? (allWorkspaces.find((w) => w.id === t.workspaceId)?.name ??
+                          t.workspaceId.slice(0, 8))
+                        : 'Unassigned'}
+                    </span>
+                    <span>
+                      Agent:{' '}
+                      {t.assignedAgentId
+                        ? (allAgents.find((a) => a.id === t.assignedAgentId)?.name ??
+                          t.assignedAgentId.slice(0, 8))
+                        : 'Unassigned'}
+                    </span>
+                    <span>Mode: {t.executionMode ?? 'auto'}</span>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

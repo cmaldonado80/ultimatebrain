@@ -164,6 +164,19 @@ export default function Sidebar() {
 
         {/* Footer */}
         <div style={styles.footer}>
+          <a
+            href="/api/auth/signout"
+            style={{
+              fontSize: 12,
+              color: '#6b7280',
+              textDecoration: 'none',
+              cursor: 'pointer',
+              display: 'block',
+              padding: '6px 0',
+            }}
+          >
+            Sign out
+          </a>
           <div style={styles.footerVersion}>v0.1.0 · Phase 18</div>
         </div>
       </aside>

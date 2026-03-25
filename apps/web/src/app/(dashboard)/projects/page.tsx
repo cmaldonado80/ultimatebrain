@@ -31,6 +31,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function ProjectsPage() {
   const [showForm, setShowForm] = useState(false)
+  const [expandedProject, setExpandedProject] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [goal, setGoal] = useState('')
   const [search, setSearch] = useState('')
@@ -192,7 +193,17 @@ export default function ProjectsPage() {
           {projects.map((p) => (
             <div key={p.id} style={styles.card}>
               <div style={styles.cardTop}>
-                <span style={styles.cardName}>{p.name}</span>
+                <span
+                  style={{
+                    ...styles.cardName,
+                    cursor: 'pointer',
+                    borderBottom: '1px dashed #4b5563',
+                  }}
+                  onClick={() => setExpandedProject(expandedProject === p.id ? null : p.id)}
+                  title="Click to expand"
+                >
+                  {p.name}
+                </span>
                 <span
                   style={{
                     ...styles.statusBadge,
@@ -209,6 +220,29 @@ export default function ProjectsPage() {
                 {p.healthScore && <span>Health: {p.healthScore}</span>}
               </div>
               {p.synthesis && <div style={styles.synthesis}>{p.synthesis}</div>}
+              {expandedProject === p.id && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    paddingTop: 8,
+                    borderTop: '1px solid #374151',
+                    fontSize: 12,
+                    color: '#9ca3af',
+                  }}
+                >
+                  <div>
+                    <strong>ID:</strong> {p.id}
+                  </div>
+                  {p.healthDiagnosis && (
+                    <div style={{ marginTop: 4 }}>
+                      <strong>Diagnosis:</strong> {p.healthDiagnosis}
+                    </div>
+                  )}
+                  <div style={{ marginTop: 4 }}>
+                    <strong>Created:</strong> {new Date(p.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
