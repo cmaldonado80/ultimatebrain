@@ -239,36 +239,45 @@ export const gatewayRouter = router({
       return { success: true }
     }),
 
-  /** Pull a model from the Ollama registry (triggers download on the Ollama instance). */
+  /** Pull/register a model from Ollama. Cloud models (name ends with :cloud) are
+   *  registered directly since /api/pull is not supported on ollama.com. */
   pullOllamaModel: protectedProcedure
     .input(z.object({ name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
+      const modelName = input.name.trim()
+      const isCloudModel = modelName.endsWith(':cloud') || modelName.includes('-cloud')
+
+      // Save to DB registry if not already there
+      const existing = await ctx.db.query.ollamaModels.findFirst({
+        where: eq(ollamaModels.name, modelName),
+      })
+      if (!existing) {
+        await ctx.db.insert(ollamaModels).values({ name: modelName })
+      }
+
+      // Cloud models don't need pulling — they run on ollama.com's infra
+      if (isCloudModel) {
+        return { status: 'registered', model: modelName }
+      }
+
+      // Local models: pull via /api/pull
       const gw = getGateway(ctx.db)
       const ollamaAdapter = gw.getOllamaAdapter()
       if (!ollamaAdapter) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Ollama adapter not available' })
       }
 
-      // Resolve URL and API key — env vars take priority over vault
       const storedUrl = await gw.keyVault.getKey('ollama_url')
       ollamaAdapter.resolvedUrl = process.env.OLLAMA_BASE_URL ?? storedUrl ?? null
       const apiKey = process.env.OLLAMA_API_KEY ?? (await gw.keyVault.getKey('ollama')) ?? null
 
-      const result = await ollamaAdapter.pullModel(input.name.trim(), apiKey ?? undefined)
+      const result = await ollamaAdapter.pullModel(modelName, apiKey ?? undefined)
 
       if (result.error) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: result.error })
       }
 
-      // Also save to DB registry if not already there
-      const existing = await ctx.db.query.ollamaModels.findFirst({
-        where: eq(ollamaModels.name, input.name.trim()),
-      })
-      if (!existing) {
-        await ctx.db.insert(ollamaModels).values({ name: input.name.trim() })
-      }
-
-      return { status: result.status, model: input.name.trim() }
+      return { status: result.status, model: modelName }
     }),
 
   /** List models available on the connected Ollama instance. */
