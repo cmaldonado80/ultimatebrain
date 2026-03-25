@@ -220,11 +220,44 @@ export const miniBrainFactoryRouter = router({
         .set({ status: 'active' })
         .where(eq(brainEntities.id, entity.id))
 
+      // 9. Auto-provision Neon database (non-blocking)
+      let databaseHost: string | null = null
+      const apiKey = process.env.NEON_API_KEY
+      const projectId = process.env.NEON_PROJECT_ID
+
+      if (apiKey && projectId) {
+        try {
+          const branchName = `mb-${entity.id.slice(0, 8)}-${input.name.replace(/\W/g, '-').toLowerCase().slice(0, 20)}`
+          const result = await createNeonBranch({ apiKey, projectId, branchName })
+
+          await ctx.db
+            .update(brainEntities)
+            .set({
+              databaseUrl: result.connectionUri,
+              config: {
+                neon: {
+                  branchId: result.branchId,
+                  endpointId: result.endpointId,
+                  host: result.host,
+                  databaseName: result.databaseName,
+                  createdAt: new Date().toISOString(),
+                },
+              },
+            })
+            .where(eq(brainEntities.id, entity.id))
+
+          databaseHost = result.host
+        } catch (err) {
+          console.warn(`[smartCreate] Neon auto-provision failed for ${entity.id}:`, err)
+        }
+      }
+
       return {
         entity: { id: entity.id, name: entity.name, tier: entity.tier, status: 'active' },
         workspace: { id: ws.id, name: ws.name },
         agentCount: agentIds.length + 1, // +1 for orchestrator
         template: template.id,
+        database: databaseHost ? { host: databaseHost, provisioned: true } : null,
       }
     }),
 
@@ -314,9 +347,42 @@ export const miniBrainFactoryRouter = router({
         .set({ status: 'active' })
         .where(eq(brainEntities.id, entity.id))
 
+      // 7. Auto-provision Neon database (non-blocking)
+      let databaseHost: string | null = null
+      const apiKey = process.env.NEON_API_KEY
+      const projectId = process.env.NEON_PROJECT_ID
+
+      if (apiKey && projectId) {
+        try {
+          const branchName = `dev-${entity.id.slice(0, 8)}-${input.name.replace(/\W/g, '-').toLowerCase().slice(0, 20)}`
+          const result = await createNeonBranch({ apiKey, projectId, branchName })
+
+          await ctx.db
+            .update(brainEntities)
+            .set({
+              databaseUrl: result.connectionUri,
+              config: {
+                neon: {
+                  branchId: result.branchId,
+                  endpointId: result.endpointId,
+                  host: result.host,
+                  databaseName: result.databaseName,
+                  createdAt: new Date().toISOString(),
+                },
+              },
+            })
+            .where(eq(brainEntities.id, entity.id))
+
+          databaseHost = result.host
+        } catch (err) {
+          console.warn(`[smartCreateDev] Neon auto-provision failed for ${entity.id}:`, err)
+        }
+      }
+
       return {
         entity: { id: entity.id, name: entity.name, tier: 'development', status: 'active' },
         workspace: { id: ws.id, name: ws.name },
+        database: databaseHost ? { host: databaseHost, provisioned: true } : null,
       }
     }),
 
