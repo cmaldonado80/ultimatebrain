@@ -578,6 +578,57 @@ export class GatewayRouter {
   }
 
   /**
+   * Resolve the best available model for a required capability type.
+   * Checks which providers have API keys configured and picks the best model.
+   */
+  async resolveModelForCapability(
+    capability: string,
+  ): Promise<{ model: string; provider: string } | null> {
+    // Capability → preferred model chain (best first)
+    const CAPABILITY_CHAINS: Record<string, string[]> = {
+      reasoning: ['claude-opus-4-6', 'gpt-4o', 'gemini-2.5-pro', 'claude-sonnet-4-6'],
+      agentic: ['claude-sonnet-4-6', 'gpt-4o', 'gemini-2.5-pro'],
+      coder: ['claude-sonnet-4-6', 'gpt-4.1', 'gemini-2.5-pro'],
+      vision: ['claude-sonnet-4-6', 'gpt-4o', 'gemini-2.5-pro'],
+      flash: ['claude-haiku-4-5', 'gpt-4o-mini', 'gemini-2.5-flash'],
+      embedding: ['text-embedding-3-small', 'text-embedding-3-large'],
+      guard: ['claude-haiku-4-5', 'gpt-4o-mini'],
+      judge: ['claude-opus-4-6', 'gpt-4o'],
+      router: ['claude-haiku-4-5', 'gpt-4o-mini', 'gemini-2.5-flash'],
+      multimodal: ['claude-sonnet-4-6', 'gpt-4o', 'gemini-2.5-pro'],
+    }
+
+    const chain = CAPABILITY_CHAINS[capability] ?? CAPABILITY_CHAINS['agentic']!
+
+    for (const model of chain) {
+      const resolved = resolveProvider(model)
+      const hasKey = await this.keyVault.getKey(resolved.provider)
+      const hasEnvKey =
+        resolved.provider === 'anthropic'
+          ? !!process.env.ANTHROPIC_API_KEY
+          : resolved.provider === 'openai'
+            ? !!process.env.OPENAI_API_KEY
+            : resolved.provider === 'google'
+              ? !!process.env.GOOGLE_API_KEY
+              : resolved.provider === 'ollama'
+                ? !!(process.env.OLLAMA_API_KEY || (await this.keyVault.getKey('ollama')))
+                : false
+
+      if ((hasKey || hasEnvKey) && this.circuitBreaker.canRequest(resolved.provider)) {
+        return { model, provider: resolved.provider }
+      }
+    }
+
+    // Fallback: check if any Ollama model is available
+    const ollamaKey = process.env.OLLAMA_API_KEY ?? (await this.keyVault.getKey('ollama'))
+    if (ollamaKey) {
+      return { model: 'ollama/default', provider: 'ollama' }
+    }
+
+    return null
+  }
+
+  /**
    * Main entry point: route an LLM chat request through the gateway.
    */
   async chat(input: LlmChatInput, parentSpan?: Span): Promise<LlmChatOutput> {

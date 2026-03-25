@@ -770,8 +770,150 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       await client.query(sql).catch(() => {})
     }
 
+    // ── Step 3: Seed model_registry with built-in models ──
+    const builtInModels = [
+      {
+        id: 'claude-opus-4-6',
+        name: 'Claude Opus 4.6',
+        provider: 'anthropic',
+        type: 'reasoning',
+        ctx: 200000,
+        out: 32000,
+        vision: true,
+        tools: true,
+        stream: true,
+        inCost: 15.0,
+        outCost: 75.0,
+        speed: 'slow',
+      },
+      {
+        id: 'claude-sonnet-4-6',
+        name: 'Claude Sonnet 4.6',
+        provider: 'anthropic',
+        type: 'agentic',
+        ctx: 200000,
+        out: 64000,
+        vision: true,
+        tools: true,
+        stream: true,
+        inCost: 3.0,
+        outCost: 15.0,
+        speed: 'medium',
+      },
+      {
+        id: 'claude-haiku-4-5',
+        name: 'Claude Haiku 4.5',
+        provider: 'anthropic',
+        type: 'flash',
+        ctx: 200000,
+        out: 8192,
+        vision: true,
+        tools: true,
+        stream: true,
+        inCost: 0.8,
+        outCost: 4.0,
+        speed: 'fast',
+      },
+      {
+        id: 'gpt-4o',
+        name: 'GPT-4o',
+        provider: 'openai',
+        type: 'reasoning',
+        ctx: 128000,
+        out: 16384,
+        vision: true,
+        tools: true,
+        stream: true,
+        inCost: 2.5,
+        outCost: 10.0,
+        speed: 'medium',
+      },
+      {
+        id: 'gpt-4o-mini',
+        name: 'GPT-4o Mini',
+        provider: 'openai',
+        type: 'flash',
+        ctx: 128000,
+        out: 16384,
+        vision: true,
+        tools: true,
+        stream: true,
+        inCost: 0.15,
+        outCost: 0.6,
+        speed: 'fast',
+      },
+      {
+        id: 'gpt-4.1',
+        name: 'GPT-4.1',
+        provider: 'openai',
+        type: 'coder',
+        ctx: 1000000,
+        out: 32768,
+        vision: true,
+        tools: true,
+        stream: true,
+        inCost: 2.0,
+        outCost: 8.0,
+        speed: 'medium',
+      },
+      {
+        id: 'gemini-2.5-pro',
+        name: 'Gemini 2.5 Pro',
+        provider: 'google',
+        type: 'reasoning',
+        ctx: 1000000,
+        out: 65536,
+        vision: true,
+        tools: true,
+        stream: true,
+        inCost: 1.25,
+        outCost: 10.0,
+        speed: 'medium',
+      },
+      {
+        id: 'gemini-2.5-flash',
+        name: 'Gemini 2.5 Flash',
+        provider: 'google',
+        type: 'flash',
+        ctx: 1000000,
+        out: 65536,
+        vision: true,
+        tools: true,
+        stream: true,
+        inCost: 0.15,
+        outCost: 0.6,
+        speed: 'fast',
+      },
+    ]
+
+    for (const m of builtInModels) {
+      await client
+        .query(
+          `
+        INSERT INTO model_registry (model_id, display_name, provider, model_type, context_window, max_output_tokens, supports_vision, supports_tools, supports_streaming, input_cost_per_m_token, output_cost_per_m_token, speed_tier, is_active)
+        VALUES ($1, $2, $3, $4::model_type, $5, $6, $7, $8, $9, $10, $11, $12, true)
+        ON CONFLICT (model_id) DO NOTHING
+      `,
+          [
+            m.id,
+            m.name,
+            m.provider,
+            m.type,
+            m.ctx,
+            m.out,
+            m.vision,
+            m.tools,
+            m.stream,
+            m.inCost,
+            m.outCost,
+            m.speed,
+          ],
+        )
+        .catch(() => {})
+    }
+
     // eslint-disable-next-line no-console
-    console.log('[DB] Schema sync complete — all tables ensured')
+    console.log('[DB] Schema sync complete — all tables ensured + models seeded')
   } catch (err) {
     console.warn('[DB] Schema sync warning:', err instanceof Error ? err.message : err)
   } finally {

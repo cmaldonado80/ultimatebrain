@@ -5,11 +5,15 @@ import { z } from 'zod'
 export const LlmChatInput = z.object({
   model: z.string().optional(),
   messages: z.array(z.object({ role: z.string(), content: z.string() })),
-  tools: z.array(z.object({
-    name: z.string(),
-    description: z.string().optional(),
-    inputSchema: z.record(z.unknown()).optional(),
-  })).optional(),
+  tools: z
+    .array(
+      z.object({
+        name: z.string(),
+        description: z.string().optional(),
+        inputSchema: z.record(z.unknown()).optional(),
+      }),
+    )
+    .optional(),
   stream: z.boolean().optional(),
   agentId: z.string().uuid().optional(),
   ticketId: z.string().uuid().optional(),
@@ -117,11 +121,13 @@ export type GuardrailCheckInput = z.infer<typeof GuardrailCheckInput>
 
 export const GuardrailCheckOutput = z.object({
   passed: z.boolean(),
-  violations: z.array(z.object({
-    rule: z.string(),
-    detail: z.string(),
-    severity: z.enum(['low', 'medium', 'high', 'critical']),
-  })),
+  violations: z.array(
+    z.object({
+      rule: z.string(),
+      detail: z.string(),
+      severity: z.enum(['low', 'medium', 'high', 'critical']),
+    }),
+  ),
   modifiedContent: z.string().optional(),
 })
 export type GuardrailCheckOutput = z.infer<typeof GuardrailCheckOutput>
@@ -152,12 +158,14 @@ export type A2ADelegateInput = z.infer<typeof A2ADelegateInput>
 
 export const HealthCheckOutput = z.object({
   status: z.enum(['healthy', 'degraded', 'unhealthy']),
-  checks: z.array(z.object({
-    name: z.string(),
-    status: z.enum(['pass', 'warn', 'fail']),
-    message: z.string().optional(),
-    latencyMs: z.number().optional(),
-  })),
+  checks: z.array(
+    z.object({
+      name: z.string(),
+      status: z.enum(['pass', 'warn', 'fail']),
+      message: z.string().optional(),
+      latencyMs: z.number().optional(),
+    }),
+  ),
   timestamp: z.date(),
 })
 export type HealthCheckOutput = z.infer<typeof HealthCheckOutput>
@@ -197,9 +205,43 @@ export const MODEL_STRATEGY: Record<string, ModelTier> = {
 
 export function resolveModel(tier: ModelTier): string {
   switch (tier) {
-    case 'opus': return 'claude-opus-4-6'
-    case 'sonnet': return 'claude-sonnet-4-6'
-    case 'haiku': return 'claude-haiku-4-5'
-    default: return 'claude-sonnet-4-6'
+    case 'opus':
+      return 'claude-opus-4-6'
+    case 'sonnet':
+      return 'claude-sonnet-4-6'
+    case 'haiku':
+      return 'claude-haiku-4-5'
+    default:
+      return 'claude-sonnet-4-6'
   }
 }
+
+// === Agent Manifest (Portable Agent Definition) ===
+
+export const CAPABILITY_TYPES = [
+  'reasoning',
+  'vision',
+  'agentic',
+  'coder',
+  'embedding',
+  'flash',
+  'guard',
+  'judge',
+  'router',
+  'multimodal',
+] as const
+
+export const AgentManifest = z.object({
+  version: z.literal('1.0'),
+  name: z.string().min(1),
+  description: z.string().optional(),
+  soul: z.string().optional(),
+  type: z.string().optional(),
+  requiredCapability: z.enum(CAPABILITY_TYPES).default('reasoning'),
+  preferredModel: z.string().optional(),
+  skills: z.array(z.string()).default([]),
+  tags: z.array(z.string()).default([]),
+  guardrails: z.array(z.string()).optional(),
+  providerChain: z.array(z.string()).optional(),
+})
+export type AgentManifest = z.infer<typeof AgentManifest>
