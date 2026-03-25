@@ -4,11 +4,7 @@
  */
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
-import {
-  EphemerisEngine,
-  HOUSE_SYSTEMS,
-  PLANET_NAMES,
-} from '../../../../../templates/astrology/src/engines/ephemeris/engine'
+import { EphemerisEngine, HOUSE_SYSTEMS, PLANET_NAMES } from '../services/ephemeris/engine'
 
 const engine = new EphemerisEngine()
 
