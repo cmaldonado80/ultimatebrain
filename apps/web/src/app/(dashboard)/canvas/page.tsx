@@ -13,7 +13,6 @@ export default function CanvasPage() {
   const setFeatureMut = trpc.intelligence.setFeature.useMutation()
   const utils = trpc.useUtils()
 
-  const isLoading = featuresQuery.isLoading || policiesQuery.isLoading
   const error = featuresQuery.error || policiesQuery.error
 
   if (error) {
@@ -23,6 +22,8 @@ export default function CanvasPage() {
       </div>
     )
   }
+
+  const isLoading = featuresQuery.isLoading || policiesQuery.isLoading
 
   const handleToggleFeature = async (name: string, enabled: boolean) => {
     await setFeatureMut.mutateAsync({ name, enabled })

@@ -47,7 +47,6 @@ export default function MemoryPage() {
     },
   })
 
-  const isLoading = listQuery.isLoading || statsQuery.isLoading
   const error = listQuery.error || statsQuery.error
 
   if (error) {
@@ -57,6 +56,8 @@ export default function MemoryPage() {
       </div>
     )
   }
+
+  const isLoading = listQuery.isLoading || statsQuery.isLoading
 
   if (isLoading) {
     return (

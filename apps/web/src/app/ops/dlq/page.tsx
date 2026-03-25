@@ -13,7 +13,6 @@ export default function DLQPage() {
   const clearLeasesMut = trpc.healing.clearExpiredLeases.useMutation()
   const utils = trpc.useUtils()
 
-  const isLoading = diagnoseQuery.isLoading || healthQuery.isLoading
   const error = diagnoseQuery.error || healthQuery.error
 
   if (error) {
@@ -23,6 +22,8 @@ export default function DLQPage() {
       </div>
     )
   }
+
+  const isLoading = diagnoseQuery.isLoading || healthQuery.isLoading
 
   const handleClearLeases = async () => {
     await clearLeasesMut.mutateAsync()

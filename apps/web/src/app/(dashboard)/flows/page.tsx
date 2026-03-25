@@ -34,13 +34,6 @@ export default function FlowsPage() {
   const [runResult, setRunResult] = useState<string | null>(null)
   const { data, isLoading, error } = trpc.flows.list.useQuery()
 
-  if (error) {
-    return (
-      <div style={styles.page}>
-        <DbErrorBanner error={error} />
-      </div>
-    )
-  }
   const runCrewMut = trpc.flows.runCrew.useMutation({
     onSuccess: (data) => {
       setRunResult(
@@ -53,6 +46,14 @@ export default function FlowsPage() {
       setTask('')
     },
   })
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (

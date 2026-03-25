@@ -109,6 +109,14 @@ export default function ChatPage() {
     }
   }, [selectedSession, newMessage, streaming, utils])
 
+  if (sessionsQuery.error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={sessionsQuery.error} />
+      </div>
+    )
+  }
+
   if (sessionsQuery.isLoading) {
     return (
       <div
@@ -134,14 +142,6 @@ export default function ChatPage() {
     | null
     | undefined
   const messages: ChatMessage[] = sessionData?.messages ?? []
-
-  if (sessionsQuery.error) {
-    return (
-      <div style={styles.page}>
-        <DbErrorBanner error={sessionsQuery.error} />
-      </div>
-    )
-  }
 
   return (
     <div style={styles.page}>

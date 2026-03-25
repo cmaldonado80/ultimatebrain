@@ -211,7 +211,6 @@ export default function SkillsPage() {
 
   const utils = trpc.useUtils()
 
-  const isLoading = browseQuery.isLoading || installedQuery.isLoading
   const error = browseQuery.error || installedQuery.error
 
   if (error) {
@@ -221,6 +220,8 @@ export default function SkillsPage() {
       </div>
     )
   }
+
+  const isLoading = browseQuery.isLoading || installedQuery.isLoading
 
   if (isLoading) {
     return (

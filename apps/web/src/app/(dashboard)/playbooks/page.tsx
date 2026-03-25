@@ -150,13 +150,6 @@ export default function PlaybooksPage() {
 
   const { data: playbooks, isLoading, error } = trpc.playbooks.list.useQuery()
 
-  if (error) {
-    return (
-      <div style={styles.page}>
-        <DbErrorBanner error={error} />
-      </div>
-    )
-  }
   const runMutation = trpc.playbooks.run.useMutation()
   const startRecordingMutation = trpc.playbooks.startRecording.useMutation()
   const endRecordingMutation = trpc.playbooks.endRecording.useMutation()
@@ -173,6 +166,14 @@ export default function PlaybooksPage() {
       }
     }
   }, [])
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (

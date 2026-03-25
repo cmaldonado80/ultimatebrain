@@ -39,7 +39,6 @@ export default function IntegrationsPage() {
   const createWebhookMut = trpc.integrations.createWebhook.useMutation()
   const utils = trpc.useUtils()
 
-  const isLoading = channelsQuery.isLoading || webhooksQuery.isLoading
   const error = channelsQuery.error || webhooksQuery.error
 
   if (error) {
@@ -49,6 +48,8 @@ export default function IntegrationsPage() {
       </div>
     )
   }
+
+  const isLoading = channelsQuery.isLoading || webhooksQuery.isLoading
 
   const handleToggleChannel = async (id: string, enabled: boolean) => {
     await toggleChannelMut.mutateAsync({ id, enabled })

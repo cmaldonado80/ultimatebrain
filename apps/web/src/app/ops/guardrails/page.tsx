@@ -22,7 +22,6 @@ export default function GuardrailsPage() {
   const logsQuery = trpc.guardrails.logs.useQuery()
   const statsQuery = trpc.guardrails.stats.useQuery()
 
-  const isLoading = logsQuery.isLoading || statsQuery.isLoading
   const error = logsQuery.error || statsQuery.error
 
   if (error) {
@@ -32,6 +31,8 @@ export default function GuardrailsPage() {
       </div>
     )
   }
+
+  const isLoading = logsQuery.isLoading || statsQuery.isLoading
 
   if (isLoading) {
     return (

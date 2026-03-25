@@ -27,7 +27,6 @@ export default function GatewayPage() {
   const healthQuery = trpc.gateway.health.useQuery()
   const providersQuery = trpc.gateway.listProviders.useQuery()
 
-  const isLoading = metricsQuery.isLoading || healthQuery.isLoading || providersQuery.isLoading
   const error = metricsQuery.error || healthQuery.error || providersQuery.error
 
   if (error) {
@@ -37,6 +36,8 @@ export default function GatewayPage() {
       </div>
     )
   }
+
+  const isLoading = metricsQuery.isLoading || healthQuery.isLoading || providersQuery.isLoading
 
   if (isLoading) {
     return (

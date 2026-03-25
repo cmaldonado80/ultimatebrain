@@ -187,14 +187,6 @@ export default function EvalsPage() {
   // Fetch datasets with case counts
   const datasetsQuery = trpc.evals.datasetsWithCounts.useQuery()
 
-  if (datasetsQuery.error) {
-    return (
-      <div style={styles.page}>
-        <DbErrorBanner error={datasetsQuery.error} />
-      </div>
-    )
-  }
-
   // Fetch runs for selected dataset
   const runsQuery = trpc.evals.runs.useQuery(
     { datasetId: selectedDatasetId! },
@@ -246,6 +238,14 @@ export default function EvalsPage() {
       setSelectedDatasetId(selectedDataset.id)
     }
   }, [selectedDataset, selectedDatasetId])
+
+  if (datasetsQuery.error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={datasetsQuery.error} />
+      </div>
+    )
+  }
 
   const runsRaw: EvalRunRaw[] = (runsQuery.data ?? []) as EvalRunRaw[]
   const history: RunHistory[] = runsRaw.map((r: EvalRunRaw) => ({

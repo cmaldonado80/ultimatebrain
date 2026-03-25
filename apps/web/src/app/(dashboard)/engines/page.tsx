@@ -37,7 +37,6 @@ export default function EnginesPage() {
   const listQuery = trpc.entities.list.useQuery({ limit: 100, offset: 0 })
   const topoQuery = trpc.entities.topology.useQuery()
 
-  const isLoading = listQuery.isLoading || topoQuery.isLoading
   const error = listQuery.error || topoQuery.error
 
   if (error) {
@@ -47,6 +46,8 @@ export default function EnginesPage() {
       </div>
     )
   }
+
+  const isLoading = listQuery.isLoading || topoQuery.isLoading
 
   if (isLoading) {
     return (

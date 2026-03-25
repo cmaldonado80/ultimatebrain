@@ -33,6 +33,14 @@ export default function QAPage() {
     { enabled: !!selectedDataset },
   )
 
+  if (datasetsQuery.error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={datasetsQuery.error} />
+      </div>
+    )
+  }
+
   if (datasetsQuery.isLoading) {
     return (
       <div
@@ -54,14 +62,6 @@ export default function QAPage() {
 
   const datasets: DatasetSummary[] = (datasetsQuery.data as DatasetSummary[]) ?? []
   const runs: EvalRun[] = (runsQuery.data as EvalRun[]) ?? []
-
-  if (datasetsQuery.error) {
-    return (
-      <div style={styles.page}>
-        <DbErrorBanner error={datasetsQuery.error} />
-      </div>
-    )
-  }
 
   return (
     <div style={styles.page}>

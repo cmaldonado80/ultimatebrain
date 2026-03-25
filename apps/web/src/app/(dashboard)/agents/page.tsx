@@ -63,13 +63,6 @@ export default function AgentsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
 
-  if (error) {
-    return (
-      <div style={styles.page}>
-        <DbErrorBanner error={error} />
-      </div>
-    )
-  }
   const utils = trpc.useUtils()
   const createMut = trpc.agents.create.useMutation({
     onSuccess: () => {
@@ -85,6 +78,14 @@ export default function AgentsPage() {
       utils.agents.list.invalidate()
     },
   })
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (

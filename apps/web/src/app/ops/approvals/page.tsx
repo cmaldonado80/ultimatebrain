@@ -24,6 +24,9 @@ interface ApprovalGate {
 export default function ApprovalsPage() {
   const { data, isLoading, error } = trpc.approvals.pending.useQuery()
 
+  const decideMutation = trpc.approvals.decide.useMutation()
+  const utils = trpc.useUtils()
+
   if (error) {
     return (
       <div style={styles.page}>
@@ -31,8 +34,6 @@ export default function ApprovalsPage() {
       </div>
     )
   }
-  const decideMutation = trpc.approvals.decide.useMutation()
-  const utils = trpc.useUtils()
 
   const handleDecide = async (id: string, decision: 'approved' | 'denied') => {
     await decideMutation.mutateAsync({
