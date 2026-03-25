@@ -14,7 +14,7 @@ export const agentsRouter = router({
   list: protectedProcedure
     .input(
       z.object({
-        limit: z.number().min(1).max(100).default(50),
+        limit: z.number().min(1).max(500).default(50),
         offset: z.number().min(0).default(0),
       }),
     )
@@ -33,7 +33,7 @@ export const agentsRouter = router({
     .input(
       z.object({
         workspaceId: z.string().uuid(),
-        limit: z.number().min(1).max(100).default(50),
+        limit: z.number().min(1).max(500).default(50),
         offset: z.number().min(0).default(0),
       }),
     )
