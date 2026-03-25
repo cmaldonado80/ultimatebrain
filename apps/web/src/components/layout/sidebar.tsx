@@ -59,6 +59,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Connected Apps', href: '/apps', icon: '⬢' },
       { label: 'Engines', href: '/engines', icon: '⚙' },
+      { label: 'Brain Manager', href: '/engines/manage', icon: '◆' },
       { label: 'Skills', href: '/skills', icon: '★' },
       { label: 'Integrations', href: '/integrations', icon: '⊕' },
       { label: 'Settings', href: '/settings', icon: '⚿' },
