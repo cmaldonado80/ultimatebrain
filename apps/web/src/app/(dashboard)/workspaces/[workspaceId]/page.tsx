@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation'
 import { trpc } from '../../../../utils/trpc'
+import { DbErrorBanner } from '../../../../components/db-error-banner'
 
 const LIFECYCLE_COLORS: Record<string, string> = {
   draft: '#6b7280',
@@ -36,7 +37,7 @@ export default function WorkspaceDetailPage() {
   if (wsQuery.error) {
     return (
       <div style={styles.page}>
-        <div style={{ color: '#fca5a5', padding: 20 }}>Error: {wsQuery.error.message}</div>
+        <DbErrorBanner error={wsQuery.error} />
       </div>
     )
   }

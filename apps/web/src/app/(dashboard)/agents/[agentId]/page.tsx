@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { trpc } from '../../../../utils/trpc'
+import { DbErrorBanner } from '../../../../components/db-error-banner'
 
 export default function AgentDetailPage() {
   const params = useParams()
@@ -28,7 +29,7 @@ export default function AgentDetailPage() {
   if (error) {
     return (
       <div style={styles.page}>
-        <div style={{ color: '#fca5a5', padding: 20 }}>Error: {error.message}</div>
+        <DbErrorBanner error={error} />
       </div>
     )
   }
