@@ -152,7 +152,9 @@ export async function initOpenClaw(): Promise<void> {
 
   // Periodic refresh (picks up OpenClaw updates without reconnect)
   refreshInterval = setInterval(() => {
-    refreshCapabilities().catch(() => {})
+    refreshCapabilities().catch((err) =>
+      console.warn('[OpenClaw] capability refresh failed:', err.message),
+    )
   }, REFRESH_INTERVAL_MS)
 
   // Start health pings

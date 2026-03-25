@@ -182,7 +182,13 @@ export class BrowserAgentStream {
   // ── Event Emission ────────────────────────────────────────────────────
 
   /** Record an action event (click, type, scroll, etc.) */
-  emitAction(sessionId: string, action: string, description: string, selector?: string, value?: string): void {
+  emitAction(
+    sessionId: string,
+    action: string,
+    description: string,
+    selector?: string,
+    value?: string,
+  ): void {
     this.emit(sessionId, {
       type: 'action',
       sessionId,
@@ -236,10 +242,14 @@ export class BrowserAgentStream {
       try {
         // Playwright is an optional peer dependency — dynamically imported
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pw = await (Function('return import("playwright")')() as Promise<any>).catch(() => null)
+        const pw = await (Function('return import("playwright")')() as Promise<any>).catch(
+          () => null,
+        )
         if (!pw) {
           if (!this.playwrightWarned) {
-            console.warn('[BrowserAgentStream] playwright not available — using placeholder screenshot URLs')
+            console.warn(
+              '[BrowserAgentStream] playwright not available — using placeholder screenshot URLs',
+            )
             this.playwrightWarned = true
           }
           return
@@ -247,7 +257,14 @@ export class BrowserAgentStream {
 
         const browser = await pw.chromium.launch({ headless: true })
         const page = await browser.newPage()
-        await page.goto(session.currentUrl, { timeout: 8000 }).catch(() => {})
+        await page
+          .goto(session.currentUrl, { timeout: 8000 })
+          .catch((err: unknown) =>
+            console.warn(
+              '[BrowserAgent] navigation failed:',
+              err instanceof Error ? err.message : String(err),
+            ),
+          )
         const buf = await page.screenshot({ type: 'png' })
         await browser.close()
 
@@ -261,7 +278,7 @@ export class BrowserAgentStream {
 
         // Update the already-stored record with real data
         const existing = storedScreenshots.find(
-          (s) => s.sessionId === sessionId && s.sequence === sequence
+          (s) => s.sessionId === sessionId && s.sequence === sequence,
         )
         if (existing) existing.url = screenshotUrl
         session.latestScreenshot = screenshotUrl

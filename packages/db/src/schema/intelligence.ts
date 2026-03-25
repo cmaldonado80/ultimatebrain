@@ -23,7 +23,7 @@ export const memories = pgTable(
     key: text('key').notNull(),
     content: text('content').notNull(),
     source: uuid('source').references(() => agents.id, { onDelete: 'set null' }),
-    confidence: real('confidence'),
+    confidence: real('confidence').default(0.5).notNull(),
     workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
     tier: memoryTierEnum('tier').default('recall').notNull(),
     accessCount: integer('access_count').default(0).notNull(),
@@ -58,17 +58,21 @@ export const chatSessions = pgTable(
   (t) => [index('chat_sessions_agent_id_idx').on(t.agentId)],
 )
 
-export const chatMessages = pgTable('chat_messages', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  sessionId: uuid('session_id')
-    .references(() => chatSessions.id, { onDelete: 'cascade' })
-    .notNull(),
-  role: text('role').notNull(),
-  text: text('text').notNull(),
-  attachment: jsonb('attachment'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-})
+export const chatMessages = pgTable(
+  'chat_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .references(() => chatSessions.id, { onDelete: 'cascade' })
+      .notNull(),
+    role: text('role').notNull(),
+    text: text('text').notNull(),
+    attachment: jsonb('attachment'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [index('chat_messages_session_id_idx').on(t.sessionId)],
+)
 
 export const agentMessages = pgTable(
   'agent_messages',
@@ -81,8 +85,8 @@ export const agentMessages = pgTable(
       .references(() => agents.id, { onDelete: 'cascade' })
       .notNull(),
     text: text('text').notNull(),
-    read: boolean('read').default(false),
-    ackStatus: text('ack_status'),
+    read: boolean('read').default(false).notNull(),
+    ackStatus: text('ack_status').default('pending').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },
@@ -130,10 +134,16 @@ export const agentTrustScores = pgTable('agent_trust_scores', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
-export const cognitiveCandidates = pgTable('cognitive_candidates', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  memoryId: uuid('memory_id').references(() => memories.id, { onDelete: 'cascade' }),
-  status: candidateStatusEnum('status').default('pending'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-})
+export const cognitiveCandidates = pgTable(
+  'cognitive_candidates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memoryId: uuid('memory_id')
+      .references(() => memories.id, { onDelete: 'cascade' })
+      .notNull(),
+    status: candidateStatusEnum('status').default('pending'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [index('cognitive_candidates_memory_id_idx').on(t.memoryId)],
+)

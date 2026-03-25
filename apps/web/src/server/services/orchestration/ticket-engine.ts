@@ -17,7 +17,7 @@ import {
   ticketComments,
   agents,
 } from '@solarc/db'
-import { eq, and, inArray, lte, sql } from 'drizzle-orm'
+import { eq, and, or, inArray, lte, isNull, sql } from 'drizzle-orm'
 import { NotFoundError, ValidationError } from '../../errors'
 
 export type TicketStatus =
@@ -83,40 +83,46 @@ export class TicketExecutionEngine {
   async acquireLock(ticketId: string, agentId: string, leaseSeconds = 300): Promise<boolean> {
     const now = new Date()
     const leaseUntil = new Date(now.getTime() + leaseSeconds * 1000)
+    const runId = crypto.randomUUID()
 
-    // Try to insert or update if lease expired
-    const existing = await this.db.query.ticketExecution.findFirst({
-      where: eq(ticketExecution.ticketId, ticketId),
-    })
+    // Atomic update: claim only if unlocked or lease expired (prevents TOCTOU race)
+    const result = await this.db
+      .update(ticketExecution)
+      .set({
+        lockOwner: agentId,
+        lockedAt: now,
+        leaseUntil,
+        leaseSeconds,
+        runId,
+      })
+      .where(
+        and(
+          eq(ticketExecution.ticketId, ticketId),
+          or(
+            isNull(ticketExecution.lockOwner),
+            lte(ticketExecution.leaseUntil, now),
+            eq(ticketExecution.lockOwner, agentId),
+          ),
+        ),
+      )
+      .returning()
 
-    if (existing) {
-      // Check if current lease is still valid
-      if (existing.lockOwner && existing.leaseUntil && existing.leaseUntil > now) {
-        return existing.lockOwner === agentId // Already own it
-      }
+    if (result.length > 0) return true
 
-      // Expired or unlocked — claim it
-      await this.db
-        .update(ticketExecution)
-        .set({
-          lockOwner: agentId,
-          lockedAt: now,
-          leaseUntil,
-          leaseSeconds,
-        })
-        .where(eq(ticketExecution.ticketId, ticketId))
-    } else {
+    // No row existed — try insert (another agent may beat us, so catch conflicts)
+    try {
       await this.db.insert(ticketExecution).values({
         ticketId,
         lockOwner: agentId,
         lockedAt: now,
         leaseUntil,
         leaseSeconds,
-        runId: crypto.randomUUID(),
+        runId,
       })
+      return true
+    } catch {
+      return false
     }
-
-    return true
   }
 
   /**
@@ -373,7 +379,9 @@ export class TicketExecutionEngine {
     })
 
     // Notify OpenClaw of failure (non-blocking)
-    this.notifyOpenClaw('ticket.failed', { ticketId, reason: reason.slice(0, 500) }).catch(() => {})
+    this.notifyOpenClaw('ticket.failed', { ticketId, reason: reason.slice(0, 500) }).catch((err) =>
+      console.warn('[TicketEngine] notification failed:', err.message),
+    )
   }
 
   /** Push execution events to OpenClaw ops channel (fire-and-forget). */

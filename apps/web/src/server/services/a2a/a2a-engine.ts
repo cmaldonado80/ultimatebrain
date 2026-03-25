@@ -185,7 +185,9 @@ export class A2AEngine {
       .where(eq(a2aDelegations.id, delegationId))
       .returning({ id: a2aDelegations.id })
     if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
-    this.notifyChannel('completed', delegationId, {}).catch(() => {})
+    this.notifyChannel('completed', delegationId, {}).catch((err) =>
+      console.warn('[A2AEngine] notification failed:', err.message),
+    )
   }
 
   async fail(delegationId: string, error: string): Promise<void> {
@@ -195,7 +197,9 @@ export class A2AEngine {
       .where(eq(a2aDelegations.id, delegationId))
       .returning({ id: a2aDelegations.id })
     if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
-    this.notifyChannel('failed', delegationId, { error }).catch(() => {})
+    this.notifyChannel('failed', delegationId, { error }).catch((err) =>
+      console.warn('[A2AEngine] notification failed:', err.message),
+    )
   }
 
   async getStatus(delegationId: string): Promise<DelegationResult> {

@@ -23,6 +23,8 @@ export const memoryRouter = router({
         .object({
           tier: z.enum(['core', 'recall', 'archival']).optional(),
           workspaceId: z.string().uuid().optional(),
+          limit: z.number().min(1).max(100).default(50),
+          offset: z.number().min(0).default(0),
         })
         .optional(),
     )
@@ -32,6 +34,8 @@ export const memoryRouter = router({
       if (input?.workspaceId) conditions.push(eq(memories.workspaceId, input.workspaceId))
       return ctx.db.query.memories.findMany({
         where: conditions.length > 0 ? and(...conditions) : undefined,
+        limit: input?.limit ?? 50,
+        offset: input?.offset ?? 0,
       })
     }),
 

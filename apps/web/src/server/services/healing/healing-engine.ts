@@ -394,8 +394,6 @@ export class HealingEngine {
     this.db
       .insert(healingLogs)
       .values({ action, target, reason, success })
-      .catch(() => {
-        // Silently fail — healing log is non-critical
-      })
+      .catch((err) => console.warn('[HealingEngine] log write failed:', err.message))
   }
 }

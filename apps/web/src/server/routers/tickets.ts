@@ -8,19 +8,30 @@ import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
 import { tickets, ticketStatusHistory } from '@solarc/db'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 
 export const ticketsRouter = router({
   list: protectedProcedure
     .input(
       z
-        .object({ workspaceId: z.string().uuid().optional(), status: z.string().optional() })
+        .object({
+          workspaceId: z.string().uuid().optional(),
+          status: z
+            .enum(['backlog', 'queued', 'in_progress', 'review', 'done', 'failed', 'cancelled'])
+            .optional(),
+          limit: z.number().min(1).max(100).default(50),
+          offset: z.number().min(0).default(0),
+        })
         .optional(),
     )
     .query(async ({ ctx, input }) => {
+      const conditions = []
+      if (input?.workspaceId) conditions.push(eq(tickets.workspaceId, input.workspaceId))
+      if (input?.status) conditions.push(eq(tickets.status, input.status))
       return ctx.db.query.tickets.findMany({
-        where: input?.workspaceId ? eq(tickets.workspaceId, input.workspaceId) : undefined,
-        limit: 100,
+        where: conditions.length > 0 ? and(...conditions) : undefined,
+        limit: input?.limit ?? 50,
+        offset: input?.offset ?? 0,
       })
     }),
   byId: protectedProcedure

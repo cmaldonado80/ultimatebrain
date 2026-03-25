@@ -150,7 +150,12 @@ export class InstinctEvolver {
    *   ## Confidence Origin
    *   Evolved from 3 instincts with combined evidence count: 163
    */
-  async evolveToSkill(cluster: InstinctCluster): Promise<EvolutionResult> {
+  async evolveToSkill(cluster: InstinctCluster): Promise<EvolutionResult | null> {
+    if (!this.gateway) {
+      console.warn('[Evolve] No gateway configured — skipping skill evolution for', cluster.label)
+      return null
+    }
+
     const skillId = `skill-${cluster.label}-${randomUUID().slice(0, 8)}`
     const totalEvidence = cluster.instincts.reduce((sum, i) => sum + i.evidenceCount, 0)
     const avgConfidence =
@@ -165,7 +170,8 @@ export class InstinctEvolver {
           messages: [
             {
               role: 'system',
-              content: 'You are a skill document generator. Given a cluster of instinct triggers and actions, produce a valid SKILL.md document with sections: Skill name, version, domain, Trigger Conditions, Steps, and Notes.',
+              content:
+                'You are a skill document generator. Given a cluster of instinct triggers and actions, produce a valid SKILL.md document with sections: Skill name, version, domain, Trigger Conditions, Steps, and Notes.',
             },
             {
               role: 'user',
@@ -175,7 +181,10 @@ export class InstinctEvolver {
         })
         skillMdContent = result.content
       } catch (err) {
-        console.warn(`[Evolve] LLM skill generation failed for "${cluster.label}", using stub:`, err)
+        console.warn(
+          `[Evolve] LLM skill generation failed for "${cluster.label}", using stub:`,
+          err,
+        )
         skillMdContent = this.generateSkillMdStub(cluster, skillId, totalEvidence, avgConfidence)
       }
     } else {
@@ -219,7 +228,8 @@ export class InstinctEvolver {
           messages: [
             {
               role: 'system',
-              content: 'You are a command schema generator. Given a cluster of instinct triggers and actions, produce a JSON command definition with fields: id, name, description, domain, trigger, actions, parameters.',
+              content:
+                'You are a command schema generator. Given a cluster of instinct triggers and actions, produce a JSON command definition with fields: id, name, description, domain, trigger, actions, parameters.',
             },
             {
               role: 'user',
@@ -229,7 +239,10 @@ export class InstinctEvolver {
         })
         content = result.content
       } catch (err) {
-        console.warn(`[Evolve] LLM command generation failed for "${cluster.label}", using stub:`, err)
+        console.warn(
+          `[Evolve] LLM command generation failed for "${cluster.label}", using stub:`,
+          err,
+        )
         content = JSON.stringify(this.generateCommandStub(cluster, commandId), null, 2)
       }
     } else {
@@ -325,9 +338,34 @@ export class InstinctEvolver {
 
   private tokenize(text: string): Set<string> {
     const stopWords = new Set([
-      'a', 'an', 'the', 'is', 'are', 'was', 'were', 'in', 'on', 'at',
-      'to', 'for', 'of', 'and', 'or', 'but', 'with', 'when', 'that',
-      'this', 'it', 'you', 'we', 'be', 'do', 'should', 'use', 'apply',
+      'a',
+      'an',
+      'the',
+      'is',
+      'are',
+      'was',
+      'were',
+      'in',
+      'on',
+      'at',
+      'to',
+      'for',
+      'of',
+      'and',
+      'or',
+      'but',
+      'with',
+      'when',
+      'that',
+      'this',
+      'it',
+      'you',
+      'we',
+      'be',
+      'do',
+      'should',
+      'use',
+      'apply',
     ])
     return new Set(
       text
@@ -348,9 +386,7 @@ export class InstinctEvolver {
     totalEvidence: number,
     avgConfidence: number,
   ): string {
-    const steps = cluster.instincts
-      .map((inst, i) => `${i + 1}. ${inst.action}`)
-      .join('\n')
+    const steps = cluster.instincts.map((inst, i) => `${i + 1}. ${inst.action}`).join('\n')
 
     const triggers = cluster.instincts.map((i) => `- ${i.trigger}`).join('\n')
 
@@ -391,7 +427,9 @@ Average confidence at evolution: ${Math.round(avgConfidence * 100)}%.
       evolvedFromInstincts: cluster.instincts.map((i) => i.id),
       parameters: {
         trigger: { type: 'string', description: 'The trigger condition for this command' },
-        ...(cluster.domain !== 'universal' ? { domain: { type: 'string', description: `Domain context (${cluster.domain})` } } : {}),
+        ...(cluster.domain !== 'universal'
+          ? { domain: { type: 'string', description: `Domain context (${cluster.domain})` } }
+          : {}),
       },
     }
   }

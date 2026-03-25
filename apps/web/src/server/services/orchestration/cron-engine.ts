@@ -121,7 +121,9 @@ export class CronEngine {
       .where(eq(cronJobs.id, jobId))
 
     // Notify OpenClaw of job success (non-blocking)
-    this.notifyOpenClaw('job.success', jobId, { result }).catch(() => {})
+    this.notifyOpenClaw('job.success', jobId, { result }).catch((err) =>
+      console.warn('[CronEngine] notification failed:', err.message),
+    )
   }
 
   /**

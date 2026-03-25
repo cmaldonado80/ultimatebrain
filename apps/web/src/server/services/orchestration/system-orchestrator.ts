@@ -17,6 +17,7 @@ import {
   tickets,
   workspaceLifecycleEvents,
   orchestratorRoutes,
+  tokenLedger,
 } from '@solarc/db'
 import { eq, and, desc } from 'drizzle-orm'
 import { NotFoundError, ValidationError } from '../../errors'
@@ -518,14 +519,38 @@ export class SystemOrchestrator {
     totalWorkspaces: number
     activeWorkspaces: number
     workspacesOverBudget: number
+    budgetDetails: Array<{ entityId: string; spent: number; limit: number }>
   }> {
     const all = await this.db.query.workspaces.findMany()
     const active = all.filter((w) => w.lifecycleState === 'active')
 
+    // Check budget status for entities with budget limits
+    const budgets = await this.db.query.tokenBudgets.findMany()
+    const budgetDetails: Array<{ entityId: string; spent: number; limit: number }> = []
+
+    for (const budget of budgets) {
+      if (!budget.dailyLimitUsd) continue
+
+      // Sum today's spend for this entity
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const ledgerEntries = await this.db.query.tokenLedger.findMany({
+        where: eq(tokenLedger.entityId, budget.entityId),
+      })
+      const totalSpent = ledgerEntries.reduce((sum, e) => sum + (e.costUsd ?? 0), 0)
+
+      budgetDetails.push({
+        entityId: budget.entityId,
+        spent: totalSpent,
+        limit: budget.dailyLimitUsd,
+      })
+    }
+
     return {
       totalWorkspaces: all.length,
       activeWorkspaces: active.length,
-      workspacesOverBudget: 0, // TODO: integrate with TokenLedgerService.checkBudget()
+      workspacesOverBudget: budgetDetails.filter((b) => b.spent > b.limit).length,
+      budgetDetails,
     }
   }
 

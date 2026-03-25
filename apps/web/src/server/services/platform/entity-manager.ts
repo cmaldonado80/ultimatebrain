@@ -64,7 +64,9 @@ export class EntityManager {
       .returning()
 
     // Sync entity to OpenClaw daemon (non-blocking)
-    this.syncEntityToOpenClaw(entity!.id).catch(() => {})
+    this.syncEntityToOpenClaw(entity!.id).catch((err) =>
+      console.warn('[EntityManager] OpenClaw sync failed:', err.message),
+    )
 
     return entity!
   }
@@ -80,7 +82,9 @@ export class EntityManager {
         updatedAt: new Date(),
       })
       .where(eq(brainEntities.id, entityId))
-    this.syncEntityToOpenClaw(entityId).catch(() => {})
+    this.syncEntityToOpenClaw(entityId).catch((err) =>
+      console.warn('[EntityManager] OpenClaw sync failed:', err.message),
+    )
   }
 
   /**

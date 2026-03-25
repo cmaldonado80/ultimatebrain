@@ -527,7 +527,9 @@ export class GatewayRouter {
     this.adapters.set('ollama', new OllamaAdapter())
 
     // Wire OpenClaw adapter if daemon URL is configured
-    this.initOpenClawAdapter().catch(() => {})
+    this.initOpenClawAdapter().catch((err) =>
+      console.warn('[Gateway] operation failed:', err.message),
+    )
   }
 
   /** Lazily connect the OpenClaw adapter (non-blocking, startup continues). */
@@ -728,7 +730,7 @@ export class GatewayRouter {
           ) {
             this.cache
               .store(targetModel, messages, result.content, result.tokensIn, result.tokensOut)
-              .catch(() => {})
+              .catch((err) => console.warn('[Gateway] operation failed:', err.message))
           }
 
           return {

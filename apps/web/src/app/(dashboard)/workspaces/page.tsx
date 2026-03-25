@@ -16,6 +16,7 @@ interface Workspace {
   icon: string | null
   autonomyLevel: number | null
   lifecycleState: string
+  isSystemProtected: boolean | null
   settings: unknown
   createdAt: Date
   updatedAt: Date
@@ -272,8 +273,22 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
   return (
     <div style={styles.card}>
       <div style={styles.cardTop}>
-        <span style={styles.cardIcon}>{ws.icon || '📁'}</span>
+        <span style={styles.cardIcon}>{ws.type === 'system' ? '🔒' : ws.icon || '📁'}</span>
         <span style={styles.cardName}>{ws.name}</span>
+        {ws.type === 'system' && (
+          <span
+            style={{
+              fontSize: 10,
+              background: '#dc2626',
+              color: '#fff',
+              padding: '1px 6px',
+              borderRadius: 4,
+              fontWeight: 600,
+            }}
+          >
+            SYSTEM
+          </span>
+        )}
         <span
           style={{
             ...styles.lifecycleBadge,
