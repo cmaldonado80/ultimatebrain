@@ -355,7 +355,11 @@ class OllamaAdapter implements ProviderAdapter {
 
   private buildHeaders(apiKey?: string): Record<string, string> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
+    if (apiKey) {
+      // Strip any existing "Bearer " prefix to avoid "Bearer Bearer ..." duplication
+      const cleanKey = apiKey.replace(/^Bearer\s+/i, '').trim()
+      headers['Authorization'] = `Bearer ${cleanKey}`
+    }
     return headers
   }
 
@@ -365,15 +369,22 @@ class OllamaAdapter implements ProviderAdapter {
    */
   async pullModel(model: string, apiKey?: string): Promise<{ status: string; error?: string }> {
     const baseUrl = this.getBaseUrl()
+    const url = `${baseUrl}/api/pull`
+    const hasKey = !!apiKey
+    // eslint-disable-next-line no-console
+    console.log(`[Ollama] pull → ${url} (model=${model}, hasApiKey=${hasKey})`)
     try {
-      const res = await fetch(`${baseUrl}/api/pull`, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: this.buildHeaders(apiKey),
         body: JSON.stringify({ model: model.replace('ollama/', ''), stream: false }),
       })
       if (!res.ok) {
         const err = await res.text()
-        return { status: 'error', error: `Ollama pull failed (${res.status}): ${err}` }
+        return {
+          status: 'error',
+          error: `Ollama pull failed (${res.status}): ${err} [url=${url}, hasKey=${hasKey}]`,
+        }
       }
       const data = (await res.json()) as { status?: string; error?: string }
       return { status: data.status ?? 'success', error: data.error }
