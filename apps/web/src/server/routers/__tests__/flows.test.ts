@@ -93,28 +93,24 @@ describe('flows router', () => {
   // ── Auth ────────────────────────────────────────────────────────────────
 
   describe('auth', () => {
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects runCrew without a session', async () => {
+    it('rejects runCrew without a session', async () => {
       const trpc = caller({ db, session: null })
       await expect(
         trpc.runCrew({ name: 'crew', agents: [makeAgent()], task: 'do stuff' }),
       ).rejects.toThrow()
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects runAgent without a session', async () => {
+    it('rejects runAgent without a session', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.runAgent({ agent: makeAgent(), task: 'do stuff' })).rejects.toThrow()
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects recall without a session', async () => {
+    it('rejects recall without a session', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.recall({ query: 'test' })).rejects.toThrow()
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects promoteMemories without a session', async () => {
+    it('rejects promoteMemories without a session', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.promoteMemories({ memoryIds: [UUID] })).rejects.toThrow()
     })

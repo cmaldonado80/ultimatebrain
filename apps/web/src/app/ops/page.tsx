@@ -5,6 +5,7 @@
  */
 
 import { trpc } from '../../utils/trpc'
+import { DbErrorBanner } from '../../components/db-error-banner'
 
 export default function OpsOverviewPage() {
   const healthQuery = trpc.healing.healthCheck.useQuery()
@@ -19,6 +20,14 @@ export default function OpsOverviewPage() {
     gatewayHealthQuery.isLoading
   const error =
     healthQuery.error || tracesQuery.error || approvalsQuery.error || gatewayHealthQuery.error
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -54,29 +63,6 @@ export default function OpsOverviewPage() {
           System-wide operational dashboard — health, throughput, errors, and SLA compliance.
         </p>
       </div>
-
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
       <div style={styles.statsGrid}>
         <div style={styles.statCard}>
           <div

@@ -134,11 +134,17 @@ describe('TicketExecutionEngine', () => {
     })
 
     it('should reject lock acquisition when another agent holds a valid lease', async () => {
-      const futureDate = new Date(Date.now() + 300_000)
-      db.query.ticketExecution.findFirst.mockResolvedValue({
-        ticketId: 'ticket-1',
-        lockOwner: 'agent-other',
-        leaseUntil: futureDate,
+      // Atomic update returns empty (lock held by another agent, conditions not met)
+      db.update.mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      })
+      // Insert fails due to conflict (row already exists for this ticketId)
+      db.insert.mockReturnValue({
+        values: vi.fn().mockRejectedValue(new Error('duplicate key')),
       })
 
       const result = await engine.acquireLock('ticket-1', 'agent-2')

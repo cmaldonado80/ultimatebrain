@@ -86,6 +86,24 @@ export const workspaceLifecycleEnum = pgEnum('workspace_lifecycle', [
   'paused',
   'retired',
 ])
+export const workspaceTypeEnum = pgEnum('workspace_type', [
+  'general',
+  'development',
+  'staging',
+  'system',
+])
+export const modelTypeEnum = pgEnum('model_type', [
+  'vision',
+  'reasoning',
+  'agentic',
+  'coder',
+  'embedding',
+  'flash',
+  'guard',
+  'judge',
+  'router',
+  'multimodal',
+])
 export const workspaceBindingTypeEnum = pgEnum('workspace_binding_type', [
   'brain',
   'engine',
@@ -102,12 +120,13 @@ export const workspaceGoalStatusEnum = pgEnum('workspace_goal_status', [
 export const workspaces = pgTable('workspaces', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  type: text('type'),
+  type: workspaceTypeEnum('type').default('general'),
   goal: text('goal'),
   color: text('color'),
   icon: text('icon'),
   autonomyLevel: integer('autonomy_level').default(1),
   lifecycleState: workspaceLifecycleEnum('lifecycle_state').default('draft').notNull(),
+  isSystemProtected: boolean('is_system_protected').default(false),
   settings: jsonb('settings'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -128,11 +147,41 @@ export const agents = pgTable(
     tags: text('tags').array(),
     skills: text('skills').array(),
     isWsOrchestrator: boolean('is_ws_orchestrator').default(false),
+    parentOrchestratorId: uuid('parent_orchestrator_id'),
+    requiredModelType: modelTypeEnum('required_model_type'),
     triggerMode: text('trigger_mode'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (t) => [index('agents_workspace_id_idx').on(t.workspaceId)],
+)
+
+export const modelRegistry = pgTable(
+  'model_registry',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    modelId: text('model_id').notNull().unique(),
+    displayName: text('display_name').notNull(),
+    provider: text('provider').notNull(),
+    modelType: modelTypeEnum('model_type').notNull(),
+    secondaryTypes: text('secondary_types').array(),
+    contextWindow: integer('context_window'),
+    maxOutputTokens: integer('max_output_tokens'),
+    supportsVision: boolean('supports_vision').default(false),
+    supportsTools: boolean('supports_tools').default(false),
+    supportsStreaming: boolean('supports_streaming').default(false),
+    inputCostPerMToken: real('input_cost_per_m_token'),
+    outputCostPerMToken: real('output_cost_per_m_token'),
+    speedTier: text('speed_tier'),
+    isActive: boolean('is_active').default(true).notNull(),
+    detectedAt: timestamp('detected_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('model_registry_provider_idx').on(t.provider),
+    index('model_registry_type_idx').on(t.modelType),
+  ],
 )
 
 export const projects = pgTable('projects', {

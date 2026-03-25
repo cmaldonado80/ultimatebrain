@@ -58,6 +58,32 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // Pre-check: ensure an API key is available for the default provider
+        const defaultModel = 'claude-sonnet-4-6'
+        const providerName = defaultModel.startsWith('claude')
+          ? 'anthropic'
+          : defaultModel.startsWith('gpt') || defaultModel.startsWith('o')
+            ? 'openai'
+            : 'anthropic'
+        const hasKey = await gateway.keyVault.getKey(providerName)
+        const hasEnvKey =
+          providerName === 'anthropic'
+            ? !!process.env.ANTHROPIC_API_KEY
+            : providerName === 'openai'
+              ? !!process.env.OPENAI_API_KEY
+              : false
+        if (!hasKey && !hasEnvKey) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                error: `No API key configured for ${providerName}. Add one in Settings → LLM Providers.`,
+              })}\n\n`,
+            ),
+          )
+          controller.close()
+          return
+        }
+
         const gen = gateway.chatStream({
           messages: [
             { role: 'system', content: 'You are a helpful AI assistant. Be concise and direct.' },

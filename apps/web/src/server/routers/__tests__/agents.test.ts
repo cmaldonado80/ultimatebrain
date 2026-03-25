@@ -162,8 +162,7 @@ describe('agents router', () => {
       expect(result).toEqual(created)
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects creation without a session (UNAUTHORIZED)', async () => {
+    it('rejects creation without a session (UNAUTHORIZED)', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.create({ name: 'Nope' })).rejects.toThrow()
     })

@@ -14,8 +14,15 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 // pg is dynamically imported in setupDatabase to avoid compile-time module resolution
-import { eq } from 'drizzle-orm'
-import { createDb, agents, brainEntities, brainEntityAgents } from '@solarc/db'
+import { eq, and } from 'drizzle-orm'
+import {
+  createDb,
+  agents,
+  brainEntities,
+  brainEntityAgents,
+  workspaces,
+  orchestratorRoutes,
+} from '@solarc/db'
 
 export type MiniBrainTemplate =
   | 'astrology'
@@ -90,26 +97,75 @@ const TEMPLATES: TemplateDefinition[] = [
     domain: 'Astrology',
     engines: ['Swiss Ephemeris', 'Chart Calculator', 'Transit Engine'],
     agents: [
-      { name: 'Master Astrologer', role: 'Lead analysis', capabilities: ['natal-charts', 'transit-analysis', 'synastry'] },
-      { name: 'Transit Tracker', role: 'Real-time transit monitoring', capabilities: ['transit-alerts', 'aspect-detection'] },
-      { name: 'Sports Analyst', role: 'Sports astrology', capabilities: ['event-timing', 'team-analysis'] },
-      { name: 'Business Advisor', role: 'Business astrology', capabilities: ['electional', 'horary', 'mundane'] },
+      {
+        name: 'Master Astrologer',
+        role: 'Lead analysis',
+        capabilities: ['natal-charts', 'transit-analysis', 'synastry'],
+      },
+      {
+        name: 'Transit Tracker',
+        role: 'Real-time transit monitoring',
+        capabilities: ['transit-alerts', 'aspect-detection'],
+      },
+      {
+        name: 'Sports Analyst',
+        role: 'Sports astrology',
+        capabilities: ['event-timing', 'team-analysis'],
+      },
+      {
+        name: 'Business Advisor',
+        role: 'Business astrology',
+        capabilities: ['electional', 'horary', 'mundane'],
+      },
     ],
     dbTables: ['clients', 'natal_charts', 'readings', 'transit_alerts', 'sports_teams'],
-    developmentTemplates: ['sports-astrology', 'personal-astrology', 'business-astrology', 'mundane-astrology'],
+    developmentTemplates: [
+      'sports-astrology',
+      'personal-astrology',
+      'business-astrology',
+      'mundane-astrology',
+    ],
   },
   {
     id: 'hospitality',
     domain: 'Hotels',
     engines: ['PMS Integration', 'Revenue Mgmt', 'Guest Profile'],
     agents: [
-      { name: 'CEO', role: 'Strategic oversight', capabilities: ['strategy', 'reporting', 'kpi-tracking'] },
-      { name: 'COO', role: 'Operations management', capabilities: ['operations', 'staffing', 'quality'] },
-      { name: 'CFO', role: 'Financial analysis', capabilities: ['budgeting', 'forecasting', 'cost-analysis'] },
-      { name: 'GM', role: 'General management', capabilities: ['guest-relations', 'staff-management', 'daily-ops'] },
-      { name: 'F&B Director', role: 'Food & beverage', capabilities: ['menu-planning', 'inventory', 'cost-control'] },
-      { name: 'HR', role: 'Human resources', capabilities: ['recruitment', 'training', 'compliance'] },
-      { name: 'Sales', role: 'Revenue generation', capabilities: ['group-sales', 'corporate-rates', 'marketing'] },
+      {
+        name: 'CEO',
+        role: 'Strategic oversight',
+        capabilities: ['strategy', 'reporting', 'kpi-tracking'],
+      },
+      {
+        name: 'COO',
+        role: 'Operations management',
+        capabilities: ['operations', 'staffing', 'quality'],
+      },
+      {
+        name: 'CFO',
+        role: 'Financial analysis',
+        capabilities: ['budgeting', 'forecasting', 'cost-analysis'],
+      },
+      {
+        name: 'GM',
+        role: 'General management',
+        capabilities: ['guest-relations', 'staff-management', 'daily-ops'],
+      },
+      {
+        name: 'F&B Director',
+        role: 'Food & beverage',
+        capabilities: ['menu-planning', 'inventory', 'cost-control'],
+      },
+      {
+        name: 'HR',
+        role: 'Human resources',
+        capabilities: ['recruitment', 'training', 'compliance'],
+      },
+      {
+        name: 'Sales',
+        role: 'Revenue generation',
+        capabilities: ['group-sales', 'corporate-rates', 'marketing'],
+      },
     ],
     dbTables: ['reservations', 'guests', 'rooms', 'revenue_data', 'staff', 'fb_inventory'],
     developmentTemplates: ['luxury-hotel', 'boutique-resort', 'business-hotel', 'chain-operations'],
@@ -119,9 +175,21 @@ const TEMPLATES: TemplateDefinition[] = [
     domain: 'Medical',
     engines: ['HIPAA Checker', 'Clinical Protocol', 'Patient Profile'],
     agents: [
-      { name: 'Compliance Analyst', role: 'Regulatory compliance', capabilities: ['hipaa', 'audit', 'policy-review'] },
-      { name: 'Medical IP Counsel', role: 'Medical IP', capabilities: ['patents', 'trade-secrets', 'licensing'] },
-      { name: 'Clinical Reviewer', role: 'Clinical review', capabilities: ['protocol-review', 'trial-design', 'data-analysis'] },
+      {
+        name: 'Compliance Analyst',
+        role: 'Regulatory compliance',
+        capabilities: ['hipaa', 'audit', 'policy-review'],
+      },
+      {
+        name: 'Medical IP Counsel',
+        role: 'Medical IP',
+        capabilities: ['patents', 'trade-secrets', 'licensing'],
+      },
+      {
+        name: 'Clinical Reviewer',
+        role: 'Clinical review',
+        capabilities: ['protocol-review', 'trial-design', 'data-analysis'],
+      },
     ],
     dbTables: ['patients', 'protocols', 'compliance_logs', 'clinical_trials'],
     developmentTemplates: ['clinic-management', 'clinical-trials', 'telemedicine', 'pharmacy'],
@@ -131,37 +199,92 @@ const TEMPLATES: TemplateDefinition[] = [
     domain: 'Law',
     engines: ['Case Law Search', 'Contract Parser', 'Compliance Check'],
     agents: [
-      { name: 'Chief Legal Officer', role: 'Legal strategy', capabilities: ['litigation', 'corporate-law', 'risk-assessment'] },
-      { name: 'IP Counsel', role: 'Intellectual property', capabilities: ['patents', 'trademarks', 'copyright'] },
-      { name: 'Paralegal', role: 'Legal research', capabilities: ['case-research', 'document-prep', 'filing'] },
-      { name: 'Compliance Auditor', role: 'Regulatory compliance', capabilities: ['audit', 'policy', 'reporting'] },
+      {
+        name: 'Chief Legal Officer',
+        role: 'Legal strategy',
+        capabilities: ['litigation', 'corporate-law', 'risk-assessment'],
+      },
+      {
+        name: 'IP Counsel',
+        role: 'Intellectual property',
+        capabilities: ['patents', 'trademarks', 'copyright'],
+      },
+      {
+        name: 'Paralegal',
+        role: 'Legal research',
+        capabilities: ['case-research', 'document-prep', 'filing'],
+      },
+      {
+        name: 'Compliance Auditor',
+        role: 'Regulatory compliance',
+        capabilities: ['audit', 'policy', 'reporting'],
+      },
     ],
     dbTables: ['cases', 'contracts', 'regulations', 'filings', 'ip_portfolio'],
-    developmentTemplates: ['ip-portfolio', 'contract-review', 'compliance-audit', 'litigation-support'],
+    developmentTemplates: [
+      'ip-portfolio',
+      'contract-review',
+      'compliance-audit',
+      'litigation-support',
+    ],
   },
   {
     id: 'marketing',
     domain: 'Campaigns',
     engines: ['Campaign Engine', 'Analytics', 'A/B Tester'],
     agents: [
-      { name: 'Campaign Orchestrator', role: 'Campaign management', capabilities: ['planning', 'scheduling', 'optimization'] },
-      { name: 'Analytics Analyst', role: 'Data analysis', capabilities: ['reporting', 'attribution', 'forecasting'] },
-      { name: 'Content Creator', role: 'Content generation', capabilities: ['copywriting', 'creative', 'personalization'] },
+      {
+        name: 'Campaign Orchestrator',
+        role: 'Campaign management',
+        capabilities: ['planning', 'scheduling', 'optimization'],
+      },
+      {
+        name: 'Analytics Analyst',
+        role: 'Data analysis',
+        capabilities: ['reporting', 'attribution', 'forecasting'],
+      },
+      {
+        name: 'Content Creator',
+        role: 'Content generation',
+        capabilities: ['copywriting', 'creative', 'personalization'],
+      },
     ],
     dbTables: ['campaigns', 'audiences', 'experiments', 'creatives', 'metrics'],
-    developmentTemplates: ['social-media', 'email-campaigns', 'influencer-management', 'analytics-dashboard'],
+    developmentTemplates: [
+      'social-media',
+      'email-campaigns',
+      'influencer-management',
+      'analytics-dashboard',
+    ],
   },
   {
     id: 'soc-ops',
     domain: 'Security',
     engines: ['Threat Intel', 'SIEM Connector', 'Incident Response'],
     agents: [
-      { name: 'SOC Analyst', role: 'Alert triage', capabilities: ['alert-triage', 'investigation', 'escalation'] },
-      { name: 'Incident Responder', role: 'Incident management', capabilities: ['containment', 'eradication', 'recovery'] },
-      { name: 'Threat Hunter', role: 'Proactive hunting', capabilities: ['ioc-analysis', 'threat-modeling', 'forensics'] },
+      {
+        name: 'SOC Analyst',
+        role: 'Alert triage',
+        capabilities: ['alert-triage', 'investigation', 'escalation'],
+      },
+      {
+        name: 'Incident Responder',
+        role: 'Incident management',
+        capabilities: ['containment', 'eradication', 'recovery'],
+      },
+      {
+        name: 'Threat Hunter',
+        role: 'Proactive hunting',
+        capabilities: ['ioc-analysis', 'threat-modeling', 'forensics'],
+      },
     ],
     dbTables: ['incidents', 'alerts', 'indicators', 'playbooks', 'forensics'],
-    developmentTemplates: ['threat-monitoring', 'incident-management', 'vulnerability-scanning', 'compliance-reporting'],
+    developmentTemplates: [
+      'threat-monitoring',
+      'incident-management',
+      'vulnerability-scanning',
+      'compliance-reporting',
+    ],
   },
 ]
 
@@ -211,7 +334,8 @@ export class MiniBrainFactory {
     await this.cloneTemplate(config.template, targetDir)
 
     // Step 2-3: Database setup
-    const databaseUrl = config.databaseUrl ?? `postgresql://localhost:5432/mb_${config.name.replace(/\W/g, '_')}`
+    const databaseUrl =
+      config.databaseUrl ?? `postgresql://localhost:5432/mb_${config.name.replace(/\W/g, '_')}`
     await this.setupDatabase(databaseUrl, template.dbTables)
 
     // Step 4: Download domain data
@@ -219,6 +343,10 @@ export class MiniBrainFactory {
 
     // Step 5: Create agents
     const agentIds = await this.createAgents(template.agents, id)
+
+    // Step 5b: Create orchestrator agent for this mini brain
+    const orchId = await this.createOrchestrator(config.name, template.domain, 'mini_brain')
+    agentIds.push(orchId)
 
     // Step 6: Register entity
     await this.registerEntity(id, config.name, 'mini_brain', config.template)
@@ -265,6 +393,9 @@ export class MiniBrainFactory {
     await this.cloneTemplate(config.template, targetDir)
     await this.registerEntity(id, config.name, 'development', config.template, config.miniBrainId)
 
+    // Create orchestrator for this development, linked to mini brain's orchestrator
+    await this.createOrchestrator(config.name, config.template, 'development', config.miniBrainId)
+
     return {
       id,
       name: config.name,
@@ -292,6 +423,83 @@ export class MiniBrainFactory {
     return this.db
   }
 
+  /**
+   * Create an orchestrator agent for a mini brain or development,
+   * linked to the appropriate parent orchestrator in the hierarchy.
+   */
+  private async createOrchestrator(
+    name: string,
+    domain: string,
+    tier: 'mini_brain' | 'development',
+    parentEntityId?: string,
+  ): Promise<string> {
+    const db = this.getDb()
+
+    // Find parent orchestrator
+    let parentOrchestratorId: string | null = null
+
+    if (tier === 'development' && parentEntityId) {
+      // For developments, parent is the mini brain's orchestrator
+      // Find agents that are orchestrators and belong to the mini brain entity
+      const miniBrainAgents = await db.query.brainEntityAgents.findMany({
+        where: eq(brainEntityAgents.entityId, parentEntityId),
+      })
+      for (const assignment of miniBrainAgents) {
+        const agent = await db.query.agents.findFirst({
+          where: and(eq(agents.id, assignment.agentId), eq(agents.isWsOrchestrator, true)),
+        })
+        if (agent) {
+          parentOrchestratorId = agent.id
+          break
+        }
+      }
+    }
+
+    if (!parentOrchestratorId) {
+      // Fall back to system orchestrator
+      const systemWs = await db.query.workspaces.findFirst({
+        where: eq(workspaces.type, 'system'),
+      })
+      if (systemWs) {
+        const systemOrch = await db.query.agents.findFirst({
+          where: and(eq(agents.workspaceId, systemWs.id), eq(agents.isWsOrchestrator, true)),
+        })
+        parentOrchestratorId = systemOrch?.id ?? null
+      }
+    }
+
+    const [orch] = await db
+      .insert(agents)
+      .values({
+        name: `${name} Orchestrator`,
+        type: 'orchestrator',
+        description: `Orchestrator for ${domain} ${tier === 'mini_brain' ? 'Mini Brain' : 'Development'}`,
+        skills: ['coordination', 'task-routing', 'domain-routing', 'escalation'],
+        isWsOrchestrator: true,
+        parentOrchestratorId,
+        triggerMode: 'auto',
+      })
+      .returning({ id: agents.id })
+
+    // Add orchestrator route from system workspace if this is a mini brain
+    if (tier === 'mini_brain') {
+      const systemWs = await db.query.workspaces.findFirst({
+        where: eq(workspaces.type, 'system'),
+      })
+      if (systemWs) {
+        await db.insert(orchestratorRoutes).values({
+          fromWorkspace: systemWs.id,
+          toWorkspace: null, // mini brain doesn't have a workspace row yet in general workspaces
+          orchestratorId: orch.id,
+          rule: `route-to-${domain.toLowerCase()}`,
+          priority: 0,
+        })
+      }
+    }
+
+    return orch.id
+  }
+
   /** Resolve the on-disk path for a template id (e.g. "astrology" → templates/astrology) */
   private resolveTemplatePath(template: string): string {
     // Templates live at the repo root under templates/
@@ -305,7 +513,9 @@ export class MiniBrainFactory {
       try {
         await fs.access(templateDir)
       } catch {
-        throw new Error(`Template directory not found at ${templateDir}. Available templates: ${TEMPLATES.map((t) => t.id).join(', ')}`)
+        throw new Error(
+          `Template directory not found at ${templateDir}. Available templates: ${TEMPLATES.map((t) => t.id).join(', ')}`,
+        )
       }
       // Ensure parent of target exists
       await fs.mkdir(path.dirname(targetDir), { recursive: true })
@@ -313,7 +523,9 @@ export class MiniBrainFactory {
       await fs.cp(templateDir, targetDir, { recursive: true })
     } catch (err) {
       if (err instanceof Error && err.message.startsWith('Template directory not found')) throw err
-      throw new Error(`Failed to clone template "${template}" to ${targetDir}: ${err instanceof Error ? err.message : String(err)}`)
+      throw new Error(
+        `Failed to clone template "${template}" to ${targetDir}: ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
   }
 
@@ -329,23 +541,35 @@ export class MiniBrainFactory {
     const adminUrl = new URL(url)
     adminUrl.pathname = '/postgres'
     // Dynamic import to avoid bundling pg in the Next.js client
-    const pgModule = await import(/* webpackIgnore: true */ 'pg' as string) as { default?: { Client: new (opts: { connectionString: string }) => { connect(): Promise<void>; query(sql: string, params?: unknown[]): Promise<{ rowCount: number }>; end(): Promise<void> } }; Client?: new (opts: { connectionString: string }) => { connect(): Promise<void>; query(sql: string, params?: unknown[]): Promise<{ rowCount: number }>; end(): Promise<void> } }
+    const pgModule = (await import(/* webpackIgnore: true */ 'pg' as string)) as {
+      default?: {
+        Client: new (opts: { connectionString: string }) => {
+          connect(): Promise<void>
+          query(sql: string, params?: unknown[]): Promise<{ rowCount: number }>
+          end(): Promise<void>
+        }
+      }
+      Client?: new (opts: { connectionString: string }) => {
+        connect(): Promise<void>
+        query(sql: string, params?: unknown[]): Promise<{ rowCount: number }>
+        end(): Promise<void>
+      }
+    }
     const Client = pgModule.default?.Client ?? pgModule.Client!
     const client = new Client({ connectionString: adminUrl.toString() })
 
     try {
       await client.connect()
       // CREATE DATABASE cannot run inside a transaction; use IF NOT EXISTS via query
-      const exists = await client.query(
-        `SELECT 1 FROM pg_database WHERE datname = $1`,
-        [dbName]
-      )
+      const exists = await client.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName])
       if (exists.rowCount === 0) {
         // Identifiers can't be parameterised, but dbName comes from our own config
         await client.query(`CREATE DATABASE "${dbName}"`)
       }
     } catch (err) {
-      throw new Error(`Failed to set up database "${dbName}": ${err instanceof Error ? err.message : String(err)}`)
+      throw new Error(
+        `Failed to set up database "${dbName}": ${err instanceof Error ? err.message : String(err)}`,
+      )
     } finally {
       await client.end()
     }
@@ -360,7 +584,9 @@ export class MiniBrainFactory {
       })
     } catch (err) {
       // Migrations are best-effort; the schema may already be in place
-      console.warn(`[MiniBrainFactory] drizzle-kit push warning: ${err instanceof Error ? err.message : String(err)}`)
+      console.warn(
+        `[MiniBrainFactory] drizzle-kit push warning: ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
   }
 
@@ -393,10 +619,12 @@ export class MiniBrainFactory {
           await fs.mkdir(path.dirname(dest), { recursive: true })
           const buffer = Buffer.from(await res.arrayBuffer())
           await fs.writeFile(dest, buffer)
-        })
+        }),
       )
     } catch (err) {
-      throw new Error(`Failed to download domain data for template "${template}": ${err instanceof Error ? err.message : String(err)}`)
+      throw new Error(
+        `Failed to download domain data for template "${template}": ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
   }
 
@@ -418,7 +646,9 @@ export class MiniBrainFactory {
       }
       return ids
     } catch (err) {
-      throw new Error(`Failed to create agents for Mini Brain ${miniBrainId}: ${err instanceof Error ? err.message : String(err)}`)
+      throw new Error(
+        `Failed to create agents for Mini Brain ${miniBrainId}: ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
   }
 
@@ -440,7 +670,9 @@ export class MiniBrainFactory {
         status: 'provisioning',
       })
     } catch (err) {
-      throw new Error(`Failed to register entity "${name}" (${tier}): ${err instanceof Error ? err.message : String(err)}`)
+      throw new Error(
+        `Failed to register entity "${name}" (${tier}): ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
   }
 
@@ -459,7 +691,9 @@ export class MiniBrainFactory {
       ].join('\n')
       await fs.writeFile(envPath, envContent, 'utf-8')
     } catch (err) {
-      throw new Error(`Failed to write SDK connection config to ${targetDir}: ${err instanceof Error ? err.message : String(err)}`)
+      throw new Error(
+        `Failed to write SDK connection config to ${targetDir}: ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
   }
 
@@ -485,7 +719,9 @@ export class MiniBrainFactory {
       }
 
       if (!healerAgentId) {
-        console.warn(`[MiniBrainFactory] No healer agent found — skipping healer assignment for entity ${entityId}`)
+        console.warn(
+          `[MiniBrainFactory] No healer agent found — skipping healer assignment for entity ${entityId}`,
+        )
         return
       }
 
@@ -495,7 +731,9 @@ export class MiniBrainFactory {
         role: 'healer',
       })
     } catch (err) {
-      throw new Error(`Failed to assign healer to entity ${entityId}: ${err instanceof Error ? err.message : String(err)}`)
+      throw new Error(
+        `Failed to assign healer to entity ${entityId}: ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
   }
 }

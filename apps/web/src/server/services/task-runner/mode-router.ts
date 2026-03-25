@@ -119,10 +119,7 @@ export class ModeRouter {
    * Update a ticket's execution mode in the DB.
    */
   async setMode(ticketId: string, mode: ExecutionMode): Promise<void> {
-    await this.db
-      .update(tickets)
-      .set({ executionMode: mode })
-      .where(eq(tickets.id, ticketId))
+    await this.db.update(tickets).set({ executionMode: mode }).where(eq(tickets.id, ticketId))
   }
 
   /**
@@ -132,7 +129,7 @@ export class ModeRouter {
   async executeQuick(
     ticketId: string,
     prompt: string,
-    _options: ModeRouterOptions = {}
+    _options: ModeRouterOptions = {},
   ): Promise<QuickResult> {
     const start = Date.now()
 
@@ -162,7 +159,7 @@ export class ModeRouter {
    */
   async executeAutonomous(
     ticketId: string,
-    options: ModeRouterOptions = {}
+    options: ModeRouterOptions = {},
   ): Promise<AutonomousResult> {
     const start = Date.now()
 
@@ -202,10 +199,7 @@ export class ModeRouter {
    * Start deep work mode — Phase 1: generate a plan.
    * Returns plan for user review. Does NOT execute yet.
    */
-  async startDeepWork(
-    ticketId: string,
-    options: ModeRouterOptions = {}
-  ): Promise<DeepWorkResult> {
+  async startDeepWork(ticketId: string, options: ModeRouterOptions = {}): Promise<DeepWorkResult> {
     const start = Date.now()
 
     const ticket = await this.db.query.tickets.findFirst({
@@ -247,7 +241,7 @@ export class ModeRouter {
   async executeDeepWork(
     ticketId: string,
     plan: ExecutionPlan,
-    options: ModeRouterOptions = {}
+    options: ModeRouterOptions = {},
   ): Promise<DeepWorkResult> {
     const start = Date.now()
 
@@ -299,7 +293,7 @@ export class ModeRouter {
   async route(
     ticketId: string,
     prompt: string,
-    options: ModeRouterOptions = {}
+    options: ModeRouterOptions = {},
   ): Promise<ExecutionResult> {
     const mode = options.forceMode ?? (await this.detectMode(ticketId))
 
@@ -335,7 +329,7 @@ export class ModeRouter {
 
   private async runAutonomousPipeline(
     ticketId: string,
-    _options: ModeRouterOptions
+    _options: ModeRouterOptions,
   ): Promise<number> {
     try {
       // Step 1: Guardrails check — call gateway with a safety-check prompt
@@ -358,11 +352,36 @@ export class ModeRouter {
       })
 
       if (guardrailResult.content.toUpperCase().startsWith('BLOCKED')) {
-        console.warn(`[ModeRouter] Guardrail blocked ticket ${ticketId}: ${guardrailResult.content}`)
+        console.warn(
+          `[ModeRouter] Guardrail blocked ticket ${ticketId}: ${guardrailResult.content}`,
+        )
         return 0
       }
 
-      // Step 2: Execute via LLM with tools
+      // Step 2: Invoke OpenClaw skill if ticket requires one
+      let skillContext = ''
+      try {
+        const ticketMeta = ticket?.metadata as Record<string, unknown> | null
+        const ticketTags = (ticketMeta?.tags ?? []) as string[]
+        if (ticketTags.some((t) => t.startsWith('skill:'))) {
+          const skillName = ticketTags.find((t) => t.startsWith('skill:'))!.slice(6)
+          const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+          const client = getOpenClawClient()
+          if (client?.isConnected()) {
+            const { OpenClawSkills } = await import('../../adapters/openclaw/skills')
+            const skills = new OpenClawSkills(client)
+            const skillResult = await skills.invokeSkill(skillName, {
+              ticketId,
+              task: taskDescription,
+            })
+            skillContext = `\n\nSkill "${skillName}" result: ${JSON.stringify(skillResult.output ?? skillResult)}`
+          }
+        }
+      } catch (err) {
+        console.warn('[ModeRouter] OpenClaw skill invocation failed:', err)
+      }
+
+      // Step 3: Execute via LLM with tools (+ skill context if available)
       const executionResult = await this.gateway.chat({
         messages: [
           {
@@ -371,7 +390,7 @@ export class ModeRouter {
               'You are an autonomous agent executing a task. ' +
               'Describe the steps you would take and their outcomes.',
           },
-          { role: 'user', content: `Execute this task: ${taskDescription}` },
+          { role: 'user', content: `Execute this task: ${taskDescription}${skillContext}` },
         ],
       })
 
@@ -387,7 +406,7 @@ export class ModeRouter {
   private async generatePlan(
     ticketId: string,
     title: string,
-    description: string
+    description: string,
   ): Promise<ExecutionPlan> {
     try {
       const result = await this.gateway.chat({
@@ -479,7 +498,7 @@ export class ModeRouter {
   private async executeStep(
     ticketId: string,
     step: PlanStep,
-    _options: ModeRouterOptions
+    _options: ModeRouterOptions,
   ): Promise<void> {
     try {
       step.status = 'in_progress'
@@ -525,7 +544,7 @@ export class ModeRouter {
     ticketId: string,
     completedSteps: number,
     totalSteps: number,
-    options: ModeRouterOptions
+    options: ModeRouterOptions,
   ): Promise<void> {
     const progressSummary = `Deep work progress: ${completedSteps}/${totalSteps} steps completed for ticket ${ticketId}`
 
@@ -542,7 +561,7 @@ export class ModeRouter {
             message: progressSummary,
           },
         },
-        'mode-router'
+        'mode-router',
       )
     } catch (_err) {
       // Fallback to console logging if webhook dispatch fails

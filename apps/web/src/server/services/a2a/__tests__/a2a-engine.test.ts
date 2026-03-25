@@ -6,32 +6,71 @@ import { A2AEngine } from '../a2a-engine'
 vi.mock('@solarc/db', () => ({
   agentCards: { agentId: 'agentId' },
   agents: { id: 'id', skills: 'skills', name: 'name' },
+  a2aDelegations: {
+    id: 'id',
+    fromAgentId: 'fromAgentId',
+    toAgentId: 'toAgentId',
+    status: 'status',
+    createdAt: 'createdAt',
+    task: 'task',
+    context: 'context',
+  },
 }))
 
 vi.mock('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val }),
+  and: (...conditions: unknown[]) => ({ and: conditions }),
+  desc: (col: string) => ({ desc: col }),
   sql: (...args: unknown[]) => args,
 }))
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function createMockDb() {
-  const whereFn = vi.fn().mockReturnThis()
-  const setFn = vi.fn().mockReturnValue({ where: whereFn })
-  const valuesFn = vi.fn().mockResolvedValue(undefined)
-  const fromFn = vi.fn().mockReturnValue({ innerJoin: vi.fn().mockResolvedValue([]) })
+  // update chain: update().set().where().returning()
+  const updateReturningFn = vi.fn().mockResolvedValue([{ id: 'mock-delegation-id' }])
+  const updateWhereFn = vi.fn().mockReturnValue({ returning: updateReturningFn })
+  const setFn = vi.fn().mockReturnValue({ where: updateWhereFn })
+
+  // insert chain: insert().values().returning()
+  const insertReturningFn = vi.fn().mockResolvedValue([{ id: 'mock-delegation-id' }])
+  const valuesFn = vi.fn().mockReturnValue({ returning: insertReturningFn })
+
+  // delete chain: delete().where()
+  const deleteWhereFn = vi.fn().mockResolvedValue(undefined)
+
+  // select chain: select().from() -> { innerJoin, where }
+  // where -> { orderBy } for pendingFor
+  const orderByFn = vi.fn().mockResolvedValue([])
+  const selectWhereFn = vi.fn().mockReturnValue({ orderBy: orderByFn })
+  const innerJoinFn = vi.fn().mockResolvedValue([])
+  const fromFn = vi.fn().mockReturnValue({ innerJoin: innerJoinFn, where: selectWhereFn })
 
   return {
     query: {
       agentCards: {
         findFirst: vi.fn().mockResolvedValue(undefined),
       },
+      a2aDelegations: {
+        findFirst: vi.fn().mockResolvedValue(undefined),
+      },
     },
     insert: vi.fn().mockReturnValue({ values: valuesFn }),
     update: vi.fn().mockReturnValue({ set: setFn }),
-    delete: vi.fn().mockReturnValue({ where: whereFn }),
+    delete: vi.fn().mockReturnValue({ where: deleteWhereFn }),
     select: vi.fn().mockReturnValue({ from: fromFn }),
-    _mock: { whereFn, setFn, valuesFn, fromFn },
+    _mock: {
+      updateWhereFn,
+      updateReturningFn,
+      setFn,
+      valuesFn,
+      insertReturningFn,
+      fromFn,
+      deleteWhereFn,
+      selectWhereFn,
+      orderByFn,
+      innerJoinFn,
+    },
   } as any
 }
 
@@ -135,9 +174,7 @@ describe('A2AEngine', () => {
 
   describe('listCards', () => {
     it('should return all registered cards joined with agents', async () => {
-      const cards = [
-        { agentId: 'a1', capabilities: {}, agentName: 'Agent 1', agentStatus: 'idle' },
-      ]
+      const cards = [{ agentId: 'a1', capabilities: {}, agentName: 'Agent 1', agentStatus: 'idle' }]
       const innerJoinFn = vi.fn().mockResolvedValue(cards)
       const fromFn = vi.fn().mockReturnValue({ innerJoin: innerJoinFn })
       db.select.mockReturnValue({ from: fromFn })
@@ -153,18 +190,16 @@ describe('A2AEngine', () => {
 
   describe('discover', () => {
     it('should find agents by skill match', async () => {
-      const whereFn = vi.fn().mockResolvedValue([
-        { id: 'agent-1', name: 'Search Agent', skills: ['search'] },
-      ])
+      const whereFn = vi
+        .fn()
+        .mockResolvedValue([{ id: 'agent-1', name: 'Search Agent', skills: ['search'] }])
       const fromFn = vi.fn().mockReturnValue({ where: whereFn })
       db.select.mockReturnValue({ from: fromFn })
 
       // listCards returns empty to avoid duplicates logic
       const innerJoinFn = vi.fn().mockResolvedValue([])
       const fromFnCards = vi.fn().mockReturnValue({ innerJoin: innerJoinFn })
-      db.select
-        .mockReturnValueOnce({ from: fromFn })
-        .mockReturnValueOnce({ from: fromFnCards })
+      db.select.mockReturnValueOnce({ from: fromFn }).mockReturnValueOnce({ from: fromFnCards })
 
       const results = await engine.discover('search')
 
@@ -181,7 +216,12 @@ describe('A2AEngine', () => {
 
       // listCards returns a card with matching capability
       const innerJoinFn = vi.fn().mockResolvedValue([
-        { agentId: 'agent-2', capabilities: { translate: true }, agentName: 'Translator', endpoint: 'http://localhost' },
+        {
+          agentId: 'agent-2',
+          capabilities: { translate: true },
+          agentName: 'Translator',
+          endpoint: 'http://localhost',
+        },
       ])
       const cardsFromFn = vi.fn().mockReturnValue({ innerJoin: innerJoinFn })
 
@@ -192,19 +232,22 @@ describe('A2AEngine', () => {
       const results = await engine.discover('translate')
 
       expect(results).toHaveLength(1)
-      expect(results[0]).toEqual(
-        expect.objectContaining({ agentId: 'agent-2', matchType: 'card' }),
-      )
+      expect(results[0]).toEqual(expect.objectContaining({ agentId: 'agent-2', matchType: 'card' }))
     })
 
     it('should not return duplicate agents found by both skill and card', async () => {
-      const skillWhereFn = vi.fn().mockResolvedValue([
-        { id: 'agent-1', name: 'Agent 1', skills: ['search'] },
-      ])
+      const skillWhereFn = vi
+        .fn()
+        .mockResolvedValue([{ id: 'agent-1', name: 'Agent 1', skills: ['search'] }])
       const skillFromFn = vi.fn().mockReturnValue({ where: skillWhereFn })
 
       const innerJoinFn = vi.fn().mockResolvedValue([
-        { agentId: 'agent-1', capabilities: { search: true }, agentName: 'Agent 1', endpoint: null },
+        {
+          agentId: 'agent-1',
+          capabilities: { search: true },
+          agentName: 'Agent 1',
+          endpoint: null,
+        },
       ])
       const cardsFromFn = vi.fn().mockReturnValue({ innerJoin: innerJoinFn })
 
@@ -228,9 +271,14 @@ describe('A2AEngine', () => {
       expect(id).toBeDefined()
       expect(typeof id).toBe('string')
       expect(id.length).toBeGreaterThan(0)
+      expect(db.insert).toHaveBeenCalled()
     })
 
     it('should create unique IDs for each delegation', async () => {
+      db._mock.insertReturningFn
+        .mockResolvedValueOnce([{ id: 'delegation-1' }])
+        .mockResolvedValueOnce([{ id: 'delegation-2' }])
+
       const id1 = await engine.delegate(makeDelegateInput())
       const id2 = await engine.delegate(makeDelegateInput({ task: 'Another task' }))
 
@@ -241,49 +289,48 @@ describe('A2AEngine', () => {
   // ── State transitions ─────────────────────────────────────────────────
 
   describe('accept', () => {
-    it('should transition delegation to accepted', async () => {
-      const id = await engine.delegate(makeDelegateInput())
-      await engine.accept(id)
-      const status = await engine.getStatus(id)
+    it('should call update with accepted status', async () => {
+      await engine.accept('delegation-1')
 
-      expect(status.status).toBe('accepted')
+      expect(db.update).toHaveBeenCalled()
+      expect(db._mock.setFn).toHaveBeenCalledWith({ status: 'accepted' })
     })
 
     it('should throw for non-existent delegationId', async () => {
-      await expect(engine.accept('nonexistent')).rejects.toThrow(
-        'Delegation nonexistent not found',
-      )
+      db._mock.updateReturningFn.mockResolvedValue([])
+
+      await expect(engine.accept('nonexistent')).rejects.toThrow('Delegation nonexistent not found')
     })
   })
 
   describe('reject', () => {
-    it('should transition delegation to rejected', async () => {
-      const id = await engine.delegate(makeDelegateInput())
-      await engine.reject(id, 'Not capable')
-      const status = await engine.getStatus(id)
+    it('should call update with rejected status and reason', async () => {
+      await engine.reject('delegation-1', 'Not capable')
 
-      expect(status.status).toBe('rejected')
-      expect(status.error).toBe('Not capable')
+      expect(db.update).toHaveBeenCalled()
+      expect(db._mock.setFn).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'rejected', error: 'Not capable' }),
+      )
     })
 
     it('should throw for non-existent delegationId', async () => {
-      await expect(engine.reject('nonexistent')).rejects.toThrow(
-        'Delegation nonexistent not found',
-      )
+      db._mock.updateReturningFn.mockResolvedValue([])
+
+      await expect(engine.reject('nonexistent')).rejects.toThrow('Delegation nonexistent not found')
     })
   })
 
   describe('markInProgress', () => {
-    it('should transition delegation to in_progress', async () => {
-      const id = await engine.delegate(makeDelegateInput())
-      await engine.accept(id)
-      await engine.markInProgress(id)
-      const status = await engine.getStatus(id)
+    it('should call update with in_progress status', async () => {
+      await engine.markInProgress('delegation-1')
 
-      expect(status.status).toBe('in_progress')
+      expect(db.update).toHaveBeenCalled()
+      expect(db._mock.setFn).toHaveBeenCalledWith({ status: 'in_progress' })
     })
 
     it('should throw for non-existent delegationId', async () => {
+      db._mock.updateReturningFn.mockResolvedValue([])
+
       await expect(engine.markInProgress('nonexistent')).rejects.toThrow(
         'Delegation nonexistent not found',
       )
@@ -291,18 +338,21 @@ describe('A2AEngine', () => {
   })
 
   describe('complete', () => {
-    it('should transition delegation to completed with result', async () => {
-      const id = await engine.delegate(makeDelegateInput())
-      await engine.accept(id)
-      await engine.markInProgress(id)
-      await engine.complete(id, { summary: 'Done' })
-      const status = await engine.getStatus(id)
+    it('should call update with completed status and result', async () => {
+      await engine.complete('delegation-1', { summary: 'Done' })
 
-      expect(status.status).toBe('completed')
-      expect(status.result).toEqual({ summary: 'Done' })
+      expect(db.update).toHaveBeenCalled()
+      expect(db._mock.setFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'completed',
+          result: JSON.stringify({ summary: 'Done' }),
+        }),
+      )
     })
 
     it('should throw for non-existent delegationId', async () => {
+      db._mock.updateReturningFn.mockResolvedValue([])
+
       await expect(engine.complete('nonexistent', 'result')).rejects.toThrow(
         'Delegation nonexistent not found',
       )
@@ -310,18 +360,21 @@ describe('A2AEngine', () => {
   })
 
   describe('fail', () => {
-    it('should transition delegation to failed with error message', async () => {
-      const id = await engine.delegate(makeDelegateInput())
-      await engine.accept(id)
-      await engine.markInProgress(id)
-      await engine.fail(id, 'Timeout exceeded')
-      const status = await engine.getStatus(id)
+    it('should call update with failed status and error message', async () => {
+      await engine.fail('delegation-1', 'Timeout exceeded')
 
-      expect(status.status).toBe('failed')
-      expect(status.error).toBe('Timeout exceeded')
+      expect(db.update).toHaveBeenCalled()
+      expect(db._mock.setFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'failed',
+          error: 'Timeout exceeded',
+        }),
+      )
     })
 
     it('should throw for non-existent delegationId', async () => {
+      db._mock.updateReturningFn.mockResolvedValue([])
+
       await expect(engine.fail('nonexistent', 'error')).rejects.toThrow(
         'Delegation nonexistent not found',
       )
@@ -332,11 +385,17 @@ describe('A2AEngine', () => {
 
   describe('getStatus', () => {
     it('should return current status with delegationId', async () => {
-      const id = await engine.delegate(makeDelegateInput())
-      const status = await engine.getStatus(id)
+      db.query.a2aDelegations.findFirst.mockResolvedValue({
+        id: 'delegation-1',
+        status: 'pending',
+        result: null,
+        error: null,
+      })
+
+      const status = await engine.getStatus('delegation-1')
 
       expect(status).toEqual({
-        delegationId: id,
+        delegationId: 'delegation-1',
         status: 'pending',
         result: undefined,
         error: undefined,
@@ -344,6 +403,8 @@ describe('A2AEngine', () => {
     })
 
     it('should throw for non-existent delegationId', async () => {
+      db.query.a2aDelegations.findFirst.mockResolvedValue(undefined)
+
       await expect(engine.getStatus('nonexistent')).rejects.toThrow(
         'Delegation nonexistent not found',
       )
@@ -354,9 +415,13 @@ describe('A2AEngine', () => {
 
   describe('pendingFor', () => {
     it('should return pending delegations for a specific agent', async () => {
-      await engine.delegate(makeDelegateInput({ agentId: 'pending-agent-A', task: 'Task A' }))
-      await engine.delegate(makeDelegateInput({ agentId: 'pending-agent-A', task: 'Task B' }))
-      await engine.delegate(makeDelegateInput({ agentId: 'pending-agent-B', task: 'Task C' }))
+      const orderByFn = vi.fn().mockResolvedValue([
+        { id: 'del-1', task: 'Task A', context: null },
+        { id: 'del-2', task: 'Task B', context: null },
+      ])
+      const selectWhereFn = vi.fn().mockReturnValue({ orderBy: orderByFn })
+      const fromFn = vi.fn().mockReturnValue({ where: selectWhereFn })
+      db.select.mockReturnValue({ from: fromFn })
 
       const pending = await engine.pendingFor('pending-agent-A')
 
@@ -364,27 +429,24 @@ describe('A2AEngine', () => {
       expect(pending.map((p) => p.task)).toEqual(expect.arrayContaining(['Task A', 'Task B']))
     })
 
-    it('should not return non-pending delegations', async () => {
-      const id = await engine.delegate(makeDelegateInput({ agentId: 'pending-agent-C', task: 'Task A' }))
-      await engine.accept(id)
-
-      const pending = await engine.pendingFor('pending-agent-C')
-
-      expect(pending).toHaveLength(0)
-    })
-
     it('should return empty array when no pending delegations exist', async () => {
+      const orderByFn = vi.fn().mockResolvedValue([])
+      const selectWhereFn = vi.fn().mockReturnValue({ orderBy: orderByFn })
+      const fromFn = vi.fn().mockReturnValue({ where: selectWhereFn })
+      db.select.mockReturnValue({ from: fromFn })
+
       const pending = await engine.pendingFor('agent-999')
 
       expect(pending).toEqual([])
     })
 
     it('should include context in pending delegation results', async () => {
-      await engine.delegate(makeDelegateInput({
-        agentId: 'pending-agent-D',
-        task: 'Task with context',
-        context: { key: 'value' },
-      }))
+      const orderByFn = vi
+        .fn()
+        .mockResolvedValue([{ id: 'del-1', task: 'Task with context', context: { key: 'value' } }])
+      const selectWhereFn = vi.fn().mockReturnValue({ orderBy: orderByFn })
+      const fromFn = vi.fn().mockReturnValue({ where: selectWhereFn })
+      db.select.mockReturnValue({ from: fromFn })
 
       const pending = await engine.pendingFor('pending-agent-D')
 
@@ -399,7 +461,7 @@ describe('A2AEngine', () => {
       await engine.removeCard('agent-1')
 
       expect(db.delete).toHaveBeenCalled()
-      expect(db._mock.whereFn).toHaveBeenCalled()
+      expect(db._mock.deleteWhereFn).toHaveBeenCalled()
     })
   })
 })

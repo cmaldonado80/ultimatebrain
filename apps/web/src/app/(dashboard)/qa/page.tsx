@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 interface DatasetSummary {
   id: string
@@ -31,6 +32,14 @@ export default function QAPage() {
     { datasetId: selectedDataset! },
     { enabled: !!selectedDataset },
   )
+
+  if (datasetsQuery.error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={datasetsQuery.error} />
+      </div>
+    )
+  }
 
   if (datasetsQuery.isLoading) {
     return (
@@ -62,29 +71,6 @@ export default function QAPage() {
           Record, replay, and validate visual test sessions for quality assurance.
         </p>
       </div>
-
-      {datasetsQuery.error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
       <div style={styles.layout}>
         <div style={styles.sidebar}>
           <div style={styles.sidebarTitle}>Datasets ({datasets.length})</div>

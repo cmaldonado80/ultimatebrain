@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 interface Workspace {
   id: string
@@ -16,6 +17,7 @@ interface Workspace {
   icon: string | null
   autonomyLevel: number | null
   lifecycleState: string
+  isSystemProtected: boolean | null
   settings: unknown
   createdAt: Date
   updatedAt: Date
@@ -56,7 +58,9 @@ export default function WorkspacesPage() {
   const [name, setName] = useState('')
   const [type, setType] = useState('')
   const [goal, setGoal] = useState('')
+  const [search, setSearch] = useState('')
   const { data, isLoading, error } = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
+
   const utils = trpc.useUtils()
   const createMut = trpc.workspaces.create.useMutation({
     onSuccess: () => {
@@ -67,6 +71,14 @@ export default function WorkspacesPage() {
       setGoal('')
     },
   })
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -87,13 +99,16 @@ export default function WorkspacesPage() {
     )
   }
 
-  const workspaces: Workspace[] = (data as Workspace[]) ?? []
+  const allWorkspaces: Workspace[] = (data as Workspace[]) ?? []
+  const workspaces = search
+    ? allWorkspaces.filter((w) => w.name.toLowerCase().includes(search.toLowerCase()))
+    : allWorkspaces
 
   return (
     <div style={styles.page}>
       <div style={styles.header}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Workspaces</h2>
+          <h2 style={styles.title}>Workspaces ({allWorkspaces.length})</h2>
           <button
             style={{
               background: '#818cf8',
@@ -114,6 +129,23 @@ export default function WorkspacesPage() {
           Lifecycle-managed organizational units with bindings, goals, and execution boundaries.
         </p>
       </div>
+
+      <input
+        style={{
+          width: '100%',
+          background: '#1f2937',
+          color: '#f9fafb',
+          border: '1px solid #374151',
+          borderRadius: 6,
+          padding: '8px 12px',
+          fontSize: 13,
+          boxSizing: 'border-box' as const,
+          marginBottom: 16,
+        }}
+        placeholder="Search workspaces..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
       {showForm && (
         <div
@@ -189,7 +221,7 @@ export default function WorkspacesPage() {
                   name.trim() &&
                   createMut.mutate({
                     name: name.trim(),
-                    type: type || undefined,
+                    type: (type as 'general' | 'development' | 'staging' | 'system') || undefined,
                     goal: goal.trim() || undefined,
                   })
                 }
@@ -204,29 +236,6 @@ export default function WorkspacesPage() {
           </div>
         </div>
       )}
-
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
       {workspaces.length === 0 ? (
         <div style={styles.empty}>No workspaces found. Create one to get started.</div>
       ) : (
@@ -251,8 +260,22 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
   return (
     <div style={styles.card}>
       <div style={styles.cardTop}>
-        <span style={styles.cardIcon}>{ws.icon || '📁'}</span>
+        <span style={styles.cardIcon}>{ws.type === 'system' ? '🔒' : ws.icon || '📁'}</span>
         <span style={styles.cardName}>{ws.name}</span>
+        {ws.type === 'system' && (
+          <span
+            style={{
+              fontSize: 10,
+              background: '#dc2626',
+              color: '#fff',
+              padding: '1px 6px',
+              borderRadius: 4,
+              fontWeight: 600,
+            }}
+          >
+            SYSTEM
+          </span>
+        )}
         <span
           style={{
             ...styles.lifecycleBadge,

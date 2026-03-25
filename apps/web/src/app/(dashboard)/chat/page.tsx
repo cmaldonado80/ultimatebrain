@@ -6,6 +6,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { trpc } from '../../../utils/trpc'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 interface ChatSession {
   id: string
@@ -108,6 +109,14 @@ export default function ChatPage() {
     }
   }, [selectedSession, newMessage, streaming, utils])
 
+  if (sessionsQuery.error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={sessionsQuery.error} />
+      </div>
+    )
+  }
+
   if (sessionsQuery.isLoading) {
     return (
       <div
@@ -136,27 +145,6 @@ export default function ChatPage() {
 
   return (
     <div style={styles.page}>
-      {sessionsQuery.error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
       <div style={styles.layout}>
         {/* Sidebar */}
         <div style={styles.sidebar}>

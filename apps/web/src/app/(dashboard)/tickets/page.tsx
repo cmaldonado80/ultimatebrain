@@ -6,6 +6,8 @@
 
 import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
+import ConfirmDialog from '../../../components/ui/confirm-dialog'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 interface Ticket {
   id: string
@@ -45,7 +47,11 @@ export default function TicketsPage() {
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium')
   const [executing, setExecuting] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const { data, isLoading, error } = trpc.tickets.list.useQuery()
+
   const utils = trpc.useUtils()
   const createMut = trpc.tickets.create.useMutation({
     onSuccess: () => {
@@ -70,6 +76,14 @@ export default function TicketsPage() {
     },
   })
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -89,13 +103,18 @@ export default function TicketsPage() {
     )
   }
 
-  const tickets: Ticket[] = (data as Ticket[]) ?? []
+  const allTickets: Ticket[] = (data as Ticket[]) ?? []
+  const tickets = allTickets
+    .filter((t) => statusFilter === 'all' || t.status === statusFilter)
+    .filter((t) => !search || t.title.toLowerCase().includes(search.toLowerCase()))
+
+  const STATUS_TABS = ['all', 'backlog', 'queued', 'in_progress', 'review', 'done', 'failed']
 
   return (
     <div style={styles.page}>
       <div style={styles.header}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Tickets</h2>
+          <h2 style={styles.title}>Tickets ({allTickets.length})</h2>
           <button
             style={{
               background: '#818cf8',
@@ -115,6 +134,44 @@ export default function TicketsPage() {
         <p style={styles.subtitle}>
           Track execution tickets through the pipeline — backlog, queued, in progress, review, done.
         </p>
+      </div>
+
+      <input
+        style={{
+          width: '100%',
+          background: '#1f2937',
+          color: '#f9fafb',
+          border: '1px solid #374151',
+          borderRadius: 6,
+          padding: '8px 12px',
+          fontSize: 13,
+          boxSizing: 'border-box' as const,
+          marginBottom: 10,
+        }}
+        placeholder="Search tickets..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, flexWrap: 'wrap' as const }}>
+        {STATUS_TABS.map((s) => (
+          <button
+            key={s}
+            style={{
+              background: statusFilter === s ? '#374151' : 'transparent',
+              color: statusFilter === s ? '#f9fafb' : '#6b7280',
+              border: '1px solid #374151',
+              borderRadius: 4,
+              padding: '3px 10px',
+              fontSize: 11,
+              cursor: 'pointer',
+              fontWeight: statusFilter === s ? 600 : 400,
+            }}
+            onClick={() => setStatusFilter(s)}
+          >
+            {s === 'all' ? 'All' : s.replace('_', ' ')}
+            {s !== 'all' && ` (${allTickets.filter((t) => t.status === s).length})`}
+          </button>
+        ))}
       </div>
 
       {showForm && (
@@ -206,29 +263,6 @@ export default function TicketsPage() {
           </div>
         </div>
       )}
-
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
       {tickets.length === 0 ? (
         <div style={styles.empty}>No tickets found. Create one to get started.</div>
       ) : (
@@ -287,9 +321,7 @@ export default function TicketsPage() {
                     cursor: 'pointer',
                     marginLeft: 6,
                   }}
-                  onClick={() => {
-                    if (confirm('Delete this ticket?')) deleteMut.mutate({ id: t.id })
-                  }}
+                  onClick={() => setDeleteTarget(t.id)}
                 >
                   Del
                 </button>
@@ -298,6 +330,19 @@ export default function TicketsPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Ticket"
+        message="Are you sure you want to delete this ticket? This action cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (deleteTarget) deleteMut.mutate({ id: deleteTarget })
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

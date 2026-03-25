@@ -10,24 +10,24 @@ import type { Database } from '@solarc/db'
 /** Per-million-token pricing (USD). Updated as providers change rates. */
 const PRICING: Record<string, { input: number; output: number }> = {
   // Anthropic
-  'claude-opus-4-6':   { input: 15.0,  output: 75.0  },
-  'claude-sonnet-4-6': { input: 3.0,   output: 15.0  },
-  'claude-haiku-4-5':  { input: 0.80,  output: 4.0   },
+  'claude-opus-4-6': { input: 15.0, output: 75.0 },
+  'claude-sonnet-4-6': { input: 3.0, output: 15.0 },
+  'claude-haiku-4-5': { input: 0.8, output: 4.0 },
   // OpenAI
-  'gpt-4o':            { input: 2.50,  output: 10.0  },
-  'gpt-4o-mini':       { input: 0.15,  output: 0.60  },
-  'gpt-4.1':           { input: 2.0,   output: 8.0   },
-  'gpt-4.1-mini':      { input: 0.40,  output: 1.60  },
-  'gpt-4.1-nano':      { input: 0.10,  output: 0.40  },
-  'o3':                { input: 10.0,  output: 40.0  },
-  'o3-mini':           { input: 1.10,  output: 4.40  },
-  'o4-mini':           { input: 1.10,  output: 4.40  },
+  'gpt-4o': { input: 2.5, output: 10.0 },
+  'gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'gpt-4.1': { input: 2.0, output: 8.0 },
+  'gpt-4.1-mini': { input: 0.4, output: 1.6 },
+  'gpt-4.1-nano': { input: 0.1, output: 0.4 },
+  o3: { input: 10.0, output: 40.0 },
+  'o3-mini': { input: 1.1, output: 4.4 },
+  'o4-mini': { input: 1.1, output: 4.4 },
   // Google
-  'gemini-2.5-pro':    { input: 1.25,  output: 10.0  },
-  'gemini-2.5-flash':  { input: 0.15,  output: 0.60  },
-  'gemini-2.0-flash':  { input: 0.10,  output: 0.40  },
+  'gemini-2.5-pro': { input: 1.25, output: 10.0 },
+  'gemini-2.5-flash': { input: 0.15, output: 0.6 },
+  'gemini-2.0-flash': { input: 0.1, output: 0.4 },
   // Local (free)
-  'ollama':            { input: 0,     output: 0     },
+  ollama: { input: 0, output: 0 },
 }
 
 export interface BudgetConfig {
@@ -92,7 +92,9 @@ export class CostTracker {
     cached: boolean
     error?: string
   }): Promise<CostResult> {
-    const costUsd = params.cached ? 0 : this.calculateCost(params.model, params.tokensIn, params.tokensOut)
+    const costUsd = params.cached
+      ? 0
+      : this.calculateCost(params.model, params.tokensIn, params.tokensOut)
 
     await this.db.insert(gatewayMetrics).values({
       provider: params.provider,
@@ -120,7 +122,7 @@ export class CostTracker {
     const budget = this.budgets.get(entityId) ?? DEFAULT_BUDGET
     const periodStart = this.getPeriodStart(budget.period)
 
-    const field = entityType === 'agent' ? gatewayMetrics.agentId : gatewayMetrics.agentId
+    const field = entityType === 'agent' ? gatewayMetrics.agentId : gatewayMetrics.ticketId
 
     const [result] = await this.db
       .select({
@@ -141,7 +143,10 @@ export class CostTracker {
   }
 
   /** Check if entity is within budget. Returns { allowed, warning, remaining } */
-  async checkBudget(entityId: string, entityType: 'agent' | 'workspace' = 'agent'): Promise<{
+  async checkBudget(
+    entityId: string,
+    entityType: 'agent' | 'workspace' = 'agent',
+  ): Promise<{
     allowed: boolean
     warning: boolean
     remainingUsd: number

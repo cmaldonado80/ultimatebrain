@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 interface Flow {
   id: string
@@ -32,6 +33,7 @@ export default function FlowsPage() {
   const [task, setTask] = useState('')
   const [runResult, setRunResult] = useState<string | null>(null)
   const { data, isLoading, error } = trpc.flows.list.useQuery()
+
   const runCrewMut = trpc.flows.runCrew.useMutation({
     onSuccess: (data) => {
       setRunResult(
@@ -44,6 +46,14 @@ export default function FlowsPage() {
       setTask('')
     },
   })
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -202,29 +212,6 @@ export default function FlowsPage() {
           </button>
         </div>
       )}
-
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
       {flows.length === 0 ? (
         <div style={styles.empty}>
           No flows defined yet. Create a flow to orchestrate agent workflows.

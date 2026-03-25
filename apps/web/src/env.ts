@@ -33,6 +33,7 @@ const envSchema = z.object({
 
   // ── OpenClaw daemon ────────────────────────────────────────
   OPENCLAW_WS: z.string().url().optional(),
+  OPENCLAW_TOKEN: z.string().optional(),
 
   // ── Observability ──────────────────────────────────────────
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),

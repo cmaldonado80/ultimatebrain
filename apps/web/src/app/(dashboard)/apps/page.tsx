@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 interface DisplayApp {
   id: string
@@ -66,6 +67,14 @@ export default function AppsPage() {
   const [filter, setFilter] = useState<string>('all')
   const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
 
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -93,7 +102,14 @@ export default function AppsPage() {
     type: a.type ?? 'agent',
     description: a.description ?? '',
     model: a.model ?? '',
-    status: 'running' as const,
+    status: (a.status === 'idle' ||
+    a.status === 'planning' ||
+    a.status === 'executing' ||
+    a.status === 'reviewing'
+      ? 'running'
+      : a.status === 'error'
+        ? 'degraded'
+        : 'offline') as 'running' | 'degraded' | 'offline',
     tags: a.tags ?? [],
     skills: a.skills ?? [],
     createdAt: new Date(a.createdAt),
@@ -113,29 +129,6 @@ export default function AppsPage() {
           </p>
         </div>
       </div>
-
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
       <div style={styles.tabs}>
         <button
           style={filter === 'all' ? styles.tabActive : styles.tab}

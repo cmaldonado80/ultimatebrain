@@ -9,11 +9,25 @@
  */
 
 import type { Database } from '@solarc/db'
-import { tickets, ticketExecution, ticketDependencies, ticketStatusHistory, ticketComments, agents } from '@solarc/db'
-import { eq, and, inArray, lte, sql } from 'drizzle-orm'
+import {
+  tickets,
+  ticketExecution,
+  ticketDependencies,
+  ticketStatusHistory,
+  ticketComments,
+  agents,
+} from '@solarc/db'
+import { eq, and, or, inArray, lte, isNull, sql } from 'drizzle-orm'
 import { NotFoundError, ValidationError } from '../../errors'
 
-export type TicketStatus = 'backlog' | 'queued' | 'in_progress' | 'review' | 'done' | 'failed' | 'cancelled'
+export type TicketStatus =
+  | 'backlog'
+  | 'queued'
+  | 'in_progress'
+  | 'review'
+  | 'done'
+  | 'failed'
+  | 'cancelled'
 
 /** Valid status transitions */
 const TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
@@ -69,50 +83,60 @@ export class TicketExecutionEngine {
   async acquireLock(ticketId: string, agentId: string, leaseSeconds = 300): Promise<boolean> {
     const now = new Date()
     const leaseUntil = new Date(now.getTime() + leaseSeconds * 1000)
+    const runId = crypto.randomUUID()
 
-    // Try to insert or update if lease expired
-    const existing = await this.db.query.ticketExecution.findFirst({
-      where: eq(ticketExecution.ticketId, ticketId),
-    })
-
-    if (existing) {
-      // Check if current lease is still valid
-      if (existing.lockOwner && existing.leaseUntil && existing.leaseUntil > now) {
-        return existing.lockOwner === agentId // Already own it
-      }
-
-      // Expired or unlocked — claim it
-      await this.db.update(ticketExecution).set({
+    // Atomic update: claim only if unlocked or lease expired (prevents TOCTOU race)
+    const result = await this.db
+      .update(ticketExecution)
+      .set({
         lockOwner: agentId,
         lockedAt: now,
         leaseUntil,
         leaseSeconds,
-      }).where(eq(ticketExecution.ticketId, ticketId))
-    } else {
+        runId,
+      })
+      .where(
+        and(
+          eq(ticketExecution.ticketId, ticketId),
+          or(
+            isNull(ticketExecution.lockOwner),
+            lte(ticketExecution.leaseUntil, now),
+            eq(ticketExecution.lockOwner, agentId),
+          ),
+        ),
+      )
+      .returning()
+
+    if (result.length > 0) return true
+
+    // No row existed — try insert (another agent may beat us, so catch conflicts)
+    try {
       await this.db.insert(ticketExecution).values({
         ticketId,
         lockOwner: agentId,
         lockedAt: now,
         leaseUntil,
         leaseSeconds,
-        runId: crypto.randomUUID(),
+        runId,
       })
+      return true
+    } catch {
+      return false
     }
-
-    return true
   }
 
   /**
    * Release an execution lock.
    */
   async releaseLock(ticketId: string, agentId: string): Promise<void> {
-    await this.db.update(ticketExecution).set({
-      lockOwner: null,
-      lockedAt: null,
-      leaseUntil: null,
-    }).where(
-      and(eq(ticketExecution.ticketId, ticketId), eq(ticketExecution.lockOwner, agentId)),
-    )
+    await this.db
+      .update(ticketExecution)
+      .set({
+        lockOwner: null,
+        lockedAt: null,
+        leaseUntil: null,
+      })
+      .where(and(eq(ticketExecution.ticketId, ticketId), eq(ticketExecution.lockOwner, agentId)))
   }
 
   /**
@@ -120,9 +144,11 @@ export class TicketExecutionEngine {
    */
   async renewLease(ticketId: string, agentId: string, leaseSeconds = 300): Promise<boolean> {
     const leaseUntil = new Date(Date.now() + leaseSeconds * 1000)
-    const result = await this.db.update(ticketExecution).set({ leaseUntil }).where(
-      and(eq(ticketExecution.ticketId, ticketId), eq(ticketExecution.lockOwner, agentId)),
-    ).returning()
+    const result = await this.db
+      .update(ticketExecution)
+      .set({ leaseUntil })
+      .where(and(eq(ticketExecution.ticketId, ticketId), eq(ticketExecution.lockOwner, agentId)))
+      .returning()
     return result.length > 0
   }
 
@@ -158,11 +184,13 @@ export class TicketExecutionEngine {
 
     // Check which blockers are done
     const allBlockerIds = [...new Set(deps.map((d) => d.blockedByTicketId))]
-    const blockerStatuses = allBlockerIds.length > 0
-      ? await this.db.select({ id: tickets.id, status: tickets.status })
-          .from(tickets)
-          .where(inArray(tickets.id, allBlockerIds))
-      : []
+    const blockerStatuses =
+      allBlockerIds.length > 0
+        ? await this.db
+            .select({ id: tickets.id, status: tickets.status })
+            .from(tickets)
+            .where(inArray(tickets.id, allBlockerIds))
+        : []
 
     const doneBlockers = new Set(
       blockerStatuses.filter((b) => b.status === 'done').map((b) => b.id),
@@ -187,9 +215,7 @@ export class TicketExecutionEngine {
     if (!ticket) return null
 
     const wsId = workspaceId ?? ticket.workspaceId
-    const conditions = [
-      eq(agents.status, 'idle'),
-    ]
+    const conditions = [eq(agents.status, 'idle')]
     if (wsId) conditions.push(eq(agents.workspaceId, wsId))
 
     const availableAgents = await this.db.query.agents.findMany({
@@ -198,12 +224,13 @@ export class TicketExecutionEngine {
 
     if (availableAgents.length === 0) return null
 
-    let selectedAgent: typeof availableAgents[0]
+    let selectedAgent: (typeof availableAgents)[0]
 
     switch (strategy.type) {
       case 'skill_match': {
         // Prefer agents whose skills overlap with ticket metadata
-        const requiredSkills = (ticket.metadata as Record<string, unknown> | null)?.requiredSkills as string[] | undefined
+        const requiredSkills = (ticket.metadata as Record<string, unknown> | null)
+          ?.requiredSkills as string[] | undefined
         if (requiredSkills?.length) {
           const scored = availableAgents.map((a) => ({
             agent: a,
@@ -224,10 +251,15 @@ export class TicketExecutionEngine {
             count: sql<number>`count(*)`,
           })
           .from(tickets)
-          .where(and(
-            eq(tickets.status, 'in_progress'),
-            inArray(tickets.assignedAgentId, availableAgents.map((a) => a.id)),
-          ))
+          .where(
+            and(
+              eq(tickets.status, 'in_progress'),
+              inArray(
+                tickets.assignedAgentId,
+                availableAgents.map((a) => a.id),
+              ),
+            ),
+          )
           .groupBy(tickets.assignedAgentId)
 
         const loadMap = new Map(loadCounts.map((l) => [l.agentId, l.count]))
@@ -240,10 +272,13 @@ export class TicketExecutionEngine {
     }
 
     // Assign
-    await this.db.update(tickets).set({
-      assignedAgentId: selectedAgent.id,
-      updatedAt: new Date(),
-    }).where(eq(tickets.id, ticketId))
+    await this.db
+      .update(tickets)
+      .set({
+        assignedAgentId: selectedAgent.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(tickets.id, ticketId))
 
     return selectedAgent.id
   }
@@ -260,11 +295,14 @@ export class TicketExecutionEngine {
    */
   async complete(ticketId: string, result: string, agentId?: string): Promise<void> {
     await this.db.transaction(async (tx) => {
-      await tx.update(tickets).set({
-        status: 'done',
-        result,
-        updatedAt: new Date(),
-      }).where(eq(tickets.id, ticketId))
+      await tx
+        .update(tickets)
+        .set({
+          status: 'done',
+          result,
+          updatedAt: new Date(),
+        })
+        .where(eq(tickets.id, ticketId))
 
       await tx.insert(ticketStatusHistory).values({
         ticketId,
@@ -274,17 +312,27 @@ export class TicketExecutionEngine {
 
       // Release lock
       if (agentId) {
-        await tx.update(ticketExecution).set({
-          lockOwner: null,
-          lockedAt: null,
-          leaseUntil: null,
-        }).where(eq(ticketExecution.ticketId, ticketId))
+        await tx
+          .update(ticketExecution)
+          .set({
+            lockOwner: null,
+            lockedAt: null,
+            leaseUntil: null,
+          })
+          .where(eq(ticketExecution.ticketId, ticketId))
 
         // Set agent back to idle only if currently in execution
-        await tx.update(agents).set({ status: 'idle', updatedAt: new Date() })
+        await tx
+          .update(agents)
+          .set({ status: 'idle', updatedAt: new Date() })
           .where(and(eq(agents.id, agentId), eq(agents.status, 'executing')))
       }
     })
+
+    // Notify OpenClaw of completion (non-blocking)
+    this.notifyOpenClaw('ticket.completed', { ticketId, result: result.slice(0, 500) }).catch(
+      () => {},
+    )
   }
 
   /**
@@ -292,11 +340,14 @@ export class TicketExecutionEngine {
    */
   async fail(ticketId: string, reason: string, agentId?: string): Promise<void> {
     await this.db.transaction(async (tx) => {
-      await tx.update(tickets).set({
-        status: 'failed',
-        result: reason,
-        updatedAt: new Date(),
-      }).where(eq(tickets.id, ticketId))
+      await tx
+        .update(tickets)
+        .set({
+          status: 'failed',
+          result: reason,
+          updatedAt: new Date(),
+        })
+        .where(eq(tickets.id, ticketId))
 
       await tx.insert(ticketStatusHistory).values({
         ticketId,
@@ -311,16 +362,36 @@ export class TicketExecutionEngine {
       })
 
       if (agentId) {
-        await tx.update(ticketExecution).set({
-          lockOwner: null,
-          lockedAt: null,
-          leaseUntil: null,
-        }).where(eq(ticketExecution.ticketId, ticketId))
+        await tx
+          .update(ticketExecution)
+          .set({
+            lockOwner: null,
+            lockedAt: null,
+            leaseUntil: null,
+          })
+          .where(eq(ticketExecution.ticketId, ticketId))
 
-        await tx.update(agents).set({ status: 'idle', updatedAt: new Date() })
+        await tx
+          .update(agents)
+          .set({ status: 'idle', updatedAt: new Date() })
           .where(and(eq(agents.id, agentId), eq(agents.status, 'executing')))
       }
     })
+
+    // Notify OpenClaw of failure (non-blocking)
+    this.notifyOpenClaw('ticket.failed', { ticketId, reason: reason.slice(0, 500) }).catch((err) =>
+      console.warn('[TicketEngine] notification failed:', err.message),
+    )
+  }
+
+  /** Push execution events to OpenClaw ops channel (fire-and-forget). */
+  private async notifyOpenClaw(event: string, data: Record<string, unknown>): Promise<void> {
+    const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+    const client = getOpenClawClient()
+    if (!client?.isConnected()) return
+    const { OpenClawChannels } = await import('../../adapters/openclaw/channels')
+    const channels = new OpenClawChannels(client)
+    await channels.sendMessage('ops', 'system', JSON.stringify({ event, ...data }))
   }
 
   /**
@@ -330,9 +401,11 @@ export class TicketExecutionEngine {
     return this.db
       .select()
       .from(ticketExecution)
-      .where(and(
-        lte(ticketExecution.leaseUntil, new Date()),
-        sql`${ticketExecution.lockOwner} is not null`,
-      ))
+      .where(
+        and(
+          lte(ticketExecution.leaseUntil, new Date()),
+          sql`${ticketExecution.lockOwner} is not null`,
+        ),
+      )
   }
 }

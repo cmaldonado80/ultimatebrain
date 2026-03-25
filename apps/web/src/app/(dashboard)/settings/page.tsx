@@ -6,23 +6,56 @@
 
 import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 export default function SettingsPage() {
   const [showKeyForm, setShowKeyForm] = useState(false)
   const [keyProvider, setKeyProvider] = useState('anthropic')
   const [apiKey, setApiKey] = useState('')
+  const [ollamaUrl, setOllamaUrl] = useState('')
+  const [newModelName, setNewModelName] = useState('')
   const featuresQuery = trpc.intelligence.features.useQuery()
   const policiesQuery = trpc.intelligence.policies.useQuery()
   const cognitionQuery = trpc.intelligence.cognitionState.useQuery()
   const providersQuery = trpc.gateway.listProviders.useQuery()
   const utils = trpc.useUtils()
+  const [pullStatus, setPullStatus] = useState<Record<string, string>>({})
+  const ollamaModelsQuery = trpc.gateway.ollamaModels.useQuery()
+  const ollamaAvailableQuery = trpc.gateway.listOllamaAvailable.useQuery()
+  const removeOllamaModelMut = trpc.gateway.removeOllamaModel.useMutation({
+    onSuccess: () => utils.gateway.ollamaModels.invalidate(),
+  })
+  const pullOllamaModelMut = trpc.gateway.pullOllamaModel.useMutation({
+    onSuccess: (data) => {
+      setPullStatus((prev) => ({ ...prev, [data.model]: 'success' }))
+      utils.gateway.ollamaModels.invalidate()
+      utils.gateway.listOllamaAvailable.invalidate()
+    },
+    onError: (err) => {
+      setPullStatus((prev) => ({ ...prev, [newModelName]: err.message }))
+    },
+  })
+  const deleteKeyMut = trpc.gateway.deleteKey.useMutation({
+    onSuccess: () => utils.gateway.listProviders.invalidate(),
+  })
   const storeKeyMut = trpc.gateway.storeKey.useMutation({
     onSuccess: () => {
       utils.gateway.listProviders.invalidate()
       setShowKeyForm(false)
       setApiKey('')
+      setOllamaUrl('')
     },
   })
+
+  const handleStoreKey = async () => {
+    if (!apiKey.trim()) return
+    // Store the API key
+    await storeKeyMut.mutateAsync({ provider: keyProvider, apiKey: apiKey.trim() })
+    // If Ollama, also store the URL
+    if (keyProvider === 'ollama' && ollamaUrl.trim()) {
+      await storeKeyMut.mutateAsync({ provider: 'ollama_url', apiKey: ollamaUrl.trim() })
+    }
+  }
 
   const isLoading =
     featuresQuery.isLoading ||
@@ -31,6 +64,14 @@ export default function SettingsPage() {
     providersQuery.isLoading
   const error =
     featuresQuery.error || policiesQuery.error || cognitionQuery.error || providersQuery.error
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -56,7 +97,7 @@ export default function SettingsPage() {
   const cognition = cognitionQuery.data as
     | { features?: Record<string, boolean>; policies?: Record<string, unknown>; updatedAt?: Date }
     | undefined
-  const providers = providersQuery.data as string[] | undefined
+  const providers = providersQuery.data as Array<{ provider: string; createdAt: Date }> | undefined
 
   return (
     <div style={styles.page}>
@@ -66,29 +107,6 @@ export default function SettingsPage() {
           Configure brain identity, API keys, LLM providers, and system preferences.
         </p>
       </div>
-
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
       <div style={styles.section}>
         <div
           style={{
@@ -144,6 +162,23 @@ export default function SettingsPage() {
                 <option value="google">Google</option>
                 <option value="ollama">Ollama (Cloud)</option>
               </select>
+              {keyProvider === 'ollama' && (
+                <input
+                  style={{
+                    background: '#1f2937',
+                    color: '#f9fafb',
+                    border: '1px solid #374151',
+                    borderRadius: 6,
+                    padding: '8px 12px',
+                    fontSize: 13,
+                    fontFamily: 'monospace',
+                  }}
+                  type="text"
+                  placeholder="https://ollama.com/api (Ollama Cloud) or http://localhost:11434 (local)"
+                  value={ollamaUrl}
+                  onChange={(e) => setOllamaUrl(e.target.value)}
+                />
+              )}
               <input
                 style={{
                   background: '#1f2937',
@@ -155,7 +190,9 @@ export default function SettingsPage() {
                   fontFamily: 'monospace',
                 }}
                 type="password"
-                placeholder="sk-... or API key"
+                placeholder={
+                  keyProvider === 'ollama' ? 'Bearer token / API key' : 'sk-... or API key'
+                }
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
               />
@@ -171,17 +208,16 @@ export default function SettingsPage() {
                     fontWeight: 600,
                     cursor: 'pointer',
                   }}
-                  onClick={() =>
-                    apiKey.trim() &&
-                    storeKeyMut.mutate({ provider: keyProvider, apiKey: apiKey.trim() })
-                  }
+                  onClick={handleStoreKey}
                   disabled={storeKeyMut.isPending || !apiKey.trim()}
                 >
                   {storeKeyMut.isPending ? 'Storing...' : 'Store Key (Encrypted)'}
                 </button>
                 {storeKeyMut.error && (
                   <span style={{ color: '#fca5a5', fontSize: 11 }}>
-                    {storeKeyMut.error.message}
+                    {storeKeyMut.error.message.includes('does not exist')
+                      ? 'Database tables not provisioned — run migrations first.'
+                      : storeKeyMut.error.message}
                   </span>
                 )}
               </div>
@@ -189,28 +225,204 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {providers && providers.length > 0 ? (
+        {providers && providers.filter((p) => p.provider !== 'ollama_url').length > 0 ? (
           <div style={styles.providerList}>
-            {providers.map((p) => (
-              <div key={p} style={styles.providerRow}>
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: '#22c55e',
-                    flexShrink: 0,
-                  }}
-                />
-                <span style={styles.providerName}>{p}</span>
-              </div>
-            ))}
+            {providers
+              .filter((p) => p.provider !== 'ollama_url')
+              .map((p) => (
+                <div key={p.provider} style={styles.providerRow}>
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: '#22c55e',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ ...styles.providerName, flex: 1 }}>{p.provider}</span>
+                  <span style={{ fontSize: 10, color: '#4b5563' }}>
+                    {new Date(p.createdAt).toLocaleDateString()}
+                  </span>
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#6b7280',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      padding: '0 4px',
+                    }}
+                    onClick={() => deleteKeyMut.mutate({ provider: p.provider })}
+                    title="Remove key"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
           </div>
         ) : (
           <div style={styles.empty}>
             No providers configured. Click "+ Add API Key" above to get started.
           </div>
         )}
+      </div>
+
+      <div style={styles.section}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 10,
+          }}
+        >
+          <div style={styles.sectionTitle}>Ollama Cloud Models</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <input
+            style={{
+              flex: 1,
+              background: '#1f2937',
+              color: '#f9fafb',
+              border: '1px solid #374151',
+              borderRadius: 6,
+              padding: '8px 12px',
+              fontSize: 13,
+              fontFamily: 'monospace',
+            }}
+            type="text"
+            placeholder="Model name (e.g. kimi-k2.5:cloud, qwen3:8b)"
+            value={newModelName}
+            onChange={(e) => setNewModelName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newModelName.trim()) {
+                setPullStatus((prev) => ({ ...prev, [newModelName.trim()]: 'pulling' }))
+                pullOllamaModelMut.mutate({ name: newModelName.trim() })
+              }
+            }}
+          />
+          <button
+            style={{
+              background: '#818cf8',
+              color: '#f9fafb',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            onClick={() => {
+              if (!newModelName.trim()) return
+              setPullStatus((prev) => ({ ...prev, [newModelName.trim()]: 'pulling' }))
+              pullOllamaModelMut.mutate({ name: newModelName.trim() })
+            }}
+            disabled={pullOllamaModelMut.isPending || !newModelName.trim()}
+          >
+            {pullOllamaModelMut.isPending ? 'Pulling...' : 'Pull & Add Model'}
+          </button>
+        </div>
+        {pullOllamaModelMut.error && (
+          <div
+            style={{
+              background: '#1e1b4b',
+              border: '1px solid #ef4444',
+              borderRadius: 6,
+              padding: '8px 12px',
+              marginBottom: 8,
+              fontSize: 12,
+              color: '#fca5a5',
+            }}
+          >
+            {pullOllamaModelMut.error.message}
+          </div>
+        )}
+        {(() => {
+          const availableNames = new Set(
+            (
+              ollamaAvailableQuery.data as
+                | Array<{ name: string; size: number; modifiedAt: string }>
+                | undefined
+            )?.map((m) => m.name) ?? [],
+          )
+          const models = ollamaModelsQuery.data as
+            | Array<{ id: string; name: string; addedAt: Date }>
+            | undefined
+          if (!models?.length) {
+            return (
+              <div style={styles.empty}>
+                No Ollama models configured. Enter a model name above and click "Pull & Add Model".
+              </div>
+            )
+          }
+          return (
+            <div style={styles.providerList}>
+              {models.map((m) => {
+                const isAvailable =
+                  availableNames.has(m.name) ||
+                  availableNames.has(m.name + ':latest') ||
+                  [...availableNames].some((n) => n.startsWith(m.name))
+                const status = pullStatus[m.name]
+                return (
+                  <div key={m.id} style={styles.providerRow}>
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: isAvailable ? '#22c55e' : '#f59e0b',
+                        flexShrink: 0,
+                      }}
+                      title={isAvailable ? 'Available' : 'Not yet pulled'}
+                    />
+                    <span style={{ ...styles.providerName, flex: 1 }}>{m.name}</span>
+                    {status === 'pulling' && (
+                      <span style={{ fontSize: 10, color: '#818cf8' }}>pulling...</span>
+                    )}
+                    {status === 'success' && (
+                      <span style={{ fontSize: 10, color: '#22c55e' }}>ready</span>
+                    )}
+                    {!isAvailable && status !== 'pulling' && (
+                      <button
+                        style={{
+                          background: '#374151',
+                          border: 'none',
+                          borderRadius: 4,
+                          color: '#818cf8',
+                          cursor: 'pointer',
+                          fontSize: 10,
+                          padding: '2px 8px',
+                          fontWeight: 600,
+                        }}
+                        onClick={() => {
+                          setPullStatus((prev) => ({ ...prev, [m.name]: 'pulling' }))
+                          pullOllamaModelMut.mutate({ name: m.name })
+                        }}
+                        title="Pull this model from Ollama registry"
+                      >
+                        Pull
+                      </button>
+                    )}
+                    <button
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#6b7280',
+                        cursor: 'pointer',
+                        fontSize: 14,
+                      }}
+                      onClick={() => removeOllamaModelMut.mutate({ id: m.id })}
+                      title="Remove model"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })()}
       </div>
 
       <div style={styles.section}>

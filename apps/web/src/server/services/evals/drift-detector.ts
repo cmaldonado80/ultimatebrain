@@ -49,7 +49,7 @@ const DEFAULT_REGRESSION_THRESHOLD = 0.05
 export class DriftDetector {
   constructor(
     private db: Database,
-    private regressionThreshold = DEFAULT_REGRESSION_THRESHOLD
+    private regressionThreshold = DEFAULT_REGRESSION_THRESHOLD,
   ) {}
 
   /**
@@ -121,7 +121,7 @@ export class DriftDetector {
 
         const lines = r.regressions.map(
           (reg) =>
-            `  • ${reg.dimension}: ${(reg.previousScore * 100).toFixed(1)}% → ${(reg.currentScore * 100).toFixed(1)}% (${reg.deltaPercent > 0 ? '+' : ''}${reg.deltaPercent.toFixed(1)}%)`
+            `  • ${reg.dimension}: ${(reg.previousScore * 100).toFixed(1)}% → ${(reg.currentScore * 100).toFixed(1)}% (${reg.deltaPercent > 0 ? '+' : ''}${reg.deltaPercent.toFixed(1)}%)`,
         )
 
         const message = [
@@ -143,18 +143,40 @@ export class DriftDetector {
 
   /**
    * Dispatch alerts to configured channels.
-   * Real impl calls OpenClaw channel adapter for Telegram/Slack.
+   * Routes through both webhooks and OpenClaw channels (Telegram/Slack).
    */
   async dispatchAlerts(alerts: DriftAlert[]): Promise<void> {
     const webhookService = new WebhookService(this.db)
     for (const alert of alerts) {
-      // Ops Center notification (stored as trace attribute for now)
+      // Ops Center notification
       console.warn(`[DriftDetector] ${alert.severity.toUpperCase()}: ${alert.message}`)
 
       try {
         await webhookService.dispatch({ type: 'drift_alert', payload: alert })
       } catch (err) {
         console.warn(`[DriftDetector] Failed to dispatch webhook for "${alert.datasetName}":`, err)
+      }
+
+      // Route through OpenClaw channels (Telegram/Slack)
+      try {
+        const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+        const client = getOpenClawClient()
+        if (client?.isConnected()) {
+          const { OpenClawChannels } = await import('../../adapters/openclaw/channels')
+          const channels = new OpenClawChannels(client)
+          const channelName = alert.severity === 'critical' ? 'alerts-critical' : 'alerts-warning'
+          const message =
+            `[${alert.severity.toUpperCase()}] ${alert.datasetName}: ${alert.message}\n` +
+            alert.regressions
+              .map(
+                (r) =>
+                  `  • ${String(r.dimension)}: ${r.previousScore.toFixed(2)} → ${r.currentScore.toFixed(2)} (${r.deltaPercent.toFixed(1)}% drop)`,
+              )
+              .join('\n')
+          await channels.sendMessage(channelName, 'ops-team', message)
+        }
+      } catch (err) {
+        console.warn(`[DriftDetector] OpenClaw channel alert failed:`, err)
       }
     }
   }
@@ -175,7 +197,7 @@ export class DriftDetector {
    */
   async getHistory(
     datasetId: string,
-    limit = 30
+    limit = 30,
   ): Promise<{ runId: string; version: string | null; scores: EvalScores; createdAt: Date }[]> {
     const runs = await this.db.query.evalRuns.findMany({
       where: eq(evalRuns.datasetId, datasetId),
@@ -193,10 +215,7 @@ export class DriftDetector {
 
   // ── Internal ──────────────────────────────────────────────────────────────
 
-  private computeRegressions(
-    current: EvalScores,
-    previous: EvalScores | null
-  ): RegressionDetail[] {
+  private computeRegressions(current: EvalScores, previous: EvalScores | null): RegressionDetail[] {
     if (!previous) return []
 
     const regressions: RegressionDetail[] = []
@@ -225,7 +244,8 @@ export class DriftDetector {
           currentScore: curr,
           delta,
           deltaPercent,
-          severity: Math.abs(deltaPercent) > this.regressionThreshold * 2 * 100 ? 'critical' : 'warning',
+          severity:
+            Math.abs(deltaPercent) > this.regressionThreshold * 2 * 100 ? 'critical' : 'warning',
         })
       }
     }

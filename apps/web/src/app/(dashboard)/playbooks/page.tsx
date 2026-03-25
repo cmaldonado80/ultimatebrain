@@ -12,6 +12,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { trpc } from '../../../utils/trpc'
 import type { SavedPlaybook, PlaybookStep } from '../../../server/services/playbooks/recorder'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -148,6 +149,7 @@ export default function PlaybooksPage() {
   const [lastRunResult, setLastRunResult] = useState<string | null>(null)
 
   const { data: playbooks, isLoading, error } = trpc.playbooks.list.useQuery()
+
   const runMutation = trpc.playbooks.run.useMutation()
   const startRecordingMutation = trpc.playbooks.startRecording.useMutation()
   const endRecordingMutation = trpc.playbooks.endRecording.useMutation()
@@ -164,6 +166,14 @@ export default function PlaybooksPage() {
       }
     }
   }, [])
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -256,29 +266,6 @@ export default function PlaybooksPage() {
           )}
         </div>
       </div>
-
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
       {recording && (
         <div style={styles.recordingBanner}>
           ⏺ Recording in progress — your actions are being captured

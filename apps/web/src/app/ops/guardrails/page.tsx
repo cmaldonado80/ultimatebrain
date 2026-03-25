@@ -5,6 +5,7 @@
  */
 
 import { trpc } from '../../../utils/trpc'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 interface GuardrailLog {
   id: string
@@ -21,8 +22,17 @@ export default function GuardrailsPage() {
   const logsQuery = trpc.guardrails.logs.useQuery()
   const statsQuery = trpc.guardrails.stats.useQuery()
 
-  const isLoading = logsQuery.isLoading || statsQuery.isLoading
   const error = logsQuery.error || statsQuery.error
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
+
+  const isLoading = logsQuery.isLoading || statsQuery.isLoading
 
   if (isLoading) {
     return (
@@ -61,29 +71,6 @@ export default function GuardrailsPage() {
           Safety rules, PII detection logs, and content policy enforcement across all agents.
         </p>
       </div>
-
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
       {stats && (
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>

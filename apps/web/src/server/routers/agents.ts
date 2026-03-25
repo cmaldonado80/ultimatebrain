@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
 import { agents } from '@solarc/db'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 
 export const agentsRouter = router({
   list: protectedProcedure
@@ -51,6 +51,20 @@ export const agentsRouter = router({
         type: z.string().optional(),
         workspaceId: z.string().uuid().optional(),
         model: z.string().optional(),
+        requiredModelType: z
+          .enum([
+            'vision',
+            'reasoning',
+            'agentic',
+            'coder',
+            'embedding',
+            'flash',
+            'guard',
+            'judge',
+            'router',
+            'multimodal',
+          ])
+          .optional(),
         description: z.string().optional(),
         skills: z.array(z.string()).optional(),
         tags: z.array(z.string()).optional(),
@@ -62,11 +76,86 @@ export const agentsRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create agent' })
       return agent
     }),
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1).optional(),
+        type: z.string().optional(),
+        model: z.string().optional(),
+        requiredModelType: z
+          .enum([
+            'vision',
+            'reasoning',
+            'agentic',
+            'coder',
+            'embedding',
+            'flash',
+            'guard',
+            'judge',
+            'router',
+            'multimodal',
+          ])
+          .optional(),
+        description: z.string().optional(),
+        skills: z.array(z.string()).optional(),
+        tags: z.array(z.string()).optional(),
+        isWsOrchestrator: z.boolean().optional(),
+        status: z
+          .enum(['idle', 'planning', 'executing', 'reviewing', 'error', 'offline'])
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...fields } = input
+
+      // Prevent unsetting orchestrator flag on the last orchestrator
+      if (fields.isWsOrchestrator === false) {
+        const existing = await ctx.db.query.agents.findFirst({ where: eq(agents.id, id) })
+        if (existing?.isWsOrchestrator && existing.workspaceId) {
+          const orchestrators = await ctx.db.query.agents.findMany({
+            where: and(
+              eq(agents.workspaceId, existing.workspaceId),
+              eq(agents.isWsOrchestrator, true),
+            ),
+          })
+          if (orchestrators.length <= 1)
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message: 'Cannot remove orchestrator role from the last orchestrator in a workspace',
+            })
+        }
+      }
+
+      const [updated] = await ctx.db
+        .update(agents)
+        .set({ ...fields, updatedAt: new Date() })
+        .where(eq(agents.id, id))
+        .returning()
+      if (!updated) throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' })
+      return updated
+    }),
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.query.agents.findFirst({ where: eq(agents.id, input.id) })
       if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' })
+
+      // Prevent deleting the last orchestrator from a workspace
+      if (existing.isWsOrchestrator && existing.workspaceId) {
+        const orchestrators = await ctx.db.query.agents.findMany({
+          where: and(
+            eq(agents.workspaceId, existing.workspaceId),
+            eq(agents.isWsOrchestrator, true),
+          ),
+        })
+        if (orchestrators.length <= 1)
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Cannot delete the last orchestrator agent from a workspace',
+          })
+      }
+
       await ctx.db.delete(agents).where(eq(agents.id, input.id))
       return { deleted: true }
     }),

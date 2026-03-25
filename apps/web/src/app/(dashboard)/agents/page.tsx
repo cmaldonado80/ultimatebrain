@@ -6,6 +6,8 @@
 
 import { useState } from 'react'
 import { trpc } from '../../../utils/trpc'
+import ConfirmDialog from '../../../components/ui/confirm-dialog'
+import { DbErrorBanner } from '../../../components/db-error-banner'
 
 interface Agent {
   id: string
@@ -57,7 +59,10 @@ export default function AgentsPage() {
   const [type, setType] = useState('')
   const [model, setModel] = useState('claude-sonnet-4-6')
   const [description, setDescription] = useState('')
+  const [search, setSearch] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
+
   const utils = trpc.useUtils()
   const createMut = trpc.agents.create.useMutation({
     onSuccess: () => {
@@ -73,6 +78,14 @@ export default function AgentsPage() {
       utils.agents.list.invalidate()
     },
   })
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -93,13 +106,20 @@ export default function AgentsPage() {
     )
   }
 
-  const agents: Agent[] = (data as Agent[]) ?? []
+  const allAgents: Agent[] = (data as Agent[]) ?? []
+  const agents = search
+    ? allAgents.filter(
+        (a) =>
+          a.name.toLowerCase().includes(search.toLowerCase()) ||
+          a.type?.toLowerCase().includes(search.toLowerCase()),
+      )
+    : allAgents
 
   return (
     <div style={styles.page}>
       <div style={styles.header}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Agents</h2>
+          <h2 style={styles.title}>Agents ({allAgents.length})</h2>
           <button
             style={{
               background: '#818cf8',
@@ -120,6 +140,13 @@ export default function AgentsPage() {
           Manage AI agent instances — executors, reviewers, planners, and specialists.
         </p>
       </div>
+
+      <input
+        style={{ ...styles.searchInput, marginBottom: 16 }}
+        placeholder="Search agents by name or type..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
       {showForm && (
         <div
@@ -230,29 +257,6 @@ export default function AgentsPage() {
           </div>
         </div>
       )}
-
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
-
       {agents.length === 0 ? (
         <div style={styles.empty}>No agents found. Create one to get started.</div>
       ) : (
@@ -272,9 +276,7 @@ export default function AgentsPage() {
                     cursor: 'pointer',
                     marginLeft: 'auto',
                   }}
-                  onClick={() => {
-                    if (confirm(`Delete agent "${agent.name}"?`)) deleteMut.mutate({ id: agent.id })
-                  }}
+                  onClick={() => setDeleteTarget({ id: agent.id, name: agent.name })}
                 >
                   Del
                 </button>
@@ -306,6 +308,19 @@ export default function AgentsPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Agent"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (deleteTarget) deleteMut.mutate({ id: deleteTarget.id })
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }
@@ -315,6 +330,16 @@ const styles = {
   header: { marginBottom: 20 },
   title: { margin: 0, fontSize: 22, fontWeight: 700 },
   subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
+  searchInput: {
+    width: '100%',
+    background: '#1f2937',
+    color: '#f9fafb',
+    border: '1px solid #374151',
+    borderRadius: 6,
+    padding: '8px 12px',
+    fontSize: 13,
+    boxSizing: 'border-box' as const,
+  },
   empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 },
   card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },

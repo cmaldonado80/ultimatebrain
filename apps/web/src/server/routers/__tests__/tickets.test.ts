@@ -47,6 +47,7 @@ vi.mock('@solarc/db', () => ({
 
 vi.mock('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val }),
+  and: (...conditions: unknown[]) => ({ and: conditions }),
 }))
 
 // Import after mocks are set up
@@ -89,7 +90,7 @@ describe('tickets router', () => {
       const trpc = caller({ db, session: { userId: 'user-1' } })
       const result = await trpc.list()
 
-      expect(mockFindMany).toHaveBeenCalledWith({ where: undefined, limit: 100 })
+      expect(mockFindMany).toHaveBeenCalledWith({ where: undefined, limit: 50, offset: 0 })
       expect(result).toEqual(tickets)
     })
 
@@ -101,8 +102,9 @@ describe('tickets router', () => {
       await trpc.list({ workspaceId: wsId })
 
       expect(mockFindMany).toHaveBeenCalledWith({
-        where: { col: 'workspaceId', val: wsId },
-        limit: 100,
+        where: { and: [{ col: 'workspaceId', val: wsId }] },
+        limit: 50,
+        offset: 0,
       })
     })
   })
@@ -131,8 +133,7 @@ describe('tickets router', () => {
       expect(result).toEqual(created)
     })
 
-    // TODO: re-enable when auth is wired up
-    it.skip('rejects creation without a session (UNAUTHORIZED)', async () => {
+    it('rejects creation without a session (UNAUTHORIZED)', async () => {
       const trpc = caller({ db, session: null })
       await expect(trpc.create({ title: 'Nope' })).rejects.toThrow()
     })

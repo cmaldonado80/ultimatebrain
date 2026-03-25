@@ -9,11 +9,17 @@
  */
 
 import type { Database } from '@solarc/db'
-import { agentCards, agents } from '@solarc/db'
-import { eq, sql } from 'drizzle-orm'
+import { agentCards, agents, a2aDelegations } from '@solarc/db'
+import { eq, and, sql, desc } from 'drizzle-orm'
 import type { A2ADelegateInput } from '@solarc/engine-contracts'
 
-export type DelegationStatus = 'pending' | 'accepted' | 'in_progress' | 'completed' | 'failed' | 'rejected'
+export type DelegationStatus =
+  | 'pending'
+  | 'accepted'
+  | 'in_progress'
+  | 'completed'
+  | 'failed'
+  | 'rejected'
 
 export interface DelegationResult {
   delegationId: string
@@ -22,23 +28,11 @@ export interface DelegationResult {
   error?: string
 }
 
-/** In-memory delegation tracking (would be DB-backed in production) */
-const delegations = new Map<string, {
-  input: A2ADelegateInput
-  status: DelegationStatus
-  result?: unknown
-  error?: string
-  createdAt: Date
-}>()
-
 export class A2AEngine {
   constructor(private db: Database) {}
 
   // === Agent Card Registry ===
 
-  /**
-   * Register or update an agent's capability card.
-   */
   async registerCard(
     agentId: string,
     card: { capabilities?: unknown; authRequirements?: unknown; endpoint?: string },
@@ -48,12 +42,15 @@ export class A2AEngine {
     })
 
     if (existing) {
-      await this.db.update(agentCards).set({
-        capabilities: card.capabilities,
-        authRequirements: card.authRequirements,
-        endpoint: card.endpoint,
-        updatedAt: new Date(),
-      }).where(eq(agentCards.agentId, agentId))
+      await this.db
+        .update(agentCards)
+        .set({
+          capabilities: card.capabilities,
+          authRequirements: card.authRequirements,
+          endpoint: card.endpoint,
+          updatedAt: new Date(),
+        })
+        .where(eq(agentCards.agentId, agentId))
     } else {
       await this.db.insert(agentCards).values({
         agentId,
@@ -64,18 +61,12 @@ export class A2AEngine {
     }
   }
 
-  /**
-   * Get an agent's card.
-   */
   async getCard(agentId: string) {
     return this.db.query.agentCards.findFirst({
       where: eq(agentCards.agentId, agentId),
     })
   }
 
-  /**
-   * List all registered agent cards.
-   */
   async listCards() {
     return this.db
       .select({
@@ -90,16 +81,14 @@ export class A2AEngine {
       .innerJoin(agents, eq(agentCards.agentId, agents.id))
   }
 
-  /**
-   * Discover agents by skill/capability.
-   * Searches agent cards and agent skills for matches.
-   */
-  async discover(skill: string): Promise<Array<{
-    agentId: string
-    agentName: string
-    matchType: 'card' | 'skill'
-    endpoint?: string | null
-  }>> {
+  async discover(skill: string): Promise<
+    Array<{
+      agentId: string
+      agentName: string
+      matchType: 'card' | 'skill'
+      endpoint?: string | null
+    }>
+  > {
     const results: Array<{
       agentId: string
       agentName: string
@@ -107,7 +96,6 @@ export class A2AEngine {
       endpoint?: string | null
     }> = []
 
-    // Search agent skills
     const skillAgents = await this.db
       .select()
       .from(agents)
@@ -120,12 +108,10 @@ export class A2AEngine {
       })
     }
 
-    // Search agent cards (check if capabilities JSON contains the skill)
     const allCards = await this.listCards()
     for (const card of allCards) {
       const caps = card.capabilities as Record<string, unknown> | null
       if (caps && JSON.stringify(caps).toLowerCase().includes(skill.toLowerCase())) {
-        // Avoid duplicates
         if (!results.find((r) => r.agentId === card.agentId)) {
           results.push({
             agentId: card.agentId,
@@ -140,106 +126,134 @@ export class A2AEngine {
     return results
   }
 
-  // === Task Delegation ===
+  // === Task Delegation (DB-backed) ===
 
-  /**
-   * Delegate a task to another agent.
-   */
   async delegate(input: A2ADelegateInput): Promise<string> {
-    const delegationId = crypto.randomUUID()
+    const [row] = await this.db
+      .insert(a2aDelegations)
+      .values({
+        toAgentId: input.agentId,
+        task: input.task,
+        context: input.context,
+        status: 'pending',
+      })
+      .returning({ id: a2aDelegations.id })
 
-    delegations.set(delegationId, {
-      input,
-      status: 'pending',
-      createdAt: new Date(),
-    })
+    // Notify OpenClaw of delegation (non-blocking)
+    this.notifyChannel('delegated', row.id, { task: input.task, toAgentId: input.agentId }).catch(
+      () => {},
+    )
 
-    return delegationId
+    return row.id
   }
 
-  /**
-   * Accept a delegation.
-   */
   async accept(delegationId: string): Promise<void> {
-    const delegation = delegations.get(delegationId)
-    if (!delegation) throw new Error(`Delegation ${delegationId} not found`)
-    delegation.status = 'accepted'
+    const updated = await this.db
+      .update(a2aDelegations)
+      .set({ status: 'accepted' })
+      .where(eq(a2aDelegations.id, delegationId))
+      .returning({ id: a2aDelegations.id })
+    if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
   }
 
-  /**
-   * Reject a delegation.
-   */
   async reject(delegationId: string, reason?: string): Promise<void> {
-    const delegation = delegations.get(delegationId)
-    if (!delegation) throw new Error(`Delegation ${delegationId} not found`)
-    delegation.status = 'rejected'
-    delegation.error = reason
+    const updated = await this.db
+      .update(a2aDelegations)
+      .set({ status: 'rejected', error: reason ?? null, completedAt: new Date() })
+      .where(eq(a2aDelegations.id, delegationId))
+      .returning({ id: a2aDelegations.id })
+    if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
   }
 
-  /**
-   * Mark a delegation as in progress.
-   */
   async markInProgress(delegationId: string): Promise<void> {
-    const delegation = delegations.get(delegationId)
-    if (!delegation) throw new Error(`Delegation ${delegationId} not found`)
-    delegation.status = 'in_progress'
+    const updated = await this.db
+      .update(a2aDelegations)
+      .set({ status: 'in_progress' })
+      .where(eq(a2aDelegations.id, delegationId))
+      .returning({ id: a2aDelegations.id })
+    if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
   }
 
-  /**
-   * Complete a delegation with a result.
-   */
   async complete(delegationId: string, result: unknown): Promise<void> {
-    const delegation = delegations.get(delegationId)
-    if (!delegation) throw new Error(`Delegation ${delegationId} not found`)
-    delegation.status = 'completed'
-    delegation.result = result
+    const updated = await this.db
+      .update(a2aDelegations)
+      .set({
+        status: 'completed',
+        result: typeof result === 'string' ? result : JSON.stringify(result),
+        completedAt: new Date(),
+      })
+      .where(eq(a2aDelegations.id, delegationId))
+      .returning({ id: a2aDelegations.id })
+    if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
+    this.notifyChannel('completed', delegationId, {}).catch((err) =>
+      console.warn('[A2AEngine] notification failed:', err.message),
+    )
   }
 
-  /**
-   * Fail a delegation.
-   */
   async fail(delegationId: string, error: string): Promise<void> {
-    const delegation = delegations.get(delegationId)
-    if (!delegation) throw new Error(`Delegation ${delegationId} not found`)
-    delegation.status = 'failed'
-    delegation.error = error
+    const updated = await this.db
+      .update(a2aDelegations)
+      .set({ status: 'failed', error, completedAt: new Date() })
+      .where(eq(a2aDelegations.id, delegationId))
+      .returning({ id: a2aDelegations.id })
+    if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
+    this.notifyChannel('failed', delegationId, { error }).catch((err) =>
+      console.warn('[A2AEngine] notification failed:', err.message),
+    )
   }
 
-  /**
-   * Get delegation status.
-   */
   async getStatus(delegationId: string): Promise<DelegationResult> {
-    const delegation = delegations.get(delegationId)
-    if (!delegation) throw new Error(`Delegation ${delegationId} not found`)
+    const row = await this.db.query.a2aDelegations.findFirst({
+      where: eq(a2aDelegations.id, delegationId),
+    })
+    if (!row) throw new Error(`Delegation ${delegationId} not found`)
     return {
-      delegationId,
-      status: delegation.status,
-      result: delegation.result,
-      error: delegation.error,
+      delegationId: row.id,
+      status: row.status as DelegationStatus,
+      result: row.result ?? undefined,
+      error: row.error ?? undefined,
     }
   }
 
-  /**
-   * List pending delegations for an agent.
-   */
-  async pendingFor(agentId: string): Promise<Array<{ delegationId: string; task: string; context?: unknown }>> {
-    const results: Array<{ delegationId: string; task: string; context?: unknown }> = []
-    for (const [id, delegation] of delegations) {
-      if (delegation.input.agentId === agentId && delegation.status === 'pending') {
-        results.push({
-          delegationId: id,
-          task: delegation.input.task,
-          context: delegation.input.context,
-        })
-      }
-    }
-    return results
+  async pendingFor(
+    agentId: string,
+  ): Promise<Array<{ delegationId: string; task: string; context?: unknown }>> {
+    const rows = await this.db
+      .select({
+        id: a2aDelegations.id,
+        task: a2aDelegations.task,
+        context: a2aDelegations.context,
+      })
+      .from(a2aDelegations)
+      .where(and(eq(a2aDelegations.toAgentId, agentId), eq(a2aDelegations.status, 'pending')))
+      .orderBy(desc(a2aDelegations.createdAt))
+
+    return rows.map((r) => ({
+      delegationId: r.id,
+      task: r.task,
+      context: r.context,
+    }))
   }
 
-  /**
-   * Remove an agent's card.
-   */
   async removeCard(agentId: string): Promise<void> {
     await this.db.delete(agentCards).where(eq(agentCards.agentId, agentId))
+  }
+
+  /** Push delegation events to OpenClaw a2a-events channel (fire-and-forget). */
+  private async notifyChannel(
+    event: string,
+    delegationId: string,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
+    const client = getOpenClawClient()
+    if (!client?.isConnected()) return
+    const { OpenClawChannels } = await import('../../adapters/openclaw/channels')
+    const channels = new OpenClawChannels(client)
+    await channels.sendMessage(
+      'a2a-events',
+      'system',
+      JSON.stringify({ event, delegationId, ...data }),
+    )
   }
 }

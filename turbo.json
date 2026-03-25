@@ -4,7 +4,20 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "env": [
+        "DATABASE_URL",
+        "NODE_ENV",
+        "VAULT_SECRET",
+        "BRAIN_NAME",
+        "BRAIN_VERSION",
+        "AUTH_SECRET",
+        "AUTH_URL",
+        "AUTH_TRUST_HOST",
+        "VERCEL_URL",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY"
+      ]
     },
     "dev": {
       "cache": false,

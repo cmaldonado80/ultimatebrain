@@ -9,6 +9,15 @@ import {
   evalCases,
   channels,
   brainEntities,
+  guardrailLogs,
+  chatSessions,
+  chatMessages,
+  cognitionState,
+  traces,
+  projects,
+  flows,
+  cronJobs,
+  modelRegistry,
 } from './schema/index'
 
 async function seed() {
@@ -23,6 +32,68 @@ async function seed() {
 
   try {
     await db.transaction(async (tx) => {
+      // -------------------------------------------------------
+      // 0. System Orchestrator Workspace (singleton, always active)
+      // -------------------------------------------------------
+      const [systemWs] = await tx
+        .insert(workspaces)
+        .values({
+          name: 'System Orchestrator',
+          type: 'system',
+          goal: 'Govern all workspaces, route tasks, enforce policies, monitor health',
+          color: '#dc2626',
+          icon: 'crown',
+          autonomyLevel: 5,
+          lifecycleState: 'active',
+          isSystemProtected: true,
+          settings: { notifications: true, autoEscalate: true },
+        })
+        .returning()
+
+      console.log(`  ✓ System Workspace: ${systemWs.id}`)
+
+      // System orchestrator agent (top of hierarchy, no parent)
+      const [systemOrchestrator] = await tx
+        .insert(agents)
+        .values({
+          name: 'Brain Orchestrator',
+          type: 'orchestrator',
+          workspaceId: systemWs.id,
+          status: 'idle',
+          model: 'claude-sonnet-4-20250514',
+          color: '#dc2626',
+          bg: '#fef2f2',
+          description: 'System-wide orchestrator — governs all workspace orchestrators',
+          requiredModelType: 'agentic',
+          tags: ['governance', 'orchestration', 'system'],
+          skills: [
+            'cross-workspace-routing',
+            'budget-governance',
+            'policy-enforcement',
+            'health-monitoring',
+            'agent-allocation',
+            'auto-scaling',
+          ],
+          isWsOrchestrator: true,
+          parentOrchestratorId: null,
+          triggerMode: 'auto',
+        })
+        .returning()
+
+      console.log(`  ✓ System Orchestrator Agent: ${systemOrchestrator.id}`)
+
+      // Health monitoring cron job
+      await tx.insert(cronJobs).values({
+        name: 'system-health-monitor',
+        schedule: '*/5 * * * *',
+        type: 'system',
+        task: 'systemOrchestrator.monitorHealth',
+        workspaceId: systemWs.id,
+        status: 'active',
+      })
+
+      console.log('  ✓ System health monitor cron job')
+
       // -------------------------------------------------------
       // 1. Workspace
       // -------------------------------------------------------
@@ -56,9 +127,11 @@ async function seed() {
             color: '#8b5cf6',
             bg: '#ede9fe',
             description: 'Breaks down goals into actionable tickets and execution plans',
+            requiredModelType: 'reasoning',
             tags: ['planning', 'strategy'],
             skills: ['decomposition', 'prioritization', 'dependency-analysis'],
             isWsOrchestrator: true,
+            parentOrchestratorId: systemOrchestrator.id,
             triggerMode: 'auto',
           },
           {
@@ -70,6 +143,7 @@ async function seed() {
             color: '#10b981',
             bg: '#d1fae5',
             description: 'Executes tasks autonomously using available tools',
+            requiredModelType: 'coder',
             tags: ['execution', 'coding'],
             skills: ['code-generation', 'file-ops', 'testing'],
             isWsOrchestrator: false,
@@ -84,6 +158,7 @@ async function seed() {
             color: '#f59e0b',
             bg: '#fef3c7',
             description: 'Reviews completed work for quality, correctness, and safety',
+            requiredModelType: 'judge',
             tags: ['review', 'qa'],
             skills: ['code-review', 'testing', 'security-audit'],
             isWsOrchestrator: false,
@@ -134,7 +209,8 @@ async function seed() {
           },
           {
             title: 'Add retry logic to tool executor',
-            description: 'Implement exponential backoff and circuit-breaker for external tool calls',
+            description:
+              'Implement exponential backoff and circuit-breaker for external tool calls',
             status: 'failed',
             priority: 'critical',
             complexity: 'medium',
@@ -146,7 +222,8 @@ async function seed() {
           },
           {
             title: 'Review checkpoint restore implementation',
-            description: 'Verify checkpoint save/restore handles partial state and edge cases correctly',
+            description:
+              'Verify checkpoint save/restore handles partial state and edge cases correctly',
             status: 'review',
             priority: 'medium',
             complexity: 'medium',
@@ -201,7 +278,8 @@ async function seed() {
         .values([
           {
             key: 'project.architecture',
-            content: 'The system uses a monorepo with turborepo. Core packages: api, db, ui, shared.',
+            content:
+              'The system uses a monorepo with turborepo. Core packages: api, db, ui, shared.',
             source: planner.id,
             confidence: 0.95,
             workspaceId: workspace.id,
@@ -217,7 +295,8 @@ async function seed() {
           },
           {
             key: 'task.agent-bus.progress',
-            content: 'Agent message bus implementation is 60% complete. PubSub layer done, direct messaging pending.',
+            content:
+              'Agent message bus implementation is 60% complete. PubSub layer done, direct messaging pending.',
             source: executor.id,
             confidence: 0.8,
             workspaceId: workspace.id,
@@ -225,7 +304,8 @@ async function seed() {
           },
           {
             key: 'incident.tool-registry-outage',
-            content: 'Tool registry service experienced 15min outage due to connection pool exhaustion. Resolved by increasing pool size.',
+            content:
+              'Tool registry service experienced 15min outage due to connection pool exhaustion. Resolved by increasing pool size.',
             source: executor.id,
             confidence: 0.7,
             workspaceId: workspace.id,
@@ -233,7 +313,8 @@ async function seed() {
           },
           {
             key: 'decision.checkpoint-format',
-            content: 'Team decided to use JSON-based checkpoints over protobuf for easier debugging during development phase.',
+            content:
+              'Team decided to use JSON-based checkpoints over protobuf for easier debugging during development phase.',
             source: planner.id,
             confidence: 0.6,
             workspaceId: workspace.id,
@@ -272,7 +353,10 @@ async function seed() {
           domain: 'development',
           tier: 'development',
           enginesEnabled: ['planning', 'execution', 'review'],
-          domainEngines: { planning: { model: 'claude-sonnet-4-20250514' }, execution: { model: 'claude-sonnet-4-20250514' } },
+          domainEngines: {
+            planning: { model: 'claude-sonnet-4-20250514' },
+            execution: { model: 'claude-sonnet-4-20250514' },
+          },
           endpoint: 'http://localhost:4000',
           healthEndpoint: 'http://localhost:4000/health',
           status: 'active',
@@ -282,6 +366,316 @@ async function seed() {
         .returning()
 
       console.log(`  ✓ Brain entity: ${brain.id}`)
+
+      // -------------------------------------------------------
+      // 8. Second workspace (paused)
+      // -------------------------------------------------------
+      await tx.insert(workspaces).values({
+        name: 'Staging Workspace',
+        type: 'staging',
+        goal: 'Pre-production testing and validation',
+        color: '#f59e0b',
+        icon: 'shield',
+        autonomyLevel: 2,
+        lifecycleState: 'paused',
+        settings: { notifications: false, autoAssign: false },
+      })
+      console.log('  ✓ Second workspace (paused)')
+
+      // -------------------------------------------------------
+      // 9. Project with health score
+      // -------------------------------------------------------
+      const [project] = await tx
+        .insert(projects)
+        .values({
+          name: 'Brain v1.0 Launch',
+          goal: 'Ship production-ready agent orchestration platform',
+          status: 'active',
+          healthScore: 78,
+          healthDiagnosis: '3 tickets in progress, 1 failed — retry logic blocker',
+        })
+        .returning()
+      console.log(`  ✓ Project: ${project.id}`)
+
+      // -------------------------------------------------------
+      // 10. Guardrail logs (2 pass, 1 fail)
+      // -------------------------------------------------------
+      await tx.insert(guardrailLogs).values([
+        { layer: 'input', agentId: executor.id, ruleName: 'pii_detector', passed: true },
+        { layer: 'output', agentId: executor.id, ruleName: 'content_safety', passed: true },
+        {
+          layer: 'tool',
+          agentId: executor.id,
+          ruleName: 'shell_command_validator',
+          passed: false,
+          violationDetail: 'Attempted rm -rf / — blocked by guardrail',
+        },
+      ])
+      console.log('  ✓ Guardrail logs: 3')
+
+      // -------------------------------------------------------
+      // 11. Chat session with messages
+      // -------------------------------------------------------
+      const [session] = await tx
+        .insert(chatSessions)
+        .values({
+          agentId: planner.id,
+        })
+        .returning()
+
+      await tx.insert(chatMessages).values([
+        { sessionId: session.id, role: 'user', text: 'What is the current project status?' },
+        {
+          sessionId: session.id,
+          role: 'assistant',
+          text: 'The Brain v1.0 project is 78% healthy. 3 tickets are in progress, 1 has failed due to a tool registry connection issue.',
+        },
+        { sessionId: session.id, role: 'user', text: 'Can you retry the failed ticket?' },
+        {
+          sessionId: session.id,
+          role: 'assistant',
+          text: 'I have requeued ticket "Add retry logic to tool executor" for another attempt. The executor agent will pick it up shortly.',
+        },
+      ])
+      console.log(`  ✓ Chat session: ${session.id} with 4 messages`)
+
+      // -------------------------------------------------------
+      // 12. Cognition state with feature flags
+      // -------------------------------------------------------
+      await tx.insert(cognitionState).values({
+        features: {
+          auto_heal: true,
+          memory_promotion: true,
+          debate_engine: false,
+        },
+        policies: {
+          max_autonomy_level: 4,
+          require_approval_above_risk: 'high',
+          default_execution_mode: 'autonomous',
+        },
+      })
+      console.log('  ✓ Cognition state with 3 feature flags')
+
+      // -------------------------------------------------------
+      // 13. Traces
+      // -------------------------------------------------------
+      const traceId = crypto.randomUUID()
+      await tx.insert(traces).values([
+        {
+          traceId,
+          spanId: crypto.randomUUID(),
+          operation: 'ticket.execute',
+          service: 'orchestration',
+          agentId: executor.id,
+          durationMs: 1250,
+          status: 'ok',
+        },
+        {
+          traceId,
+          spanId: crypto.randomUUID(),
+          operation: 'llm.chat',
+          service: 'gateway',
+          agentId: executor.id,
+          durationMs: 890,
+          status: 'ok',
+          parentSpanId: traceId,
+        },
+      ])
+      console.log('  ✓ Traces: 2 spans')
+
+      // -------------------------------------------------------
+      // 14. Flow definition
+      // -------------------------------------------------------
+      await tx.insert(flows).values({
+        name: 'Code Review Pipeline',
+        description: 'Multi-agent review: plan → execute → review → approve',
+        steps: [
+          { agent: 'planner', action: 'decompose', input: 'ticket' },
+          { agent: 'executor', action: 'implement', input: 'plan' },
+          { agent: 'reviewer', action: 'review', input: 'implementation' },
+        ],
+        status: 'active',
+        createdBy: 'system',
+      })
+      console.log('  ✓ Flow: Code Review Pipeline')
+
+      // -------------------------------------------------------
+      // 15. Model Registry — known models with auto-detected types
+      // -------------------------------------------------------
+      await tx.insert(modelRegistry).values([
+        // Anthropic
+        {
+          modelId: 'claude-opus-4-6',
+          displayName: 'Claude Opus 4.6',
+          provider: 'anthropic',
+          modelType: 'reasoning',
+          secondaryTypes: ['agentic', 'coder', 'vision'],
+          contextWindow: 200000,
+          maxOutputTokens: 32000,
+          supportsVision: true,
+          supportsTools: true,
+          supportsStreaming: true,
+          inputCostPerMToken: 15,
+          outputCostPerMToken: 75,
+          speedTier: 'slow',
+          detectedAt: new Date(),
+        },
+        {
+          modelId: 'claude-sonnet-4-6',
+          displayName: 'Claude Sonnet 4.6',
+          provider: 'anthropic',
+          modelType: 'agentic',
+          secondaryTypes: ['coder', 'vision'],
+          contextWindow: 200000,
+          maxOutputTokens: 16000,
+          supportsVision: true,
+          supportsTools: true,
+          supportsStreaming: true,
+          inputCostPerMToken: 3,
+          outputCostPerMToken: 15,
+          speedTier: 'medium',
+          detectedAt: new Date(),
+        },
+        {
+          modelId: 'claude-haiku-4-5',
+          displayName: 'Claude Haiku 4.5',
+          provider: 'anthropic',
+          modelType: 'flash',
+          secondaryTypes: ['router'],
+          contextWindow: 200000,
+          maxOutputTokens: 8192,
+          supportsVision: true,
+          supportsTools: true,
+          supportsStreaming: true,
+          inputCostPerMToken: 0.8,
+          outputCostPerMToken: 4,
+          speedTier: 'fast',
+          detectedAt: new Date(),
+        },
+        // OpenAI
+        {
+          modelId: 'gpt-4o',
+          displayName: 'GPT-4o',
+          provider: 'openai',
+          modelType: 'agentic',
+          secondaryTypes: ['vision', 'coder'],
+          contextWindow: 128000,
+          maxOutputTokens: 16384,
+          supportsVision: true,
+          supportsTools: true,
+          supportsStreaming: true,
+          inputCostPerMToken: 2.5,
+          outputCostPerMToken: 10,
+          speedTier: 'medium',
+          detectedAt: new Date(),
+        },
+        {
+          modelId: 'gpt-4o-mini',
+          displayName: 'GPT-4o Mini',
+          provider: 'openai',
+          modelType: 'flash',
+          secondaryTypes: ['router'],
+          contextWindow: 128000,
+          maxOutputTokens: 16384,
+          supportsVision: true,
+          supportsTools: true,
+          supportsStreaming: true,
+          inputCostPerMToken: 0.15,
+          outputCostPerMToken: 0.6,
+          speedTier: 'fast',
+          detectedAt: new Date(),
+        },
+        {
+          modelId: 'gpt-4.1',
+          displayName: 'GPT-4.1',
+          provider: 'openai',
+          modelType: 'coder',
+          secondaryTypes: ['agentic'],
+          contextWindow: 1000000,
+          maxOutputTokens: 32768,
+          supportsVision: true,
+          supportsTools: true,
+          supportsStreaming: true,
+          inputCostPerMToken: 2,
+          outputCostPerMToken: 8,
+          speedTier: 'medium',
+          detectedAt: new Date(),
+        },
+        {
+          modelId: 'o3',
+          displayName: 'o3',
+          provider: 'openai',
+          modelType: 'reasoning',
+          secondaryTypes: ['coder'],
+          contextWindow: 200000,
+          maxOutputTokens: 100000,
+          supportsTools: true,
+          supportsStreaming: true,
+          inputCostPerMToken: 10,
+          outputCostPerMToken: 40,
+          speedTier: 'slow',
+          detectedAt: new Date(),
+        },
+        {
+          modelId: 'o4-mini',
+          displayName: 'o4 Mini',
+          provider: 'openai',
+          modelType: 'reasoning',
+          secondaryTypes: ['coder', 'agentic'],
+          contextWindow: 200000,
+          maxOutputTokens: 100000,
+          supportsVision: true,
+          supportsTools: true,
+          supportsStreaming: true,
+          inputCostPerMToken: 1.1,
+          outputCostPerMToken: 4.4,
+          speedTier: 'medium',
+          detectedAt: new Date(),
+        },
+        {
+          modelId: 'text-embedding-3-large',
+          displayName: 'Text Embedding 3 Large',
+          provider: 'openai',
+          modelType: 'embedding',
+          inputCostPerMToken: 0.13,
+          speedTier: 'fast',
+          detectedAt: new Date(),
+        },
+        // Google
+        {
+          modelId: 'gemini-2.5-pro',
+          displayName: 'Gemini 2.5 Pro',
+          provider: 'google',
+          modelType: 'reasoning',
+          secondaryTypes: ['multimodal', 'coder'],
+          contextWindow: 1000000,
+          maxOutputTokens: 65536,
+          supportsVision: true,
+          supportsTools: true,
+          supportsStreaming: true,
+          inputCostPerMToken: 1.25,
+          outputCostPerMToken: 10,
+          speedTier: 'medium',
+          detectedAt: new Date(),
+        },
+        {
+          modelId: 'gemini-2.5-flash',
+          displayName: 'Gemini 2.5 Flash',
+          provider: 'google',
+          modelType: 'flash',
+          secondaryTypes: ['multimodal'],
+          contextWindow: 1000000,
+          maxOutputTokens: 65536,
+          supportsVision: true,
+          supportsTools: true,
+          supportsStreaming: true,
+          inputCostPerMToken: 0.15,
+          outputCostPerMToken: 0.6,
+          speedTier: 'fast',
+          detectedAt: new Date(),
+        },
+      ])
+      console.log('  ✓ Model Registry: 11 models seeded')
 
       console.log('\nSeed complete.')
     })

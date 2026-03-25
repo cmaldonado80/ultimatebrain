@@ -8,6 +8,7 @@
 
 import { useParams } from 'next/navigation'
 import { trpc } from '../../../../utils/trpc'
+import { DbErrorBanner } from '../../../../components/db-error-banner'
 
 /** Row shape returned by `trpc.agents.byId` (drizzle `agents` table select) */
 interface AgentRecord {
@@ -33,6 +34,14 @@ export default function AppDetailPage() {
   const appId = params.appId as string
 
   const { data: app, isLoading, error } = trpc.agents.byId.useQuery({ id: appId })
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <DbErrorBanner error={error} />
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -82,27 +91,6 @@ export default function AppDetailPage() {
 
   return (
     <div style={styles.page}>
-      {error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #4338ca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <span style={{ color: '#818cf8', fontSize: 14 }}>
-            Database tables not yet provisioned.
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 12 }}>
-            Run the migration to populate data.
-          </span>
-        </div>
-      )}
       {/* Header */}
       <div style={styles.header}>
         <a href="/apps" style={styles.back}>

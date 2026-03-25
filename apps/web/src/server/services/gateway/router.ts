@@ -344,13 +344,83 @@ class OpenAIAdapter implements ProviderAdapter {
 }
 
 class OllamaAdapter implements ProviderAdapter {
+  /** Resolved Ollama Cloud URL (set by GatewayRouter before use) */
+  resolvedUrl: string | null = null
+
+  private getBaseUrl(): string {
+    const url = this.resolvedUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'
+    // Normalize: Ollama Cloud URL should be https://ollama.com/api (not https://ollama.com)
+    if (url.includes('ollama.com') && !url.endsWith('/api')) {
+      return url.replace(/\/+$/, '') + '/api'
+    }
+    return url
+  }
+
+  private buildHeaders(apiKey?: string): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
+    return headers
+  }
+
+  /**
+   * Pull a model from the Ollama registry (local or cloud).
+   * POST /api/pull with { model, stream: false }
+   */
+  async pullModel(model: string, apiKey?: string): Promise<{ status: string; error?: string }> {
+    const baseUrl = this.getBaseUrl()
+    try {
+      const res = await fetch(`${baseUrl}/api/pull`, {
+        method: 'POST',
+        headers: this.buildHeaders(apiKey),
+        body: JSON.stringify({ model: model.replace('ollama/', ''), stream: false }),
+      })
+      if (!res.ok) {
+        const err = await res.text()
+        return { status: 'error', error: `Ollama pull failed (${res.status}): ${err}` }
+      }
+      const data = (await res.json()) as { status?: string; error?: string }
+      return { status: data.status ?? 'success', error: data.error }
+    } catch (err) {
+      return {
+        status: 'error',
+        error: err instanceof Error ? err.message : 'Pull request failed',
+      }
+    }
+  }
+
+  /**
+   * List models available on the Ollama instance (GET /api/tags).
+   */
+  async listModels(
+    apiKey?: string,
+  ): Promise<Array<{ name: string; size: number; modifiedAt: string }>> {
+    const baseUrl = this.getBaseUrl()
+    try {
+      const res = await fetch(`${baseUrl}/api/tags`, {
+        method: 'GET',
+        headers: this.buildHeaders(apiKey),
+      })
+      if (!res.ok) return []
+      const data = (await res.json()) as {
+        models?: Array<{ name: string; size: number; modified_at: string }>
+      }
+      return (data.models ?? []).map((m) => ({
+        name: m.name,
+        size: m.size,
+        modifiedAt: m.modified_at,
+      }))
+    } catch {
+      return []
+    }
+  }
+
   async chat(params: {
     model: string
     messages: Array<{ role: string; content: string }>
     tools?: unknown[]
     apiKey?: string
   }) {
-    const baseUrl = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'
+    const baseUrl = this.getBaseUrl()
     const body = {
       model: params.model.replace('ollama/', ''),
       messages: params.messages.map((m) => ({
@@ -359,11 +429,9 @@ class OllamaAdapter implements ProviderAdapter {
       })),
       stream: false,
     }
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (params.apiKey) headers['Authorization'] = `Bearer ${params.apiKey}`
     const res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
-      headers,
+      headers: this.buildHeaders(params.apiKey),
       body: JSON.stringify(body),
     })
     if (!res.ok) {
@@ -379,6 +447,52 @@ class OllamaAdapter implements ProviderAdapter {
       content: data.message.content,
       tokensIn: data.prompt_eval_count ?? 0,
       tokensOut: data.eval_count ?? 0,
+    }
+  }
+
+  async *chatStream(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    apiKey?: string
+  }): AsyncGenerator<string, void, unknown> {
+    const baseUrl = this.getBaseUrl()
+    const body = {
+      model: params.model.replace('ollama/', ''),
+      messages: params.messages.map((m) => ({
+        role: m.role === 'agent' ? 'assistant' : m.role,
+        content: m.content,
+      })),
+      stream: true,
+    }
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: this.buildHeaders(params.apiKey),
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Ollama API error ${res.status}: ${err}`)
+    }
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.trim()) continue
+        try {
+          const chunk = JSON.parse(line) as { message?: { content?: string }; done?: boolean }
+          if (chunk.message?.content) yield chunk.message.content
+          if (chunk.done) return
+        } catch {
+          /* skip malformed lines */
+        }
+      }
     }
   }
 }
@@ -411,6 +525,30 @@ export class GatewayRouter {
     this.adapters.set('anthropic', new AnthropicAdapter())
     this.adapters.set('openai', new OpenAIAdapter())
     this.adapters.set('ollama', new OllamaAdapter())
+
+    // Wire OpenClaw adapter if daemon URL is configured
+    this.initOpenClawAdapter().catch((err) =>
+      console.warn('[Gateway] operation failed:', err.message),
+    )
+  }
+
+  /** Lazily connect the OpenClaw adapter (non-blocking, startup continues). */
+  private async initOpenClawAdapter(): Promise<void> {
+    try {
+      const { env } = await import('../../../env')
+      if (!env.OPENCLAW_WS) return
+
+      const { initOpenClaw, getOpenClawProviders } =
+        await import('../../adapters/openclaw/bootstrap')
+      await initOpenClaw()
+      const ocProviders = getOpenClawProviders()
+      if (ocProviders) {
+        this.adapters.set('openclaw', ocProviders)
+        console.warn('[Gateway] OpenClaw adapter registered')
+      }
+    } catch (err) {
+      console.warn('[Gateway] OpenClaw adapter not available:', err)
+    }
   }
 
   /** Attach a tracer after construction (e.g. when wiring DI) */
@@ -421,6 +559,12 @@ export class GatewayRouter {
   /** Register a provider adapter (OpenClaw, direct Anthropic, etc.) */
   registerAdapter(provider: ProviderName, adapter: ProviderAdapter): void {
     this.adapters.set(provider, adapter)
+  }
+
+  /** Get the Ollama adapter for direct operations (pull, list models). */
+  getOllamaAdapter(): OllamaAdapter | null {
+    const adapter = this.adapters.get('ollama')
+    return adapter instanceof OllamaAdapter ? adapter : null
   }
 
   /**
@@ -541,6 +685,13 @@ export class GatewayRouter {
         try {
           const apiKey = await this.keyVault.getKey(provider)
 
+          // Resolve Ollama Cloud URL from vault
+          if (provider === 'ollama') {
+            const ollamaAdapter = adapter as OllamaAdapter
+            const storedUrl = await this.keyVault.getKey('ollama_url')
+            if (storedUrl) ollamaAdapter.resolvedUrl = storedUrl
+          }
+
           const result = await adapter.chat({
             model: targetModel,
             messages,
@@ -579,7 +730,7 @@ export class GatewayRouter {
           ) {
             this.cache
               .store(targetModel, messages, result.content, result.tokensIn, result.tokensOut)
-              .catch(() => {})
+              .catch((err) => console.warn('[Gateway] operation failed:', err.message))
           }
 
           return {
@@ -644,6 +795,13 @@ export class GatewayRouter {
 
       try {
         const apiKey = await this.keyVault.getKey(provider)
+
+        // Resolve Ollama Cloud URL from vault if applicable
+        if (provider === 'ollama') {
+          const ollamaAdapter = adapter as OllamaAdapter
+          const storedUrl = await this.keyVault.getKey('ollama_url')
+          if (storedUrl) ollamaAdapter.resolvedUrl = storedUrl
+        }
 
         if (adapter.chatStream) {
           yield* adapter.chatStream({

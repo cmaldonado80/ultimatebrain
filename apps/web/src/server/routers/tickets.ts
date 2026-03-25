@@ -8,19 +8,30 @@ import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
 import { tickets, ticketStatusHistory } from '@solarc/db'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 
 export const ticketsRouter = router({
   list: protectedProcedure
     .input(
       z
-        .object({ workspaceId: z.string().uuid().optional(), status: z.string().optional() })
+        .object({
+          workspaceId: z.string().uuid().optional(),
+          status: z
+            .enum(['backlog', 'queued', 'in_progress', 'review', 'done', 'failed', 'cancelled'])
+            .optional(),
+          limit: z.number().min(1).max(100).default(50),
+          offset: z.number().min(0).default(0),
+        })
         .optional(),
     )
     .query(async ({ ctx, input }) => {
+      const conditions = []
+      if (input?.workspaceId) conditions.push(eq(tickets.workspaceId, input.workspaceId))
+      if (input?.status) conditions.push(eq(tickets.status, input.status))
       return ctx.db.query.tickets.findMany({
-        where: input?.workspaceId ? eq(tickets.workspaceId, input.workspaceId) : undefined,
-        limit: 100,
+        where: conditions.length > 0 ? and(...conditions) : undefined,
+        limit: input?.limit ?? 50,
+        offset: input?.offset ?? 0,
       })
     }),
   byId: protectedProcedure
@@ -46,6 +57,26 @@ export const ticketsRouter = router({
       if (!ticket)
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create ticket' })
       return ticket
+    }),
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional(),
+        priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+        complexity: z.enum(['easy', 'medium', 'hard', 'critical']).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...fields } = input
+      const [updated] = await ctx.db
+        .update(tickets)
+        .set({ ...fields, updatedAt: new Date() })
+        .where(eq(tickets.id, id))
+        .returning()
+      if (!updated) throw new TRPCError({ code: 'NOT_FOUND', message: 'Ticket not found' })
+      return updated
     }),
   updateStatus: protectedProcedure
     .input(

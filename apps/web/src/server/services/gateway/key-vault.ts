@@ -24,8 +24,16 @@ function deriveKey(secret: string, salt: Buffer): Buffer {
 
 function getVaultSecret(): string {
   const secret = env.VAULT_SECRET
-  if (!secret) throw new Error('VAULT_SECRET environment variable is required for key vault operations')
-  return secret
+  if (secret) return secret
+  // Fallback to AUTH_SECRET if VAULT_SECRET not set
+  const fallback = process.env.AUTH_SECRET
+  if (fallback) {
+    console.warn('[KeyVault] VAULT_SECRET not set — using AUTH_SECRET as fallback')
+    return fallback
+  }
+  throw new Error(
+    'VAULT_SECRET (or AUTH_SECRET) environment variable is required for key vault operations',
+  )
 }
 
 /** Encrypt a plaintext API key. Returns base64-encoded ciphertext (salt:iv:tag:encrypted). */
@@ -70,9 +78,18 @@ export class KeyVault {
   async storeKey(provider: string, apiKey: string): Promise<void> {
     const encryptedKey = encrypt(apiKey)
 
-    // Upsert: delete old key for provider, insert new
-    await this.db.delete(apiKeys).where(eq(apiKeys.provider, provider))
-    await this.db.insert(apiKeys).values({ provider, encryptedKey })
+    try {
+      // Upsert: delete old key for provider, insert new
+      await this.db.delete(apiKeys).where(eq(apiKeys.provider, provider))
+      await this.db.insert(apiKeys).values({ provider, encryptedKey })
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes('does not exist')) {
+        throw new Error(
+          'Database tables not provisioned. Run migrations to enable API key storage.',
+        )
+      }
+      throw err
+    }
 
     // Invalidate cache
     this.cache.delete(provider)
@@ -112,9 +129,15 @@ export class KeyVault {
 
   /** List all providers that have stored keys (no decryption) */
   async listProviders(): Promise<Array<{ provider: string; createdAt: Date }>> {
-    return this.db
-      .select({ provider: apiKeys.provider, createdAt: apiKeys.createdAt })
-      .from(apiKeys)
+    try {
+      return await this.db
+        .select({ provider: apiKeys.provider, createdAt: apiKeys.createdAt })
+        .from(apiKeys)
+    } catch (err: unknown) {
+      // Table may not exist yet if migrations haven't run
+      if (err instanceof Error && err.message.includes('does not exist')) return []
+      throw err
+    }
   }
 
   /** Clear the in-memory cache (for testing/security) */

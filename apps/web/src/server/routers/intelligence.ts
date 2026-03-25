@@ -319,4 +319,91 @@ export const intelligenceRouter = router({
     .query(async ({ ctx, input }) => {
       return getMessaging(ctx.db).unreadCount(input.agentId)
     }),
+
+  // === OpenClaw Proxy (for Mini Brains & Developments) ===
+
+  // === OpenClaw Proxy (for Mini Brains & Developments) ===
+
+  /** Entity-scoped LLM chat — Mini Brains call this instead of OpenClaw directly. */
+  entityChat: protectedProcedure
+    .input(
+      z.object({
+        entityId: z.string().uuid(),
+        model: z.string().min(1),
+        messages: z.array(z.object({ role: z.string(), content: z.string() })),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const gw = getGateway(ctx.db)
+
+      // Check entity budget before routing
+      const budgetCheck = await gw.costTracker.checkBudget(input.entityId)
+      if (!budgetCheck.allowed) {
+        throw new Error(`BUDGET_EXCEEDED: Entity ${input.entityId} has reached its spending limit`)
+      }
+
+      const result = await gw.chat({
+        model: input.model,
+        messages: input.messages,
+        agentId: input.entityId, // track cost against this entity
+      })
+
+      return result
+    }),
+
+  /** Entity-scoped skill invocation through OpenClaw. */
+  entitySkillInvoke: protectedProcedure
+    .input(
+      z.object({
+        entityId: z.string().uuid(),
+        skill: z.string().min(1),
+        params: z.record(z.unknown()).default({}),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { getOpenClawClient } = await import('../adapters/openclaw/bootstrap')
+      const client = getOpenClawClient()
+      if (!client || !client.isConnected()) {
+        throw new Error('OpenClaw daemon not connected — skill invocation unavailable')
+      }
+
+      // Check entity budget
+      const gw = getGateway(ctx.db)
+      const budgetCheck = await gw.costTracker.checkBudget(input.entityId)
+      if (!budgetCheck.allowed) {
+        throw new Error(`BUDGET_EXCEEDED: Entity ${input.entityId} has reached its spending limit`)
+      }
+
+      const { OpenClawSkills } = await import('../adapters/openclaw/skills')
+      const skillsAdapter = new OpenClawSkills(client)
+      return skillsAdapter.invokeSkill(input.skill, input.params)
+    }),
+
+  /** Entity-scoped channel send through OpenClaw. */
+  entityChannelSend: protectedProcedure
+    .input(
+      z.object({
+        entityId: z.string().uuid(),
+        channel: z.string().min(1),
+        to: z.string().min(1),
+        content: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { getOpenClawClient } = await import('../adapters/openclaw/bootstrap')
+      const client = getOpenClawClient()
+      if (!client || !client.isConnected()) {
+        throw new Error('OpenClaw daemon not connected — channel send unavailable')
+      }
+
+      const { OpenClawChannels } = await import('../adapters/openclaw/channels')
+      const channelsAdapter = new OpenClawChannels(client)
+      return channelsAdapter.sendMessage(input.channel, input.to, input.content)
+    }),
+
+  /** Get OpenClaw connection status (for dashboard health display). */
+  openclawStatus: protectedProcedure.query(async () => {
+    const { getOpenClawStatus } = await import('../adapters/openclaw/bootstrap')
+    return getOpenClawStatus()
+  }),
 })
