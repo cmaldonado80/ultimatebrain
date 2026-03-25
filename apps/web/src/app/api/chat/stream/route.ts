@@ -50,12 +50,22 @@ export async function POST(req: Request) {
   })
   let agentSoul = 'You are a helpful AI assistant. Be concise and direct.'
   let agentModel: string | undefined
+  let agentTemperature: number | undefined
+  let agentMaxTokens: number | undefined
   if (session?.agentId) {
     const agent = await db.query.agents.findFirst({
       where: eq(agents.id, session.agentId),
     })
     if (agent?.soul) agentSoul = agent.soul
     if (agent?.model) agentModel = agent.model
+    if (agent?.temperature != null) agentTemperature = agent.temperature
+    if (agent?.maxTokens != null) agentMaxTokens = agent.maxTokens
+
+    // If agent has no explicit model but has requiredModelType, resolve dynamically
+    if (!agentModel && agent?.requiredModelType) {
+      const resolved = await gateway.resolveModelForCapability(agent.requiredModelType)
+      if (resolved) agentModel = resolved.model
+    }
   }
 
   // 3. Load conversation history
@@ -106,6 +116,8 @@ export async function POST(req: Request) {
         const gen = gateway.chatStream({
           model: agentModel,
           messages: [{ role: 'system', content: agentSoul }, ...history],
+          temperature: agentTemperature,
+          maxTokens: agentMaxTokens,
         })
 
         for await (const chunk of gen) {

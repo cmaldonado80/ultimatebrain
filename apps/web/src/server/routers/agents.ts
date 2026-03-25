@@ -202,6 +202,9 @@ export const agentsRouter = router({
         preferredModel: z.string().optional(),
         skills: z.array(z.string()).default([]),
         tags: z.array(z.string()).default([]),
+        soul: z.string().optional(),
+        temperature: z.number().min(0).max(2).optional(),
+        maxTokens: z.number().min(1).max(200000).optional(),
         workspaceId: z.string().uuid().optional(),
       }),
     )
@@ -242,6 +245,9 @@ export const agentsRouter = router({
           requiredModelType: reqType,
           skills: input.skills,
           tags: input.tags,
+          soul: input.soul,
+          temperature: input.temperature,
+          maxTokens: input.maxTokens,
           workspaceId: input.workspaceId,
         })
         .returning()

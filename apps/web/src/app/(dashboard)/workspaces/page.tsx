@@ -214,10 +214,9 @@ export default function WorkspacesPage() {
                 onChange={(e) => setType(e.target.value)}
               >
                 <option value="">Type (optional)</option>
+                <option value="general">General</option>
                 <option value="development">Development</option>
-                <option value="research">Research</option>
-                <option value="operations">Operations</option>
-                <option value="creative">Creative</option>
+                <option value="staging">Staging</option>
               </select>
             </div>
             <input

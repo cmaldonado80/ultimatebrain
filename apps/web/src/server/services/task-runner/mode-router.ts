@@ -139,7 +139,7 @@ export class ModeRouter {
     if (!ticket) throw new Error(`Ticket ${ticketId} not found`)
 
     // Simulate single-shot LLM response (real impl wires to gateway)
-    const response = await this.singleLLMCall(prompt, ticket.title ?? '')
+    const response = await this.singleLLMCall(prompt, ticket.title ?? '', ticketId)
 
     const latencyMs = Date.now() - start
 
@@ -312,14 +312,21 @@ export class ModeRouter {
   // ── Internal helpers ──────────────────────────────────────────────────────
 
   /** Resolve agent model and soul for a ticket's assigned agent */
-  private async resolveAgentConfig(ticketId: string): Promise<{ model?: string; soul?: string }> {
+  private async resolveAgentConfig(
+    ticketId: string,
+  ): Promise<{ model?: string; soul?: string; temperature?: number; maxTokens?: number }> {
     try {
       const ticket = await this.db.query.tickets.findFirst({ where: eq(tickets.id, ticketId) })
       if (!ticket?.assignedAgentId) return {}
       const agent = await this.db.query.agents.findFirst({
         where: eq(agents.id, ticket.assignedAgentId),
       })
-      return { model: agent?.model ?? undefined, soul: agent?.soul ?? undefined }
+      return {
+        model: agent?.model ?? undefined,
+        soul: agent?.soul ?? undefined,
+        temperature: agent?.temperature ?? undefined,
+        maxTokens: agent?.maxTokens ?? undefined,
+      }
     } catch {
       return {}
     }
@@ -330,6 +337,8 @@ export class ModeRouter {
       const agentConfig = ticketId ? await this.resolveAgentConfig(ticketId) : {}
       const result = await this.gateway.chat({
         model: agentConfig.model ?? 'claude-haiku-4-5',
+        temperature: agentConfig.temperature,
+        maxTokens: agentConfig.maxTokens,
         messages: [
           {
             role: 'system',
@@ -404,6 +413,8 @@ export class ModeRouter {
       const agentConfig = await this.resolveAgentConfig(ticketId)
       const executionResult = await this.gateway.chat({
         model: agentConfig.model,
+        temperature: agentConfig.temperature,
+        maxTokens: agentConfig.maxTokens,
         messages: [
           {
             role: 'system',
