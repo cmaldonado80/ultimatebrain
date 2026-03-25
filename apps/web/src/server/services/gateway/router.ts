@@ -693,13 +693,16 @@ export class GatewayRouter {
         providerSpan?.setAttribute('llm.model', targetModel)
 
         try {
-          const apiKey = await this.keyVault.getKey(provider)
+          // Env vars take priority over vault for Ollama
+          const apiKey =
+            provider === 'ollama'
+              ? (process.env.OLLAMA_API_KEY ?? (await this.keyVault.getKey(provider)))
+              : await this.keyVault.getKey(provider)
 
-          // Resolve Ollama Cloud URL from vault
           if (provider === 'ollama') {
             const ollamaAdapter = adapter as OllamaAdapter
             const storedUrl = await this.keyVault.getKey('ollama_url')
-            if (storedUrl) ollamaAdapter.resolvedUrl = storedUrl
+            ollamaAdapter.resolvedUrl = process.env.OLLAMA_BASE_URL ?? storedUrl ?? null
           }
 
           const result = await adapter.chat({
@@ -804,13 +807,15 @@ export class GatewayRouter {
       if (!adapter) continue
 
       try {
-        const apiKey = await this.keyVault.getKey(provider)
+        const apiKey =
+          provider === 'ollama'
+            ? (process.env.OLLAMA_API_KEY ?? (await this.keyVault.getKey(provider)))
+            : await this.keyVault.getKey(provider)
 
-        // Resolve Ollama Cloud URL from vault if applicable
         if (provider === 'ollama') {
           const ollamaAdapter = adapter as OllamaAdapter
           const storedUrl = await this.keyVault.getKey('ollama_url')
-          if (storedUrl) ollamaAdapter.resolvedUrl = storedUrl
+          ollamaAdapter.resolvedUrl = process.env.OLLAMA_BASE_URL ?? storedUrl ?? null
         }
 
         if (adapter.chatStream) {
