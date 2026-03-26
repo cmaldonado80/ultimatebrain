@@ -168,11 +168,17 @@ export default function Sidebar() {
 
         {/* Footer */}
         <div style={styles.footer}>
-          <a
-            href="/api/auth/signout"
+          <button
+            onClick={() =>
+              fetch('/api/auth/signout', { method: 'POST' }).then(() => {
+                window.location.href = '/auth/signin'
+              })
+            }
             style={{
               fontSize: 12,
               color: '#6b7280',
+              background: 'none',
+              border: 'none',
               textDecoration: 'none',
               cursor: 'pointer',
               display: 'block',
@@ -180,7 +186,7 @@ export default function Sidebar() {
             }}
           >
             Sign out
-          </a>
+          </button>
           <div style={styles.footerVersion}>v0.1.0 · Phase 18</div>
         </div>
       </aside>
