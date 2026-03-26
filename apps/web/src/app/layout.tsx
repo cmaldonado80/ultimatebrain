@@ -1,27 +1,6 @@
 import type { Metadata } from 'next'
-import { Inter, JetBrains_Mono, Orbitron } from 'next/font/google'
 import './globals.css'
 import AppShell from '../components/app-shell'
-
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-inter',
-})
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-jetbrains-mono',
-  weight: ['400', '500', '700'],
-})
-
-const orbitron = Orbitron({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-orbitron-loaded',
-  weight: ['500', '700', '900'],
-})
 
 export const metadata: Metadata = {
   title: 'Solarc Brain — Central Intelligence Core',
@@ -30,17 +9,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`dark ${inter.variable} ${jetbrainsMono.variable} ${orbitron.variable}`}
-      style={
-        {
-          '--font-sans': 'var(--font-inter), system-ui, sans-serif',
-          '--font-mono': 'var(--font-jetbrains-mono), monospace',
-          '--font-orbitron': 'var(--font-orbitron-loaded), sans-serif',
-        } as React.CSSProperties
-      }
-    >
+    <html lang="en" className="dark">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="bg-bg-deep text-slate-200 antialiased">
         <AppShell>{children}</AppShell>
       </body>
