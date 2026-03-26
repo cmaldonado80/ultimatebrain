@@ -1053,6 +1053,88 @@ const W: WorkspaceDef[] = [
       ],
     ],
   },
+  {
+    name: 'Astrology & Ephemeris',
+    type: 'general',
+    goal: 'Astrological computation, chart interpretation, predictive timing, and report generation using the Swiss Ephemeris engine',
+    icon: 'astrology',
+    agents: [
+      [
+        'Natal Chart Reader',
+        'specialist',
+        'reasoning',
+        [
+          'natal-charts',
+          'planetary-positions',
+          'house-interpretation',
+          'aspect-analysis',
+          'dignity-assessment',
+        ],
+        'Computes and interprets full natal charts using the Swiss Ephemeris engine. Analyzes planetary positions, house placements, aspects, dignities, chart shape, and dominant element/mode to provide comprehensive birth chart readings.',
+      ],
+      [
+        'Transit Analyst',
+        'specialist',
+        'reasoning',
+        [
+          'transit-tracking',
+          'solar-returns',
+          'transit-calendar',
+          'predictive-timing',
+          'lunar-returns',
+        ],
+        'Tracks planetary transits, computes solar and lunar returns, generates transit calendars, and provides predictive timing analysis. Specializes in identifying significant upcoming astrological events.',
+      ],
+      [
+        'Vedic Astrologer',
+        'specialist',
+        'reasoning',
+        [
+          'panchanga',
+          'vimshottari-dasha',
+          'divisional-charts',
+          'shadbala',
+          'nakshatra-analysis',
+          'ashtakavarga',
+        ],
+        'Vedic/Jyotish specialist. Calculates Panchanga (tithi, vara, nakshatra, yoga, karana), Vimshottari Dasha periods, 16 divisional charts (Shodashavarga), Shadbala strength, Ashtakavarga, and Chara Karakas.',
+      ],
+      [
+        'Synastry & Composite Reader',
+        'specialist',
+        'reasoning',
+        ['synastry', 'composite-charts', 'relationship-analysis', 'compatibility'],
+        'Relationship astrology specialist. Computes synastry aspects between two charts and composite midpoint charts. Analyzes compatibility, attraction patterns, and relationship dynamics.',
+      ],
+      [
+        'Classical Astrologer',
+        'specialist',
+        'reasoning',
+        [
+          'essential-dignities',
+          'arabic-parts',
+          'firdaria',
+          'zodiacal-releasing',
+          'profections',
+          'sect-analysis',
+          'fixed-stars',
+        ],
+        'Traditional/Hellenistic astrology specialist. Assesses essential and accidental dignities, Arabic Parts/Lots, Firdaria, Zodiacal Releasing, annual profections, sect analysis, primary directions, and fixed star conjunctions.',
+      ],
+      [
+        'Astrology Report Generator',
+        'planner',
+        'reasoning',
+        [
+          'report-generation',
+          'chart-synthesis',
+          'multi-section-reports',
+          'interpretation-compilation',
+        ],
+        'Orchestrates multiple astrology agents to produce comprehensive natal reports. Coordinates chart computation, pattern analysis, predictive timing, and dignities into a single cohesive reading with interpretive text.',
+      ],
+    ],
+  },
 ]
 
 /** Generate a soul (system prompt) from agent definition */

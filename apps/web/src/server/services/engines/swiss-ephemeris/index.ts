@@ -139,6 +139,10 @@ export {
 } from './rectification'
 export type { TrutineResult, AnimodarResult, AlmutenResult, HuberAgePoint } from './rectification'
 
+// Report Generation
+export { generateNatalReport } from './report-generator'
+export type { NatalReport, ReportSection } from './report-generator'
+
 // Esoteric & Specialized
 export {
   sevenRays,
