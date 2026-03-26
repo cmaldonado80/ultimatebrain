@@ -16,11 +16,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <TRPCProvider>
-      <div className="flex min-h-screen">
+      <div className="flex h-screen w-full overflow-hidden bg-bg-deep">
         <Sidebar />
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col overflow-hidden">
           <Topbar />
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 overflow-auto relative z-10">{children}</main>
         </div>
       </div>
       <LiveCursors currentLocation={pathname} />

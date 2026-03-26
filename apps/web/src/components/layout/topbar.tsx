@@ -21,14 +21,18 @@ function HealthBadge() {
     (c: { status: string }) => c.status === 'pass' || c.status === 'ok',
   ).length
   const score = checks.length > 0 ? Math.round((okCount / checks.length) * 100) : 100
-  const color = score >= 90 ? '#22c55e' : score >= 70 ? '#f97316' : '#ef4444'
+
+  const dotClass =
+    score >= 90 ? 'neon-dot-green neon-dot-pulse' : score >= 70 ? 'neon-dot-yellow' : 'neon-dot-red'
+  const labelClass =
+    score >= 90 ? 'text-neon-green' : score >= 70 ? 'text-neon-yellow' : 'text-neon-red'
   const label = score >= 90 ? 'Healthy' : score >= 70 ? 'Degraded' : 'Unhealthy'
 
   return (
-    <div style={styles.healthBadge}>
-      <span style={{ ...styles.healthDot, background: color, boxShadow: `0 0 6px ${color}` }} />
-      <span style={{ ...styles.healthLabel, color }}>{label}</span>
-      <span style={styles.healthScore}>{score}%</span>
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-bg-elevated border border-border text-xs">
+      <span className={`neon-dot ${dotClass}`} />
+      <span className={`font-medium ${labelClass}`}>{label}</span>
+      <span className="font-mono text-slate-500">{score}%</span>
     </div>
   )
 }
@@ -68,24 +72,26 @@ function Breadcrumb() {
 
   if (segments.length === 0) {
     return (
-      <div style={styles.breadcrumb}>
-        <span style={styles.breadcrumbItem}>Brain</span>
-        <span style={styles.breadcrumbSep}>/</span>
-        <span style={styles.breadcrumbCurrent}>Dashboard</span>
+      <div className="flex items-center gap-1.5 font-mono text-sm">
+        <span className="text-slate-500">Brain</span>
+        <span className="text-white/20">/</span>
+        <span className="text-slate-200 font-medium">Dashboard</span>
       </div>
     )
   }
 
   return (
-    <div style={styles.breadcrumb}>
-      <span style={styles.breadcrumbItem}>Brain</span>
+    <div className="flex items-center gap-1.5 font-mono text-sm">
+      <span className="text-slate-500">Brain</span>
       {segments.map((seg, i) => {
         const isLast = i === segments.length - 1
         const label = SEGMENT_LABELS[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1)
         return (
-          <span key={i}>
-            <span style={styles.breadcrumbSep}>/</span>
-            <span style={isLast ? styles.breadcrumbCurrent : styles.breadcrumbItem}>{label}</span>
+          <span key={i} className="flex items-center gap-1.5">
+            <span className="text-white/20">/</span>
+            <span className={isLast ? 'text-slate-200 font-medium' : 'text-slate-500'}>
+              {label}
+            </span>
           </span>
         )
       })}
@@ -93,7 +99,7 @@ function Breadcrumb() {
   )
 }
 
-// ── Main ────────────────────────────────────────────────────────────────
+// ── User Menu ────────────────────────────────────────────────────────────
 
 function UserMenu() {
   const handleSignOut = async () => {
@@ -102,69 +108,28 @@ function UserMenu() {
   }
 
   return (
-    <div style={styles.userMenu}>
-      <button onClick={handleSignOut} style={styles.signOutBtn}>
-        Sign out
-      </button>
-    </div>
+    <button
+      onClick={handleSignOut}
+      className="text-[11px] text-slate-600 hover:text-slate-400 bg-transparent border border-white/10 hover:border-white/20 rounded px-2 py-1 cursor-pointer transition-colors font-mono"
+    >
+      Sign out
+    </button>
   )
 }
 
+// ── Main ────────────────────────────────────────────────────────────────
+
 export default function Topbar() {
   return (
-    <header style={styles.topbar}>
+    <header className="h-16 min-h-16 flex items-center justify-between px-6 border-b border-border bg-bg-surface/80 backdrop-blur-xl z-10">
       <Breadcrumb />
-      <div style={styles.rightSection}>
+      <div className="flex items-center gap-3">
         <HealthBadge />
-        <div style={styles.divider} />
+        <div className="w-px h-5 bg-white/10" />
         <PresenceAvatars maxVisible={4} />
-        <div style={styles.divider} />
+        <div className="w-px h-5 bg-white/10" />
         <UserMenu />
       </div>
     </header>
   )
-}
-
-// ── Styles ────────────────────────────────────────────────────────────────
-
-const styles = {
-  topbar: {
-    height: 64,
-    minHeight: 64,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 24px',
-    borderBottom: '1px solid #1f2937',
-    background: '#0f172a',
-    fontFamily: 'sans-serif',
-  },
-  breadcrumb: { display: 'flex', alignItems: 'center', gap: 6 },
-  breadcrumbItem: { fontSize: 13, color: '#6b7280' },
-  breadcrumbSep: { fontSize: 13, color: '#374151' },
-  breadcrumbCurrent: { fontSize: 13, color: '#f9fafb', fontWeight: 600 },
-  rightSection: { display: 'flex', alignItems: 'center', gap: 12 },
-  healthBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    background: '#111827',
-    border: '1px solid #1f2937',
-    borderRadius: 6,
-    padding: '4px 10px',
-  },
-  healthDot: { width: 7, height: 7, borderRadius: '50%' },
-  healthLabel: { fontSize: 12, fontWeight: 600 },
-  healthScore: { fontSize: 11, color: '#6b7280', fontFamily: 'monospace' },
-  divider: { width: 1, height: 24, background: '#1f2937' },
-  userMenu: { display: 'flex', alignItems: 'center', gap: 8 },
-  signOutBtn: {
-    fontSize: 11,
-    color: '#6b7280',
-    background: 'none',
-    border: '1px solid #374151',
-    borderRadius: 4,
-    padding: '2px 8px',
-    cursor: 'pointer',
-  },
 }

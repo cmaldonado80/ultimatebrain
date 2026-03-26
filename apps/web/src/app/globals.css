@@ -1,9 +1,133 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
-:root {
-  --neon-blue: #00d4ff;
-  --neon-purple: #a855f7;
-  --neon-green: #22c55e;
-  --neon-orange: #f97316;
-  --neon-red: #ef4444;
+@theme {
+  /* ── Typography ─────────────────────────────────────────────────────── */
+  --font-sans:     'Inter', system-ui, sans-serif;
+  --font-mono:     'JetBrains Mono', monospace;
+  --font-orbitron: 'Orbitron', sans-serif;
+
+  /* ── Neon Color Palette ─────────────────────────────────────────────── */
+  --color-neon-blue:   #00d4ff;
+  --color-neon-purple: #8b5cf6;
+  --color-neon-green:  #00ff88;
+  --color-neon-yellow: #ffd200;
+  --color-neon-red:    #ff3a5c;
+
+  /* ── Background & Surface Colors ────────────────────────────────────── */
+  --color-bg-deep:     #06090f;                   /* body — deepest space */
+  --color-bg-surface:  #0a0f1a;                   /* sidebar / topbar */
+  --color-bg-elevated: #111827;                   /* inputs, search, modals */
+  --color-bg-card:     rgba(255, 255, 255, 0.03); /* glassmorphism panels */
+
+  /* ── Borders ─────────────────────────────────────────────────────────── */
+  --color-border:     rgba(255, 255, 255, 0.08);
+  --color-border-dim: rgba(255, 255, 255, 0.04);
+
+  /* ── Layout Tokens ───────────────────────────────────────────────────── */
+  --size-agent-card: 230px;
+}
+
+/* ── Base Layer ─────────────────────────────────────────────────────────── */
+
+@layer base {
+  body {
+    @apply bg-bg-deep text-slate-200 font-sans antialiased overflow-x-hidden;
+    /* Soft cosmic ambient blobs — fixed so they persist behind all content */
+    background-image:
+      radial-gradient(circle at 50% -20%, rgba(0, 212, 255, 0.05), transparent 40%),
+      radial-gradient(circle at 0%   100%, rgba(139, 92, 246, 0.03), transparent 30%);
+    background-attachment: fixed;
+  }
+
+  /* Orbitron for all headings */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-orbitron tracking-tight text-white;
+  }
+
+  /* Dark cosmic scrollbar */
+  ::-webkit-scrollbar       { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-bg-deep; }
+  ::-webkit-scrollbar-thumb { @apply bg-white/10 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-white/20; }
+}
+
+/* ── Components Layer ───────────────────────────────────────────────────── */
+
+@layer components {
+  /* ── Glassmorphism Card ───────────────────────────────────────────────── */
+  .cyber-card {
+    @apply bg-bg-card border border-border rounded-xl backdrop-blur-md
+           transition-all duration-300;
+  }
+  .cyber-card:hover {
+    @apply border-neon-blue/30 shadow-[0_0_20px_rgba(0,212,255,0.05)];
+  }
+
+  /* ── Navigation Items ────────────────────────────────────────────────── */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400
+           no-underline transition-all duration-150
+           hover:bg-white/5 hover:text-slate-100;
+  }
+  .nav-item-active {
+    @apply bg-neon-blue/10 text-neon-blue border-l-2 border-neon-blue rounded-l-none;
+  }
+
+  /* ── Badge ───────────────────────────────────────────────────────────── */
+  .cyber-badge {
+    @apply px-2 py-0.5 rounded text-xs font-mono font-medium
+           border border-white/10 bg-white/5;
+  }
+
+  /* ── Neon Status Dots ────────────────────────────────────────────────── */
+  .neon-dot {
+    @apply inline-block w-2 h-2 rounded-full flex-shrink-0;
+  }
+  .neon-dot-blue   { background: #00d4ff; box-shadow: 0 0 8px #00d4ff; }
+  .neon-dot-green  { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+  .neon-dot-red    { background: #ff3a5c; box-shadow: 0 0 8px #ff3a5c; }
+  .neon-dot-yellow { background: #ffd200; box-shadow: 0 0 8px #ffd200; }
+  .neon-dot-purple { background: #8b5cf6; box-shadow: 0 0 8px #8b5cf6; }
+
+  /* ── Form Controls ───────────────────────────────────────────────────── */
+  .cyber-input {
+    @apply w-full bg-bg-elevated text-slate-100 border border-white/10 rounded-lg
+           px-3 py-2 text-sm placeholder:text-slate-500
+           focus:outline-none focus:border-neon-blue/50 focus:ring-1 focus:ring-neon-blue/30
+           transition-colors;
+  }
+  .cyber-select {
+    @apply bg-bg-elevated text-slate-100 border border-white/10 rounded-lg
+           px-3 py-2 text-sm
+           focus:outline-none focus:border-neon-blue/50
+           transition-colors;
+  }
+
+  /* ── Buttons ─────────────────────────────────────────────────────────── */
+  .cyber-btn-primary {
+    @apply bg-neon-blue/20 hover:bg-neon-blue/30 text-neon-blue
+           border border-neon-blue/30 rounded-lg px-4 py-2 text-sm font-medium
+           transition-all duration-150 cursor-pointer;
+  }
+  .cyber-btn-secondary {
+    @apply bg-white/5 hover:bg-white/10 text-slate-300
+           border border-white/10 rounded-lg px-4 py-2 text-sm font-medium
+           transition-all duration-150 cursor-pointer;
+  }
+  .cyber-btn-danger {
+    @apply bg-neon-red/10 hover:bg-neon-red/20 text-neon-red
+           border border-neon-red/30 rounded-lg px-4 py-2 text-sm font-medium
+           transition-all duration-150 cursor-pointer;
+  }
+}
+
+/* ── Animations ─────────────────────────────────────────────────────────── */
+
+@keyframes neon-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.neon-dot-pulse {
+  animation: neon-pulse 2s ease-in-out infinite;
 }
