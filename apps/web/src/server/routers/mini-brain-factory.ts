@@ -171,7 +171,9 @@ export const miniBrainFactoryRouter = router({
                 : 'specialist',
             workspaceId: ws.id,
             description: `${agentDef.role} — ${agentDef.capabilities.join(', ')}`,
-            soul: `You are ${agentDef.name}, a ${template.domain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}. Be domain-expert, precise, and actionable.`,
+            soul:
+              agentDef.soul ??
+              `You are ${agentDef.name}, a ${template.domain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}. Be domain-expert, precise, and actionable.`,
             skills: agentDef.capabilities,
             requiredModelType: 'agentic',
             tags: [template.id, 'domain-agent'],

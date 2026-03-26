@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-import { createDb, waitForSchema, type Database } from '@solarc/db'
-import { chatSessions, chatMessages, agents } from '@solarc/db'
+import { createDb, createMiniBrainDb, waitForSchema, type Database } from '@solarc/db'
+import { chatSessions, chatMessages, agents, brainEntityAgents, brainEntities } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
 import { GatewayRouter } from '../../../../server/services/gateway'
 import { MemoryService } from '../../../../server/services/memory/memory-service'
@@ -47,7 +47,7 @@ function getGateway(): GatewayRouter {
 
 const CONTEXT_WINDOW = 50
 
-/** Load agent config from DB */
+/** Load agent config from DB, including mini-brain database URL if available */
 async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: string) {
   const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) })
   if (!agent) return null
@@ -58,6 +58,24 @@ async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: st
     if (resolved) model = resolved.model
   }
 
+  // Check if this agent belongs to a mini-brain with a dedicated database
+  let entityDatabaseUrl: string | undefined
+  try {
+    const entityLink = await db.query.brainEntityAgents.findFirst({
+      where: eq(brainEntityAgents.agentId, agentId),
+    })
+    if (entityLink) {
+      const entity = await db.query.brainEntities.findFirst({
+        where: eq(brainEntities.id, entityLink.entityId),
+      })
+      if (entity?.databaseUrl) {
+        entityDatabaseUrl = entity.databaseUrl
+      }
+    }
+  } catch {
+    // brainEntityAgents table may not exist yet — skip
+  }
+
   return {
     id: agent.id,
     name: agent.name,
@@ -66,6 +84,7 @@ async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: st
     temperature: agent.temperature ?? undefined,
     maxTokens: agent.maxTokens ?? undefined,
     workspaceId: agent.workspaceId ?? undefined,
+    entityDatabaseUrl,
   }
 }
 
@@ -111,6 +130,7 @@ export async function POST(req: Request) {
     temperature?: number
     maxTokens?: number
     workspaceId?: string
+    entityDatabaseUrl?: string
   }> = []
 
   if (body.agentIds && body.agentIds.length > 0) {
@@ -140,11 +160,14 @@ export async function POST(req: Request) {
   }
 
   // 3. Recall relevant context via ContextPipeline (vector search + relevance scoring)
+  // Use mini-brain's dedicated DB for memory ops when available
   const primaryWorkspaceId = agentConfigs[0]?.workspaceId
+  const entityDbUrl = agentConfigs[0]?.entityDatabaseUrl
+  const memoryDb = entityDbUrl ? createMiniBrainDb(entityDbUrl) : db
   let memoryContext = ''
   try {
     const embedFn = createEmbedFn(db)
-    const pipeline = new ContextPipeline({ db, embedFn })
+    const pipeline = new ContextPipeline({ db: memoryDb, embedFn })
     const pipelineResult = await pipeline.run(body.text, {
       evaluate: false, // Quick mode — skip LLM reranking for chat latency
       maxSources: 5,
@@ -156,7 +179,7 @@ export async function POST(req: Request) {
   } catch {
     // Fallback: simple keyword search if pipeline fails
     try {
-      const memoryService = new MemoryService(db)
+      const memoryService = new MemoryService(memoryDb)
       const recalled = await memoryService.search(body.text, {
         limit: 5,
         ...(primaryWorkspaceId ? { workspaceId: primaryWorkspaceId } : {}),
