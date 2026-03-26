@@ -132,11 +132,28 @@ function loadAllAgents(): Map<string, AgentSoul> {
 /** Map of kebab-case agent name → rich soul definition. Loaded once at startup. */
 export const AGENT_SOULS: Map<string, AgentSoul> = loadAllAgents()
 
+/** Override map for agent names that don't cleanly convert to kebab-case slugs */
+const SLUG_OVERRIDES: Record<string, string> = {
+  'C++ Pro': 'cpp-pro',
+  'C# Developer': 'csharp-developer',
+  '.NET Core Expert': 'dotnet-core-expert',
+  '.NET Framework 4.8 Expert': 'dotnet-framework-4.8-expert',
+  'Full-Stack Developer': 'fullstack-developer',
+  'Go Pro': 'golang-pro',
+  'PowerShell 5.1 Expert': 'powershell-5.1-expert',
+  'PowerShell 7 Expert': 'powershell-7-expert',
+  'Expo React Native Expert': 'expo-react-native-expert',
+}
+
 /**
  * Look up a rich soul by agent display name (Title Case → kebab-case).
  * Returns the full MD body if found, null otherwise.
  */
 export function getAgentSoul(displayName: string): AgentSoul | null {
+  // Check overrides first for names with special characters
+  const override = SLUG_OVERRIDES[displayName]
+  if (override) return AGENT_SOULS.get(override) ?? null
+
   const key = displayName
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
