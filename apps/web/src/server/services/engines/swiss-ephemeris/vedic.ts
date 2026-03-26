@@ -254,8 +254,8 @@ export function panchanga(jd: number): PanchangaResult {
   const varaName = VARA_NAMES[varaIndex]
   const varaLord = VARA_LORDS[varaIndex]
 
-  // Nakshatra (lunar mansion)
-  const nakshatraIndex = Math.floor(moonLon / NAKSHATRA_SPAN)
+  // Nakshatra (lunar mansion) — clamp to 0-26 in case moonLon is exactly 360
+  const nakshatraIndex = Math.min(Math.floor(moonLon / NAKSHATRA_SPAN), 26)
   const nakshatraNumber = nakshatraIndex + 1
   const nakshatraName = NAKSHATRA_NAMES[nakshatraIndex]
   const nakshatraLord = NAKSHATRA_LORDS[nakshatraIndex]
@@ -264,7 +264,7 @@ export function panchanga(jd: number): PanchangaResult {
 
   // Yoga (Sun + Moon combination)
   const yogaRaw = (sunLon + moonLon) % 360
-  const yogaIndex = Math.floor(yogaRaw / NAKSHATRA_SPAN)
+  const yogaIndex = Math.min(Math.floor(yogaRaw / NAKSHATRA_SPAN), 26)
   const yogaNumber = yogaIndex + 1
   const yogaName = YOGA_NAMES[yogaIndex]
 
@@ -287,8 +287,8 @@ export function panchanga(jd: number): PanchangaResult {
 export function vimshottariDasha(moonLon: number, birthJd: number): DashaPeriod[] {
   const periods: DashaPeriod[] = []
 
-  // Determine birth nakshatra
-  const nakshatraIndex = Math.floor(moonLon / NAKSHATRA_SPAN)
+  // Determine birth nakshatra — clamp to 0-26
+  const nakshatraIndex = Math.min(Math.floor(moonLon / NAKSHATRA_SPAN), 26)
   const nakshatraLord = NAKSHATRA_LORDS[nakshatraIndex]
 
   // Find starting position in dasha sequence
