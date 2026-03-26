@@ -41,6 +41,10 @@ const envSchema = z.object({
   // ── LLM provider keys (initial setup, stored encrypted) ───
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  GOOGLE_API_KEY: z.string().optional(),
+
+  // ── Auth ─────────────────────────────────────────────────
+  AUTH_SECRET: z.string().min(16).optional(),
 
   // ── Neon database provisioning ────────────────────────────
   NEON_API_KEY: z.string().optional(),

@@ -1,124 +1,242 @@
 'use client'
 
 /**
- * Engine Detail & Editor — view, test, and edit a brain engine.
- * For built-in engines (system/domain) shows the source code and a live test panel.
- * For custom engines shows the config and lets the user edit description/endpoint.
+ * Engine Detail — view, test, and explore a brain engine.
+ * Swiss Ephemeris shows categorized modules with expandable endpoint lists.
  */
 
-import { useState } from 'react'
-import { trpc } from '../../../../../utils/trpc'
-import { use } from 'react'
+import { useState, use } from 'react'
 
-// Swiss Ephemeris source overview
-const SWISS_EPHEMERIS_SOURCE = `/**
- * Swiss Ephemeris Engine — Production Implementation
- * Uses swisseph Node.js native binding (C library)
- * Accuracy: < 1 arcminute with .se1 data files
- */
+// ─── Module definitions for Swiss Ephemeris ──────────────────────────────────
 
-// 14 celestial bodies: Sun, Moon, Mercury–Pluto, NorthNode, SouthNode, Chiron, Lilith
-// 6 house systems: Placidus, Koch, Porphyry, Regiomontanus, Equal, WholeSign
-// 8 aspect types: Conjunction, Sextile, Square, Trine, Opposition, Quincunx, SemiSquare, Sesquiquadrate
-// Full dignity assessment: domicile, exaltation, detriment, fall, triplicity, term, face
-
-export async function run(input: SwissEphemerisInput): Promise<EngineResult> {
-  // JD → planets (14) → houses (12 cusps) → aspects → dignities
-  // → chart shape → dominant element/mode → lots (fortune, spirit, eros)
-  // → summary string: "Sun 25° Gem · Moon 12° Sco · ASC 04° Aqu"
+interface EngineModule {
+  name: string
+  endpoints: string[]
 }
-`
 
-const ENGINE_DOCS: Record<
-  string,
-  { title: string; description: string; filePath: string; endpoints: string[] }
-> = {
+const SWISS_MODULES: EngineModule[] = [
+  {
+    name: 'Core',
+    endpoints: [
+      'natalChart',
+      'planetaryPositions',
+      'currentTransits',
+      'houseCusps',
+      'aspects',
+      'status',
+    ],
+  },
+  { name: 'Reports', endpoints: ['generateReport'] },
+  { name: 'Lunar', endpoints: ['moonPhase', 'lunarMansion', 'prenatalLunations'] },
+  {
+    name: 'Dignities & Sect',
+    endpoints: ['sectAnalysis', 'accidentalDignities', 'criticalDegrees', 'lillyScore'],
+  },
+  { name: 'Patterns', endpoints: ['patterns'] },
+  {
+    name: 'Subdivisions & Harmonics',
+    endpoints: ['dwads', 'navamsa', 'decanates', 'ageHarmonic', 'harmonicSpectrum'],
+  },
+  { name: 'Antiscia & Draconic', endpoints: ['antiscia', 'draconic', 'heliocentric'] },
+  { name: 'Classical', endpoints: ['arabicParts', 'planetaryHours', 'solarCondition'] },
+  { name: 'Fixed Stars & Symbols', endpoints: ['fixedStars', 'fixedStarAspects', 'sabianSymbol'] },
+  { name: 'Midpoints', endpoints: ['midpoints'] },
+  { name: 'Dispositors', endpoints: ['dispositors'] },
+  { name: 'Declinations', endpoints: ['declinations'] },
+  {
+    name: 'Progressions & Directions',
+    endpoints: ['secondaryProgressions', 'solarArcDirections', 'primaryDirections'],
+  },
+  { name: 'Returns', endpoints: ['solarReturn', 'lunarReturn', 'nodalReturn'] },
+  { name: 'Profections', endpoints: ['profections'] },
+  { name: 'Time Lords', endpoints: ['firdaria', 'zodiacalReleasing', 'decennials'] },
+  {
+    name: 'Rectification',
+    endpoints: ['trutineOfHermes', 'animodar', 'almutenFiguris', 'huberAgePoint', 'huberTimeline'],
+  },
+  { name: 'Transit Calendar', endpoints: ['transitCalendar'] },
+  {
+    name: 'Vedic',
+    endpoints: [
+      'panchanga',
+      'dasha',
+      'vargaCharts',
+      'shadbala',
+      'ashtakavarga',
+      'charaKarakas',
+      'muhurta',
+    ],
+  },
+  {
+    name: 'Esoteric & Medical',
+    endpoints: ['sevenRays', 'medical', 'financialCycles', 'agricultural', 'mundane'],
+  },
+  { name: 'Financial', endpoints: ['bradley'] },
+  { name: 'Composite', endpoints: ['synastry', 'composite'] },
+]
+
+const TOTAL_ENDPOINTS = SWISS_MODULES.reduce((sum, m) => sum + m.endpoints.length, 0)
+
+const ENGINE_DOCS: Record<string, { title: string; description: string; filePath: string }> = {
   'swiss-ephemeris': {
     title: 'Swiss Ephemeris Engine',
     description:
-      'Planetary positions, house cusps, aspect calculations, transit tracking, and retrograde detection. Used by Astrology Brain mini-brains.',
-    filePath: 'apps/web/src/server/services/engines/swiss-ephemeris/engine.ts',
-    endpoints: [
-      'ephemeris.natalChart — Full natal chart (planets + houses + aspects + dignities + lots)',
-      'ephemeris.planetaryPositions — Planet positions for any date/time',
-      "ephemeris.currentTransits — Today's planetary positions (live)",
-      'ephemeris.houseCusps — 12 house cusps by lat/lon + house system',
-      'ephemeris.aspects — All aspects between planets for a date',
-      'ephemeris.status — Check if swisseph native module is loaded',
-    ],
+      'Full astrology computation engine — natal charts, predictive timing, Vedic, classical, esoteric, and financial astrology.',
+    filePath: 'apps/web/src/server/services/engines/swiss-ephemeris/',
   },
   llm: {
     title: 'LLM Engine',
     description: 'Core language model engine powering all agent reasoning and generation.',
     filePath: 'apps/web/src/server/services/gateway/',
-    endpoints: ['gateway.chat', 'gateway.stream'],
   },
   memory: {
     title: 'Memory Engine',
     description: 'Vector-based memory storage and semantic recall for agents.',
     filePath: 'apps/web/src/server/services/memory/',
-    endpoints: ['memory.store', 'memory.search', 'memory.list'],
   },
 }
+
+// ─── Module Category Card ────────────────────────────────────────────────────
+
+function ModuleCard({ mod }: { mod: EngineModule }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div style={styles.moduleCard}>
+      <button style={styles.moduleHeader} onClick={() => setExpanded(!expanded)}>
+        <span style={styles.moduleArrow}>{expanded ? '▾' : '▸'}</span>
+        <span style={styles.moduleName}>{mod.name}</span>
+        <span style={styles.moduleCount}>{mod.endpoints.length}</span>
+      </button>
+      {expanded && (
+        <div style={styles.moduleEndpoints}>
+          {mod.endpoints.map((ep) => (
+            <div key={ep} style={styles.endpointItem}>
+              <code style={styles.endpointCode}>ephemeris.{ep}</code>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function EngineDetailPage({ params }: { params: Promise<{ engineId: string }> }) {
   const { engineId } = use(params)
   const [activeTab, setActiveTab] = useState<'overview' | 'test' | 'code'>('overview')
 
-  // Test panel state
   const [testDate, setTestDate] = useState(new Date().toISOString().split('T')[0])
   const [testTime, setTestTime] = useState('12:00')
   const [testLat, setTestLat] = useState('40.7128')
   const [testLon, setTestLon] = useState('-74.0060')
   const [testResult, setTestResult] = useState<string | null>(null)
 
-  const transitsQuery = trpc.ephemeris.currentTransits.useQuery(undefined, {
-    enabled: false,
-  })
   const [dateParts, timeParts] = [testDate.split('-').map(Number), testTime.split(':').map(Number)]
-  const natalChartQuery = trpc.ephemeris.natalChart.useQuery(
-    {
+  const [activeTestName, setActiveTestName] = useState<string | null>(null)
+
+  const doc = ENGINE_DOCS[engineId]
+
+  function getBirthData() {
+    return {
       birthYear: dateParts[0] ?? 2000,
       birthMonth: dateParts[1] ?? 1,
       birthDay: dateParts[2] ?? 1,
       birthHour: (timeParts[0] ?? 12) + (timeParts[1] ?? 0) / 60,
       latitude: parseFloat(testLat),
       longitude: parseFloat(testLon),
-    },
-    { enabled: false },
-  )
+    }
+  }
+  function getDateData() {
+    return {
+      year: dateParts[0] ?? 2000,
+      month: dateParts[1] ?? 1,
+      day: dateParts[2] ?? 1,
+      hour: (timeParts[0] ?? 12) + (timeParts[1] ?? 0) / 60,
+    }
+  }
 
-  const doc = ENGINE_DOCS[engineId]
-
-  async function runTest(type: 'transits' | 'natal') {
-    setTestResult('Running...')
-    try {
-      if (type === 'transits') {
-        const result = await transitsQuery.refetch()
-        setTestResult(JSON.stringify(result.data, null, 2))
-      } else {
-        const result = await natalChartQuery.refetch()
-        const engineResult = result.data
-        if (engineResult) {
-          const chart = engineResult.data
-          const display = {
-            summary: engineResult.summary,
-            planets: Object.entries(chart.planets).map(
-              ([name, p]) =>
-                `${name}: ${p.degree}°${String(p.minutes).padStart(2, '0')}' ${p.sign}${p.retrograde ? ' Rx' : ''} (House ${p.house})`,
-            ),
-            aspects: chart.aspects
-              .slice(0, 8)
-              .map(
-                (a) =>
-                  `${a.planet1} ${a.type} ${a.planet2} (orb ${a.orb}°${a.applying ? ' applying' : ''})`,
-              ),
-            chartShape: chart.chartShape,
-            dominantElement: chart.dominantElement,
-            dominantMode: chart.dominantMode,
-          }
-          setTestResult(JSON.stringify(display, null, 2))
+  // Input mapper: different endpoints need different input shapes
+  function getInputForEndpoint(name: string): Record<string, unknown> {
+    const bd = getBirthData()
+    const dd = getDateData()
+    switch (name) {
+      case 'currentTransits':
+      case 'status':
+        return {}
+      case 'moonPhase':
+      case 'lunarMansion':
+      case 'panchanga':
+      case 'muhurta':
+        return dd
+      case 'planetaryPositions':
+        return { ...dd, sidereal: false }
+      case 'houseCusps':
+        return { ...dd, latitude: bd.latitude, longitude: bd.longitude }
+      case 'aspects':
+      case 'fixedStars':
+        return { ...dd, latitude: bd.latitude, longitude: bd.longitude }
+      case 'heliocentric':
+        return dd
+      case 'bradley':
+        return { year: dd.year }
+      case 'mundane':
+        return { ...dd, latitude: bd.latitude, longitude: bd.longitude }
+      case 'agricultural':
+        return dd
+      case 'planetaryHours':
+        return { ...dd, latitude: bd.latitude, longitude: bd.longitude }
+      case 'firdaria':
+        return { isDayChart: true, maxAge: 80 }
+      case 'zodiacalReleasing':
+        return { lotSign: 0, maxAge: 80, maxLevel: 2 }
+      case 'decennials':
+        return { isDayChart: true, maxAge: 80 }
+      case 'profections':
+        return {
+          birthYear: bd.birthYear,
+          currentYear: new Date().getFullYear(),
+          ascendantSign: 'Aries',
         }
+      case 'synastry':
+      case 'composite':
+        return { chart1: bd, chart2: bd }
+      case 'sabianSymbol':
+        return { longitude: 84.0 }
+      case 'secondaryProgressions':
+      case 'solarArcDirections':
+        return { ...bd, targetYear: new Date().getFullYear(), targetMonth: 1, targetDay: 1 }
+      case 'lunarReturn':
+      case 'nodalReturn':
+        return { ...bd, targetYear: new Date().getFullYear(), targetMonth: 1, targetDay: 1 }
+      case 'solarReturn':
+        return {
+          natalSunLongitude: 84.0,
+          year: new Date().getFullYear(),
+          latitude: bd.latitude,
+          longitude: bd.longitude,
+        }
+      default:
+        return bd
+    }
+  }
+
+  async function runEndpointTest(name: string) {
+    setActiveTestName(name)
+    setTestResult(`Running ephemeris.${name}...`)
+    try {
+      const input = getInputForEndpoint(name)
+      const inputStr =
+        Object.keys(input).length > 0
+          ? `?input=${encodeURIComponent(JSON.stringify({ json: input }))}`
+          : ''
+      const res = await fetch(`/api/trpc/ephemeris.${name}${inputStr}`)
+      const json = await res.json()
+      if (json.error) {
+        setTestResult(`Error: ${JSON.stringify(json.error, null, 2)}`)
+      } else {
+        setTestResult(JSON.stringify(json.result?.data ?? json, null, 2))
       }
     } catch (err) {
       setTestResult(`Error: ${err instanceof Error ? err.message : String(err)}`)
@@ -141,6 +259,15 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
           {engineId === 'swiss-ephemeris' && <span style={styles.domainBadge}>Astrology</span>}
         </div>
         <p style={styles.subtitle}>{doc?.description ?? 'Engine details'}</p>
+        {engineId === 'swiss-ephemeris' && (
+          <div style={styles.statsRow}>
+            <span style={styles.stat}>22 modules</span>
+            <span style={styles.statDot} />
+            <span style={styles.stat}>{TOTAL_ENDPOINTS} endpoints</span>
+            <span style={styles.statDot} />
+            <span style={styles.stat}>7,421 lines</span>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -159,50 +286,44 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
       {/* Overview Tab */}
       {activeTab === 'overview' && (
         <div style={styles.content}>
-          {doc && (
+          {engineId === 'swiss-ephemeris' ? (
             <>
               <div style={styles.section}>
-                <div style={styles.sectionTitle}>File Path</div>
-                <code style={styles.code}>{doc.filePath}</code>
+                <div style={styles.sectionTitle}>Source</div>
+                <code style={styles.code}>{doc?.filePath}</code>
               </div>
 
               <div style={styles.section}>
-                <div style={styles.sectionTitle}>tRPC Endpoints</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {doc.endpoints.map((ep) => {
-                    const [name, ...rest] = ep.split(' — ')
-                    return (
-                      <div key={ep} style={styles.endpointRow}>
-                        <code style={styles.endpointName}>{name}</code>
-                        {rest.length > 0 && (
-                          <span style={{ fontSize: 11, color: '#9ca3af' }}>{rest.join(' — ')}</span>
-                        )}
-                      </div>
-                    )
-                  })}
+                <div style={styles.sectionTitle}>Modules ({SWISS_MODULES.length})</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {SWISS_MODULES.map((mod) => (
+                    <ModuleCard key={mod.name} mod={mod} />
+                  ))}
                 </div>
               </div>
 
-              {engineId === 'swiss-ephemeris' && (
-                <div style={styles.section}>
-                  <div style={styles.sectionTitle}>Usage in Agents</div>
-                  <div style={{ fontSize: 12, color: '#9ca3af', lineHeight: 1.6 }}>
-                    Astrology Brain agents can call this engine via tRPC. Example prompt injection:
-                    <pre
-                      style={{ ...styles.preBlock, marginTop: 8 }}
-                    >{`// Agent calls ephemeris.natalChart via tool call
-const chart = await trpc.ephemeris.natalChart.query({
-  date: "1990-06-15",
-  time: "14:30",
-  latitude: 40.7128,
-  longitude: -74.0060,
-})`}</pre>
-                  </div>
+              <div style={styles.section}>
+                <div style={styles.sectionTitle}>Usage in Agents</div>
+                <div style={{ fontSize: 12, color: '#9ca3af', lineHeight: 1.6 }}>
+                  Agents call the engine via tRPC:
+                  <pre style={{ ...styles.preBlock, marginTop: 8 }}>
+                    {`const chart = await trpc.ephemeris.natalChart.query({
+  birthYear: 1990, birthMonth: 6, birthDay: 15,
+  birthHour: 14.5,
+  latitude: 40.7128, longitude: -74.0060,
+})
+// chart.data.planets.Sun → { sign: 'Gemini', degree: 24, ... }
+// chart.summary → "Sun 24° Gem · Moon 16° Pis · ASC 26° Leo"`}
+                  </pre>
                 </div>
-              )}
+              </div>
             </>
-          )}
-          {!doc && (
+          ) : doc ? (
+            <div style={styles.section}>
+              <div style={styles.sectionTitle}>File Path</div>
+              <code style={styles.code}>{doc.filePath}</code>
+            </div>
+          ) : (
             <div style={{ color: '#6b7280', textAlign: 'center', padding: 40 }}>
               No documentation available for this engine.
             </div>
@@ -214,7 +335,7 @@ const chart = await trpc.ephemeris.natalChart.query({
       {activeTab === 'test' && engineId === 'swiss-ephemeris' && (
         <div style={styles.content}>
           <div style={styles.section}>
-            <div style={styles.sectionTitle}>Test Parameters</div>
+            <div style={styles.sectionTitle}>Birth / Date Parameters</div>
             <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 12 }}>
               <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
                 <label style={styles.label}>Date</label>
@@ -238,7 +359,6 @@ const chart = await trpc.ephemeris.natalChart.query({
                 <label style={styles.label}>Latitude</label>
                 <input
                   style={{ ...styles.input, width: 100 }}
-                  placeholder="40.7128"
                   value={testLat}
                   onChange={(e) => setTestLat(e.target.value)}
                 />
@@ -247,31 +367,109 @@ const chart = await trpc.ephemeris.natalChart.query({
                 <label style={styles.label}>Longitude</label>
                 <input
                   style={{ ...styles.input, width: 100 }}
-                  placeholder="-74.0060"
                   value={testLon}
                   onChange={(e) => setTestLon(e.target.value)}
                 />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button style={styles.btnPrimary} onClick={() => runTest('transits')}>
-                Get Current Transits
-              </button>
-              <button style={styles.btnSecondary} onClick={() => runTest('natal')}>
-                Get Natal Chart
-              </button>
-            </div>
           </div>
+
+          {/* Test Buttons by Category */}
+          {[
+            {
+              label: 'Core',
+              tests: [
+                'status',
+                'natalChart',
+                'currentTransits',
+                'planetaryPositions',
+                'houseCusps',
+                'aspects',
+              ],
+            },
+            { label: 'Reports', tests: ['generateReport'] },
+            { label: 'Lunar', tests: ['moonPhase', 'lunarMansion', 'prenatalLunations'] },
+            {
+              label: 'Dignities & Sect',
+              tests: ['sectAnalysis', 'accidentalDignities', 'criticalDegrees', 'lillyScore'],
+            },
+            { label: 'Patterns', tests: ['patterns'] },
+            {
+              label: 'Subdivisions',
+              tests: ['dwads', 'navamsa', 'decanates', 'ageHarmonic', 'harmonicSpectrum'],
+            },
+            { label: 'Antiscia', tests: ['antiscia', 'draconic', 'heliocentric'] },
+            { label: 'Classical', tests: ['arabicParts', 'planetaryHours', 'solarCondition'] },
+            { label: 'Stars & Symbols', tests: ['fixedStars', 'fixedStarAspects', 'sabianSymbol'] },
+            { label: 'Analysis', tests: ['midpoints', 'dispositors', 'declinations'] },
+            {
+              label: 'Progressions',
+              tests: ['secondaryProgressions', 'solarArcDirections', 'primaryDirections'],
+            },
+            { label: 'Returns', tests: ['solarReturn', 'lunarReturn', 'nodalReturn'] },
+            {
+              label: 'Profections & Time Lords',
+              tests: ['profections', 'firdaria', 'zodiacalReleasing', 'decennials'],
+            },
+            {
+              label: 'Rectification',
+              tests: ['trutineOfHermes', 'almutenFiguris', 'huberAgePoint'],
+            },
+            { label: 'Transit Calendar', tests: ['transitCalendar'] },
+            {
+              label: 'Vedic',
+              tests: [
+                'panchanga',
+                'dasha',
+                'vargaCharts',
+                'shadbala',
+                'ashtakavarga',
+                'charaKarakas',
+                'muhurta',
+              ],
+            },
+            { label: 'Esoteric', tests: ['sevenRays', 'medical', 'mundane', 'agricultural'] },
+            { label: 'Financial', tests: ['bradley'] },
+            { label: 'Composite', tests: ['synastry', 'composite'] },
+          ].map((group) => (
+            <div key={group.label} style={styles.section}>
+              <div style={styles.sectionTitle}>{group.label}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                {group.tests.map((t) => (
+                  <button
+                    key={t}
+                    style={{
+                      ...styles.btnSecondary,
+                      ...(activeTestName === t ? { borderColor: '#818cf8', color: '#818cf8' } : {}),
+                      fontSize: 11,
+                      padding: '5px 10px',
+                    }}
+                    onClick={() => runEndpointTest(t)}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
 
           {testResult && (
             <div style={styles.section}>
-              <div style={styles.sectionTitle}>Result</div>
-              <pre style={styles.preBlock}>{testResult}</pre>
+              <div style={styles.sectionTitle}>
+                Result{' '}
+                {activeTestName && (
+                  <span style={{ color: '#a5f3fc', fontWeight: 400 }}>
+                    — ephemeris.{activeTestName}
+                  </span>
+                )}
+              </div>
+              <pre style={{ ...styles.preBlock, maxHeight: 500, overflowY: 'auto' }}>
+                {testResult}
+              </pre>
             </div>
           )}
         </div>
       )}
-
       {activeTab === 'test' && engineId !== 'swiss-ephemeris' && (
         <div style={{ color: '#6b7280', textAlign: 'center', padding: 40 }}>
           Live testing is currently available for the Swiss Ephemeris engine only.
@@ -294,45 +492,70 @@ const chart = await trpc.ephemeris.natalChart.query({
                 <span style={{ fontSize: 12, color: '#6b7280' }}>
                   Source:{' '}
                   <code style={{ color: '#818cf8' }}>
-                    apps/web/src/server/services/engines/swiss-ephemeris/engine.ts
+                    apps/web/src/server/services/engines/swiss-ephemeris/
                   </code>
                 </span>
                 <a
-                  href="https://github.com/cmaldonado80/ultimatebrain/blob/main/apps/web/src/server/services/engines/swiss-ephemeris/engine.ts"
+                  href="https://github.com/cmaldonado80/ultimatebrain/tree/main/apps/web/src/server/services/engines/swiss-ephemeris"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ fontSize: 11, color: '#818cf8', textDecoration: 'none' }}
                 >
-                  Edit on GitHub →
+                  Browse on GitHub →
                 </a>
               </div>
-              <pre style={styles.sourceBlock}>{SWISS_EPHEMERIS_SOURCE}</pre>
-              <div
-                style={{
-                  marginTop: 16,
-                  padding: 12,
-                  background: '#111827',
-                  borderRadius: 6,
-                  border: '1px solid #374151',
-                }}
-              >
+              <div style={{ ...styles.section, background: '#111827' }}>
                 <div style={{ fontSize: 11, color: '#22c55e', marginBottom: 6, fontWeight: 600 }}>
                   Production Ready
                 </div>
                 <div style={{ fontSize: 12, color: '#9ca3af', lineHeight: 1.6 }}>
-                  This engine uses the swisseph native C binding for &lt; 1 arcminute accuracy. For
-                  maximum precision, download .se1 ephemeris data files:
+                  Uses the swisseph native C binding for &lt; 1 arcminute accuracy with .se1 data
+                  files. Falls back to pure-JS mean-motion approximations (~1 deg) on Vercel
+                  serverless.
                 </div>
-                <pre
-                  style={{ ...styles.preBlock, marginTop: 8 }}
-                >{`# Download from https://www.astro.com/ftp/swisseph/ephe/
-# Place in apps/web/ephe/
-# Required files (~30 MB total):
-sepl_18.se1  — Outer planets 1800–2400
-semo_18.se1  — Moon 1800–2400
-seas_18.se1  — Asteroids (Chiron, etc.) 1800–2400
-
-# Without .se1 files, swisseph uses Moshier approximations (~1° accuracy)`}</pre>
+              </div>
+              <div style={styles.section}>
+                <div style={styles.sectionTitle}>Module Files (22)</div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 4,
+                    fontSize: 12,
+                    color: '#94a3b8',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {[
+                    'engine.ts',
+                    'patterns.ts',
+                    'predictive.ts',
+                    'vedic.ts',
+                    'composite.ts',
+                    'classical.ts',
+                    'midpoints.ts',
+                    'financial.ts',
+                    'lunar.ts',
+                    'declinations.ts',
+                    'dispositors.ts',
+                    'accidental.ts',
+                    'subdivisions.ts',
+                    'antiscia.ts',
+                    'fixed-stars.ts',
+                    'progressions.ts',
+                    'timelords.ts',
+                    'returns.ts',
+                    'vedic-advanced.ts',
+                    'rectification.ts',
+                    'esoteric.ts',
+                    'report-generator.ts',
+                    'index.ts',
+                  ].map((f) => (
+                    <div key={f} style={{ padding: '3px 0' }}>
+                      {f}
+                    </div>
+                  ))}
+                </div>
               </div>
             </>
           ) : (
@@ -345,6 +568,8 @@ seas_18.se1  — Asteroids (Chiron, etc.) 1800–2400
     </div>
   )
 }
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = {
   page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb', maxWidth: 900 },
@@ -359,6 +584,9 @@ const styles = {
     borderRadius: 4,
     fontWeight: 600,
   },
+  statsRow: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 },
+  stat: { fontSize: 11, color: '#818cf8', fontWeight: 600 },
+  statDot: { width: 3, height: 3, borderRadius: '50%', background: '#374151' },
   tabs: {
     display: 'flex',
     gap: 4,
@@ -378,12 +606,7 @@ const styles = {
   },
   tabActive: { color: '#818cf8', borderBottom: '2px solid #818cf8' },
   content: { display: 'flex', flexDirection: 'column' as const, gap: 20 },
-  section: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 16,
-    border: '1px solid #374151',
-  },
+  section: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
   sectionTitle: {
     fontSize: 11,
     fontWeight: 700,
@@ -399,14 +622,39 @@ const styles = {
     padding: '4px 8px',
     borderRadius: 4,
   },
-  endpointRow: {
+  moduleCard: { borderRadius: 6, overflow: 'hidden' },
+  moduleHeader: {
     display: 'flex',
-    gap: 12,
-    alignItems: 'baseline',
-    padding: '4px 0',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+    padding: '8px 10px',
+    background: 'none',
+    border: 'none',
     borderBottom: '1px solid #111827',
+    color: '#d1d5db',
+    fontSize: 13,
+    cursor: 'pointer',
+    textAlign: 'left' as const,
   },
-  endpointName: { fontSize: 12, color: '#a5f3fc', minWidth: 260, fontFamily: 'monospace' },
+  moduleArrow: { fontSize: 10, color: '#6b7280', width: 12 },
+  moduleName: { flex: 1, fontWeight: 600 },
+  moduleCount: {
+    fontSize: 10,
+    background: '#374151',
+    color: '#9ca3af',
+    padding: '1px 6px',
+    borderRadius: 8,
+    fontWeight: 600,
+  },
+  moduleEndpoints: {
+    padding: '4px 10px 8px 30px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 2,
+  },
+  endpointItem: { padding: '2px 0' },
+  endpointCode: { fontSize: 11, color: '#a5f3fc', fontFamily: 'monospace' },
   preBlock: {
     background: '#0f172a',
     border: '1px solid #1e293b',
@@ -417,18 +665,6 @@ const styles = {
     overflowX: 'auto' as const,
     lineHeight: 1.5,
     margin: 0,
-  },
-  sourceBlock: {
-    background: '#0f172a',
-    border: '1px solid #1e293b',
-    borderRadius: 6,
-    padding: 16,
-    fontSize: 12,
-    color: '#94a3b8',
-    overflowX: 'auto' as const,
-    lineHeight: 1.6,
-    margin: 0,
-    whiteSpace: 'pre' as const,
   },
   label: { fontSize: 11, color: '#6b7280' },
   input: {
