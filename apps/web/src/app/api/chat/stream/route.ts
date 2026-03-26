@@ -6,6 +6,8 @@ import { chatSessions, chatMessages, agents } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
 import { GatewayRouter } from '../../../../server/services/gateway'
 import { MemoryService } from '../../../../server/services/memory/memory-service'
+import { createEmbedFn } from '../../../../server/services/memory/embed-helper'
+import { ContextPipeline } from '../../../../server/services/memory/context-pipeline'
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
 
 let _db: Database | undefined
@@ -105,22 +107,36 @@ export async function POST(req: Request) {
     })
   }
 
-  // 3. Recall relevant memories (scoped to the first agent's workspace when available)
+  // 3. Recall relevant context via ContextPipeline (vector search + relevance scoring)
   const primaryWorkspaceId = agentConfigs[0]?.workspaceId
   let memoryContext = ''
   try {
-    const memoryService = new MemoryService(db)
-    const recalled = await memoryService.search(body.text, {
-      limit: 5,
+    const embedFn = createEmbedFn(db)
+    const pipeline = new ContextPipeline({ db, embedFn })
+    const pipelineResult = await pipeline.run(body.text, {
+      evaluate: false, // Quick mode — skip LLM reranking for chat latency
+      maxSources: 5,
       ...(primaryWorkspaceId ? { workspaceId: primaryWorkspaceId } : {}),
     })
-    if (recalled.length > 0) {
-      memoryContext =
-        '\n\nRelevant memories from past interactions:\n' +
-        recalled.map((m) => `- [${m.tier}] ${m.content}`).join('\n')
+    if (pipelineResult.synthesizedContext) {
+      memoryContext = '\n\n' + pipelineResult.synthesizedContext
     }
   } catch {
-    // Best-effort
+    // Fallback: simple keyword search if pipeline fails
+    try {
+      const memoryService = new MemoryService(db)
+      const recalled = await memoryService.search(body.text, {
+        limit: 5,
+        ...(primaryWorkspaceId ? { workspaceId: primaryWorkspaceId } : {}),
+      })
+      if (recalled.length > 0) {
+        memoryContext =
+          '\n\nRelevant memories from past interactions:\n' +
+          recalled.map((m) => `- [${m.tier}] ${m.content}`).join('\n')
+      }
+    } catch {
+      // Best-effort
+    }
   }
 
   // 4. Load conversation history

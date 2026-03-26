@@ -49,6 +49,8 @@ export interface PipelineOptions {
   enableFallback?: boolean
   /** Max sources to include */
   maxSources?: number
+  /** Scope memory searches to a specific workspace */
+  workspaceId?: string
 }
 
 export class ContextPipeline {
@@ -81,7 +83,7 @@ export class ContextPipeline {
     } = options
 
     // Step 1: GATHER — parallel multi-source retrieval
-    const rawSources = await this.gather(query)
+    const rawSources = await this.gather(query, options.workspaceId)
 
     // Step 2: EVALUATE — LLM scores each source for relevance
     let evaluated: EvaluatedSource[]
@@ -132,22 +134,26 @@ export class ContextPipeline {
 
   // ── Stage 1: Gather ───────────────────────────────────────────────────
 
-  private async gather(query: string): Promise<ContextSource[]> {
+  private async gather(query: string, workspaceId?: string): Promise<ContextSource[]> {
     // Run all retrievals in parallel
     const [ragResults, memoryResults, toolResults] = await Promise.all([
-      this.gatherFromRAG(query),
-      this.gatherFromMemory(query),
+      this.gatherFromRAG(query, workspaceId),
+      this.gatherFromMemory(query, workspaceId),
       this.gatherFromTools(query),
     ])
 
     return [...ragResults, ...memoryResults, ...toolResults]
   }
 
-  private async gatherFromRAG(query: string): Promise<ContextSource[]> {
+  private async gatherFromRAG(query: string, workspaceId?: string): Promise<ContextSource[]> {
     // Use MemoryService vector search for document context
     try {
       if (this.memoryService) {
-        const results = await this.memoryService.search(query, { tier: 'core', limit: 5 })
+        const results = await this.memoryService.search(query, {
+          tier: 'core',
+          limit: 5,
+          ...(workspaceId ? { workspaceId } : {}),
+        })
         return results.map((r) => ({
           name: `rag-${r.id}`,
           type: 'rag' as const,
@@ -161,11 +167,14 @@ export class ContextPipeline {
     return []
   }
 
-  private async gatherFromMemory(query: string): Promise<ContextSource[]> {
+  private async gatherFromMemory(query: string, workspaceId?: string): Promise<ContextSource[]> {
     // Tiered memory search via RecallFlow (core → recall → archival)
     try {
       if (this.recallFlow) {
-        const tieredResult = await this.recallFlow.search({ query })
+        const tieredResult = await this.recallFlow.search({
+          query,
+          ...(workspaceId ? { workspaceId } : {}),
+        })
         return tieredResult.results.map((r) => ({
           name: `memory-${r.id}`,
           type: 'memory' as const,
@@ -192,7 +201,7 @@ export class ContextPipeline {
   private async evaluate(
     query: string,
     sources: ContextSource[],
-    threshold: number
+    threshold: number,
   ): Promise<EvaluatedSource[]> {
     // Try LLM-based reranking if gateway is available
     if (this.gateway && sources.length > 0) {
@@ -229,12 +238,18 @@ export class ContextPipeline {
           }
         })
       } catch (err) {
-        console.error('[ContextPipeline] LLM reranking failed, falling back to keyword scoring:', err)
+        console.error(
+          '[ContextPipeline] LLM reranking failed, falling back to keyword scoring:',
+          err,
+        )
       }
     }
 
     // Fallback: keyword overlap scoring (similar to memory-service.keywordSearch)
-    const queryTokens = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2)
+    const queryTokens = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length > 2)
 
     return sources.map((source) => {
       if (queryTokens.length === 0) {
@@ -246,9 +261,8 @@ export class ContextPipeline {
       const matchCount = queryTokens.filter((token) => contentLower.includes(token)).length
       const keywordScore = matchCount / queryTokens.length
       // Blend keyword score with raw score if available
-      const relevanceScore = source.rawScore != null
-        ? (source.rawScore * 0.6 + keywordScore * 0.4)
-        : keywordScore
+      const relevanceScore =
+        source.rawScore != null ? source.rawScore * 0.6 + keywordScore * 0.4 : keywordScore
 
       return {
         ...source,
@@ -264,7 +278,9 @@ export class ContextPipeline {
     // Web search requires MCP integration (e.g., Brave Search or DuckDuckGo MCP server).
     // This cannot be implemented as a direct gateway call — it needs an MCP tool invocation.
     // Wire this when MCP tool execution is available in the pipeline.
-    console.warn('[ContextPipeline] Web search fallback requires MCP integration — returning empty results')
+    console.warn(
+      '[ContextPipeline] Web search fallback requires MCP integration — returning empty results',
+    )
     return []
   }
 
@@ -274,7 +290,7 @@ export class ContextPipeline {
     if (sources.length === 0) return ''
 
     const parts = sources.map(
-      (s) => `[${s.type}/${s.name}, relevance: ${s.relevanceScore.toFixed(2)}]\n${s.content}`
+      (s) => `[${s.type}/${s.name}, relevance: ${s.relevanceScore.toFixed(2)}]\n${s.content}`,
     )
 
     return `Context for: "${query}"\n\n${parts.join('\n\n---\n\n')}`

@@ -10,7 +10,10 @@
  */
 
 import type { Database } from '@solarc/db'
+import { agents, flows } from '@solarc/db'
+import { eq } from 'drizzle-orm'
 import type { MCPRegistry } from './registry'
+import { GatewayRouter } from '../gateway'
 
 // ── JSON-RPC 2.0 Types ──────────────────────────────────────────────────
 
@@ -78,7 +81,7 @@ export class MCPServer {
 
   constructor(
     private db: Database,
-    private registry: MCPRegistry
+    private registry: MCPRegistry,
   ) {}
 
   /** Server metadata returned on initialize */
@@ -223,7 +226,9 @@ export class MCPServer {
       }
     } catch (err) {
       return {
-        content: [{ type: 'text', text: `Tool error: ${err instanceof Error ? err.message : String(err)}` }],
+        content: [
+          { type: 'text', text: `Tool error: ${err instanceof Error ? err.message : String(err)}` },
+        ],
         isError: true,
       }
     }
@@ -294,28 +299,58 @@ export class MCPServer {
 
   // ── Internal ──────────────────────────────────────────────────────────
 
-  private async executeAgent(
-    agentId: string,
-    params: Record<string, unknown>
-  ): Promise<unknown> {
-    // Stub — real impl dispatches to agent execution engine
+  private async executeAgent(agentId: string, params: Record<string, unknown>): Promise<unknown> {
+    // Load agent from DB
+    const agent = await this.db.query.agents.findFirst({
+      where: eq(agents.id, agentId),
+    })
+    if (!agent) return { status: 'error', error: `Agent ${agentId} not found` }
+
+    const task = String(params['task'] ?? '')
+    const context = String(params['context'] ?? '')
+
+    // Build system prompt from agent soul
+    const soul = agent.soul ?? `You are ${agent.name}. ${agent.description ?? ''}`
+    const messages = [
+      { role: 'system', content: soul },
+      { role: 'user', content: context ? `Context: ${context}\n\nTask: ${task}` : task },
+    ]
+
+    // Resolve model and call gateway
+    const gateway = new GatewayRouter(this.db)
+    let model = agent.model ?? undefined
+    if (!model && agent.requiredModelType) {
+      const resolved = await gateway.resolveModelForCapability(agent.requiredModelType)
+      if (resolved) model = resolved.model
+    }
+
+    const result = await gateway.chat({ model, messages })
     return {
       status: 'completed',
       agentId,
-      task: params['task'],
-      result: `Agent ${agentId} executed task: ${params['task']}`,
+      agentName: agent.name,
+      task,
+      result: result.content,
     }
   }
 
-  private async executeFlow(
-    flowId: string,
-    _params: Record<string, unknown>
-  ): Promise<unknown> {
-    // Stub — real impl dispatches to flow executor
+  private async executeFlow(flowId: string, params: Record<string, unknown>): Promise<unknown> {
+    // Load flow definition from DB
+    const flow = await this.db.query.flows.findFirst({
+      where: eq(flows.id, flowId),
+    })
+
+    if (!flow) {
+      return { status: 'error', error: `Flow ${flowId} not found` }
+    }
+
+    // Return flow metadata — full FlowEngine execution to be wired separately
     return {
-      status: 'completed',
+      status: 'acknowledged',
       flowId,
-      result: `Flow ${flowId} executed with params`,
+      flowName: (flow as { name?: string }).name ?? flowId,
+      params,
+      message: 'Flow execution queued. Full FlowEngine integration pending.',
     }
   }
 

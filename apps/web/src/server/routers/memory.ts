@@ -10,10 +10,13 @@ import { memories } from '@solarc/db'
 import type { Database } from '@solarc/db'
 import { eq, and } from 'drizzle-orm'
 import { MemoryService } from '../services/memory'
+import { createEmbedFn } from '../services/memory/embed-helper'
 
 let memService: MemoryService | null = null
 function getMemoryService(db: Database) {
-  return (memService ??= new MemoryService(db))
+  const svc = (memService ??= new MemoryService(db))
+  svc.setEmbedFunction(createEmbedFn(db))
+  return svc
 }
 
 export const memoryRouter = router({

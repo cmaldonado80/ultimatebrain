@@ -7,13 +7,15 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
-import { tickets } from '@solarc/db'
+import { tickets, flows as flowsTable } from '@solarc/db'
+import { eq } from 'drizzle-orm'
 import {
   CrewEngine,
   type AgentDefinition,
   type ToolDefinition,
 } from '../services/crews/crew-engine'
 import { RecallFlow, type RecallQuery } from '../services/memory/recall-flow'
+import { FlowBuilder, type StepFn, type FlowContext } from '../services/flows/flow-engine'
 import { GatewayRouter } from '../services/gateway'
 import { MemoryService } from '../services/memory/memory-service'
 
@@ -221,5 +223,55 @@ export const flowsRouter = router({
     .mutation(async ({ ctx, input }) => {
       await getRecallFlow(ctx.db).promoteUsedMemories(input.memoryIds)
       return { promoted: input.memoryIds.length }
+    }),
+
+  /** Execute a saved flow by ID with optional initial data */
+  execute: protectedProcedure
+    .input(
+      z.object({
+        flowId: z.string().uuid(),
+        initialData: z.record(z.unknown()).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const flow = await ctx.db.query.flows.findFirst({
+        where: eq(flowsTable.id, input.flowId),
+      })
+      if (!flow) throw new Error(`Flow ${input.flowId} not found`)
+
+      // Build a simple sequential flow from the stored steps definition
+      const stepsJson = flow.steps as Array<{ name: string; action: string }>
+      const gateway = getGateway(ctx.db)
+
+      const builder = new FlowBuilder(flow.name)
+      const startStep: StepFn = async (fctx: FlowContext) => ({
+        ...fctx,
+        data: { ...fctx.data, flowName: flow.name },
+      })
+      builder.start(startStep)
+
+      // Each stored step becomes a sequential "then" that calls the gateway
+      for (const step of stepsJson) {
+        const stepFn: StepFn = async (fctx: FlowContext) => {
+          const result = await gateway.chat({
+            messages: [
+              { role: 'system', content: `Execute step: ${step.name}` },
+              {
+                role: 'user',
+                content: `Action: ${step.action}\nContext: ${JSON.stringify(fctx.data)}`,
+              },
+            ],
+          })
+          return {
+            ...fctx,
+            data: { ...fctx.data, [`step_${step.name}`]: result.content },
+          }
+        }
+        builder.then(stepFn, step.name)
+      }
+
+      const definition = builder.end()
+      const runner = definition.runner(ctx.db)
+      return runner.run(input.initialData ?? {}, { triggeredBy: 'flows.execute' })
     }),
 })
