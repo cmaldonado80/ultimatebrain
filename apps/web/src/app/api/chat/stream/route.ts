@@ -9,6 +9,26 @@ import { MemoryService } from '../../../../server/services/memory/memory-service
 import { createEmbedFn } from '../../../../server/services/memory/embed-helper'
 import { ContextPipeline } from '../../../../server/services/memory/context-pipeline'
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
+import { auth } from '../../../../server/auth'
+import { eventBus } from '../../../../server/services/orchestration/event-bus'
+
+// ── Rate Limiting ────────────────────────────────────────────────────────
+const RATE_LIMIT_WINDOW_MS = 60_000
+const MAX_REQUESTS_PER_IP = 20
+
+const ipCounts = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = ipCounts.get(ip)
+  if (!entry || now > entry.resetAt) {
+    ipCounts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= MAX_REQUESTS_PER_IP) return false
+  entry.count++
+  return true
+}
 
 let _db: Database | undefined
 function getDb(): Database {
@@ -50,6 +70,18 @@ async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: st
 }
 
 export async function POST(req: Request) {
+  // Auth check
+  const session = await auth()
+  if (!session) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  // Rate limit
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  if (!checkRateLimit(ip)) {
+    return new Response('Too many requests', { status: 429, headers: { 'Retry-After': '60' } })
+  }
+
   const body = (await req.json()) as { sessionId: string; text: string; agentIds?: string[] }
   if (!body.sessionId || !body.text) {
     return new Response('Missing sessionId or text', { status: 400 })
@@ -282,6 +314,10 @@ export async function POST(req: Request) {
         const message = err instanceof Error ? err.message : 'Unknown error'
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`))
         controller.close()
+        // Emit agent error event (non-blocking)
+        eventBus
+          .emit('agent.error', { agentId: agentConfigs[0]?.id, error: message })
+          .catch(() => {})
       }
     },
   })

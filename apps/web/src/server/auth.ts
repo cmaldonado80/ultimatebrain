@@ -2,7 +2,11 @@ import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 
 const COOKIE_NAME = 'session-token'
-const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || 'dev-secret-change-me')
+const AUTH_SECRET = process.env.AUTH_SECRET
+if (!AUTH_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('AUTH_SECRET environment variable is required in production')
+}
+const SECRET = new TextEncoder().encode(AUTH_SECRET || 'dev-secret-change-me')
 
 export interface Session {
   user: { id: string; email: string; name: string }
@@ -21,8 +25,8 @@ export async function createSession(email: string): Promise<string> {
 
 /** Read and verify the session cookie. Returns null if invalid/missing. */
 export async function auth(): Promise<Session | null> {
-  // Dev mode: return mock session when SKIP_AUTH is set
-  if (process.env.SKIP_AUTH === 'true') {
+  // Dev mode only: return mock session when SKIP_AUTH is set
+  if (process.env.SKIP_AUTH === 'true' && process.env.NODE_ENV !== 'production') {
     return { user: { id: 'dev-user', email: 'dev@ultimatebrain.local', name: 'Developer' } }
   }
 

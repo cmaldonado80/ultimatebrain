@@ -19,6 +19,7 @@ import {
 } from '@solarc/db'
 import { eq, and, or, inArray, lte, isNull, sql } from 'drizzle-orm'
 import { NotFoundError, ValidationError } from '../../errors'
+import { eventBus } from './event-bus'
 
 export type TicketStatus =
   | 'backlog'
@@ -333,6 +334,9 @@ export class TicketExecutionEngine {
     this.notifyOpenClaw('ticket.completed', { ticketId, result: result.slice(0, 500) }).catch(
       () => {},
     )
+
+    // Emit lifecycle event
+    await eventBus.emit('ticket.completed', { ticketId, agentId })
   }
 
   /**
@@ -382,6 +386,9 @@ export class TicketExecutionEngine {
     this.notifyOpenClaw('ticket.failed', { ticketId, reason: reason.slice(0, 500) }).catch((err) =>
       console.warn('[TicketEngine] notification failed:', err.message),
     )
+
+    // Emit lifecycle event
+    await eventBus.emit('ticket.failed', { ticketId, agentId, reason })
   }
 
   /** Push execution events to OpenClaw ops channel (fire-and-forget). */

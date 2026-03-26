@@ -9,6 +9,7 @@ import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
 import { tickets, ticketStatusHistory } from '@solarc/db'
 import { eq, and } from 'drizzle-orm'
+import { eventBus } from '../services/orchestration/event-bus'
 
 export const ticketsRouter = router({
   list: protectedProcedure
@@ -56,6 +57,7 @@ export const ticketsRouter = router({
       const [ticket] = await ctx.db.insert(tickets).values(input).returning()
       if (!ticket)
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create ticket' })
+      eventBus.emit('ticket.created', { ticketId: ticket.id }).catch(() => {})
       return ticket
     }),
   update: protectedProcedure

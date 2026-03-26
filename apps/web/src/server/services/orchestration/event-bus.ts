@@ -58,22 +58,21 @@ eventBus.on('ticket.completed', async (payload) => {
 })
 
 eventBus.on('ticket.failed', async (payload) => {
-  console.log(
+  console.warn(
     `[EventBus] ticket.failed: ${payload.ticketId} — reason: ${payload.reason ?? 'unknown'}`,
   )
 })
 
 eventBus.on('agent.error', async (payload) => {
-  console.log(
+  console.warn(
     `[EventBus] agent.error: agent ${payload.agentId} — ${payload.error ?? 'unknown error'}`,
   )
 })
 
 eventBus.on('health.degraded', async (payload) => {
-  console.log(
-    `[EventBus] health.degraded: ${payload.entityId} — severity: ${payload.severity ?? 'unknown'}`,
+  console.warn(
+    `[EventBus] health.degraded: status=${payload.status} issues=${payload.issueCount ?? 'unknown'}`,
   )
-  // Future: trigger healing
 })
 
 eventBus.on('brain.seeded', async (payload) => {

@@ -10,6 +10,7 @@ import type { Database } from '@solarc/db'
 import { workspaces, agents, workspaceLifecycleEvents } from '@solarc/db'
 import { eq, and } from 'drizzle-orm'
 import { getAgentSoul } from './agents'
+import { eventBus } from './event-bus'
 
 type Cap =
   | 'reasoning'
@@ -1278,6 +1279,8 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
       agentsCreated++
     }
   }
+
+  await eventBus.emit('brain.seeded', { workspacesCreated, agentsCreated })
 
   return { workspacesCreated, agentsCreated, skipped }
 }

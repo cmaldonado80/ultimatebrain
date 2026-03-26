@@ -7,7 +7,16 @@ import { createDb, waitForSchema } from '@solarc/db'
 import { SystemOrchestrator } from '../../../server/services/orchestration'
 import { HealingEngine } from '../../../server/services/healing/healing-engine'
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Verify cron secret — Vercel sends this automatically for cron jobs
+  const cronSecret = process.env.CRON_SECRET
+  if (cronSecret) {
+    const authHeader = req.headers.get('authorization')
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+  }
+
   try {
     const url = process.env.DATABASE_URL
     if (!url) return Response.json({ error: 'DATABASE_URL not set' }, { status: 503 })
