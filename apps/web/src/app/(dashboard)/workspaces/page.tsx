@@ -44,9 +44,9 @@ interface Goal {
 
 const LIFECYCLE_COLORS: Record<string, string> = {
   draft: '#6b7280',
-  active: '#22c55e',
-  paused: '#eab308',
-  retired: '#ef4444',
+  active: 'var(--color-neon-green)',
+  paused: 'var(--color-neon-yellow)',
+  retired: 'var(--color-neon-red)',
 }
 
 const BINDING_ICONS: Record<string, string> = {
@@ -122,7 +122,7 @@ export default function WorkspacesPage() {
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               style={{
-                background: '#7c3aed',
+                background: 'var(--color-neon-purple)',
                 color: '#f9fafb',
                 border: 'none',
                 borderRadius: 6,
@@ -161,9 +161,9 @@ export default function WorkspacesPage() {
       <input
         style={{
           width: '100%',
-          background: '#1f2937',
+          background: 'var(--color-bg-elevated)',
           color: '#f9fafb',
-          border: '1px solid #374151',
+          border: '1px solid var(--color-border)',
           borderRadius: 6,
           padding: '8px 12px',
           fontSize: 13,
@@ -178,19 +178,19 @@ export default function WorkspacesPage() {
       {showForm && (
         <div
           style={{
-            background: '#1f2937',
+            background: 'var(--color-bg-elevated)',
             borderRadius: 8,
             padding: 16,
-            border: '1px solid #374151',
+            border: '1px solid var(--color-border)',
             marginBottom: 16,
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
             <input
               style={{
-                background: '#111827',
+                background: 'var(--color-bg-elevated)',
                 color: '#f9fafb',
-                border: '1px solid #374151',
+                border: '1px solid var(--color-border)',
                 borderRadius: 6,
                 padding: '8px 12px',
                 fontSize: 13,
@@ -202,9 +202,9 @@ export default function WorkspacesPage() {
             <div style={{ display: 'flex', gap: 8 }}>
               <select
                 style={{
-                  background: '#111827',
+                  background: 'var(--color-bg-elevated)',
                   color: '#f9fafb',
-                  border: '1px solid #374151',
+                  border: '1px solid var(--color-border)',
                   borderRadius: 6,
                   padding: '6px 10px',
                   fontSize: 12,
@@ -221,9 +221,9 @@ export default function WorkspacesPage() {
             </div>
             <input
               style={{
-                background: '#111827',
+                background: 'var(--color-bg-elevated)',
                 color: '#f9fafb',
-                border: '1px solid #374151',
+                border: '1px solid var(--color-border)',
                 borderRadius: 6,
                 padding: '8px 12px',
                 fontSize: 13,
@@ -235,7 +235,7 @@ export default function WorkspacesPage() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
                 style={{
-                  background: '#22c55e',
+                  background: 'var(--color-neon-green)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 6,
@@ -257,7 +257,9 @@ export default function WorkspacesPage() {
                 {createMut.isPending ? 'Creating...' : 'Create Workspace'}
               </button>
               {createMut.error && (
-                <span style={{ color: '#fca5a5', fontSize: 11 }}>{createMut.error.message}</span>
+                <span style={{ color: 'var(--color-neon-red)', fontSize: 11 }}>
+                  {createMut.error.message}
+                </span>
               )}
             </div>
           </div>
@@ -266,13 +268,13 @@ export default function WorkspacesPage() {
       {seedBrainMut.data && (
         <div
           style={{
-            background: '#064e3b',
+            background: 'rgba(0,255,136,0.1)',
             border: '1px solid #22c55e',
             borderRadius: 6,
             padding: '8px 12px',
             marginBottom: 12,
             fontSize: 12,
-            color: '#6ee7b7',
+            color: 'var(--color-neon-green)',
           }}
         >
           Brain initialized: {seedBrainMut.data.workspacesCreated} workspaces,{' '}
@@ -284,13 +286,13 @@ export default function WorkspacesPage() {
       {seedBrainMut.error && (
         <div
           style={{
-            background: '#1e1b4b',
+            background: 'rgba(139,92,246,0.12)',
             border: '1px solid #ef4444',
             borderRadius: 6,
             padding: '8px 12px',
             marginBottom: 12,
             fontSize: 12,
-            color: '#fca5a5',
+            color: 'var(--color-neon-red)',
           }}
         >
           Seed failed: {seedBrainMut.error.message}
@@ -350,7 +352,7 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
           <span
             style={{
               fontSize: 10,
-              background: '#dc2626',
+              background: 'var(--color-neon-red)',
               color: '#fff',
               padding: '1px 6px',
               borderRadius: 4,
@@ -429,7 +431,13 @@ const styles = {
     gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
     gap: 12,
   },
-  card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
+  card: {
+    background: 'var(--color-bg-card)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: 8,
+    padding: 16,
+    border: '1px solid var(--color-border)',
+  },
   cardTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
   cardIcon: { fontSize: 20 },
   cardName: { fontSize: 15, fontWeight: 700, flex: 1 },
@@ -443,7 +451,7 @@ const styles = {
   },
   cardGoal: { fontSize: 12, color: '#9ca3af', marginBottom: 8, lineHeight: 1.4 },
   cardMeta: { display: 'flex', gap: 16, fontSize: 11, color: '#6b7280', marginBottom: 8 },
-  bindingsSection: { marginTop: 8, paddingTop: 8, borderTop: '1px solid #374151' },
+  bindingsSection: { marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--color-border)' },
   sectionLabel: {
     fontSize: 10,
     fontWeight: 700,
@@ -455,12 +463,12 @@ const styles = {
   bindingList: { display: 'flex', flexWrap: 'wrap' as const, gap: 4 },
   bindingTag: {
     fontSize: 11,
-    background: '#1e1b4b',
-    color: '#818cf8',
+    background: 'rgba(139,92,246,0.12)',
+    color: 'var(--color-neon-purple)',
     padding: '2px 8px',
     borderRadius: 4,
   },
-  goalsSection: { marginTop: 8, paddingTop: 8, borderTop: '1px solid #374151' },
+  goalsSection: { marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--color-border)' },
   goalRow: {
     display: 'flex',
     justifyContent: 'space-between',

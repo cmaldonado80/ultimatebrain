@@ -95,10 +95,10 @@ export default function AgentDetailPage() {
               ...styles.statusDot,
               background:
                 agent.status === 'idle'
-                  ? '#22c55e'
+                  ? 'var(--color-neon-green)'
                   : agent.status === 'error'
-                    ? '#ef4444'
-                    : '#818cf8',
+                    ? 'var(--color-neon-red)'
+                    : 'var(--color-neon-purple)',
             }}
           />
           <span style={{ fontSize: 11, color: '#6b7280' }}>{agent.status}</span>
@@ -143,7 +143,7 @@ export default function AgentDetailPage() {
             ) : (
               <>
                 <button
-                  style={{ ...styles.btnSmall, background: '#22c55e' }}
+                  style={{ ...styles.btnSmall, background: 'var(--color-neon-green)' }}
                   onClick={() => updateMut.mutate({ id: agentId, soul: soulDraft })}
                   disabled={updateMut.isPending}
                 >
@@ -192,7 +192,7 @@ export default function AgentDetailPage() {
             </button>
           ) : (
             <button
-              style={{ ...styles.btnSmall, background: '#22c55e' }}
+              style={{ ...styles.btnSmall, background: 'var(--color-neon-green)' }}
               onClick={() => setEditingConfig(false)}
             >
               Done
@@ -324,9 +324,9 @@ export default function AgentDetailPage() {
                     flexShrink: 0,
                     background:
                       trace.status === 'ok'
-                        ? '#22c55e'
+                        ? 'var(--color-neon-green)'
                         : trace.status === 'error'
-                          ? '#ef4444'
+                          ? 'var(--color-neon-red)'
                           : '#6b7280',
                   }}
                 />
@@ -353,7 +353,7 @@ const styles = {
   backBtn: {
     background: 'none',
     border: 'none',
-    color: '#818cf8',
+    color: 'var(--color-neon-purple)',
     cursor: 'pointer',
     fontSize: 13,
     padding: 0,
@@ -364,24 +364,25 @@ const styles = {
   subtitle: { margin: '4px 0 0', fontSize: 13, color: '#9ca3af' },
   badge: {
     fontSize: 10,
-    background: '#1e3a5f',
-    color: '#93c5fd',
+    background: 'rgba(0,212,255,0.1)',
+    color: 'var(--color-neon-blue)',
     padding: '2px 8px',
     borderRadius: 4,
   },
   capBadge: {
     fontSize: 10,
-    background: '#1e1b4b',
-    color: '#a78bfa',
+    background: 'rgba(139,92,246,0.12)',
+    color: 'var(--color-neon-purple)',
     padding: '2px 8px',
     borderRadius: 4,
   },
   statusDot: { width: 8, height: 8, borderRadius: '50%', display: 'inline-block' },
   section: {
-    background: '#1f2937',
+    background: 'var(--color-bg-card)',
+    backdropFilter: 'blur(12px)',
     borderRadius: 8,
     padding: 16,
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
     marginBottom: 16,
   },
   sectionTitle: {
@@ -402,9 +403,9 @@ const styles = {
   },
   textarea: {
     width: '100%',
-    background: '#111827',
+    background: 'var(--color-bg-elevated)',
     color: '#f9fafb',
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
     borderRadius: 6,
     padding: '10px 12px',
     fontSize: 13,
@@ -413,7 +414,7 @@ const styles = {
     boxSizing: 'border-box' as const,
   },
   soulDisplay: {
-    background: '#111827',
+    background: 'var(--color-bg-elevated)',
     borderRadius: 6,
     padding: '12px 14px',
     fontSize: 13,
@@ -435,17 +436,17 @@ const styles = {
   configLabel: { fontSize: 11, color: '#6b7280' },
   configValue: { fontSize: 13, color: '#d1d5db', fontFamily: 'monospace' },
   configSelect: {
-    background: '#111827',
+    background: 'var(--color-bg-elevated)',
     color: '#f9fafb',
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
     borderRadius: 4,
     padding: '4px 8px',
     fontSize: 12,
   },
   configInput: {
-    background: '#111827',
+    background: 'var(--color-bg-elevated)',
     color: '#f9fafb',
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
     borderRadius: 4,
     padding: '4px 8px',
     fontSize: 12,
@@ -454,14 +455,14 @@ const styles = {
   tagList: { display: 'flex', flexWrap: 'wrap' as const, gap: 4 },
   tag: {
     fontSize: 10,
-    background: '#1e1b4b',
-    color: '#818cf8',
+    background: 'rgba(139,92,246,0.12)',
+    color: 'var(--color-neon-purple)',
     padding: '2px 6px',
     borderRadius: 4,
   },
   tagAlt: {
     fontSize: 10,
-    background: '#1c1917',
+    background: 'rgba(255,255,255,0.04)',
     color: '#a3a3a3',
     padding: '2px 6px',
     borderRadius: 4,
@@ -471,7 +472,7 @@ const styles = {
     alignItems: 'center',
     gap: 8,
     padding: '6px 10px',
-    background: '#111827',
+    background: 'var(--color-bg-elevated)',
     borderRadius: 4,
   },
 }

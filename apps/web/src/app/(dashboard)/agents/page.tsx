@@ -46,14 +46,14 @@ const CAPABILITIES = [
 function StatusDot({ status }: { status: string }) {
   const color =
     status === 'idle'
-      ? '#22c55e'
+      ? 'var(--color-neon-green)'
       : status === 'executing'
-        ? '#818cf8'
+        ? 'var(--color-neon-purple)'
         : status === 'error'
-          ? '#ef4444'
+          ? 'var(--color-neon-red)'
           : status === 'offline'
             ? '#6b7280'
-            : '#f97316'
+            : 'var(--color-neon-yellow)'
   return (
     <span
       style={{
@@ -270,7 +270,7 @@ export default function AgentsPage() {
                 <option value="specialist">Specialist</option>
               </select>
               <select
-                style={{ ...styles.select, flex: 1, borderColor: '#818cf8' }}
+                style={{ ...styles.select, flex: 1, borderColor: 'var(--color-neon-purple)' }}
                 value={capability}
                 onChange={(e) => setCapability(e.target.value)}
               >
@@ -357,7 +357,9 @@ export default function AgentsPage() {
                 {createMut.isPending ? 'Creating...' : 'Create Agent'}
               </button>
               {createMut.error && (
-                <span style={{ color: '#fca5a5', fontSize: 11 }}>{createMut.error.message}</span>
+                <span style={{ color: 'var(--color-neon-red)', fontSize: 11 }}>
+                  {createMut.error.message}
+                </span>
               )}
             </div>
           </div>
@@ -367,13 +369,13 @@ export default function AgentsPage() {
       {importMut.error && (
         <div
           style={{
-            background: '#1e1b4b',
+            background: 'rgba(139,92,246,0.12)',
             border: '1px solid #ef4444',
             borderRadius: 6,
             padding: '8px 12px',
             marginBottom: 12,
             fontSize: 12,
-            color: '#fca5a5',
+            color: 'var(--color-neon-red)',
           }}
         >
           Import failed: {importMut.error.message}
@@ -498,39 +500,41 @@ const styles = {
   subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
   searchInput: {
     width: '100%',
-    background: '#1f2937',
+    background: 'var(--color-bg-card)',
+    backdropFilter: 'blur(12px)',
     color: '#f9fafb',
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
     borderRadius: 6,
     padding: '8px 12px',
     fontSize: 13,
     boxSizing: 'border-box' as const,
   },
   input: {
-    background: '#111827',
+    background: 'var(--color-bg-elevated)',
     color: '#f9fafb',
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
     borderRadius: 6,
     padding: '8px 12px',
     fontSize: 13,
   },
   select: {
-    background: '#111827',
+    background: 'var(--color-bg-elevated)',
     color: '#f9fafb',
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
     borderRadius: 6,
     padding: '6px 10px',
     fontSize: 12,
   },
   formCard: {
-    background: '#1f2937',
+    background: 'var(--color-bg-card)',
+    backdropFilter: 'blur(12px)',
     borderRadius: 8,
     padding: 16,
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
     marginBottom: 16,
   },
   btnPrimary: {
-    background: '#818cf8',
+    background: 'var(--color-neon-purple)',
     color: '#f9fafb',
     border: 'none',
     borderRadius: 6,
@@ -540,7 +544,7 @@ const styles = {
     cursor: 'pointer',
   },
   btnSecondary: {
-    background: '#374151',
+    background: 'var(--color-border)',
     color: '#d1d5db',
     border: 'none',
     borderRadius: 6,
@@ -550,7 +554,7 @@ const styles = {
     cursor: 'pointer',
   },
   btnCreate: {
-    background: '#22c55e',
+    background: 'var(--color-neon-green)',
     color: '#fff',
     border: 'none',
     borderRadius: 6,
@@ -568,20 +572,26 @@ const styles = {
   },
   empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 },
-  card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
+  card: {
+    background: 'var(--color-bg-card)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: 8,
+    padding: 16,
+    border: '1px solid var(--color-border)',
+  },
   cardTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
   cardName: { fontSize: 15, fontWeight: 700, flex: 1 },
   typeBadge: {
     fontSize: 10,
-    background: '#1e3a5f',
-    color: '#93c5fd',
+    background: 'rgba(0,212,255,0.1)',
+    color: 'var(--color-neon-blue)',
     padding: '2px 8px',
     borderRadius: 4,
   },
   capBadge: {
     fontSize: 10,
-    background: '#1e1b4b',
-    color: '#a78bfa',
+    background: 'rgba(139,92,246,0.12)',
+    color: 'var(--color-neon-purple)',
     padding: '2px 8px',
     borderRadius: 4,
   },
@@ -590,14 +600,14 @@ const styles = {
   tags: { display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginTop: 6 },
   tag: {
     fontSize: 10,
-    background: '#1e1b4b',
-    color: '#818cf8',
+    background: 'rgba(139,92,246,0.12)',
+    color: 'var(--color-neon-purple)',
     padding: '2px 6px',
     borderRadius: 4,
   },
   tagAlt: {
     fontSize: 10,
-    background: '#1c1917',
+    background: 'rgba(255,255,255,0.04)',
     color: '#a3a3a3',
     padding: '2px 6px',
     borderRadius: 4,

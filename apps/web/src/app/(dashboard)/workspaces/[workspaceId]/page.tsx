@@ -6,9 +6,9 @@ import { DbErrorBanner } from '../../../../components/db-error-banner'
 
 const LIFECYCLE_COLORS: Record<string, string> = {
   draft: '#6b7280',
-  active: '#22c55e',
-  paused: '#eab308',
-  retired: '#ef4444',
+  active: 'var(--color-neon-green)',
+  paused: 'var(--color-neon-yellow)',
+  retired: 'var(--color-neon-red)',
 }
 
 interface Agent {
@@ -118,7 +118,7 @@ export default function WorkspaceDetailPage() {
           {ws.lifecycleState === 'draft' && (
             <button
               style={{
-                background: '#22c55e',
+                background: 'var(--color-neon-green)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 4,
@@ -136,7 +136,7 @@ export default function WorkspaceDetailPage() {
           {ws.lifecycleState === 'active' && (
             <button
               style={{
-                background: '#eab308',
+                background: 'var(--color-neon-yellow)',
                 color: '#000',
                 border: 'none',
                 borderRadius: 4,
@@ -155,7 +155,7 @@ export default function WorkspaceDetailPage() {
             <>
               <button
                 style={{
-                  background: '#22c55e',
+                  background: 'var(--color-neon-green)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 4,
@@ -171,7 +171,7 @@ export default function WorkspaceDetailPage() {
               </button>
               <button
                 style={{
-                  background: '#ef4444',
+                  background: 'var(--color-neon-red)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 4,
@@ -189,7 +189,7 @@ export default function WorkspaceDetailPage() {
           )}
         </div>
         {(activateMut.error || pauseMut.error || retireMut.error) && (
-          <div style={{ color: '#fca5a5', fontSize: 11, marginTop: 4 }}>
+          <div style={{ color: 'var(--color-neon-red)', fontSize: 11, marginTop: 4 }}>
             {activateMut.error?.message || pauseMut.error?.message || retireMut.error?.message}
           </div>
         )}
@@ -213,10 +213,10 @@ export default function WorkspaceDetailPage() {
                   borderRadius: '50%',
                   background:
                     orchestrator.status === 'idle'
-                      ? '#22c55e'
+                      ? 'var(--color-neon-green)'
                       : orchestrator.status === 'error'
-                        ? '#ef4444'
-                        : '#818cf8',
+                        ? 'var(--color-neon-red)'
+                        : 'var(--color-neon-purple)',
                 }}
               />
               <span
@@ -238,7 +238,7 @@ export default function WorkspaceDetailPage() {
             )}
           </div>
         ) : (
-          <div style={{ color: '#ef4444', fontSize: 13 }}>No orchestrator found!</div>
+          <div style={{ color: 'var(--color-neon-red)', fontSize: 13 }}>No orchestrator found!</div>
         )}
       </div>
 
@@ -273,10 +273,10 @@ export default function WorkspaceDetailPage() {
                       borderRadius: '50%',
                       background:
                         agent.status === 'idle'
-                          ? '#22c55e'
+                          ? 'var(--color-neon-green)'
                           : agent.status === 'error'
-                            ? '#ef4444'
-                            : '#818cf8',
+                            ? 'var(--color-neon-red)'
+                            : 'var(--color-neon-purple)',
                     }}
                   />
                   <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{agent.name}</span>
@@ -338,7 +338,12 @@ export default function WorkspaceDetailPage() {
               }}
             >
               <span style={{ color: '#d1d5db' }}>{g.title}</span>
-              <span style={{ fontSize: 11, color: g.status === 'active' ? '#22c55e' : '#6b7280' }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: g.status === 'active' ? 'var(--color-neon-green)' : '#6b7280',
+                }}
+              >
                 {g.status}
               </span>
             </div>
@@ -354,7 +359,7 @@ const styles = {
   backBtn: {
     background: 'none',
     border: 'none',
-    color: '#818cf8',
+    color: 'var(--color-neon-purple)',
     cursor: 'pointer',
     fontSize: 13,
     padding: 0,
@@ -365,8 +370,8 @@ const styles = {
   subtitle: { margin: '4px 0 0', fontSize: 13, color: '#9ca3af' },
   typeBadge: {
     fontSize: 10,
-    background: '#1e3a5f',
-    color: '#93c5fd',
+    background: 'rgba(0,212,255,0.1)',
+    color: 'var(--color-neon-blue)',
     padding: '2px 8px',
     borderRadius: 4,
   },
@@ -379,10 +384,11 @@ const styles = {
     textTransform: 'uppercase' as const,
   },
   section: {
-    background: '#1f2937',
+    background: 'var(--color-bg-card)',
+    backdropFilter: 'blur(12px)',
     borderRadius: 8,
     padding: 16,
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
     marginBottom: 16,
   },
   sectionTitle: {
@@ -394,43 +400,43 @@ const styles = {
     marginBottom: 10,
   },
   orchestratorCard: {
-    background: '#111827',
+    background: 'var(--color-bg-elevated)',
     borderRadius: 6,
     padding: 12,
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
   },
   agentCard: {
-    background: '#111827',
+    background: 'var(--color-bg-elevated)',
     borderRadius: 6,
     padding: 10,
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
     cursor: 'pointer',
   },
   typeBadgeSmall: {
     fontSize: 9,
-    background: '#1e3a5f',
-    color: '#93c5fd',
+    background: 'rgba(0,212,255,0.1)',
+    color: 'var(--color-neon-blue)',
     padding: '1px 6px',
     borderRadius: 3,
   },
   capBadge: {
     fontSize: 9,
-    background: '#1e1b4b',
-    color: '#a78bfa',
+    background: 'rgba(139,92,246,0.12)',
+    color: 'var(--color-neon-purple)',
     padding: '1px 6px',
     borderRadius: 3,
   },
   skillTag: {
     fontSize: 9,
-    background: '#1e1b4b',
-    color: '#818cf8',
+    background: 'rgba(139,92,246,0.12)',
+    color: 'var(--color-neon-purple)',
     padding: '1px 5px',
     borderRadius: 3,
   },
   bindingTag: {
     fontSize: 11,
-    background: '#1e1b4b',
-    color: '#818cf8',
+    background: 'rgba(139,92,246,0.12)',
+    color: 'var(--color-neon-purple)',
     padding: '2px 8px',
     borderRadius: 4,
   },

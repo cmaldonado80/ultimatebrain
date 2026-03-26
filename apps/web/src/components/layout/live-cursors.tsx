@@ -120,7 +120,7 @@ const AgentHighlight = memo(function AgentHighlight({
         top: cursor.displayY - 20,
         borderColor: cursor.color,
         boxShadow: isExecuting ? `0 0 12px ${cursor.color}40` : 'none',
-        animation: isExecuting ? 'agentPulse 2s ease-in-out infinite' : 'none',
+        animation: isExecuting ? 'agent-cursor-pulse 2s ease-in-out infinite' : 'none',
       }}
     >
       <span style={{ ...styles.agentLabel, background: cursor.color }}>{cursor.name}</span>
@@ -218,7 +218,7 @@ export default function LiveCursors({
             top: 4,
             right: 4,
             fontSize: 9,
-            color: '#818cf8',
+            color: 'var(--color-neon-purple)',
             opacity: 0.7,
           }}
         >
@@ -229,13 +229,7 @@ export default function LiveCursors({
         <RemoteCursorView key={cursor.id} cursor={cursor} />
       ))}
 
-      {/* Inline keyframes */}
-      <style>{`
-        @keyframes agentPulse {
-          0%, 100% { transform: scale(1); opacity: 0.7; }
-          50% { transform: scale(1.1); opacity: 1; }
-        }
-      `}</style>
+      {/* agent-cursor-pulse keyframe defined in globals.css */}
     </div>
   )
 }
