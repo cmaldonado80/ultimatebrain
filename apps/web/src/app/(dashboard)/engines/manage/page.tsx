@@ -43,6 +43,106 @@ const STATUS_COLORS: Record<string, string> = {
   degraded: '#f97316',
 }
 
+function DevCreationForm({
+  domain,
+  devName,
+  devTemplate,
+  onNameChange,
+  onTemplateChange,
+  onSubmit,
+  isPending,
+  depth,
+}: {
+  domain: string
+  devName: string
+  devTemplate: string
+  onNameChange: (v: string) => void
+  onTemplateChange: (v: string) => void
+  onSubmit: () => void
+  isPending: boolean
+  depth: number
+}) {
+  const devTemplatesQuery = trpc.factory.developmentTemplates.useQuery(
+    {
+      template: domain as
+        | 'astrology'
+        | 'hospitality'
+        | 'healthcare'
+        | 'legal'
+        | 'marketing'
+        | 'soc-ops',
+    },
+    { enabled: !!domain },
+  )
+  const devTemplates = (devTemplatesQuery.data ?? []) as string[]
+
+  return (
+    <div
+      style={{
+        padding: '8px 16px',
+        paddingLeft: 16 + depth * 24,
+        background: '#0d1117',
+        borderBottom: '1px solid var(--color-border)',
+        display: 'flex',
+        gap: 6,
+        alignItems: 'center',
+      }}
+    >
+      {devTemplates.length > 0 && (
+        <select
+          style={{
+            background: 'var(--color-bg-elevated)',
+            color: '#d1d5db',
+            border: '1px solid var(--color-border)',
+            borderRadius: 4,
+            padding: '4px 6px',
+            fontSize: 11,
+          }}
+          value={devTemplate}
+          onChange={(e) => onTemplateChange(e.target.value)}
+        >
+          <option value="">Select template...</option>
+          {devTemplates.map((t) => (
+            <option key={t} value={t}>
+              {t.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+            </option>
+          ))}
+        </select>
+      )}
+      <input
+        style={{
+          background: 'var(--color-bg-elevated)',
+          color: '#f9fafb',
+          border: '1px solid var(--color-border)',
+          borderRadius: 4,
+          padding: '4px 8px',
+          fontSize: 11,
+          flex: 1,
+        }}
+        placeholder="Development name..."
+        value={devName}
+        onChange={(e) => onNameChange(e.target.value)}
+      />
+      <button
+        style={{
+          background: 'var(--color-neon-green)',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 4,
+          padding: '4px 10px',
+          fontSize: 11,
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+        onClick={onSubmit}
+        disabled={isPending || !devName.trim()}
+      >
+        {isPending ? 'Creating...' : 'Create'}
+      </button>
+    </div>
+  )
+}
+
 export default function BrainManagerPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState('')
@@ -50,6 +150,7 @@ export default function BrainManagerPage() {
   const [expandedEntity, setExpandedEntity] = useState<string | null>(null)
   const [devCreateTarget, setDevCreateTarget] = useState<string | null>(null)
   const [devName, setDevName] = useState('')
+  const [devTemplate, setDevTemplate] = useState('')
   const [createResult, setCreateResult] = useState<{ name: string; agentCount: number } | null>(
     null,
   )
@@ -74,7 +175,11 @@ export default function BrainManagerPage() {
       utils.platform.entitiesByTier.invalidate()
       setDevCreateTarget(null)
       setDevName('')
+      setDevTemplate('')
     },
+  })
+  const reprovisionMut = trpc.factory.reprovisionAgents.useMutation({
+    onSuccess: () => utils.platform.entitiesByTier.invalidate(),
   })
   const activateMut = trpc.platform.activateEntity.useMutation({
     onSuccess: () => utils.platform.entitiesByTier.invalidate(),
@@ -237,32 +342,42 @@ export default function BrainManagerPage() {
         )}
         {/* Dev creation inline */}
         {devCreateTarget === entity.id && (
+          <DevCreationForm
+            domain={entity.domain ?? ''}
+            devName={devName}
+            devTemplate={devTemplate}
+            onNameChange={setDevName}
+            onTemplateChange={(t) => {
+              setDevTemplate(t)
+              if (t && !devName)
+                setDevName(t.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
+            }}
+            onSubmit={() =>
+              devName.trim() &&
+              devCreateMut.mutate({
+                name: devName.trim(),
+                miniBrainId: entity.id,
+                template: devTemplate || undefined,
+              })
+            }
+            isPending={devCreateMut.isPending}
+            depth={depth}
+          />
+        )}
+        {/* Reprovision button for developments */}
+        {entity.tier === 'development' && entity.status === 'active' && (
           <div
             style={{
-              padding: '8px 16px',
               paddingLeft: 16 + depth * 24,
-              background: '#0d1117',
-              borderBottom: '1px solid #374151',
-              display: 'flex',
-              gap: 6,
-              alignItems: 'center',
+              paddingBottom: 4,
             }}
           >
-            <input
-              style={{ ...styles.input, flex: 1, padding: '4px 8px', fontSize: 11 }}
-              placeholder="Development app name..."
-              value={devName}
-              onChange={(e) => setDevName(e.target.value)}
-            />
             <button
-              style={{ ...styles.btnCreate, padding: '4px 10px', fontSize: 11 }}
-              onClick={() =>
-                devName.trim() &&
-                devCreateMut.mutate({ name: devName.trim(), miniBrainId: entity.id })
-              }
-              disabled={devCreateMut.isPending || !devName.trim()}
+              style={{ ...styles.btnSmall, fontSize: 10, color: 'var(--color-neon-blue)' }}
+              onClick={() => reprovisionMut.mutate({ entityId: entity.id })}
+              disabled={reprovisionMut.isPending}
             >
-              {devCreateMut.isPending ? 'Creating...' : 'Create Development'}
+              {reprovisionMut.isPending ? 'Provisioning...' : '↻ Reprovision Agents'}
             </button>
           </div>
         )}

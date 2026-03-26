@@ -38,6 +38,7 @@ export default function ChatPage() {
   const [streamText, setStreamText] = useState('')
   const [streamAgentName, setStreamAgentName] = useState<string | null>(null)
   const [streamError, setStreamError] = useState<string | null>(null)
+  const [wsFilter, setWsFilter] = useState('')
   const abortRef = useRef<AbortController | null>(null)
 
   const sessionsQuery = trpc.intelligence.chatSessions.useQuery()
@@ -45,8 +46,16 @@ export default function ChatPage() {
     { id: selectedSession!, messageLimit: 100 },
     { enabled: !!selectedSession },
   )
-  const agentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
-  const agents = (agentsQuery.data ?? []) as Agent[]
+  const allAgentsQuery = trpc.agents.list.useQuery(
+    { limit: 100, offset: 0 },
+    { enabled: !wsFilter },
+  )
+  const wsAgentsQuery = trpc.agents.byWorkspace.useQuery(
+    { workspaceId: wsFilter || '00000000-0000-0000-0000-000000000000' },
+    { enabled: !!wsFilter },
+  )
+  const agents = ((wsFilter ? wsAgentsQuery.data : allAgentsQuery.data) ?? []) as Agent[]
+  const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
   const createSessionMut = trpc.intelligence.createChatSession.useMutation()
   const utils = trpc.useUtils()
 
@@ -184,8 +193,32 @@ export default function ChatPage() {
               + New
             </button>
           </div>
+          <select
+            value={wsFilter}
+            onChange={(e) => {
+              setWsFilter(e.target.value)
+              setSelectedAgents([])
+            }}
+            style={{
+              width: '100%',
+              marginBottom: 6,
+              background: 'var(--color-bg-elevated)',
+              color: '#d1d5db',
+              border: '1px solid var(--color-border)',
+              borderRadius: 4,
+              padding: '4px 6px',
+              fontSize: 11,
+            }}
+          >
+            <option value="">All agents</option>
+            {(workspacesQuery.data ?? []).map((ws: { id: string; name: string }) => (
+              <option key={ws.id} value={ws.id}>
+                {ws.name}
+              </option>
+            ))}
+          </select>
           <div style={{ maxHeight: 120, overflowY: 'auto', marginBottom: 8, fontSize: 11 }}>
-            {agents.slice(0, 20).map((a) => (
+            {agents.slice(0, 30).map((a) => (
               <label
                 key={a.id}
                 style={{

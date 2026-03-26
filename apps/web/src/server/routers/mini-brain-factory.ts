@@ -271,6 +271,7 @@ export const miniBrainFactoryRouter = router({
       z.object({
         name: z.string().min(1),
         miniBrainId: z.string().uuid(),
+        template: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -332,9 +333,10 @@ export const miniBrainFactoryRouter = router({
       })
 
       // 5. Create development-specific domain agents from template
+      const templateId = input.template ?? input.name.toLowerCase().replace(/\s+/g, '-')
       const devTemplate = getFactory().getDevelopmentTemplate(
         parent.domain as MiniBrainTemplate,
-        input.name.toLowerCase().replace(/\s+/g, '-'),
+        templateId,
       )
       const devAgentIds: string[] = []
       if (devTemplate) {
@@ -565,5 +567,110 @@ export const miniBrainFactoryRouter = router({
         .where(eq(brainEntities.id, input.entityId))
 
       return { success: true }
+    }),
+
+  /**
+   * Reprovision agents for an existing development entity from its template.
+   * Adds missing template agents without duplicating existing ones.
+   */
+  reprovisionAgents: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      // 1. Load entity
+      const entity = await ctx.db.query.brainEntities.findFirst({
+        where: eq(brainEntities.id, input.entityId),
+      })
+      if (!entity) throw new Error('Entity not found')
+
+      // 2. Find parent to determine domain
+      const parent = entity.parentId
+        ? await ctx.db.query.brainEntities.findFirst({
+            where: eq(brainEntities.id, entity.parentId),
+          })
+        : null
+
+      const domain = (parent?.domain ?? entity.domain) as MiniBrainTemplate
+      if (!domain) throw new Error('Cannot determine domain for template lookup')
+
+      // 3. Find matching development template
+      const devTemplate = getFactory().getDevelopmentTemplate(
+        domain,
+        entity.name.toLowerCase().replace(/\s+/g, '-'),
+      )
+
+      // Also try parent template (for mini-brains themselves)
+      const parentTemplate = !devTemplate ? getFactory().getTemplate(domain) : null
+
+      const templateAgents = devTemplate?.agents ?? parentTemplate?.agents ?? []
+      if (templateAgents.length === 0) {
+        return { added: 0, existing: 0, message: 'No matching template found' }
+      }
+
+      // 4. Get existing agents for this entity
+      let existingAgentNames: string[] = []
+      try {
+        const links = await ctx.db.query.brainEntityAgents.findMany({
+          where: eq(brainEntityAgents.entityId, input.entityId),
+        })
+        const agentIds = links.map((l) => l.agentId)
+        if (agentIds.length > 0) {
+          const existingAgents = await Promise.all(
+            agentIds.map((id) => ctx.db.query.agents.findFirst({ where: eq(agents.id, id) })),
+          )
+          existingAgentNames = existingAgents.filter(Boolean).map((a) => a!.name.toLowerCase())
+        }
+      } catch {
+        // brainEntityAgents may not exist yet
+      }
+
+      // 5. Find the workspace for this entity (via workspace bindings)
+      const binding = await ctx.db.query.workspaceBindings.findFirst({
+        where: eq(workspaceBindings.bindingKey, entity.parentId ?? input.entityId),
+      })
+
+      // Also check by entity name matching workspace name
+      let wsId = binding?.workspaceId
+      if (!wsId) {
+        const ws = await ctx.db.query.workspaces.findFirst({
+          where: eq(workspaces.name, entity.name),
+        })
+        wsId = ws?.id
+      }
+
+      // 6. Create missing agents
+      let added = 0
+      for (const agentDef of templateAgents) {
+        if (existingAgentNames.includes(agentDef.name.toLowerCase())) continue
+
+        const [agent] = await ctx.db
+          .insert(agents)
+          .values({
+            name: agentDef.name,
+            type: agentDef.role.includes('review')
+              ? 'reviewer'
+              : agentDef.role.includes('plan')
+                ? 'planner'
+                : 'specialist',
+            workspaceId: wsId ?? null,
+            description: `${agentDef.role} — ${agentDef.capabilities.join(', ')}`,
+            soul:
+              agentDef.soul ??
+              `You are ${agentDef.name}, a specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}.`,
+            skills: agentDef.capabilities,
+            requiredModelType: 'agentic',
+            tags: [domain, 'reprovisioned'],
+          })
+          .returning()
+
+        if (agent) {
+          await ctx.db
+            .insert(brainEntityAgents)
+            .values({ entityId: input.entityId, agentId: agent.id, role: 'primary' })
+            .catch(() => {})
+          added++
+        }
+      }
+
+      return { added, existing: existingAgentNames.length }
     }),
 })
