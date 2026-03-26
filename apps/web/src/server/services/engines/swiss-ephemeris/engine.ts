@@ -9,6 +9,7 @@
  */
 
 import * as path from 'path'
+import * as fs from 'fs'
 
 // ─── Dynamic swisseph import (native addon) ──────────────────────────────────
 
@@ -16,9 +17,18 @@ import * as path from 'path'
 let swe: any = null
 try {
   swe = require('swisseph')
-  // Attempt to set ephemeris data path (optional — falls back to Moshier)
-  const ephePath = path.resolve(process.cwd(), 'ephe')
-  swe.swe_set_ephe_path(ephePath)
+  // Try multiple candidate paths for ephemeris data files (.se1)
+  const candidates = [
+    path.resolve(__dirname, '../../../../ephe'),
+    path.resolve(process.cwd(), 'ephe'),
+    path.resolve(process.cwd(), 'apps/web/ephe'),
+  ]
+  for (const p of candidates) {
+    if (fs.existsSync(p)) {
+      swe.swe_set_ephe_path(p)
+      break
+    }
+  }
 } catch {
   console.warn('[SwissEphemeris] swisseph native module not available — engine disabled')
 }
