@@ -9,6 +9,7 @@
 import type { Database } from '@solarc/db'
 import { workspaces, agents, workspaceLifecycleEvents } from '@solarc/db'
 import { eq, and } from 'drizzle-orm'
+import { getAgentSoul } from './agents'
 
 type Cap =
   | 'reasoning'
@@ -1137,8 +1138,11 @@ const W: WorkspaceDef[] = [
   },
 ]
 
-/** Generate a soul (system prompt) from agent definition */
+/** Generate a soul (system prompt) from agent definition.
+ *  First checks for a rich MD definition file; falls back to a compact prompt. */
 function makeSoul(name: string, desc: string, skills: string[]): string {
+  const rich = getAgentSoul(name)
+  if (rich?.soul) return rich.soul
   return `You are ${name}, a specialized AI agent. ${desc}. Your core skills: ${skills.join(', ')}. Be precise, thorough, and actionable in your responses.`
 }
 
@@ -1182,15 +1186,17 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
 
       for (const [name, type, cap, skills, desc] of wsDef.agents) {
         if (existingNames.has(name)) continue
+        const richDef = getAgentSoul(name)
         await db.insert(agents).values({
           name,
           type,
           workspaceId: ws.id,
-          description: desc,
+          description: richDef?.description || desc,
           soul: makeSoul(name, desc, skills),
           requiredModelType: cap,
           skills,
           tags: [wsDef.name.toLowerCase().replace(/\s+/g, '-'), type],
+          toolAccess: richDef?.tools ?? [],
         })
         agentsCreated++
       }
@@ -1236,15 +1242,17 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
 
     // Create all agents
     for (const [name, type, cap, skills, desc] of wsDef.agents) {
+      const richDef = getAgentSoul(name)
       await db.insert(agents).values({
         name,
         type,
         workspaceId: ws.id,
-        description: desc,
+        description: richDef?.description || desc,
         soul: makeSoul(name, desc, skills),
         requiredModelType: cap,
         skills,
         tags: [wsDef.name.toLowerCase().replace(/\s+/g, '-'), type],
+        toolAccess: richDef?.tools ?? [],
       })
       agentsCreated++
     }
