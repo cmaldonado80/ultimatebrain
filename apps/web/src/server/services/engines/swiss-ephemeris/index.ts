@@ -1,9 +1,9 @@
 /**
  * Swiss Ephemeris Engine — barrel re-exports
- * 22 module files, 53 report sections, ~7,000 lines
+ * 7 logical groups: Natal, Predictive, Synastry, Vedic, Rectification, Specialized, Report
  */
 
-// Core engine
+// ── 1. Natal Chart (core + patterns + dignities + lunar + classical + stars + analysis) ──
 export {
   run,
   isAvailable,
@@ -14,9 +14,24 @@ export {
   calcAspects,
   assessAllDignities,
   longitudeToSign,
+  calcPlanet,
+  angleBetween,
+  getHouseForLongitude,
   PLANET_LIST,
   SIGN_NAMES,
   SIGN_ABBREV,
+  SIGN_ELEMENT,
+  SIGN_MODE,
+  FACE_RULERS,
+  DOMICILE,
+  EXALTATION,
+  DETRIMENT,
+  FALL,
+  TRIPLICITY_RULERS,
+  ASPECT_CONFIG,
+  PLANET_IDS,
+  SEFLG_SPEED,
+  _swe,
 } from './engine'
 export type {
   Planet,
@@ -31,49 +46,8 @@ export type {
   SwissEphemerisInput,
   EngineResult,
 } from './engine'
-
-// Patterns
 export { findAspectPatterns } from './patterns'
 export type { AspectPattern } from './patterns'
-
-// Predictive
-export { solarReturn, transitCalendar, annualProfections } from './predictive'
-export type { TransitEvent, ProfectionResult } from './predictive'
-
-// Vedic
-export { panchanga, vimshottariDasha } from './vedic'
-export type { PanchangaResult, DashaPeriod } from './vedic'
-
-// Composite
-export { synastryAspects, compositeChart } from './composite'
-
-// Classical
-export { solarCondition, calcArabicParts, planetaryHours } from './classical'
-export type { SolarCondition, ArabicPart, PlanetaryHour } from './classical'
-
-// Midpoints
-export { calcAllMidpoints } from './midpoints'
-export type { Midpoint } from './midpoints'
-
-// Financial
-export { bradleySiderograph } from './financial'
-export type { BradleyPoint } from './financial'
-
-// ── New modules ──────────────────────────────────────────────────────────
-
-// Lunar
-export { moonPhase, lunarMansion, prenatalLunations } from './lunar'
-export type { MoonPhaseResult, LunarMansion, PrenatalLunation } from './lunar'
-
-// Declinations
-export { calcDeclinations, calcParallels } from './declinations'
-export type { DeclinationResult, ParallelAspect } from './declinations'
-
-// Dispositors
-export { dispositorChain } from './dispositors'
-export type { DispositorChainResult } from './dispositors'
-
-// Accidental Dignities & Sect
 export { sectAnalysis, accidentalDignities, criticalDegrees, lillyDignityScore } from './accidental'
 export type {
   SectAnalysis,
@@ -81,38 +55,43 @@ export type {
   CriticalDegreeResult,
   LillyScoreResult,
 } from './accidental'
-
-// Subdivisions & Harmonics
-export {
-  calcDwads,
-  calcNavamsa,
-  calcDecanates,
-  ageHarmonicChart,
-  harmonicSpectrum,
-} from './subdivisions'
-export type { Subdivision, HarmonicPoint } from './subdivisions'
-
-// Antiscia & Draconic
-export { calcAntiscia, draconicChart, heliocentricPositions } from './antiscia'
-export type { AntisciaResult, DraconicResult } from './antiscia'
-
-// Fixed Stars & Degree Symbols
+export { solarCondition, calcArabicParts, planetaryHours } from './classical'
+export type { SolarCondition, ArabicPart, PlanetaryHour } from './classical'
+export { moonPhase, lunarMansion, prenatalLunations } from './lunar'
+export type { MoonPhaseResult, LunarMansion, PrenatalLunation } from './lunar'
+export { calcDeclinations, calcParallels } from './declinations'
+export type { DeclinationResult, ParallelAspect } from './declinations'
+export { dispositorChain } from './dispositors'
+export type { DispositorChainResult } from './dispositors'
 export { calcFixedStars, fixedStarConjunctions, sabianSymbol } from './fixed-stars'
 export type { FixedStarPosition, StarConjunction, DegreeSymbol } from './fixed-stars'
+export { calcAllMidpoints } from './midpoints'
+export type { Midpoint } from './midpoints'
+export { calcAntiscia } from './antiscia'
+export type { AntisciaResult } from './antiscia'
+export { calcDwads, calcNavamsa, calcDecanates } from './subdivisions'
+export type { Subdivision } from './subdivisions'
 
-// Progressions & Directions
-export { secondaryProgressions, solarArcDirections, primaryDirections } from './progressions'
-export type { ProgressedPosition, SolarArcPosition, PrimaryDirection } from './progressions'
-
-// Time Lords
-export { firdaria, zodiacalReleasing, decennials } from './timelords'
-export type { FirdariaPeriod, ZRPeriod, DecennialPeriod } from './timelords'
-
-// Returns
+// ── 2. Predictive & Timing ──────────────────────────────────────────────────
+export { solarReturn, transitCalendar, annualProfections } from './predictive'
+export type { TransitEvent, ProfectionResult } from './predictive'
 export { lunarReturn, nodalReturn } from './returns'
 export type { ReturnChart } from './returns'
+export { secondaryProgressions, solarArcDirections, primaryDirections } from './progressions'
+export type { ProgressedPosition, SolarArcPosition, PrimaryDirection } from './progressions'
+export { firdaria, zodiacalReleasing, decennials } from './timelords'
+export type { FirdariaPeriod, ZRPeriod, DecennialPeriod } from './timelords'
+export { ageHarmonicChart, harmonicSpectrum } from './subdivisions'
+export type { HarmonicPoint } from './subdivisions'
 
-// Vedic Advanced
+// ── 3. Synastry & Relationships ─────────────────────────────────────────────
+export { synastryAspects, compositeChart } from './composite'
+export { draconicChart } from './antiscia'
+export type { DraconicResult } from './antiscia'
+
+// ── 4. Vedic / Jyotish ─────────────────────────────────────────────────────
+export { panchanga, vimshottariDasha } from './vedic'
+export type { PanchangaResult, DashaPeriod } from './vedic'
 export {
   divisionalChart,
   allVargaCharts,
@@ -129,7 +108,7 @@ export type {
   MuhurtaResult,
 } from './vedic-advanced'
 
-// Rectification
+// ── 5. Rectification ────────────────────────────────────────────────────────
 export {
   trutineOfHermes,
   animodar,
@@ -139,11 +118,9 @@ export {
 } from './rectification'
 export type { TrutineResult, AnimodarResult, AlmutenResult, HuberAgePoint } from './rectification'
 
-// Report Generation
-export { generateNatalReport } from './report-generator'
-export type { NatalReport, ReportSection } from './report-generator'
-
-// Esoteric & Specialized
+// ── 6. Specialized (Financial, Medical, Esoteric) ───────────────────────────
+export { bradleySiderograph } from './financial'
+export type { BradleyPoint } from './financial'
 export {
   sevenRays,
   medicalAstrology,
@@ -161,3 +138,8 @@ export type {
   GardenDay,
   MundaneContext,
 } from './esoteric'
+export { heliocentricPositions } from './antiscia'
+
+// ── 7. Report Generation ────────────────────────────────────────────────────
+export { generateNatalReport } from './report-generator'
+export type { NatalReport, ReportSection } from './report-generator'
