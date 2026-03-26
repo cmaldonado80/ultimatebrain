@@ -5,9 +5,7 @@
  * Swiss Ephemeris shows categorized modules with expandable endpoint lists.
  */
 
-import { useState } from 'react'
-import { trpc } from '../../../../../utils/trpc'
-import { use } from 'react'
+import { useState, use } from 'react'
 
 // ─── Module definitions for Swiss Ephemeris ──────────────────────────────────
 
@@ -28,6 +26,7 @@ const SWISS_MODULES: EngineModule[] = [
       'status',
     ],
   },
+  { name: 'Reports', endpoints: ['generateReport'] },
   { name: 'Lunar', endpoints: ['moonPhase', 'lunarMansion', 'prenatalLunations'] },
   {
     name: 'Dignities & Sect',
@@ -134,51 +133,108 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
   const [testLon, setTestLon] = useState('-74.0060')
   const [testResult, setTestResult] = useState<string | null>(null)
 
-  const transitsQuery = trpc.ephemeris.currentTransits.useQuery(undefined, { enabled: false })
   const [dateParts, timeParts] = [testDate.split('-').map(Number), testTime.split(':').map(Number)]
-  const natalChartQuery = trpc.ephemeris.natalChart.useQuery(
-    {
+  const [activeTestName, setActiveTestName] = useState<string | null>(null)
+
+  const doc = ENGINE_DOCS[engineId]
+
+  function getBirthData() {
+    return {
       birthYear: dateParts[0] ?? 2000,
       birthMonth: dateParts[1] ?? 1,
       birthDay: dateParts[2] ?? 1,
       birthHour: (timeParts[0] ?? 12) + (timeParts[1] ?? 0) / 60,
       latitude: parseFloat(testLat),
       longitude: parseFloat(testLon),
-    },
-    { enabled: false },
-  )
+    }
+  }
+  function getDateData() {
+    return {
+      year: dateParts[0] ?? 2000,
+      month: dateParts[1] ?? 1,
+      day: dateParts[2] ?? 1,
+      hour: (timeParts[0] ?? 12) + (timeParts[1] ?? 0) / 60,
+    }
+  }
 
-  const doc = ENGINE_DOCS[engineId]
-
-  async function runTest(type: 'transits' | 'natal') {
-    setTestResult('Running...')
-    try {
-      if (type === 'transits') {
-        const result = await transitsQuery.refetch()
-        setTestResult(JSON.stringify(result.data, null, 2))
-      } else {
-        const result = await natalChartQuery.refetch()
-        const engineResult = result.data
-        if (engineResult) {
-          const chart = engineResult.data
-          const display = {
-            summary: engineResult.summary,
-            planets: Object.entries(chart.planets).map(
-              ([name, p]) =>
-                `${name}: ${p.degree}°${String(p.minutes).padStart(2, '0')}' ${p.sign}${p.retrograde ? ' Rx' : ''} (House ${p.house})`,
-            ),
-            aspects: chart.aspects
-              .slice(0, 8)
-              .map(
-                (a) =>
-                  `${a.planet1} ${a.type} ${a.planet2} (orb ${a.orb}°${a.applying ? ' applying' : ''})`,
-              ),
-            chartShape: chart.chartShape,
-            dominantElement: chart.dominantElement,
-            dominantMode: chart.dominantMode,
-          }
-          setTestResult(JSON.stringify(display, null, 2))
+  // Input mapper: different endpoints need different input shapes
+  function getInputForEndpoint(name: string): Record<string, unknown> {
+    const bd = getBirthData()
+    const dd = getDateData()
+    switch (name) {
+      case 'currentTransits':
+      case 'status':
+        return {}
+      case 'moonPhase':
+      case 'lunarMansion':
+      case 'panchanga':
+      case 'muhurta':
+        return dd
+      case 'planetaryPositions':
+        return { ...dd, sidereal: false }
+      case 'houseCusps':
+        return { ...dd, latitude: bd.latitude, longitude: bd.longitude }
+      case 'aspects':
+      case 'fixedStars':
+        return { ...dd, latitude: bd.latitude, longitude: bd.longitude }
+      case 'heliocentric':
+        return dd
+      case 'bradley':
+        return { year: dd.year }
+      case 'mundane':
+        return { ...dd, latitude: bd.latitude, longitude: bd.longitude }
+      case 'agricultural':
+        return dd
+      case 'planetaryHours':
+        return { ...dd, latitude: bd.latitude, longitude: bd.longitude }
+      case 'firdaria':
+        return { isDayChart: true, maxAge: 80 }
+      case 'zodiacalReleasing':
+        return { lotSign: 0, maxAge: 80, maxLevel: 2 }
+      case 'decennials':
+        return { isDayChart: true, maxAge: 80 }
+      case 'profections':
+        return {
+          birthYear: bd.birthYear,
+          currentYear: new Date().getFullYear(),
+          ascendantSign: 'Aries',
         }
+      case 'synastry':
+      case 'composite':
+        return { chart1: bd, chart2: bd }
+      case 'sabianSymbol':
+        return { longitude: 84.0 }
+      case 'secondaryProgressions':
+      case 'solarArcDirections':
+        return { ...bd, targetYear: new Date().getFullYear(), targetMonth: 1, targetDay: 1 }
+      case 'lunarReturn':
+      case 'nodalReturn':
+        return { ...bd, targetYear: new Date().getFullYear(), targetMonth: 1, targetDay: 1 }
+      case 'solarReturn':
+        return {
+          natalSunLongitude: 84.0,
+          year: new Date().getFullYear(),
+          latitude: bd.latitude,
+          longitude: bd.longitude,
+        }
+      default:
+        return bd
+    }
+  }
+
+  async function runEndpointTest(name: string) {
+    setActiveTestName(name)
+    setTestResult(`Running ephemeris.${name}...`)
+    try {
+      const input = getInputForEndpoint(name)
+      const inputStr =
+        Object.keys(input).length > 0 ? `?input=${encodeURIComponent(JSON.stringify(input))}` : ''
+      const res = await fetch(`/api/trpc/ephemeris.${name}${inputStr}`)
+      const json = await res.json()
+      if (json.error) {
+        setTestResult(`Error: ${JSON.stringify(json.error, null, 2)}`)
+      } else {
+        setTestResult(JSON.stringify(json.result?.data ?? json, null, 2))
       }
     } catch (err) {
       setTestResult(`Error: ${err instanceof Error ? err.message : String(err)}`)
@@ -277,7 +333,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
       {activeTab === 'test' && engineId === 'swiss-ephemeris' && (
         <div style={styles.content}>
           <div style={styles.section}>
-            <div style={styles.sectionTitle}>Test Parameters</div>
+            <div style={styles.sectionTitle}>Birth / Date Parameters</div>
             <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 12 }}>
               <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
                 <label style={styles.label}>Date</label>
@@ -314,19 +370,100 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
                 />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button style={styles.btnPrimary} onClick={() => runTest('transits')}>
-                Get Current Transits
-              </button>
-              <button style={styles.btnSecondary} onClick={() => runTest('natal')}>
-                Get Natal Chart
-              </button>
-            </div>
           </div>
+
+          {/* Test Buttons by Category */}
+          {[
+            {
+              label: 'Core',
+              tests: [
+                'status',
+                'natalChart',
+                'currentTransits',
+                'planetaryPositions',
+                'houseCusps',
+                'aspects',
+              ],
+            },
+            { label: 'Reports', tests: ['generateReport'] },
+            { label: 'Lunar', tests: ['moonPhase', 'lunarMansion', 'prenatalLunations'] },
+            {
+              label: 'Dignities & Sect',
+              tests: ['sectAnalysis', 'accidentalDignities', 'criticalDegrees', 'lillyScore'],
+            },
+            { label: 'Patterns', tests: ['patterns'] },
+            {
+              label: 'Subdivisions',
+              tests: ['dwads', 'navamsa', 'decanates', 'ageHarmonic', 'harmonicSpectrum'],
+            },
+            { label: 'Antiscia', tests: ['antiscia', 'draconic', 'heliocentric'] },
+            { label: 'Classical', tests: ['arabicParts', 'planetaryHours', 'solarCondition'] },
+            { label: 'Stars & Symbols', tests: ['fixedStars', 'fixedStarAspects', 'sabianSymbol'] },
+            { label: 'Analysis', tests: ['midpoints', 'dispositors', 'declinations'] },
+            {
+              label: 'Progressions',
+              tests: ['secondaryProgressions', 'solarArcDirections', 'primaryDirections'],
+            },
+            { label: 'Returns', tests: ['solarReturn', 'lunarReturn', 'nodalReturn'] },
+            {
+              label: 'Profections & Time Lords',
+              tests: ['profections', 'firdaria', 'zodiacalReleasing', 'decennials'],
+            },
+            {
+              label: 'Rectification',
+              tests: ['trutineOfHermes', 'almutenFiguris', 'huberAgePoint'],
+            },
+            { label: 'Transit Calendar', tests: ['transitCalendar'] },
+            {
+              label: 'Vedic',
+              tests: [
+                'panchanga',
+                'dasha',
+                'vargaCharts',
+                'shadbala',
+                'ashtakavarga',
+                'charaKarakas',
+                'muhurta',
+              ],
+            },
+            { label: 'Esoteric', tests: ['sevenRays', 'medical', 'mundane', 'agricultural'] },
+            { label: 'Financial', tests: ['bradley'] },
+            { label: 'Composite', tests: ['synastry', 'composite'] },
+          ].map((group) => (
+            <div key={group.label} style={styles.section}>
+              <div style={styles.sectionTitle}>{group.label}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                {group.tests.map((t) => (
+                  <button
+                    key={t}
+                    style={{
+                      ...styles.btnSecondary,
+                      ...(activeTestName === t ? { borderColor: '#818cf8', color: '#818cf8' } : {}),
+                      fontSize: 11,
+                      padding: '5px 10px',
+                    }}
+                    onClick={() => runEndpointTest(t)}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+
           {testResult && (
             <div style={styles.section}>
-              <div style={styles.sectionTitle}>Result</div>
-              <pre style={styles.preBlock}>{testResult}</pre>
+              <div style={styles.sectionTitle}>
+                Result{' '}
+                {activeTestName && (
+                  <span style={{ color: '#a5f3fc', fontWeight: 400 }}>
+                    — ephemeris.{activeTestName}
+                  </span>
+                )}
+              </div>
+              <pre style={{ ...styles.preBlock, maxHeight: 500, overflowY: 'auto' }}>
+                {testResult}
+              </pre>
             </div>
           )}
         </div>
@@ -409,6 +546,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
                     'vedic-advanced.ts',
                     'rectification.ts',
                     'esoteric.ts',
+                    'report-generator.ts',
                     'index.ts',
                   ].map((f) => (
                     <div key={f} style={{ padding: '3px 0' }}>
