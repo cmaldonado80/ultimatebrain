@@ -228,7 +228,9 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
     try {
       const input = getInputForEndpoint(name)
       const inputStr =
-        Object.keys(input).length > 0 ? `?input=${encodeURIComponent(JSON.stringify(input))}` : ''
+        Object.keys(input).length > 0
+          ? `?input=${encodeURIComponent(JSON.stringify({ json: input }))}`
+          : ''
       const res = await fetch(`/api/trpc/ephemeris.${name}${inputStr}`)
       const json = await res.json()
       if (json.error) {
