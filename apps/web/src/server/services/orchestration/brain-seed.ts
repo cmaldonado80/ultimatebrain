@@ -184,6 +184,13 @@ const W: WorkspaceDef[] = [
         '.NET 8 cross-platform specialist',
       ],
       [
+        '.NET Framework 4.8 Expert',
+        'specialist',
+        'coder',
+        ['dotnet-framework', 'aspnet', 'winforms', 'wcf'],
+        '.NET Framework 4.8 legacy and maintenance specialist',
+      ],
+      [
         'Elixir Expert',
         'specialist',
         'coder',
@@ -308,6 +315,13 @@ const W: WorkspaceDef[] = [
         'coder',
         ['spring-boot', 'java', 'microservices', 'jpa'],
         'Spring Boot 3+ microservices expert',
+      ],
+      [
+        'Symfony Specialist',
+        'specialist',
+        'coder',
+        ['symfony', 'php', 'doctrine', 'twig'],
+        'Symfony PHP framework expert',
       ],
     ],
   },
@@ -591,6 +605,13 @@ const W: WorkspaceDef[] = [
         'reasoning',
         ['pytorch', 'tensorflow', 'mlops', 'feature-engineering'],
         'Machine learning systems expert',
+      ],
+      [
+        'Machine Learning Engineer',
+        'executor',
+        'reasoning',
+        ['ml', 'tensorflow', 'pytorch', 'scikit-learn'],
+        'End-to-end ML pipeline specialist',
       ],
       [
         'MLOps Engineer',

@@ -142,7 +142,13 @@ const SLUG_OVERRIDES: Record<string, string> = {
   'Go Pro': 'golang-pro',
   'PowerShell 5.1 Expert': 'powershell-5.1-expert',
   'PowerShell 7 Expert': 'powershell-7-expert',
-  'Expo React Native Expert': 'expo-react-native-expert',
+  'React Native Expert': 'expo-react-native-expert',
+  'Next.js Developer': 'nextjs-developer',
+  'PS Security Hardening': 'powershell-security-hardening',
+  'RL Engineer': 'reinforcement-learning-engineer',
+  'PS UI Architect': 'powershell-ui-architect',
+  'PS Module Architect': 'powershell-module-architect',
+  'Scientific Researcher': 'scientific-literature-researcher',
 }
 
 /**
