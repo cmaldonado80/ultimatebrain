@@ -27,6 +27,7 @@ interface Agent {
   model: string | null
   soul: string | null
   requiredModelType: string | null
+  workspaceId: string | null
 }
 
 export default function ChatPage() {
@@ -50,8 +51,11 @@ export default function ChatPage() {
   const utils = trpc.useUtils()
 
   const handleNewSession = async () => {
+    const primaryAgentId = selectedAgents[0] || undefined
+    const primaryAgent = primaryAgentId ? agents.find((a) => a.id === primaryAgentId) : undefined
     const session = await createSessionMut.mutateAsync({
-      agentId: selectedAgents[0] || undefined,
+      agentId: primaryAgentId,
+      workspaceId: primaryAgent?.workspaceId ?? undefined,
     })
     utils.intelligence.chatSessions.invalidate()
     if (session) setSelectedSession(session.id)

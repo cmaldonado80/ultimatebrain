@@ -40,6 +40,7 @@ export const agentsRouter = router({
     .query(async ({ ctx, input }) => {
       return ctx.db.query.agents.findMany({
         where: eq(agents.workspaceId, input.workspaceId),
+        orderBy: desc(agents.createdAt),
         limit: input.limit,
         offset: input.offset,
       })

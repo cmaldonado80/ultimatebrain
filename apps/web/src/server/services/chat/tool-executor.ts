@@ -379,7 +379,11 @@ export async function executeTool(
         const memoryService = new MemoryService(db)
         const key = toolInput.key as string
         const content = toolInput.content as string
-        const stored = await memoryService.store({ key, content })
+        const stored = await memoryService.store({
+          key,
+          content,
+          ...(workspaceId ? { workspaceId } : {}),
+        })
         return JSON.stringify({ id: stored.id, key: stored.key })
       }
 
