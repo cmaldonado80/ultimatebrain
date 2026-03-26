@@ -331,7 +331,49 @@ export const miniBrainFactoryRouter = router({
         requiredModelType: 'router',
       })
 
-      // 5. Add binding
+      // 5. Create development-specific domain agents from template
+      const devTemplate = getFactory().getDevelopmentTemplate(
+        parent.domain as MiniBrainTemplate,
+        input.name.toLowerCase().replace(/\s+/g, '-'),
+      )
+      const devAgentIds: string[] = []
+      if (devTemplate) {
+        for (const agentDef of devTemplate.agents) {
+          const [agent] = await ctx.db
+            .insert(agents)
+            .values({
+              name: agentDef.name,
+              type: agentDef.role.includes('review')
+                ? 'reviewer'
+                : agentDef.role.includes('plan')
+                  ? 'planner'
+                  : 'specialist',
+              workspaceId: ws.id,
+              description: `${agentDef.role} — ${agentDef.capabilities.join(', ')}`,
+              soul:
+                agentDef.soul ??
+                `You are ${agentDef.name}, a ${devTemplate.domain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}.`,
+              skills: agentDef.capabilities,
+              requiredModelType: 'agentic',
+              tags: [parent.domain ?? 'unknown', devTemplate.id, 'development-agent'],
+            })
+            .returning()
+
+          if (agent) {
+            devAgentIds.push(agent.id)
+            await ctx.db
+              .insert(brainEntityAgents)
+              .values({
+                entityId: entity.id,
+                agentId: agent.id,
+                role: 'primary',
+              })
+              .catch(() => {})
+          }
+        }
+      }
+
+      // 6. Add binding
       await ctx.db.insert(workspaceBindings).values({
         workspaceId: ws.id,
         bindingType: 'brain',
@@ -339,7 +381,7 @@ export const miniBrainFactoryRouter = router({
         enabled: true,
       })
 
-      // 6. Activate both
+      // 7. Activate both
       await ctx.db
         .update(workspaces)
         .set({ lifecycleState: 'active' })
@@ -384,6 +426,8 @@ export const miniBrainFactoryRouter = router({
       return {
         entity: { id: entity.id, name: entity.name, tier: 'development', status: 'active' },
         workspace: { id: ws.id, name: ws.name },
+        agentCount: devAgentIds.length + 1, // +1 for orchestrator
+        template: devTemplate?.id ?? null,
         database: databaseHost ? { host: databaseHost, provisioned: true } : null,
       }
     }),
