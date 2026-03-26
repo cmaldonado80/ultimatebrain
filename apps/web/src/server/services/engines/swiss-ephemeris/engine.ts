@@ -23,11 +23,18 @@ try {
     path.resolve(process.cwd(), 'ephe'),
     path.resolve(process.cwd(), 'apps/web/ephe'),
   ]
+  let epheFound = false
   for (const p of candidates) {
     if (fs.existsSync(p)) {
       swe.swe_set_ephe_path(p)
+      epheFound = true
       break
     }
+  }
+  if (!epheFound) {
+    console.warn(
+      '[SwissEphemeris] No ephemeris data directory found — calculations may use lower-accuracy Moshier method',
+    )
   }
 } catch {
   console.warn('[SwissEphemeris] swisseph native module not available — engine disabled')
@@ -445,21 +452,18 @@ function calcPlanet(jd: number, planet: Planet, flags: number): Omit<Position, '
   }
 
   const bodyId = PLANET_IDS[planet]
-  const result = swe.swe_calc_ut(jd, bodyId, flags)
+  let result: any
+  try {
+    result = swe.swe_calc_ut(jd, bodyId, flags)
+  } catch (e) {
+    console.warn(`[SwissEphemeris] swe_calc_ut threw for ${planet}:`, e)
+    return fallbackCalcPlanet(planet, jd)
+  }
 
   // Handle cases where .se1 data files are missing (Chiron, asteroids)
   if (result.error && result.longitude === undefined) {
     console.warn(`[SwissEphemeris] ${planet} unavailable: ${result.error}`)
-    // Return zero position for unavailable bodies
-    return {
-      longitude: 0,
-      latitude: 0,
-      speed: 0,
-      sign: 'Aries' as ZodiacSign,
-      degree: 0,
-      minutes: 0,
-      retrograde: false,
-    }
+    return fallbackCalcPlanet(planet, jd)
   }
 
   if (result.error && result.error.length > 0) {
@@ -498,13 +502,18 @@ function calcAllPlanets(
 function calcHouses(jd: number, lat: number, lon: number, system: HouseSystem = 'P'): HouseCusps {
   if (!swe) return fallbackCalcHouses(jd, lat, lon)
 
-  const result = swe.swe_houses(jd, lat, lon, system)
-  return {
-    cusps: result.house, // [0..12], use 1-12
-    ascendant: result.ascendant,
-    mc: result.mc,
-    vertex: result.vertex ?? 0,
-    eastPoint: result.equatorialAscendant ?? 0,
+  try {
+    const result = swe.swe_houses(jd, lat, lon, system)
+    return {
+      cusps: result.house, // [0..12], use 1-12
+      ascendant: result.ascendant,
+      mc: result.mc,
+      vertex: result.vertex ?? 0,
+      eastPoint: result.equatorialAscendant ?? 0,
+    }
+  } catch (e) {
+    console.warn('[SwissEphemeris] swe_houses threw:', e)
+    return fallbackCalcHouses(jd, lat, lon)
   }
 }
 
@@ -571,12 +580,15 @@ function calcAspects(planets: Record<Planet, Position>): Aspect[] {
       ][]) {
         const orbDeviation = Math.abs(angle - config.angle)
         if (orbDeviation <= config.orb) {
-          // Applying: the faster planet is moving toward exact aspect
+          // Applying: check if the aspect orb is decreasing over time
+          // Compare current angular separation with separation 1 hour ahead
           const speed1 = planets[p1].speed
           const speed2 = planets[p2].speed
-          const closingSpeed =
-            Math.abs(speed1) > Math.abs(speed2) ? speed1 - speed2 : speed2 - speed1
-          const applying = closingSpeed > 0
+          const futureLon1 = lon1 + speed1 / 24 // 1 hour ahead
+          const futureLon2 = lon2 + speed2 / 24
+          const futureAngle = angleBetween(futureLon1, futureLon2)
+          const futureOrb = Math.abs(futureAngle - config.angle)
+          const applying = futureOrb < orbDeviation
 
           aspects.push({
             planet1: p1,
@@ -605,10 +617,13 @@ function assessDignity(planet: Planet, position: Position): Dignity {
   const domicile = DOMICILE[planet]?.includes(sign) ?? false
   if (domicile) score += 5
 
-  // Exaltation (+4)
+  // Exaltation (+4 in sign, +5 within 3° of exact degree)
   const exaltData = EXALTATION[planet]
   const exaltation = exaltData ? exaltData.sign === sign : false
-  if (exaltation) score += 4
+  if (exaltation) {
+    const nearExact = Math.abs(degree - exaltData!.degree) <= 3
+    score += nearExact ? 5 : 4
+  }
 
   // Detriment (-5)
   const detriment = DETRIMENT[planet]?.includes(sign) ?? false
@@ -836,7 +851,7 @@ function detectChartShape(planets: Record<Planet, Position>): string {
 
   const spread = 360 - maxGap
 
-  if (maxGap > 180) return 'Bundle' // all within 120°
+  if (maxGap > 240) return 'Bundle' // all planets within 120°
   if (spread > 270 && maxGap < 70) return 'Splash' // evenly distributed
   if (spread > 240 && maxGap >= 70 && maxGap <= 120) return 'Locomotive'
   if (maxGap >= 150 && maxGap <= 180) return 'Bowl'
