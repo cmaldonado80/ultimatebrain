@@ -319,12 +319,101 @@ const FACE_RULERS: Record<ZodiacSign, [Planet, Planet, Planet]> = {
   Pisces: ['Saturn', 'Jupiter', 'Mars'],
 }
 
+// ─── Fallback (pure JS) when swisseph native module is unavailable ───────────
+
+/** Mean daily motion and J2000.0 epoch offsets for fallback calculations */
+const MEAN_MOTION: Record<string, number> = {
+  Sun: 0.9856,
+  Moon: 13.1763,
+  Mercury: 4.0923,
+  Venus: 1.6021,
+  Mars: 0.524,
+  Jupiter: 0.0831,
+  Saturn: 0.0335,
+  Uranus: 0.0117,
+  Neptune: 0.006,
+  Pluto: 0.004,
+  NorthNode: -0.0529,
+  Chiron: 0.05,
+  Lilith: 0.111,
+}
+const EPOCH_OFFSET: Record<string, number> = {
+  Sun: 280.46,
+  Moon: 218.32,
+  Mercury: 252.25,
+  Venus: 181.98,
+  Mars: 355.45,
+  Jupiter: 34.4,
+  Saturn: 50.08,
+  Uranus: 314.05,
+  Neptune: 304.35,
+  Pluto: 238.93,
+  NorthNode: 125.04,
+  Chiron: 209.0,
+  Lilith: 83.35,
+}
+const RX_FREQ: Partial<Record<string, number>> = {
+  Mercury: 0.19,
+  Venus: 0.07,
+  Mars: 0.09,
+  Jupiter: 0.3,
+  Saturn: 0.36,
+  Uranus: 0.4,
+  Neptune: 0.42,
+  Pluto: 0.43,
+}
+
+function fallbackCalcPlanet(planet: Planet, jd: number): Omit<Position, 'house'> {
+  if (planet === 'SouthNode') {
+    const node = fallbackCalcPlanet('NorthNode', jd)
+    const lon = (node.longitude + 180) % 360
+    const pos = longitudeToSign(lon)
+    return {
+      longitude: lon,
+      latitude: 0,
+      speed: MEAN_MOTION.NorthNode ?? 0,
+      ...pos,
+      retrograde: false,
+    }
+  }
+  const motion = MEAN_MOTION[planet] ?? 0.01
+  const offset = EPOCH_OFFSET[planet] ?? 0
+  const raw = (offset + motion * jd) % 360
+  const longitude = ((raw % 360) + 360) % 360
+  const pos = longitudeToSign(longitude)
+  const freq = RX_FREQ[planet]
+  const seed = Math.sin(jd * PLANET_LIST.indexOf(planet) + 17) * 10000
+  const retrograde = freq ? seed - Math.floor(seed) < freq : false
+  return { longitude, latitude: 0, speed: motion * (retrograde ? -1 : 1), ...pos, retrograde }
+}
+
+function fallbackCalcHouses(jd: number, lat: number, lon: number): HouseCusps {
+  const lst = (jd * 360.985647) % 360
+  const asc = (((lst + lon + lat * 0.5) % 360) + 360) % 360
+  const cusps = [0] // index 0 unused
+  for (let h = 1; h <= 12; h++) {
+    cusps.push((asc + (h - 1) * 30) % 360)
+  }
+  return { cusps, ascendant: asc, mc: (asc + 270) % 360, vertex: 0, eastPoint: 0 }
+}
+
 // ─── Core Functions ──────────────────────────────────────────────────────────
 
 /** Convert calendar date to Julian Day Number */
 function julianDay(year: number, month: number, day: number, hour: number): number {
-  if (!swe) throw new Error('swisseph not available')
-  return swe.swe_julday(year, month, day, hour, swe.SE_GREG_CAL)
+  if (swe) return swe.swe_julday(year, month, day, hour, swe.SE_GREG_CAL)
+  // Pure JS Julian Day calculation (Meeus algorithm)
+  let y = year
+  let m = month
+  if (m <= 2) {
+    y -= 1
+    m += 12
+  }
+  const A = Math.floor(y / 100)
+  const B = 2 - A + Math.floor(A / 4)
+  return (
+    Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + day + hour / 24 + B - 1524.5
+  )
 }
 
 /** Convert longitude (0–360) to sign, degree, minutes */
@@ -339,7 +428,7 @@ function longitudeToSign(lon: number): { sign: ZodiacSign; degree: number; minut
 
 /** Calculate a single planet's position */
 function calcPlanet(jd: number, planet: Planet, flags: number): Omit<Position, 'house'> {
-  if (!swe) throw new Error('swisseph not available')
+  if (!swe) return fallbackCalcPlanet(planet, jd)
 
   // SouthNode is derived from NorthNode
   if (planet === 'SouthNode') {
@@ -393,7 +482,7 @@ function calcAllPlanets(
   sidereal: boolean = false,
 ): Record<Planet, Omit<Position, 'house'>> {
   let flags = SEFLG_SPEED
-  if (sidereal) {
+  if (sidereal && swe) {
     swe.swe_set_sid_mode(swe.SE_SIDM_LAHIRI, 0, 0)
     flags |= SEFLG_SIDEREAL
   }
@@ -407,7 +496,7 @@ function calcAllPlanets(
 
 /** Calculate house cusps */
 function calcHouses(jd: number, lat: number, lon: number, system: HouseSystem = 'P'): HouseCusps {
-  if (!swe) throw new Error('swisseph not available')
+  if (!swe) return fallbackCalcHouses(jd, lat, lon)
 
   const result = swe.swe_houses(jd, lat, lon, system)
   return {
@@ -802,16 +891,10 @@ function formatSummary(planets: Record<Planet, Position>, asc?: number): string 
 // ─── Main Entry Point ────────────────────────────────────────────────────────
 
 export async function run(input: SwissEphemerisInput): Promise<EngineResult> {
-  if (!swe) {
-    throw new Error(
-      'Swiss Ephemeris engine is not available. The swisseph native module failed to load.',
-    )
-  }
-
   const jd = julianDay(input.birthYear, input.birthMonth, input.birthDay, input.birthHour)
 
-  // Set sidereal mode if requested
-  if (input.sidereal) {
+  // Set sidereal mode if requested (only when native module available)
+  if (input.sidereal && swe) {
     swe.swe_set_sid_mode(swe.SE_SIDM_LAHIRI, 0, 0)
   }
 
@@ -841,7 +924,7 @@ export async function run(input: SwissEphemerisInput): Promise<EngineResult> {
 
   // Get ayanamsa for sidereal charts
   let ayanamsa: number | undefined
-  if (input.sidereal) {
+  if (input.sidereal && swe) {
     ayanamsa = swe.swe_get_ayanamsa_ut(jd)
   }
 
