@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   images: { formats: ['image/avif', 'image/webp'] },
   transpilePackages: ['@solarc/db', '@solarc/types', '@solarc/engine-contracts'],
   serverExternalPackages: ['swisseph'],
+  outputFileTracingIncludes: {
+    '/api/**': ['./src/server/services/orchestration/agents/**/*.md'],
+  },
   poweredByHeader: false,
   compress: true,
   async headers() {

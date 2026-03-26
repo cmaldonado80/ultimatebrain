@@ -1,5 +1,5 @@
 /**
- * Brain Seed — provisions 10 category workspaces with all 141 agents from
+ * Brain Seed — provisions 10 category workspaces with all 143 agents from
  * https://github.com/VoltAgent/awesome-claude-code-subagents
  *
  * Idempotent — skips workspaces that already exist (matched by name).
@@ -1168,7 +1168,7 @@ function makeSoul(name: string, desc: string, skills: string[]): string {
 }
 
 /**
- * Seed the brain with 10 category workspaces and 141 agents.
+ * Seed the brain with 10 category workspaces and 143 agents.
  * Idempotent — skips workspaces that already exist, adds missing agents.
  */
 export async function seedBrainWorkspaces(db: Database): Promise<{

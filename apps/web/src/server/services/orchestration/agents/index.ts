@@ -65,14 +65,38 @@ function parseFrontmatter(
  */
 function loadAllAgents(): Map<string, AgentSoul> {
   const map = new Map<string, AgentSoul>()
-  const agentsDir = __dirname
+
+  // Try multiple candidate paths (handles Vercel serverless, local dev, monorepo root)
+  const candidates = [
+    __dirname,
+    path.resolve(process.cwd(), 'src/server/services/orchestration/agents'),
+    path.resolve(process.cwd(), 'apps/web/src/server/services/orchestration/agents'),
+  ]
+
+  let agentsDir: string | null = null
+  for (const candidate of candidates) {
+    try {
+      const entries = fs.readdirSync(candidate)
+      if (entries.some((e) => /^\d{2}-/.test(e))) {
+        agentsDir = candidate
+        break
+      }
+    } catch {
+      // Try next candidate
+    }
+  }
+
+  if (!agentsDir) {
+    console.warn('[AgentSouls] Could not find agents directory in any candidate path:', candidates)
+    return map
+  }
 
   let categoryDirs: string[]
   try {
     categoryDirs = fs
       .readdirSync(agentsDir)
       .filter((entry) => {
-        const fullPath = path.join(agentsDir, entry)
+        const fullPath = path.join(agentsDir!, entry)
         return fs.statSync(fullPath).isDirectory() && /^\d{2}-/.test(entry)
       })
       .sort()
@@ -131,6 +155,14 @@ function loadAllAgents(): Map<string, AgentSoul> {
 
 /** Map of kebab-case agent name → rich soul definition. Loaded once at startup. */
 export const AGENT_SOULS: Map<string, AgentSoul> = loadAllAgents()
+
+if (AGENT_SOULS.size === 0) {
+  console.warn(
+    '[AgentSouls] WARNING: No agent soul files loaded. Agents will use fallback one-liner prompts.',
+  )
+} else {
+  console.info(`[AgentSouls] Loaded ${AGENT_SOULS.size} agent soul definitions`)
+}
 
 /** Override map for agent names that don't cleanly convert to kebab-case slugs */
 const SLUG_OVERRIDES: Record<string, string> = {
