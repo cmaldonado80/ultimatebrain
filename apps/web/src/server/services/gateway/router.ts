@@ -127,6 +127,7 @@ export interface ProviderAdapter {
     content: string
     tokensIn: number
     tokensOut: number
+    toolUse?: { id: string; name: string; input: Record<string, unknown> }
   }>
 
   chatStream?(params: {
@@ -185,6 +186,7 @@ class AnthropicAdapter implements ProviderAdapter {
     }
     if (systemMsg) body.system = systemMsg.content
     if (params.temperature != null) body.temperature = params.temperature
+    if (params.tools && params.tools.length > 0) body.tools = params.tools
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -199,8 +201,31 @@ class AnthropicAdapter implements ProviderAdapter {
       throw new Error(`Anthropic API error ${res.status}: ${err}`)
     }
     const data = (await res.json()) as {
-      content: Array<{ type: string; text?: string }>
+      content: Array<{
+        type: string
+        text?: string
+        id?: string
+        name?: string
+        input?: Record<string, unknown>
+      }>
       usage: { input_tokens: number; output_tokens: number }
+    }
+    // Check for tool_use in response
+    const toolUseBlock = data.content.find((b) => b.type === 'tool_use')
+    if (toolUseBlock) {
+      return {
+        content: data.content
+          .filter((c) => c.type === 'text')
+          .map((c) => c.text ?? '')
+          .join(''),
+        tokensIn: data.usage.input_tokens,
+        tokensOut: data.usage.output_tokens,
+        toolUse: {
+          id: toolUseBlock.id!,
+          name: toolUseBlock.name!,
+          input: toolUseBlock.input!,
+        },
+      }
     }
     const text = data.content
       .filter((c: { type: string }) => c.type === 'text')
@@ -290,6 +315,18 @@ class OpenAIAdapter implements ProviderAdapter {
     }
     if (params.temperature != null) body.temperature = params.temperature
     if (params.maxTokens != null) body.max_tokens = params.maxTokens
+    if (params.tools && (params.tools as unknown[]).length > 0) {
+      body.tools = (
+        params.tools as Array<{
+          name: string
+          description?: string
+          input_schema?: Record<string, unknown>
+        }>
+      ).map((t) => ({
+        type: 'function',
+        function: { name: t.name, description: t.description, parameters: t.input_schema },
+      }))
+    }
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -300,8 +337,26 @@ class OpenAIAdapter implements ProviderAdapter {
       throw new Error(`OpenAI API error ${res.status}: ${err}`)
     }
     const data = (await res.json()) as {
-      choices: Array<{ message: { content: string } }>
+      choices: Array<{
+        message: {
+          content: string | null
+          tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }>
+        }
+      }>
       usage: { prompt_tokens: number; completion_tokens: number }
+    }
+    const toolCall = data.choices[0]?.message?.tool_calls?.[0]
+    if (toolCall) {
+      return {
+        content: data.choices[0]?.message?.content ?? '',
+        tokensIn: data.usage.prompt_tokens,
+        tokensOut: data.usage.completion_tokens,
+        toolUse: {
+          id: toolCall.id,
+          name: toolCall.function.name,
+          input: JSON.parse(toolCall.function.arguments) as Record<string, unknown>,
+        },
+      }
     }
     return {
       content: data.choices[0]?.message?.content ?? '',
@@ -379,6 +434,18 @@ class GoogleAdapter implements ProviderAdapter {
     }
     if (params.temperature != null) body.temperature = params.temperature
     if (params.maxTokens != null) body.max_tokens = params.maxTokens
+    if (params.tools && (params.tools as unknown[]).length > 0) {
+      body.tools = (
+        params.tools as Array<{
+          name: string
+          description?: string
+          input_schema?: Record<string, unknown>
+        }>
+      ).map((t) => ({
+        type: 'function',
+        function: { name: t.name, description: t.description, parameters: t.input_schema },
+      }))
+    }
     const res = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -389,8 +456,26 @@ class GoogleAdapter implements ProviderAdapter {
       throw new Error(`Google API error ${res.status}: ${err}`)
     }
     const data = (await res.json()) as {
-      choices: Array<{ message: { content: string } }>
+      choices: Array<{
+        message: {
+          content: string | null
+          tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }>
+        }
+      }>
       usage: { prompt_tokens: number; completion_tokens: number }
+    }
+    const toolCall = data.choices[0]?.message?.tool_calls?.[0]
+    if (toolCall) {
+      return {
+        content: data.choices[0]?.message?.content ?? '',
+        tokensIn: data.usage?.prompt_tokens ?? 0,
+        tokensOut: data.usage?.completion_tokens ?? 0,
+        toolUse: {
+          id: toolCall.id,
+          name: toolCall.function.name,
+          input: JSON.parse(toolCall.function.arguments) as Record<string, unknown>,
+        },
+      }
     }
     return {
       content: data.choices[0]?.message?.content ?? '',
@@ -916,6 +1001,7 @@ export class GatewayRouter {
             latencyMs,
             costUsd: costResult.costUsd,
             cached: false,
+            toolUse: result.toolUse,
           }
         } catch (err) {
           lastError = err instanceof Error ? err : new Error(String(err))

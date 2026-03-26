@@ -543,4 +543,13 @@ export const ephemerisRouter = router({
     const [c1, c2] = await Promise.all([buildChart(input.chart1), buildChart(input.chart2)])
     return compositeChart(c1, c2)
   }),
+
+  // ── Report Generation ──────────────────────────────────────────────
+  generateReport: protectedProcedure
+    .input(birthInput.extend({ name: z.string().optional() }))
+    .query(async ({ input }) => {
+      const { generateNatalReport } =
+        await import('../services/engines/swiss-ephemeris/report-generator')
+      return generateNatalReport({ ...input, birthHour: input.birthHour } as any)
+    }),
 })

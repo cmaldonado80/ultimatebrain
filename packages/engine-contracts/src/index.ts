@@ -31,6 +31,13 @@ export const LlmChatOutput = z.object({
   latencyMs: z.number(),
   costUsd: z.number(),
   cached: z.boolean(),
+  toolUse: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      input: z.record(z.unknown()),
+    })
+    .optional(),
 })
 export type LlmChatOutput = z.infer<typeof LlmChatOutput>
 

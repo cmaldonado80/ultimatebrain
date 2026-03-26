@@ -6,6 +6,7 @@ import { chatSessions, chatMessages, agents } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
 import { GatewayRouter } from '../../../../server/services/gateway'
 import { MemoryService } from '../../../../server/services/memory/memory-service'
+import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
 
 let _db: Database | undefined
 function getDb(): Database {
@@ -142,30 +143,97 @@ export async function POST(req: Request) {
           }
 
           let fullContent = ''
-          const gen = gateway.chatStream({
-            model: agentConfig.model,
-            messages: [
-              { role: 'system', content: agentConfig.soul + memoryContext },
-              ...history,
-              // In multi-agent mode, include previous agents' responses
-              ...(isMultiAgent && fullContent
-                ? [{ role: 'assistant' as const, content: fullContent }]
-                : []),
-            ],
-            temperature: agentConfig.temperature,
-            maxTokens: agentConfig.maxTokens,
-          })
 
-          for await (const chunk of gen) {
-            fullContent += chunk
+          // Build the base messages for this agent
+          const baseMessages = [
+            { role: 'system', content: agentConfig.soul + memoryContext },
+            ...history,
+          ]
+
+          // Tool use loop (non-streaming, max 5 iterations)
+          let toolMessages = [...baseMessages]
+          let usedTools = false
+          for (let toolIter = 0; toolIter < 5; toolIter++) {
+            const toolResult = await gateway.chat({
+              model: agentConfig.model,
+              messages: toolMessages,
+              tools: AGENT_TOOLS,
+              temperature: agentConfig.temperature,
+              maxTokens: agentConfig.maxTokens,
+            })
+
+            if (!toolResult.toolUse) {
+              // No tool call — use this as the final content
+              fullContent = toolResult.content
+              usedTools = true
+              break
+            }
+
+            // Execute the tool
+            const toolOutput = await executeTool(
+              toolResult.toolUse.name,
+              toolResult.toolUse.input,
+              db,
+            )
+
+            // Send SSE events to client showing tool use
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: 'tool_use', name: toolResult.toolUse.name, input: toolResult.toolUse.input })}\n\n`,
+              ),
+            )
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: 'tool_result', name: toolResult.toolUse.name, result: toolOutput.slice(0, 500) })}\n\n`,
+              ),
+            )
+
+            // Add tool call and result to messages for next iteration
+            toolMessages = [
+              ...toolMessages,
+              {
+                role: 'assistant',
+                content: toolResult.content || `[Tool call: ${toolResult.toolUse.name}]`,
+              },
+              {
+                role: 'user',
+                content: `Tool result for ${toolResult.toolUse.name}: ${toolOutput}`,
+              },
+            ]
+          }
+
+          // If tool loop produced final content, stream it as a single chunk
+          if (usedTools && fullContent) {
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({
-                  text: chunk,
+                  text: fullContent,
                   ...(isMultiAgent ? { agentName: agentConfig.name, agentId: agentConfig.id } : {}),
                 })}\n\n`,
               ),
             )
+          } else if (!usedTools) {
+            // No tools were invoked — fall back to streaming
+            const gen = gateway.chatStream({
+              model: agentConfig.model,
+              messages: baseMessages,
+              temperature: agentConfig.temperature,
+              maxTokens: agentConfig.maxTokens,
+            })
+
+            for await (const chunk of gen) {
+              fullContent += chunk
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    text: chunk,
+                    ...(isMultiAgent
+                      ? { agentName: agentConfig.name, agentId: agentConfig.id }
+                      : {}),
+                  })}\n\n`,
+                ),
+              )
+            }
           }
 
           // Store this agent's response

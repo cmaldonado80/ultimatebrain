@@ -24,6 +24,20 @@ export async function GET() {
     // 2. Auto-heal any issues found
     const healResult = await healer.autoHeal()
 
+    // 3. Rebalance agents if any workspace is overloaded
+    let rebalanceMoves: Array<{ agentId: string; from: string; to: string }> = []
+    try {
+      const healthReports = await orchestrator.getAllWorkspacesHealth()
+      const hasOverloaded = healthReports.some(
+        (ws) => ws.agentCount > 0 && ws.idleAgents === 0 && ws.busyAgents > 0,
+      )
+      if (hasOverloaded) {
+        rebalanceMoves = await orchestrator.rebalanceAgents()
+      }
+    } catch (err) {
+      console.warn('[Cron] rebalance failed:', err)
+    }
+
     return Response.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -33,6 +47,9 @@ export async function GET() {
       },
       healing: {
         actions: healResult.actions?.length ?? 0,
+      },
+      rebalance: {
+        moves: rebalanceMoves.length,
       },
     })
   } catch (err) {
