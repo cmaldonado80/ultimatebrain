@@ -357,6 +357,95 @@ class OpenAIAdapter implements ProviderAdapter {
   }
 }
 
+class GoogleAdapter implements ProviderAdapter {
+  private baseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai'
+
+  async chat(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    tools?: unknown[]
+    apiKey?: string
+    temperature?: number
+    maxTokens?: number
+  }) {
+    const apiKey = params.apiKey ?? process.env.GOOGLE_API_KEY
+    if (!apiKey) throw new Error('No Google API key available')
+    const body: Record<string, unknown> = {
+      model: params.model,
+      messages: params.messages.map((m) => ({
+        role: m.role === 'agent' ? 'assistant' : m.role,
+        content: m.content,
+      })),
+    }
+    if (params.temperature != null) body.temperature = params.temperature
+    if (params.maxTokens != null) body.max_tokens = params.maxTokens
+    const res = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Google API error ${res.status}: ${err}`)
+    }
+    const data = (await res.json()) as {
+      choices: Array<{ message: { content: string } }>
+      usage: { prompt_tokens: number; completion_tokens: number }
+    }
+    return {
+      content: data.choices[0]?.message?.content ?? '',
+      tokensIn: data.usage?.prompt_tokens ?? 0,
+      tokensOut: data.usage?.completion_tokens ?? 0,
+    }
+  }
+
+  async *chatStream(params: {
+    model: string
+    messages: Array<{ role: string; content: string }>
+    apiKey?: string
+  }): AsyncGenerator<string, void, unknown> {
+    const apiKey = params.apiKey ?? process.env.GOOGLE_API_KEY
+    if (!apiKey) throw new Error('No Google API key available')
+    const body = {
+      model: params.model,
+      stream: true,
+      messages: params.messages.map((m) => ({
+        role: m.role === 'agent' ? 'assistant' : m.role,
+        content: m.content,
+      })),
+    }
+    const res = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error(`Google API error ${res.status}: ${await res.text()}`)
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const json = line.slice(6)
+        if (json === '[DONE]') return
+        try {
+          const event = JSON.parse(json) as { choices: Array<{ delta?: { content?: string } }> }
+          if (event.choices?.[0]?.delta?.content) {
+            yield event.choices[0].delta.content
+          }
+        } catch {
+          /* skip malformed */
+        }
+      }
+    }
+  }
+}
+
 class OllamaAdapter implements ProviderAdapter {
   /** Resolved Ollama Cloud URL (set by GatewayRouter before use) */
   resolvedUrl: string | null = null
@@ -552,6 +641,7 @@ export class GatewayRouter {
   private initAdapters(): void {
     this.adapters.set('anthropic', new AnthropicAdapter())
     this.adapters.set('openai', new OpenAIAdapter())
+    this.adapters.set('google', new GoogleAdapter())
     this.adapters.set('ollama', new OllamaAdapter())
 
     // Wire OpenClaw adapter if daemon URL is configured

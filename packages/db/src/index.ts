@@ -71,6 +71,11 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `)
     }
 
+    // ── Step 1b: Enable pgvector extension for memory embeddings ──
+    await client.query(`CREATE EXTENSION IF NOT EXISTS vector`).catch(() => {
+      console.warn('[ensureSchema] pgvector extension not available — vector search disabled')
+    })
+
     // ── Step 2: Create all tables (IF NOT EXISTS) ──
     // Order matters: parent tables before children with FK references.
 
@@ -363,6 +368,14 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         memory_id uuid NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
         status candidate_status DEFAULT 'pending',
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp DEFAULT now()
+      )`,
+
+      // Memory vectors (pgvector)
+      `CREATE TABLE IF NOT EXISTS memory_vectors (
+        memory_id uuid PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
+        embedding vector(1536) NOT NULL,
         created_at timestamp NOT NULL DEFAULT now(),
         updated_at timestamp DEFAULT now()
       )`,
