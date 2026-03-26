@@ -978,8 +978,13 @@ export async function run(input: SwissEphemerisInput): Promise<EngineResult> {
   }
 }
 
-// ─── Convenience Exports (for tRPC router) ───────────────────────────────────
+// ─── Convenience Exports (for tRPC router + modules) ─────────────────────────
 
 export { julianDay, calcAllPlanets, calcHouses, assignHouses, calcAspects, assessAllDignities }
 export { PLANET_LIST, SIGN_NAMES, SIGN_ABBREV, longitudeToSign }
+export { SIGN_ELEMENT, SIGN_MODE, FACE_RULERS }
+export { DOMICILE, EXALTATION, DETRIMENT, FALL, TRIPLICITY_RULERS }
+export { ASPECT_CONFIG, PLANET_IDS, SEFLG_SPEED }
+export { getHouseForLongitude, angleBetween, calcPlanet }
+export { swe as _swe } // expose for heliocentric/advanced calcs
 export const isAvailable = () => swe !== null
