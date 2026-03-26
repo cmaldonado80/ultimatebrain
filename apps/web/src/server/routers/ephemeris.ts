@@ -149,7 +149,7 @@ export const ephemerisRouter = router({
         sidereal: z.boolean().optional(),
       }),
     )
-    .query(async ({ input }) => run(input as SwissEphemerisInput)),
+    .query(async ({ input }) => await run(input as SwissEphemerisInput)),
 
   planetaryPositions: protectedProcedure
     .input(dateInput.extend({ sidereal: z.boolean().optional() }))

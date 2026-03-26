@@ -88,9 +88,9 @@ function formatPlanetPositions(planets: Record<string, Position>): string {
 
 function formatHouses(houses: HouseCusps): string {
   const lines: string[] = []
-  for (let i = 0; i < houses.cusps.length; i++) {
+  for (let i = 1; i <= 12 && i < houses.cusps.length; i++) {
     const lon = houses.cusps[i]
-    const signIndex = Math.floor(lon / 30)
+    const signIndex = Math.floor(lon / 30) % 12
     const signs = [
       'Aries',
       'Taurus',
@@ -107,7 +107,7 @@ function formatHouses(houses: HouseCusps): string {
     ]
     const deg = Math.floor(lon % 30)
     const min = Math.floor((lon % 1) * 60)
-    lines.push(`House ${i + 1}: ${deg}°${String(min).padStart(2, '0')}' ${signs[signIndex]}`)
+    lines.push(`House ${i}: ${deg}°${String(min).padStart(2, '0')}' ${signs[signIndex]}`)
   }
   lines.push(
     `ASC: ${houses.ascendant.toFixed(2)}° | MC: ${houses.mc.toFixed(2)}° | Vertex: ${houses.vertex.toFixed(2)}°`,

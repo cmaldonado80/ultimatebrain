@@ -65,8 +65,10 @@ export function synastryAspects(chart1: NatalChart, chart2: NatalChart): Aspect[
 
   for (const p1 of PLANET_LIST) {
     const pos1 = chart1.planets[p1]
+    if (!pos1) continue
     for (const p2 of PLANET_LIST) {
       const pos2 = chart2.planets[p2]
+      if (!pos2) continue
       const angle = angleBetween(pos1.longitude, pos2.longitude)
 
       for (const [type, config] of Object.entries(ASPECT_CONFIG) as [
@@ -75,12 +77,12 @@ export function synastryAspects(chart1: NatalChart, chart2: NatalChart): Aspect[
       ][]) {
         const orbDeviation = Math.abs(angle - config.angle)
         if (orbDeviation <= config.orb) {
-          // Determine if aspect is applying based on relative speeds
-          const speed1 = pos1.speed
-          const speed2 = pos2.speed
-          const closingSpeed =
-            Math.abs(speed1) > Math.abs(speed2) ? speed1 - speed2 : speed2 - speed1
-          const applying = closingSpeed > 0
+          // Applying: check if aspect orb is decreasing over time
+          const futureLon1 = pos1.longitude + pos1.speed / 24
+          const futureLon2 = pos2.longitude + pos2.speed / 24
+          const futureAngle = angleBetween(futureLon1, futureLon2)
+          const futureOrb = Math.abs(futureAngle - config.angle)
+          const applying = futureOrb < orbDeviation
 
           aspects.push({
             planet1: p1,
@@ -113,8 +115,11 @@ export function compositeChart(chart1: NatalChart, chart2: NatalChart): NatalCha
   const rawPositions = {} as Record<Planet, Omit<Position, 'house'>>
 
   for (const planet of PLANET_LIST) {
-    const lon1 = chart1.planets[planet].longitude
-    const lon2 = chart2.planets[planet].longitude
+    const p1 = chart1.planets[planet]
+    const p2 = chart2.planets[planet]
+    if (!p1 || !p2) continue
+    const lon1 = p1.longitude
+    const lon2 = p2.longitude
     const compositeLon = midpoint(lon1, lon2)
     const pos = longitudeToSign(compositeLon)
 

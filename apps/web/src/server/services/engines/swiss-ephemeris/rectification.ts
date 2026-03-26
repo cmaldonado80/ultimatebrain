@@ -490,7 +490,7 @@ export function huberAgePoint(age: number, cusps: number[]): HuberAgePoint {
 
   // Interpolate longitude between this cusp and the next
   const cuspStart = cusps[houseIndex]
-  const cuspEnd = cusps[(houseIndex + 1) % 12]
+  const cuspEnd = cusps[houseIndex === 11 ? 1 : houseIndex + 1]
 
   // Handle zodiac wraparound
   let span = cuspEnd - cuspStart
