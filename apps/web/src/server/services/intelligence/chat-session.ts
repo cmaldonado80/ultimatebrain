@@ -36,11 +36,12 @@ export class ChatSessionManager {
   /**
    * Create a new chat session.
    */
-  async createSession(agentId?: string) {
+  async createSession(agentId?: string, workspaceId?: string) {
     const [session] = await this.db
       .insert(chatSessions)
       .values({
         agentId,
+        workspaceId,
       })
       .returning()
     return session!

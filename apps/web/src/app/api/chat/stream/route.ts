@@ -43,6 +43,7 @@ async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: st
     model,
     temperature: agent.temperature ?? undefined,
     maxTokens: agent.maxTokens ?? undefined,
+    workspaceId: agent.workspaceId ?? undefined,
   }
 }
 
@@ -75,6 +76,7 @@ export async function POST(req: Request) {
     model?: string
     temperature?: number
     maxTokens?: number
+    workspaceId?: string
   }> = []
 
   if (body.agentIds && body.agentIds.length > 0) {
@@ -103,11 +105,15 @@ export async function POST(req: Request) {
     })
   }
 
-  // 3. Recall relevant memories
+  // 3. Recall relevant memories (scoped to the first agent's workspace when available)
+  const primaryWorkspaceId = agentConfigs[0]?.workspaceId
   let memoryContext = ''
   try {
     const memoryService = new MemoryService(db)
-    const recalled = await memoryService.search(body.text, { limit: 5 })
+    const recalled = await memoryService.search(body.text, {
+      limit: 5,
+      ...(primaryWorkspaceId ? { workspaceId: primaryWorkspaceId } : {}),
+    })
     if (recalled.length > 0) {
       memoryContext =
         '\n\nRelevant memories from past interactions:\n' +
@@ -174,6 +180,7 @@ export async function POST(req: Request) {
               toolResult.toolUse.name,
               toolResult.toolUse.input,
               db,
+              agentConfig.workspaceId,
             )
 
             // Send SSE events to client showing tool use

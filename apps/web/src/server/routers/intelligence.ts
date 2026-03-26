@@ -184,9 +184,16 @@ export const intelligenceRouter = router({
     }),
 
   createChatSession: protectedProcedure
-    .input(z.object({ agentId: z.string().uuid().optional() }).optional())
+    .input(
+      z
+        .object({
+          agentId: z.string().uuid().optional(),
+          workspaceId: z.string().uuid().optional(),
+        })
+        .optional(),
+    )
     .mutation(async ({ ctx, input }) => {
-      return getChatManager(ctx.db).createSession(input?.agentId)
+      return getChatManager(ctx.db).createSession(input?.agentId, input?.workspaceId)
     }),
 
   addChatMessage: protectedProcedure

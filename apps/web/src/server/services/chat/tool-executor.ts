@@ -222,6 +222,7 @@ export async function executeTool(
   toolName: string,
   toolInput: Record<string, unknown>,
   db?: Database,
+  workspaceId?: string,
 ): Promise<string> {
   try {
     switch (toolName) {
@@ -366,7 +367,10 @@ export async function executeTool(
         const memoryService = new MemoryService(db)
         const query = toolInput.query as string
         const limit = (toolInput.limit as number) ?? 5
-        const results = await memoryService.search(query, { limit })
+        const results = await memoryService.search(query, {
+          limit,
+          ...(workspaceId ? { workspaceId } : {}),
+        })
         return JSON.stringify(results)
       }
 

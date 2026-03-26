@@ -52,10 +52,14 @@ export const chatSessions = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
-  (t) => [index('chat_sessions_agent_id_idx').on(t.agentId)],
+  (t) => [
+    index('chat_sessions_agent_id_idx').on(t.agentId),
+    index('chat_sessions_workspace_id_idx').on(t.workspaceId),
+  ],
 )
 
 export const chatMessages = pgTable(

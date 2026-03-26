@@ -80,10 +80,20 @@ export default function AgentsPage() {
   const [search, setSearch] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [editingModel, setEditingModel] = useState<string | null>(null)
+  const [workspaceFilter, setWorkspaceFilter] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navRouter = useRouter()
 
-  const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 500, offset: 0 })
+  const allAgentsQuery = trpc.agents.list.useQuery(
+    { limit: 500, offset: 0 },
+    { enabled: !workspaceFilter },
+  )
+  const wsAgentsQuery = trpc.agents.byWorkspace.useQuery(
+    { workspaceId: workspaceFilter || '00000000-0000-0000-0000-000000000000' },
+    { enabled: !!workspaceFilter },
+  )
+  const { data, isLoading, error } = workspaceFilter ? wsAgentsQuery : allAgentsQuery
+  const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
   const modelsQuery = trpc.models.availableModels.useQuery()
   const availableModels = (modelsQuery.data ?? []) as Array<{
     modelId: string
@@ -217,12 +227,26 @@ export default function AgentsPage() {
         </p>
       </div>
 
-      <input
-        style={{ ...styles.searchInput, marginBottom: 16 }}
-        placeholder="Search agents by name or type..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <input
+          style={{ ...styles.searchInput, flex: 1, marginBottom: 0 }}
+          placeholder="Search agents by name or type..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          style={{ ...styles.select, minWidth: 180 }}
+          value={workspaceFilter}
+          onChange={(e) => setWorkspaceFilter(e.target.value)}
+        >
+          <option value="">All workspaces</option>
+          {(workspacesQuery.data ?? []).map((ws: { id: string; name: string }) => (
+            <option key={ws.id} value={ws.id}>
+              {ws.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {showForm && (
         <div style={styles.formCard}>
