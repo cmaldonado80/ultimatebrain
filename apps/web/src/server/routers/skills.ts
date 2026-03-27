@@ -8,17 +8,24 @@ import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { SkillMarketplace } from '../services/skills/marketplace'
 import type { SkillCapability } from '../services/skills/marketplace'
+import { SkillSecurityScanner } from '../services/skills/scanner'
 import type { Database } from '@solarc/db'
 
 let marketplace: SkillMarketplace | null = null
-function getMarketplace(db: Database) { return marketplace ??= new SkillMarketplace(db) }
+function getMarketplace(db: Database) {
+  return (marketplace ??= new SkillMarketplace(db))
+}
 
 export const skillsRouter = router({
   browse: protectedProcedure
-    .input(z.object({
-      category: z.string().optional(),
-      search: z.string().optional(),
-    }).optional())
+    .input(
+      z
+        .object({
+          category: z.string().optional(),
+          search: z.string().optional(),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       const mp = getMarketplace(ctx.db)
       let list = await mp.browse()
@@ -27,8 +34,8 @@ export const skillsRouter = router({
       }
       if (input?.search) {
         const q = input.search.toLowerCase()
-        list = list.filter((s) =>
-          s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q),
+        list = list.filter(
+          (s) => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q),
         )
       }
       return list
@@ -40,10 +47,12 @@ export const skillsRouter = router({
   }),
 
   install: protectedProcedure
-    .input(z.object({
-      skillId: z.string(),
-      approvedPermissions: z.array(z.string()),
-    }))
+    .input(
+      z.object({
+        skillId: z.string(),
+        approvedPermissions: z.array(z.string()),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const mp = getMarketplace(ctx.db)
       return mp.install(input.skillId, input.approvedPermissions as SkillCapability[])
@@ -54,5 +63,13 @@ export const skillsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const mp = getMarketplace(ctx.db)
       return mp.uninstall(input.skillId)
+    }),
+
+  /** Run security scan on a skill */
+  scan: protectedProcedure
+    .input(z.object({ skillName: z.string(), content: z.string() }))
+    .mutation(async ({ input }) => {
+      const scanner = new SkillSecurityScanner()
+      return scanner.scan(input.skillName, input.content)
     }),
 })
