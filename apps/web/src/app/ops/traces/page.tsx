@@ -59,55 +59,57 @@ export default function TracesPage() {
           No traces found. Traces appear as agents execute tasks.
         </div>
       ) : (
-        <div className="bg-bg-elevated rounded-lg border border-border overflow-hidden">
-          {/* Header */}
-          <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border">
-            <span className="flex-[2] text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-              Operation
-            </span>
-            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-              Service
-            </span>
-            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-              Status
-            </span>
-            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-              Duration
-            </span>
-            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-              Trace ID
-            </span>
-          </div>
-
-          {/* Rows */}
-          {spans.map((s) => (
-            <div
-              key={s.spanId}
-              className="flex px-4 py-2.5 border-b border-border-dim items-center"
-            >
-              <span className="flex-[2] text-[13px] font-semibold font-mono">{s.operation}</span>
-              <span className="flex-1 text-[13px]">{s.service || '—'}</span>
-              <span className="flex-1 text-[13px]">
-                <span
-                  className={
-                    s.status === 'ok'
-                      ? 'text-neon-green'
-                      : s.status === 'error'
-                        ? 'text-neon-red'
-                        : 'text-neon-yellow'
-                  }
-                >
-                  {s.status || '—'}
-                </span>
+        <div className="cyber-table-scroll">
+          <div className="bg-bg-elevated rounded-lg border border-border overflow-hidden min-w-[700px]">
+            {/* Header */}
+            <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border">
+              <span className="flex-[2] text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                Operation
               </span>
-              <span className="flex-1 text-[13px]">
-                {s.durationMs != null ? `${s.durationMs}ms` : '—'}
+              <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                Service
               </span>
-              <span className="flex-1 font-mono text-[10px] text-gray-500">
-                {s.traceId.slice(0, 12)}
+              <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                Status
+              </span>
+              <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                Duration
+              </span>
+              <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                Trace ID
               </span>
             </div>
-          ))}
+
+            {/* Rows */}
+            {spans.map((s) => (
+              <div
+                key={s.spanId}
+                className="flex px-4 py-2.5 border-b border-border-dim items-center"
+              >
+                <span className="flex-[2] text-[13px] font-semibold font-mono">{s.operation}</span>
+                <span className="flex-1 text-[13px]">{s.service || '—'}</span>
+                <span className="flex-1 text-[13px]">
+                  <span
+                    className={
+                      s.status === 'ok'
+                        ? 'text-neon-green'
+                        : s.status === 'error'
+                          ? 'text-neon-red'
+                          : 'text-neon-yellow'
+                    }
+                  >
+                    {s.status || '—'}
+                  </span>
+                </span>
+                <span className="flex-1 text-[13px]">
+                  {s.durationMs != null ? `${s.durationMs}ms` : '—'}
+                </span>
+                <span className="flex-1 font-mono text-[10px] text-gray-500">
+                  {s.traceId.slice(0, 12)}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
