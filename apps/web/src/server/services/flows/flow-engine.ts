@@ -22,14 +22,7 @@ import { CheckpointManager } from '../checkpointing/checkpoint-manager'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
-export type FlowStepType =
-  | 'start'
-  | 'then'
-  | 'parallel'
-  | 'join'
-  | 'conditional'
-  | 'loop'
-  | 'end'
+export type FlowStepType = 'start' | 'then' | 'parallel' | 'join' | 'conditional' | 'loop' | 'end'
 
 export type FlowStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed'
 
@@ -152,7 +145,7 @@ export class FlowBuilder {
 export class FlowDefinition {
   constructor(
     readonly name: string,
-    readonly steps: FlowStep[]
+    readonly steps: FlowStep[],
   ) {}
 
   /** Create a runner bound to a DB instance */
@@ -168,7 +161,7 @@ export class FlowRunner {
 
   constructor(
     private definition: FlowDefinition,
-    _db: Database
+    _db: Database,
   ) {
     this.checkpointManager = new CheckpointManager(_db)
   }
@@ -179,7 +172,8 @@ export class FlowRunner {
    */
   async run(
     initialData: Record<string, unknown> = {},
-    metadata: Record<string, unknown> = {}
+    metadata: Record<string, unknown> = {},
+    startFromStep = 0,
   ): Promise<FlowRunResult> {
     const flowId = crypto.randomUUID()
     const start = Date.now()
@@ -187,7 +181,7 @@ export class FlowRunner {
     let ctx: FlowContext = {
       flowId,
       flowName: this.definition.name,
-      stepIndex: 0,
+      stepIndex: startFromStep,
       data: { ...initialData },
       metadata,
     }
@@ -195,8 +189,11 @@ export class FlowRunner {
     let stepsExecuted = 0
 
     try {
-      for (const step of this.definition.steps) {
+      for (let i = 0; i < this.definition.steps.length; i++) {
+        const step = this.definition.steps[i]
         if (step.type === 'end') break
+        // Skip already-completed steps when resuming from checkpoint
+        if (i < startFromStep) continue
 
         ctx = await this.executeStep(step, ctx)
         stepsExecuted++
@@ -240,13 +237,15 @@ export class FlowRunner {
 
   /**
    * Resume a flow from a checkpoint (time travel / replay).
+   * Skips steps that were already completed before the checkpoint.
    */
   async resumeFrom(checkpointId: string): Promise<FlowRunResult> {
     const checkpoint = await this.checkpointManager.get(checkpointId)
     if (!checkpoint) throw new Error(`Checkpoint ${checkpointId} not found`)
 
     const state = checkpoint.state as { data: Record<string, unknown> }
-    return this.run(state.data, { resumedFrom: checkpointId })
+    const resumeFromStep = checkpoint.stepIndex + 1
+    return this.run(state.data, { resumedFrom: checkpointId }, resumeFromStep)
   }
 
   // ── Step execution ────────────────────────────────────────────────────

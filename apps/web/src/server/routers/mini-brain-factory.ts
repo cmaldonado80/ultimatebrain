@@ -96,140 +96,149 @@ export const miniBrainFactoryRouter = router({
       const template = getFactory().getTemplate(input.template as MiniBrainTemplate)
       if (!template) throw new Error(`Template '${input.template}' not found`)
 
-      // 1. Create brain entity
-      const [entity] = await ctx.db
-        .insert(brainEntities)
-        .values({
-          name: input.name,
-          tier: 'mini_brain',
-          domain: template.domain,
-          parentId: input.parentId,
-          enginesEnabled: template.engines,
-          status: 'provisioning',
-        })
-        .returning()
-      if (!entity) throw new Error('Failed to create entity')
+      // Wrap core provisioning in a transaction for atomicity
+      const txResult = await ctx.db.transaction(async (tx) => {
+        // 1. Create brain entity
+        const [entity] = await tx
+          .insert(brainEntities)
+          .values({
+            name: input.name,
+            tier: 'mini_brain',
+            domain: template.domain,
+            parentId: input.parentId,
+            enginesEnabled: template.engines,
+            status: 'provisioning',
+          })
+          .returning()
+        if (!entity) throw new Error('Failed to create entity')
 
-      // 2. Create workspace
-      const [ws] = await ctx.db
-        .insert(workspaces)
-        .values({
-          name: input.name,
-          type: 'general',
-          goal: `${template.domain} domain — ${template.engines.join(', ')}`,
-          icon: template.id,
-        })
-        .returning()
-      if (!ws) throw new Error('Failed to create workspace')
+        // 2. Create workspace
+        const [ws] = await tx
+          .insert(workspaces)
+          .values({
+            name: input.name,
+            type: 'general',
+            goal: `${template.domain} domain — ${template.engines.join(', ')}`,
+            icon: template.id,
+          })
+          .returning()
+        if (!ws) throw new Error('Failed to create workspace')
 
-      await ctx.db.insert(workspaceLifecycleEvents).values({
-        workspaceId: ws.id,
-        eventType: 'created',
-        toState: 'draft',
-        payload: { template: template.id, seededBy: 'smart-create' },
-      })
-
-      // 3. Find system orchestrator for parent linking
-      const systemWs = await ctx.db.query.workspaces.findFirst({
-        where: eq(workspaces.isSystemProtected, true),
-      })
-      let parentOrchestratorId: string | null = null
-      if (systemWs) {
-        const systemOrch = await ctx.db.query.agents.findFirst({
-          where: and(eq(agents.workspaceId, systemWs.id), eq(agents.isWsOrchestrator, true)),
-        })
-        parentOrchestratorId = systemOrch?.id ?? null
-      }
-
-      // 4. Create orchestrator agent
-      await ctx.db
-        .insert(agents)
-        .values({
-          name: `${input.name} Orchestrator`,
-          type: 'orchestrator',
+        await tx.insert(workspaceLifecycleEvents).values({
           workspaceId: ws.id,
-          isWsOrchestrator: true,
-          parentOrchestratorId,
-          soul: `You are the orchestrator for ${input.name}, a ${template.domain} mini-brain. Coordinate domain agents, route tasks, monitor health. Engines: ${template.engines.join(', ')}.`,
-          skills: ['coordination', 'task-routing', 'domain-routing', 'monitoring'],
-          requiredModelType: 'router',
-          tags: ['orchestrator', template.id],
+          eventType: 'created',
+          toState: 'draft',
+          payload: { template: template.id, seededBy: 'smart-create' },
         })
-        .returning()
 
-      // 5. Create template agents + link to entity
-      const agentIds: string[] = []
-      for (const agentDef of template.agents) {
-        const [agent] = await ctx.db
+        // 3. Find system orchestrator for parent linking
+        const systemWs = await tx.query.workspaces.findFirst({
+          where: eq(workspaces.isSystemProtected, true),
+        })
+        let parentOrchestratorId: string | null = null
+        if (systemWs) {
+          const systemOrch = await tx.query.agents.findFirst({
+            where: and(eq(agents.workspaceId, systemWs.id), eq(agents.isWsOrchestrator, true)),
+          })
+          parentOrchestratorId = systemOrch?.id ?? null
+        }
+
+        // 4. Create orchestrator agent
+        await tx
           .insert(agents)
           .values({
-            name: agentDef.name,
-            type: agentDef.role.includes('review')
-              ? 'reviewer'
-              : agentDef.role.includes('plan')
-                ? 'planner'
-                : 'specialist',
+            name: `${input.name} Orchestrator`,
+            type: 'orchestrator',
             workspaceId: ws.id,
-            description: `${agentDef.role} — ${agentDef.capabilities.join(', ')}`,
-            soul:
-              agentDef.soul ??
-              `You are ${agentDef.name}, a ${template.domain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}. Be domain-expert, precise, and actionable.`,
-            skills: agentDef.capabilities,
-            requiredModelType: 'agentic',
-            tags: [template.id, 'domain-agent'],
+            isWsOrchestrator: true,
+            parentOrchestratorId,
+            soul: `You are the orchestrator for ${input.name}, a ${template.domain} mini-brain. Coordinate domain agents, route tasks, monitor health. Engines: ${template.engines.join(', ')}.`,
+            skills: ['coordination', 'task-routing', 'domain-routing', 'monitoring'],
+            requiredModelType: 'router',
+            tags: ['orchestrator', template.id],
           })
           .returning()
 
-        if (agent) {
-          agentIds.push(agent.id)
-          // Link agent to entity
-          await ctx.db
-            .insert(brainEntityAgents)
+        // 5. Create template agents + link to entity
+        const agentIds: string[] = []
+        for (const agentDef of template.agents) {
+          const [agent] = await tx
+            .insert(agents)
             .values({
-              entityId: entity.id,
-              agentId: agent.id,
-              role: 'primary',
+              name: agentDef.name,
+              type: agentDef.role.includes('review')
+                ? 'reviewer'
+                : agentDef.role.includes('plan')
+                  ? 'planner'
+                  : 'specialist',
+              workspaceId: ws.id,
+              description: `${agentDef.role} — ${agentDef.capabilities.join(', ')}`,
+              soul:
+                agentDef.soul ??
+                `You are ${agentDef.name}, a ${template.domain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}. Be domain-expert, precise, and actionable.`,
+              skills: agentDef.capabilities,
+              requiredModelType: 'agentic',
+              tags: [template.id, 'domain-agent'],
             })
-            .catch(() => {}) // Ignore if table doesn't exist yet
+            .returning()
+
+          if (agent) {
+            agentIds.push(agent.id)
+            // Link agent to entity — log on failure instead of silent swallow
+            try {
+              await tx.insert(brainEntityAgents).values({
+                entityId: entity.id,
+                agentId: agent.id,
+                role: 'primary',
+              })
+            } catch (linkErr) {
+              console.warn(
+                `[smartCreate] Failed to link agent ${agent.id} to entity ${entity.id}:`,
+                linkErr,
+              )
+            }
+          }
         }
-      }
 
-      // 6. Add workspace binding to entity
-      await ctx.db.insert(workspaceBindings).values({
-        workspaceId: ws.id,
-        bindingType: 'brain',
-        bindingKey: entity.id,
-        enabled: true,
+        // 6. Add workspace binding to entity
+        await tx.insert(workspaceBindings).values({
+          workspaceId: ws.id,
+          bindingType: 'brain',
+          bindingKey: entity.id,
+          enabled: true,
+        })
+
+        // 7. Activate workspace
+        await tx
+          .update(workspaces)
+          .set({ lifecycleState: 'active' })
+          .where(eq(workspaces.id, ws.id))
+
+        await tx.insert(workspaceLifecycleEvents).values({
+          workspaceId: ws.id,
+          eventType: 'activated',
+          fromState: 'draft',
+          toState: 'active',
+          payload: { activatedBy: 'smart-create' },
+        })
+
+        // 8. Activate entity
+        await tx
+          .update(brainEntities)
+          .set({ status: 'active' })
+          .where(eq(brainEntities.id, entity.id))
+
+        return { entity, ws, agentIds }
       })
 
-      // 7. Activate workspace
-      await ctx.db
-        .update(workspaces)
-        .set({ lifecycleState: 'active' })
-        .where(eq(workspaces.id, ws.id))
-
-      await ctx.db.insert(workspaceLifecycleEvents).values({
-        workspaceId: ws.id,
-        eventType: 'activated',
-        fromState: 'draft',
-        toState: 'active',
-        payload: { activatedBy: 'smart-create' },
-      })
-
-      // 8. Activate entity
-      await ctx.db
-        .update(brainEntities)
-        .set({ status: 'active' })
-        .where(eq(brainEntities.id, entity.id))
-
-      // 9. Auto-provision Neon database (non-blocking)
+      // 9. Auto-provision Neon database (outside transaction — non-blocking)
       let databaseHost: string | null = null
       const apiKey = process.env.NEON_API_KEY
       const projectId = process.env.NEON_PROJECT_ID
 
       if (apiKey && projectId) {
         try {
-          const branchName = `mb-${entity.id.slice(0, 8)}-${input.name.replace(/\W/g, '-').toLowerCase().slice(0, 20)}`
+          const branchName = `mb-${txResult.entity.id.slice(0, 8)}-${input.name.replace(/\W/g, '-').toLowerCase().slice(0, 20)}`
           const result = await createNeonBranch({ apiKey, projectId, branchName })
 
           await ctx.db
@@ -246,18 +255,23 @@ export const miniBrainFactoryRouter = router({
                 },
               },
             })
-            .where(eq(brainEntities.id, entity.id))
+            .where(eq(brainEntities.id, txResult.entity.id))
 
           databaseHost = result.host
         } catch (err) {
-          console.warn(`[smartCreate] Neon auto-provision failed for ${entity.id}:`, err)
+          console.warn(`[smartCreate] Neon auto-provision failed for ${txResult.entity.id}:`, err)
         }
       }
 
       return {
-        entity: { id: entity.id, name: entity.name, tier: entity.tier, status: 'active' },
-        workspace: { id: ws.id, name: ws.name },
-        agentCount: agentIds.length + 1, // +1 for orchestrator
+        entity: {
+          id: txResult.entity.id,
+          name: txResult.entity.name,
+          tier: txResult.entity.tier,
+          status: 'active',
+        },
+        workspace: { id: txResult.ws.id, name: txResult.ws.name },
+        agentCount: txResult.agentIds.length + 1, // +1 for orchestrator
         template: template.id,
         database: databaseHost ? { host: databaseHost, provisioned: true } : null,
       }
@@ -281,126 +295,130 @@ export const miniBrainFactoryRouter = router({
       })
       if (!parent) throw new Error('Parent mini-brain not found')
 
-      // 2. Create development entity
-      const [entity] = await ctx.db
-        .insert(brainEntities)
-        .values({
-          name: input.name,
-          tier: 'development',
-          domain: parent.domain,
-          parentId: input.miniBrainId,
-          enginesEnabled: parent.enginesEnabled,
-          status: 'provisioning',
-        })
-        .returning()
-      if (!entity) throw new Error('Failed to create development entity')
-
-      // 3. Create workspace
-      const [ws] = await ctx.db
-        .insert(workspaces)
-        .values({
-          name: input.name,
-          type: 'development',
-          goal: `Development app under ${parent.name}`,
-        })
-        .returning()
-      if (!ws) throw new Error('Failed to create workspace')
-
-      // 4. Create orchestrator linked to parent's orchestrator
-      const parentOrch = await ctx.db.query.agents.findFirst({
-        where: and(
-          eq(
-            agents.workspaceId,
-            (
-              await ctx.db.query.workspaces.findFirst({
-                where: eq(workspaces.name, parent.name),
-              })
-            )?.id ?? '',
-          ),
-          eq(agents.isWsOrchestrator, true),
-        ),
-      })
-
-      await ctx.db.insert(agents).values({
-        name: `${input.name} Orchestrator`,
-        type: 'orchestrator',
-        workspaceId: ws.id,
-        isWsOrchestrator: true,
-        parentOrchestratorId: parentOrch?.id ?? null,
-        soul: `You are the orchestrator for ${input.name}, a development app under ${parent.name}.`,
-        skills: ['coordination', 'task-routing'],
-        requiredModelType: 'router',
-      })
-
-      // 5. Create development-specific domain agents from template
+      // Resolve template before transaction
       const templateId = input.template ?? input.name.toLowerCase().replace(/\s+/g, '-')
       const devTemplate = getFactory().getDevelopmentTemplate(
         parent.domain as MiniBrainTemplate,
         templateId,
       )
-      const devAgentIds: string[] = []
-      if (devTemplate) {
-        for (const agentDef of devTemplate.agents) {
-          const [agent] = await ctx.db
-            .insert(agents)
-            .values({
-              name: agentDef.name,
-              type: agentDef.role.includes('review')
-                ? 'reviewer'
-                : agentDef.role.includes('plan')
-                  ? 'planner'
-                  : 'specialist',
-              workspaceId: ws.id,
-              description: `${agentDef.role} — ${agentDef.capabilities.join(', ')}`,
-              soul:
-                agentDef.soul ??
-                `You are ${agentDef.name}, a ${devTemplate.domain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}.`,
-              skills: agentDef.capabilities,
-              requiredModelType: 'agentic',
-              tags: [parent.domain ?? 'unknown', devTemplate.id, 'development-agent'],
-            })
-            .returning()
 
-          if (agent) {
-            devAgentIds.push(agent.id)
-            await ctx.db
-              .insert(brainEntityAgents)
+      // Wrap core provisioning in a transaction
+      const txResult = await ctx.db.transaction(async (tx) => {
+        // 2. Create development entity
+        const [entity] = await tx
+          .insert(brainEntities)
+          .values({
+            name: input.name,
+            tier: 'development',
+            domain: parent.domain,
+            parentId: input.miniBrainId,
+            enginesEnabled: parent.enginesEnabled,
+            status: 'provisioning',
+          })
+          .returning()
+        if (!entity) throw new Error('Failed to create development entity')
+
+        // 3. Create workspace
+        const [ws] = await tx
+          .insert(workspaces)
+          .values({
+            name: input.name,
+            type: 'development',
+            goal: `Development app under ${parent.name}`,
+          })
+          .returning()
+        if (!ws) throw new Error('Failed to create workspace')
+
+        // 4. Create orchestrator linked to parent's orchestrator
+        const parentWs = await tx.query.workspaces.findFirst({
+          where: eq(workspaces.name, parent.name),
+        })
+        const parentOrch = parentWs
+          ? await tx.query.agents.findFirst({
+              where: and(eq(agents.workspaceId, parentWs.id), eq(agents.isWsOrchestrator, true)),
+            })
+          : null
+
+        await tx.insert(agents).values({
+          name: `${input.name} Orchestrator`,
+          type: 'orchestrator',
+          workspaceId: ws.id,
+          isWsOrchestrator: true,
+          parentOrchestratorId: parentOrch?.id ?? null,
+          soul: `You are the orchestrator for ${input.name}, a development app under ${parent.name}.`,
+          skills: ['coordination', 'task-routing'],
+          requiredModelType: 'router',
+        })
+
+        // 5. Create development-specific domain agents from template
+        const devAgentIds: string[] = []
+        if (devTemplate) {
+          for (const agentDef of devTemplate.agents) {
+            const [agent] = await tx
+              .insert(agents)
               .values({
-                entityId: entity.id,
-                agentId: agent.id,
-                role: 'primary',
+                name: agentDef.name,
+                type: agentDef.role.includes('review')
+                  ? 'reviewer'
+                  : agentDef.role.includes('plan')
+                    ? 'planner'
+                    : 'specialist',
+                workspaceId: ws.id,
+                description: `${agentDef.role} — ${agentDef.capabilities.join(', ')}`,
+                soul:
+                  agentDef.soul ??
+                  `You are ${agentDef.name}, a ${devTemplate.domain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}.`,
+                skills: agentDef.capabilities,
+                requiredModelType: 'agentic',
+                tags: [parent.domain ?? 'unknown', devTemplate.id, 'development-agent'],
               })
-              .catch(() => {})
+              .returning()
+
+            if (agent) {
+              devAgentIds.push(agent.id)
+              try {
+                await tx
+                  .insert(brainEntityAgents)
+                  .values({ entityId: entity.id, agentId: agent.id, role: 'primary' })
+              } catch (linkErr) {
+                console.warn(
+                  `[smartCreateDev] Failed to link agent ${agent.id} to entity ${entity.id}:`,
+                  linkErr,
+                )
+              }
+            }
           }
         }
-      }
 
-      // 6. Add binding
-      await ctx.db.insert(workspaceBindings).values({
-        workspaceId: ws.id,
-        bindingType: 'brain',
-        bindingKey: input.miniBrainId,
-        enabled: true,
+        // 6. Add binding
+        await tx.insert(workspaceBindings).values({
+          workspaceId: ws.id,
+          bindingType: 'brain',
+          bindingKey: input.miniBrainId,
+          enabled: true,
+        })
+
+        // 7. Activate both
+        await tx
+          .update(workspaces)
+          .set({ lifecycleState: 'active' })
+          .where(eq(workspaces.id, ws.id))
+        await tx
+          .update(brainEntities)
+          .set({ status: 'active' })
+          .where(eq(brainEntities.id, entity.id))
+
+        return { entity, ws, devAgentIds }
       })
 
-      // 7. Activate both
-      await ctx.db
-        .update(workspaces)
-        .set({ lifecycleState: 'active' })
-        .where(eq(workspaces.id, ws.id))
-      await ctx.db
-        .update(brainEntities)
-        .set({ status: 'active' })
-        .where(eq(brainEntities.id, entity.id))
-
-      // 7. Auto-provision Neon database (non-blocking)
+      // 8. Auto-provision Neon database (outside transaction — non-blocking)
       let databaseHost: string | null = null
       const apiKey = process.env.NEON_API_KEY
       const projectId = process.env.NEON_PROJECT_ID
 
       if (apiKey && projectId) {
         try {
-          const branchName = `dev-${entity.id.slice(0, 8)}-${input.name.replace(/\W/g, '-').toLowerCase().slice(0, 20)}`
+          const branchName = `dev-${txResult.entity.id.slice(0, 8)}-${input.name.replace(/\W/g, '-').toLowerCase().slice(0, 20)}`
           const result = await createNeonBranch({ apiKey, projectId, branchName })
 
           await ctx.db
@@ -417,18 +435,26 @@ export const miniBrainFactoryRouter = router({
                 },
               },
             })
-            .where(eq(brainEntities.id, entity.id))
+            .where(eq(brainEntities.id, txResult.entity.id))
 
           databaseHost = result.host
         } catch (err) {
-          console.warn(`[smartCreateDev] Neon auto-provision failed for ${entity.id}:`, err)
+          console.warn(
+            `[smartCreateDev] Neon auto-provision failed for ${txResult.entity.id}:`,
+            err,
+          )
         }
       }
 
       return {
-        entity: { id: entity.id, name: entity.name, tier: 'development', status: 'active' },
-        workspace: { id: ws.id, name: ws.name },
-        agentCount: devAgentIds.length + 1, // +1 for orchestrator
+        entity: {
+          id: txResult.entity.id,
+          name: txResult.entity.name,
+          tier: 'development',
+          status: 'active',
+        },
+        workspace: { id: txResult.ws.id, name: txResult.ws.name },
+        agentCount: txResult.devAgentIds.length + 1, // +1 for orchestrator
         template: devTemplate?.id ?? null,
         database: databaseHost ? { host: databaseHost, provisioned: true } : null,
       }
@@ -663,10 +689,16 @@ export const miniBrainFactoryRouter = router({
           .returning()
 
         if (agent) {
-          await ctx.db
-            .insert(brainEntityAgents)
-            .values({ entityId: input.entityId, agentId: agent.id, role: 'primary' })
-            .catch(() => {})
+          try {
+            await ctx.db
+              .insert(brainEntityAgents)
+              .values({ entityId: input.entityId, agentId: agent.id, role: 'primary' })
+          } catch (linkErr) {
+            console.warn(
+              `[reprovision] Failed to link agent ${agent.id} to entity ${input.entityId}:`,
+              linkErr,
+            )
+          }
           added++
         }
       }

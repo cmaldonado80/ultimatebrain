@@ -11,6 +11,7 @@ import { ContextPipeline } from '../../../../server/services/memory/context-pipe
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
 import { auth } from '../../../../server/auth'
 import { eventBus } from '../../../../server/services/orchestration/event-bus'
+import { TokenLedgerService } from '../../../../server/services/platform/token-ledger'
 
 // ── Rate Limiting ────────────────────────────────────────────────────────
 const RATE_LIMIT_WINDOW_MS = 60_000
@@ -157,6 +158,31 @@ export async function POST(req: Request) {
       name: 'Assistant',
       soul: 'You are a helpful AI assistant. Be concise and direct.',
     })
+  }
+
+  // 2b. Token budget check — block if entity budget exceeded
+  try {
+    const ledger = new TokenLedgerService(db)
+    for (const agentConfig of agentConfigs) {
+      if (!agentConfig.id) continue
+      // Check entity-level budget via brainEntityAgents linkage
+      const entityLink = await db.query.brainEntityAgents
+        ?.findFirst({
+          where: eq(brainEntityAgents.agentId, agentConfig.id),
+        })
+        .catch(() => null)
+      if (entityLink) {
+        const budgetStatus = await ledger.checkBudget(entityLink.entityId)
+        if (budgetStatus.overBudget) {
+          return new Response(JSON.stringify({ error: 'Token budget exceeded for this agent' }), {
+            status: 429,
+            headers: { 'Content-Type': 'application/json', 'Retry-After': '3600' },
+          })
+        }
+      }
+    }
+  } catch {
+    // Budget table may not exist yet — proceed without enforcement
   }
 
   // 3. Recall relevant context via ContextPipeline (vector search + relevance scoring)

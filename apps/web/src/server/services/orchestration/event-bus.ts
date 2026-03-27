@@ -73,6 +73,24 @@ eventBus.on('health.degraded', async (payload) => {
   console.warn(
     `[EventBus] health.degraded: status=${payload.status} issues=${payload.issueCount ?? 'unknown'}`,
   )
+  // Trigger auto-healing when health degrades
+  try {
+    const { createDb } = await import('@solarc/db')
+    const { HealingEngine } = await import('../healing/healing-engine')
+    const url = process.env.DATABASE_URL
+    if (!url) return
+    const db = createDb(url)
+    const healer = new HealingEngine(db)
+    const result = await healer.autoHeal()
+    if (result.actions.length > 0) {
+      console.log(
+        `[EventBus] auto-heal completed: ${result.actions.length} action(s) taken`,
+        result.actions.map((a) => `${a.action}:${a.target}:${a.success ? 'ok' : 'fail'}`),
+      )
+    }
+  } catch (err) {
+    console.error('[EventBus] auto-heal failed:', err)
+  }
 })
 
 eventBus.on('brain.seeded', async (payload) => {
