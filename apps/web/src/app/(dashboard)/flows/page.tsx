@@ -20,11 +20,18 @@ interface Flow {
   updatedAt: Date
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: '#6b7280',
-  active: '#22c55e',
-  archived: '#9ca3af',
-  paused: '#eab308',
+const STATUS_DOT: Record<string, string> = {
+  draft: 'neon-dot neon-dot-blue',
+  active: 'neon-dot neon-dot-green',
+  archived: 'neon-dot neon-dot-red',
+  paused: 'neon-dot neon-dot-yellow',
+}
+
+const STATUS_TEXT: Record<string, string> = {
+  draft: 'text-neon-blue',
+  active: 'text-neon-green',
+  archived: 'text-neon-red',
+  paused: 'text-neon-yellow',
 }
 
 export default function FlowsPage() {
@@ -49,7 +56,7 @@ export default function FlowsPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -57,18 +64,10 @@ export default function FlowsPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching flows</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2 font-orbitron">Loading...</div>
+          <div className="text-xs">Fetching flows</div>
         </div>
       </div>
     )
@@ -77,82 +76,40 @@ export default function FlowsPage() {
   const flows: Flow[] = (data as Flow[]) ?? []
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Flows</h2>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <div className="flex justify-between items-center">
+          <h2 className="m-0 text-[22px] font-bold font-orbitron text-neon-purple">Flows</h2>
           <button
-            style={{
-              background: '#818cf8',
-              color: '#f9fafb',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className={showRun ? 'cyber-btn-secondary' : 'cyber-btn-primary'}
             onClick={() => setShowRun(!showRun)}
           >
             {showRun ? 'Cancel' : 'Run Crew'}
           </button>
         </div>
-        <p style={styles.subtitle}>
+        <p className="mt-1 mb-0 text-xs text-gray-500">
           Define and monitor multi-step agent workflows, crew runs, and recall chains.
         </p>
       </div>
 
       {showRun && (
-        <div
-          style={{
-            background: '#1f2937',
-            borderRadius: 8,
-            padding: 16,
-            border: '1px solid #374151',
-            marginBottom: 16,
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+        <div className="cyber-card mb-4">
+          <div className="flex flex-col gap-2">
             <input
-              style={{
-                background: '#111827',
-                color: '#f9fafb',
-                border: '1px solid #374151',
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 13,
-              }}
+              className="cyber-input"
               placeholder="Crew name..."
               value={crewName}
               onChange={(e) => setCrewName(e.target.value)}
             />
             <textarea
-              style={{
-                background: '#111827',
-                color: '#f9fafb',
-                border: '1px solid #374151',
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 13,
-                minHeight: 60,
-                resize: 'vertical' as const,
-              }}
+              className="cyber-input min-h-[60px] resize-y"
               placeholder="Task to accomplish..."
               value={task}
               onChange={(e) => setTask(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="flex gap-2 items-center">
               <button
-                style={{
-                  background: '#22c55e',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="cyber-btn-primary"
                 onClick={() =>
                   crewName.trim() &&
                   task.trim() &&
@@ -174,7 +131,7 @@ export default function FlowsPage() {
                 {runCrewMut.isPending ? 'Running...' : 'Run'}
               </button>
               {runCrewMut.error && (
-                <span style={{ color: '#fca5a5', fontSize: 11 }}>{runCrewMut.error.message}</span>
+                <span className="text-neon-red text-[11px]">{runCrewMut.error.message}</span>
               )}
             </div>
           </div>
@@ -182,30 +139,15 @@ export default function FlowsPage() {
       )}
 
       {runResult && (
-        <div
-          style={{
-            background: '#14532d',
-            border: '1px solid #166534',
-            borderRadius: 8,
-            padding: 14,
-            marginBottom: 16,
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#86efac', marginBottom: 4 }}>
+        <div className="bg-green-950 border border-green-900 rounded-lg p-3.5 mb-4">
+          <div className="text-[11px] font-bold text-neon-green mb-1 font-orbitron">
             CREW RESULT
           </div>
-          <div style={{ fontSize: 13, color: '#d1fae5', whiteSpace: 'pre-wrap' as const }}>
+          <div className="text-[13px] text-green-200 whitespace-pre-wrap font-mono">
             {runResult}
           </div>
           <button
-            style={{
-              marginTop: 8,
-              background: 'transparent',
-              color: '#6b7280',
-              border: 'none',
-              fontSize: 11,
-              cursor: 'pointer',
-            }}
+            className="mt-2 bg-transparent text-gray-500 border-none text-[11px] cursor-pointer hover:text-gray-300 transition-colors"
             onClick={() => setRunResult(null)}
           >
             Dismiss
@@ -213,23 +155,28 @@ export default function FlowsPage() {
         </div>
       )}
       {flows.length === 0 ? (
-        <div style={styles.empty}>
+        <div className="text-center text-gray-500 py-10 text-sm">
           No flows defined yet. Create a flow to orchestrate agent workflows.
         </div>
       ) : (
-        <div style={styles.grid}>
+        <div className="cyber-grid">
           {flows.map((f) => (
-            <div key={f.id} style={styles.card}>
-              <div style={styles.cardTop}>
-                <span style={styles.cardName}>{f.name}</span>
-                <span
-                  style={{ ...styles.statusBadge, color: STATUS_COLORS[f.status] || '#6b7280' }}
-                >
-                  {f.status}
+            <div key={f.id} className="cyber-card">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[15px] font-bold font-orbitron">{f.name}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className={STATUS_DOT[f.status] || 'neon-dot neon-dot-blue'} />
+                  <span
+                    className={`text-[10px] font-semibold uppercase ${STATUS_TEXT[f.status] || 'text-gray-500'}`}
+                  >
+                    {f.status}
+                  </span>
                 </span>
               </div>
-              {f.description && <div style={styles.desc}>{f.description}</div>}
-              <div style={styles.meta}>
+              {f.description && (
+                <div className="text-xs text-gray-400 mb-2 leading-relaxed">{f.description}</div>
+              )}
+              <div className="flex gap-4 text-[11px] text-gray-500 font-mono">
                 <span>v{f.version ?? 1}</span>
                 {f.createdBy && <span>by {f.createdBy}</span>}
                 <span>
@@ -242,24 +189,4 @@ export default function FlowsPage() {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 },
-  card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
-  cardTop: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  cardName: { fontSize: 15, fontWeight: 700 },
-  statusBadge: { fontSize: 10, fontWeight: 600, textTransform: 'uppercase' as const },
-  desc: { fontSize: 12, color: '#9ca3af', marginBottom: 8, lineHeight: 1.4 },
-  meta: { display: 'flex', gap: 16, fontSize: 11, color: '#6b7280' },
 }

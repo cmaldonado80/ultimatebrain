@@ -22,11 +22,11 @@ interface Project {
   updatedAt: Date
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  planning: '#eab308',
-  active: '#22c55e',
-  completed: '#818cf8',
-  cancelled: '#ef4444',
+const STATUS_CLASS: Record<string, string> = {
+  planning: 'text-neon-yellow border-neon-yellow',
+  active: 'text-neon-green border-neon-green',
+  completed: 'text-neon-purple border-neon-purple',
+  cancelled: 'text-neon-red border-neon-red',
 }
 
 export default function ProjectsPage() {
@@ -49,7 +49,7 @@ export default function ProjectsPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -57,18 +57,10 @@ export default function ProjectsPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching projects</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching projects</div>
         </div>
       </div>
     )
@@ -80,97 +72,46 @@ export default function ProjectsPage() {
     : allProjects
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Projects ({allProjects.length})</h2>
-          <button
-            style={{
-              background: '#818cf8',
-              color: '#f9fafb',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-            onClick={() => setShowForm(!showForm)}
-          >
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <div className="flex justify-between items-center">
+          <h2 className="m-0 text-[22px] font-bold font-orbitron">
+            Projects ({allProjects.length})
+          </h2>
+          <button className="cyber-btn-primary text-xs" onClick={() => setShowForm(!showForm)}>
             {showForm ? 'Cancel' : '+ New Project'}
           </button>
         </div>
-        <p style={styles.subtitle}>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Organize agents, tickets, and resources into scoped project groups.
         </p>
       </div>
 
       <input
-        style={{
-          width: '100%',
-          background: '#1f2937',
-          color: '#f9fafb',
-          border: '1px solid #374151',
-          borderRadius: 6,
-          padding: '8px 12px',
-          fontSize: 13,
-          boxSizing: 'border-box' as const,
-          marginBottom: 16,
-        }}
+        className="cyber-input w-full mb-4"
         placeholder="Search projects..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
 
       {showForm && (
-        <div
-          style={{
-            background: '#1f2937',
-            borderRadius: 8,
-            padding: 16,
-            border: '1px solid #374151',
-            marginBottom: 16,
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+        <div className="cyber-card mb-4">
+          <div className="flex flex-col gap-2">
             <input
-              style={{
-                background: '#111827',
-                color: '#f9fafb',
-                border: '1px solid #374151',
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 13,
-              }}
+              className="cyber-input"
               placeholder="Project name..."
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
             <input
-              style={{
-                background: '#111827',
-                color: '#f9fafb',
-                border: '1px solid #374151',
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 13,
-              }}
+              className="cyber-input"
               placeholder="Goal (optional)..."
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="flex gap-2 items-center">
               <button
-                style={{
-                  background: '#22c55e',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="cyber-btn-primary text-xs"
                 onClick={() =>
                   name.trim() &&
                   createMut.mutate({ name: name.trim(), goal: goal.trim() || undefined })
@@ -180,65 +121,53 @@ export default function ProjectsPage() {
                 {createMut.isPending ? 'Creating...' : 'Create Project'}
               </button>
               {createMut.error && (
-                <span style={{ color: '#fca5a5', fontSize: 11 }}>{createMut.error.message}</span>
+                <span className="text-neon-red text-[11px]">{createMut.error.message}</span>
               )}
             </div>
           </div>
         </div>
       )}
       {projects.length === 0 ? (
-        <div style={styles.empty}>No projects found. Create one to get started.</div>
+        <div className="text-center text-gray-500 py-10 text-sm">
+          No projects found. Create one to get started.
+        </div>
       ) : (
-        <div style={styles.grid}>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-3">
           {projects.map((p) => (
-            <div key={p.id} style={styles.card}>
-              <div style={styles.cardTop}>
+            <div key={p.id} className="cyber-card">
+              <div className="flex items-center justify-between mb-2">
                 <span
-                  style={{
-                    ...styles.cardName,
-                    cursor: 'pointer',
-                    borderBottom: '1px dashed #4b5563',
-                  }}
+                  className="text-[15px] font-bold cursor-pointer border-b border-dashed border-gray-600"
                   onClick={() => setExpandedProject(expandedProject === p.id ? null : p.id)}
                   title="Click to expand"
                 >
                   {p.name}
                 </span>
                 <span
-                  style={{
-                    ...styles.statusBadge,
-                    color: STATUS_COLORS[p.status] || '#6b7280',
-                    borderColor: STATUS_COLORS[p.status] || '#6b7280',
-                  }}
+                  className={`cyber-badge uppercase ${STATUS_CLASS[p.status] || 'text-gray-500 border-gray-500'}`}
                 >
                   {p.status}
                 </span>
               </div>
-              {p.goal && <div style={styles.cardGoal}>{p.goal}</div>}
-              <div style={styles.cardMeta}>
+              {p.goal && <div className="text-xs text-gray-400 mb-2 leading-relaxed">{p.goal}</div>}
+              <div className="flex gap-4 text-[11px] text-gray-500">
                 {p.deadline && <span>Deadline: {new Date(p.deadline).toLocaleDateString()}</span>}
                 {p.healthScore && <span>Health: {p.healthScore}</span>}
               </div>
-              {p.synthesis && <div style={styles.synthesis}>{p.synthesis}</div>}
+              {p.synthesis && (
+                <div className="text-[11px] text-gray-600 mt-2 italic">{p.synthesis}</div>
+              )}
               {expandedProject === p.id && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    paddingTop: 8,
-                    borderTop: '1px solid #374151',
-                    fontSize: 12,
-                    color: '#9ca3af',
-                  }}
-                >
+                <div className="mt-2 pt-2 border-t border-border-dim text-xs text-gray-400">
                   <div>
-                    <strong>ID:</strong> {p.id}
+                    <strong>ID:</strong> <span className="font-mono">{p.id}</span>
                   </div>
                   {p.healthDiagnosis && (
-                    <div style={{ marginTop: 4 }}>
+                    <div className="mt-1">
                       <strong>Diagnosis:</strong> {p.healthDiagnosis}
                     </div>
                   )}
-                  <div style={{ marginTop: 4 }}>
+                  <div className="mt-1">
                     <strong>Created:</strong> {new Date(p.createdAt).toLocaleString()}
                   </div>
                 </div>
@@ -249,32 +178,4 @@ export default function ProjectsPage() {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 },
-  card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
-  cardTop: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  cardName: { fontSize: 15, fontWeight: 700 },
-  statusBadge: {
-    fontSize: 10,
-    fontWeight: 600,
-    padding: '2px 8px',
-    borderRadius: 4,
-    border: '1px solid',
-    textTransform: 'uppercase' as const,
-  },
-  cardGoal: { fontSize: 12, color: '#9ca3af', marginBottom: 8, lineHeight: 1.4 },
-  cardMeta: { display: 'flex', gap: 16, fontSize: 11, color: '#6b7280' },
-  synthesis: { fontSize: 11, color: '#4b5563', marginTop: 8, fontStyle: 'italic' },
 }

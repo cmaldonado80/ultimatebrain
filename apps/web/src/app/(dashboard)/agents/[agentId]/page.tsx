@@ -28,7 +28,7 @@ export default function AgentDetailPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-slate-50 max-w-[800px]">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -36,16 +36,8 @@ export default function AgentDetailPage() {
 
   if (isLoading || !data) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>Loading agent...</div>
+      <div className="p-6 text-slate-50 max-w-[800px] flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">Loading agent...</div>
       </div>
     )
   }
@@ -77,62 +69,69 @@ export default function AgentDetailPage() {
   }
 
   return (
-    <div style={styles.page}>
-      <button style={styles.backBtn} onClick={() => router.push('/agents')}>
+    <div className="p-6 text-slate-50 max-w-[800px]">
+      <button
+        className="bg-transparent border-none text-neon-purple cursor-pointer text-[13px] p-0 mb-4"
+        onClick={() => router.push('/agents')}
+      >
         &larr; Back to Agents
       </button>
 
       {/* Header */}
-      <div style={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <h2 style={styles.title}>{agent.name}</h2>
-          {agent.type && <span style={styles.badge}>{agent.type}</span>}
+      <div className="mb-6">
+        <div className="flex items-center gap-3">
+          <h2 className="m-0 text-[22px] font-bold font-orbitron">{agent.name}</h2>
+          {agent.type && (
+            <span className="cyber-badge text-neon-blue bg-neon-blue/10 border-neon-blue/20">
+              {agent.type}
+            </span>
+          )}
           {agent.requiredModelType && (
-            <span style={styles.capBadge}>{agent.requiredModelType}</span>
+            <span className="cyber-badge text-neon-purple bg-neon-purple/10 border-neon-purple/20">
+              {agent.requiredModelType}
+            </span>
           )}
           <span
-            style={{
-              ...styles.statusDot,
-              background:
-                agent.status === 'idle'
-                  ? 'var(--color-neon-green)'
-                  : agent.status === 'error'
-                    ? 'var(--color-neon-red)'
-                    : 'var(--color-neon-purple)',
-            }}
+            className={`neon-dot ${
+              agent.status === 'idle'
+                ? 'neon-dot-green'
+                : agent.status === 'error'
+                  ? 'neon-dot-red'
+                  : 'neon-dot-purple'
+            }`}
           />
-          <span style={{ fontSize: 11, color: '#6b7280' }}>{agent.status}</span>
+          <span className="text-[11px] text-slate-500">{agent.status}</span>
         </div>
-        <p style={styles.subtitle}>{agent.description || 'No description'}</p>
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          <span style={{ fontSize: 11, color: '#4b5563' }}>
+        <p className="mt-1 mb-0 text-[13px] text-slate-400">
+          {agent.description || 'No description'}
+        </p>
+        <div className="flex gap-2 mt-2">
+          <span className="text-[11px] text-slate-600 font-mono">
             Model: {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
           </span>
-          <span style={{ fontSize: 11, color: '#4b5563' }}>|</span>
-          <span style={{ fontSize: 11, color: '#4b5563' }}>
+          <span className="text-[11px] text-slate-600">|</span>
+          <span className="text-[11px] text-slate-600 font-mono">
             Temp: {agent.temperature ?? 1.0} | Max tokens: {agent.maxTokens ?? 4096}
           </span>
         </div>
       </div>
 
       {/* Soul / System Prompt */}
-      <div style={styles.section}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 8,
-          }}
-        >
-          <div style={styles.sectionTitle}>Soul (System Prompt)</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button style={styles.btnSmall} onClick={handleExport}>
+      <div className="cyber-card p-4 mb-4">
+        <div className="flex justify-between items-center mb-2">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron">
+            Soul (System Prompt)
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="cyber-btn-secondary !px-2.5 !py-1 !text-[11px]"
+              onClick={handleExport}
+            >
               Export
             </button>
             {!editingSoul ? (
               <button
-                style={styles.btnSmall}
+                className="cyber-btn-secondary !px-2.5 !py-1 !text-[11px]"
                 onClick={() => {
                   setEditingSoul(true)
                   setSoulDraft(agent.soul ?? '')
@@ -143,13 +142,16 @@ export default function AgentDetailPage() {
             ) : (
               <>
                 <button
-                  style={{ ...styles.btnSmall, background: 'var(--color-neon-green)' }}
+                  className="cyber-btn-primary !px-2.5 !py-1 !text-[11px] !bg-neon-green/20 !text-neon-green !border-neon-green/30"
                   onClick={() => updateMut.mutate({ id: agentId, soul: soulDraft })}
                   disabled={updateMut.isPending}
                 >
                   {updateMut.isPending ? 'Saving...' : 'Save'}
                 </button>
-                <button style={styles.btnSmall} onClick={() => setEditingSoul(false)}>
+                <button
+                  className="cyber-btn-secondary !px-2.5 !py-1 !text-[11px]"
+                  onClick={() => setEditingSoul(false)}
+                >
                   Cancel
                 </button>
               </>
@@ -158,16 +160,16 @@ export default function AgentDetailPage() {
         </div>
         {editingSoul ? (
           <textarea
-            style={styles.textarea}
+            className="cyber-input font-mono resize-y"
             value={soulDraft}
             onChange={(e) => setSoulDraft(e.target.value)}
             rows={8}
             placeholder="Define this agent's personality and instructions...&#10;&#10;Example: You are a senior code reviewer. Be thorough but constructive. Focus on security, performance, and maintainability."
           />
         ) : (
-          <div style={styles.soulDisplay}>
+          <div className="bg-bg-elevated rounded-md px-3.5 py-3 text-[13px] leading-relaxed whitespace-pre-wrap min-h-[60px] text-slate-300">
             {agent.soul || (
-              <span style={{ color: '#4b5563', fontStyle: 'italic' }}>
+              <span className="text-slate-600 italic">
                 No soul configured. Click Edit to define this agent&apos;s personality.
               </span>
             )}
@@ -176,35 +178,33 @@ export default function AgentDetailPage() {
       </div>
 
       {/* Configuration */}
-      <div style={styles.section}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 8,
-          }}
-        >
-          <div style={styles.sectionTitle}>Configuration</div>
+      <div className="cyber-card p-4 mb-4">
+        <div className="flex justify-between items-center mb-2">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron">
+            Configuration
+          </div>
           {!editingConfig ? (
-            <button style={styles.btnSmall} onClick={() => setEditingConfig(true)}>
+            <button
+              className="cyber-btn-secondary !px-2.5 !py-1 !text-[11px]"
+              onClick={() => setEditingConfig(true)}
+            >
               Edit
             </button>
           ) : (
             <button
-              style={{ ...styles.btnSmall, background: 'var(--color-neon-green)' }}
+              className="cyber-btn-primary !px-2.5 !py-1 !text-[11px] !bg-neon-green/20 !text-neon-green !border-neon-green/30"
               onClick={() => setEditingConfig(false)}
             >
               Done
             </button>
           )}
         </div>
-        <div style={styles.configGrid}>
-          <div style={styles.configItem}>
-            <label style={styles.configLabel}>Model</label>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-slate-500">Model</label>
             {editingConfig ? (
               <select
-                style={styles.configSelect}
+                className="cyber-select !py-1 !px-2 !text-xs"
                 value={agent.model ?? ''}
                 onChange={(e) =>
                   updateMut.mutate({ id: agentId, model: e.target.value || undefined })
@@ -222,15 +222,15 @@ export default function AgentDetailPage() {
                 ))}
               </select>
             ) : (
-              <span style={styles.configValue}>{agent.model || 'Auto'}</span>
+              <span className="text-[13px] text-slate-300 font-mono">{agent.model || 'Auto'}</span>
             )}
           </div>
-          <div style={styles.configItem}>
-            <label style={styles.configLabel}>Temperature</label>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-slate-500">Temperature</label>
             {editingConfig ? (
               <input
                 type="number"
-                style={styles.configInput}
+                className="cyber-input !py-1 !px-2 !text-xs !w-[100px]"
                 value={agent.temperature ?? 1.0}
                 min={0}
                 max={2}
@@ -240,15 +240,17 @@ export default function AgentDetailPage() {
                 }
               />
             ) : (
-              <span style={styles.configValue}>{agent.temperature ?? 1.0}</span>
+              <span className="text-[13px] text-slate-300 font-mono">
+                {agent.temperature ?? 1.0}
+              </span>
             )}
           </div>
-          <div style={styles.configItem}>
-            <label style={styles.configLabel}>Max Tokens</label>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-slate-500">Max Tokens</label>
             {editingConfig ? (
               <input
                 type="number"
-                style={styles.configInput}
+                className="cyber-input !py-1 !px-2 !text-xs !w-[100px]"
                 value={agent.maxTokens ?? 4096}
                 min={1}
                 max={200000}
@@ -258,45 +260,54 @@ export default function AgentDetailPage() {
                 }
               />
             ) : (
-              <span style={styles.configValue}>{agent.maxTokens ?? 4096}</span>
+              <span className="text-[13px] text-slate-300 font-mono">
+                {agent.maxTokens ?? 4096}
+              </span>
             )}
           </div>
-          <div style={styles.configItem}>
-            <label style={styles.configLabel}>Capability</label>
-            <span style={styles.configValue}>{agent.requiredModelType ?? 'agentic'}</span>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-slate-500">Capability</label>
+            <span className="text-[13px] text-slate-300 font-mono">
+              {agent.requiredModelType ?? 'agentic'}
+            </span>
           </div>
         </div>
       </div>
 
       {/* Skills & Tags */}
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>Skills & Tags</div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Skills</div>
-            <div style={styles.tagList}>
+      <div className="cyber-card p-4 mb-4">
+        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2">
+          Skills & Tags
+        </div>
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <div className="text-[11px] text-slate-500 mb-1">Skills</div>
+            <div className="flex flex-wrap gap-1">
               {agent.skills?.length ? (
                 agent.skills.map((s) => (
-                  <span key={s} style={styles.tag}>
+                  <span
+                    key={s}
+                    className="cyber-badge text-neon-purple bg-neon-purple/10 border-neon-purple/20"
+                  >
                     {s}
                   </span>
                 ))
               ) : (
-                <span style={{ color: '#4b5563', fontSize: 12 }}>None</span>
+                <span className="text-slate-600 text-xs">None</span>
               )}
             </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Tags</div>
-            <div style={styles.tagList}>
+          <div className="flex-1">
+            <div className="text-[11px] text-slate-500 mb-1">Tags</div>
+            <div className="flex flex-wrap gap-1">
               {agent.tags?.length ? (
                 agent.tags.map((t) => (
-                  <span key={t} style={styles.tagAlt}>
+                  <span key={t} className="cyber-badge">
                     {t}
                   </span>
                 ))
               ) : (
-                <span style={{ color: '#4b5563', fontSize: 12 }}>None</span>
+                <span className="text-slate-600 text-xs">None</span>
               )}
             </div>
           </div>
@@ -304,39 +315,35 @@ export default function AgentDetailPage() {
       </div>
 
       {/* Recent Activity */}
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>Recent Activity ({agent.recentTraces.length})</div>
+      <div className="cyber-card p-4 mb-4">
+        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2">
+          Recent Activity ({agent.recentTraces.length})
+        </div>
         {agent.recentTraces.length === 0 ? (
-          <div
-            style={{ color: '#4b5563', fontSize: 13, padding: 16, textAlign: 'center' as const }}
-          >
+          <div className="text-slate-600 text-[13px] p-4 text-center">
             No activity recorded yet.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+          <div className="flex flex-col gap-1">
             {agent.recentTraces.map((trace) => (
-              <div key={trace.spanId} style={styles.traceRow}>
+              <div
+                key={trace.spanId}
+                className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-elevated rounded"
+              >
                 <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    flexShrink: 0,
-                    background:
-                      trace.status === 'ok'
-                        ? 'var(--color-neon-green)'
-                        : trace.status === 'error'
-                          ? 'var(--color-neon-red)'
-                          : '#6b7280',
-                  }}
+                  className={`neon-dot !w-1.5 !h-1.5 ${
+                    trace.status === 'ok'
+                      ? 'neon-dot-green'
+                      : trace.status === 'error'
+                        ? 'neon-dot-red'
+                        : ''
+                  }`}
                 />
-                <span style={{ fontSize: 12, fontFamily: 'monospace', flex: 1 }}>
-                  {trace.operation}
-                </span>
+                <span className="text-xs font-mono flex-1">{trace.operation}</span>
                 {trace.durationMs != null && (
-                  <span style={{ fontSize: 10, color: '#4b5563' }}>{trace.durationMs}ms</span>
+                  <span className="text-[10px] text-slate-600">{trace.durationMs}ms</span>
                 )}
-                <span style={{ fontSize: 10, color: '#4b5563' }}>
+                <span className="text-[10px] text-slate-600">
                   {new Date(trace.createdAt).toLocaleString()}
                 </span>
               </div>
@@ -346,133 +353,4 @@ export default function AgentDetailPage() {
       </div>
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb', maxWidth: 800 },
-  backBtn: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--color-neon-purple)',
-    cursor: 'pointer',
-    fontSize: 13,
-    padding: 0,
-    marginBottom: 16,
-  },
-  header: { marginBottom: 24 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#9ca3af' },
-  badge: {
-    fontSize: 10,
-    background: 'rgba(0,212,255,0.1)',
-    color: 'var(--color-neon-blue)',
-    padding: '2px 8px',
-    borderRadius: 4,
-  },
-  capBadge: {
-    fontSize: 10,
-    background: 'rgba(139,92,246,0.12)',
-    color: 'var(--color-neon-purple)',
-    padding: '2px 8px',
-    borderRadius: 4,
-  },
-  statusDot: { width: 8, height: 8, borderRadius: '50%', display: 'inline-block' },
-  section: {
-    background: 'var(--color-bg-card)',
-    backdropFilter: 'blur(12px)',
-    borderRadius: 8,
-    padding: 16,
-    border: '1px solid var(--color-border)',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: '#9ca3af',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  btnSmall: {
-    background: '#374151',
-    color: '#d1d5db',
-    border: 'none',
-    borderRadius: 4,
-    padding: '4px 10px',
-    fontSize: 11,
-    cursor: 'pointer',
-  },
-  textarea: {
-    width: '100%',
-    background: 'var(--color-bg-elevated)',
-    color: '#f9fafb',
-    border: '1px solid var(--color-border)',
-    borderRadius: 6,
-    padding: '10px 12px',
-    fontSize: 13,
-    fontFamily: 'monospace',
-    resize: 'vertical' as const,
-    boxSizing: 'border-box' as const,
-  },
-  soulDisplay: {
-    background: 'var(--color-bg-elevated)',
-    borderRadius: 6,
-    padding: '12px 14px',
-    fontSize: 13,
-    lineHeight: 1.6,
-    whiteSpace: 'pre-wrap' as const,
-    minHeight: 60,
-    color: '#d1d5db',
-  },
-  configGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 12,
-  },
-  configItem: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 4,
-  },
-  configLabel: { fontSize: 11, color: '#6b7280' },
-  configValue: { fontSize: 13, color: '#d1d5db', fontFamily: 'monospace' },
-  configSelect: {
-    background: 'var(--color-bg-elevated)',
-    color: '#f9fafb',
-    border: '1px solid var(--color-border)',
-    borderRadius: 4,
-    padding: '4px 8px',
-    fontSize: 12,
-  },
-  configInput: {
-    background: 'var(--color-bg-elevated)',
-    color: '#f9fafb',
-    border: '1px solid var(--color-border)',
-    borderRadius: 4,
-    padding: '4px 8px',
-    fontSize: 12,
-    width: 100,
-  },
-  tagList: { display: 'flex', flexWrap: 'wrap' as const, gap: 4 },
-  tag: {
-    fontSize: 10,
-    background: 'rgba(139,92,246,0.12)',
-    color: 'var(--color-neon-purple)',
-    padding: '2px 6px',
-    borderRadius: 4,
-  },
-  tagAlt: {
-    fontSize: 10,
-    background: 'rgba(255,255,255,0.04)',
-    color: '#a3a3a3',
-    padding: '2px 6px',
-    borderRadius: 4,
-  },
-  traceRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '6px 10px',
-    background: 'var(--color-bg-elevated)',
-    borderRadius: 4,
-  },
 }

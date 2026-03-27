@@ -21,9 +21,9 @@ interface Memory {
 }
 
 const TIER_COLORS: Record<string, string> = {
-  core: '#818cf8',
-  recall: '#22c55e',
-  archival: '#6b7280',
+  core: 'text-neon-purple',
+  recall: 'text-neon-green',
+  archival: 'text-gray-500',
 }
 
 export default function MemoryPage() {
@@ -52,7 +52,7 @@ export default function MemoryPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -62,18 +62,10 @@ export default function MemoryPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching memory data</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching memory data</div>
         </div>
       </div>
     )
@@ -90,80 +82,40 @@ export default function MemoryPage() {
   const stats = statsQuery.data as Record<string, number> | undefined
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Memory Graph</h2>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <div className="flex justify-between items-center">
+          <h2 className="m-0 text-[22px] font-bold font-orbitron">Memory Graph</h2>
           <button
-            style={{
-              background: '#818cf8',
-              color: '#f9fafb',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="cyber-btn-primary text-xs font-semibold"
             onClick={() => setShowForm(!showForm)}
           >
             {showForm ? 'Cancel' : '+ Store Memory'}
           </button>
         </div>
-        <p style={styles.subtitle}>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Explore the brain's memory tiers — core, recall, and archival — with vector search.
         </p>
       </div>
 
       {showForm && (
-        <div
-          style={{
-            background: '#1f2937',
-            borderRadius: 8,
-            padding: 16,
-            border: '1px solid #374151',
-            marginBottom: 16,
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+        <div className="cyber-card mb-4">
+          <div className="flex flex-col gap-2">
             <input
-              style={{
-                background: '#111827',
-                color: '#f9fafb',
-                border: '1px solid #374151',
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 13,
-              }}
+              className="cyber-input"
               placeholder="Memory key (e.g. project.architecture)..."
               value={memKey}
               onChange={(e) => setMemKey(e.target.value)}
             />
             <textarea
-              style={{
-                background: '#111827',
-                color: '#f9fafb',
-                border: '1px solid #374151',
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 13,
-                minHeight: 80,
-                resize: 'vertical' as const,
-              }}
+              className="cyber-input min-h-[80px] resize-y"
               placeholder="Memory content..."
               value={memContent}
               onChange={(e) => setMemContent(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="flex gap-2 items-center">
               <select
-                style={{
-                  background: '#111827',
-                  color: '#f9fafb',
-                  border: '1px solid #374151',
-                  borderRadius: 6,
-                  padding: '6px 10px',
-                  fontSize: 12,
-                }}
+                className="cyber-select"
                 value={memTier}
                 onChange={(e) => setMemTier(e.target.value as 'core' | 'recall' | 'archival')}
               >
@@ -172,16 +124,7 @@ export default function MemoryPage() {
                 <option value="archival">Archival</option>
               </select>
               <button
-                style={{
-                  background: '#22c55e',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="cyber-btn-primary text-xs font-semibold"
                 onClick={() =>
                   memKey.trim() &&
                   memContent.trim() &&
@@ -192,45 +135,39 @@ export default function MemoryPage() {
                 {storeMut.isPending ? 'Storing...' : 'Store'}
               </button>
               {storeMut.error && (
-                <span style={{ color: '#fca5a5', fontSize: 11 }}>{storeMut.error.message}</span>
+                <span className="text-neon-red text-[11px]">{storeMut.error.message}</span>
               )}
             </div>
           </div>
         </div>
       )}
       {stats && (
-        <div style={styles.statsGrid}>
+        <div className="grid grid-cols-3 gap-2.5 mb-4">
           {Object.entries(stats).map(([tier, count]) => (
-            <div key={tier} style={styles.statCard}>
-              <div style={{ ...styles.statValue, color: TIER_COLORS[tier] || '#f9fafb' }}>
+            <div key={tier} className="cyber-card text-center">
+              <div className={`text-[22px] font-bold ${TIER_COLORS[tier] || 'text-gray-50'}`}>
                 {String(count)}
               </div>
-              <div style={styles.statLabel}>{tier}</div>
+              <div className="text-[11px] text-gray-500 mt-0.5 capitalize">{tier}</div>
             </div>
           ))}
         </div>
       )}
 
       <input
-        style={{
-          width: '100%',
-          background: '#1f2937',
-          color: '#f9fafb',
-          border: '1px solid #374151',
-          borderRadius: 6,
-          padding: '8px 12px',
-          fontSize: 13,
-          boxSizing: 'border-box' as const,
-          marginBottom: 10,
-        }}
+        className="cyber-input w-full mb-2.5"
         placeholder="Search memories by key or content..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
       />
 
-      <div style={styles.filters}>
+      <div className="flex gap-1.5 mb-4">
         <button
-          style={filterTier === undefined ? styles.filterActive : styles.filterBtn}
+          className={
+            filterTier === undefined
+              ? 'cyber-btn-primary text-xs font-semibold'
+              : 'cyber-btn-secondary text-xs'
+          }
           onClick={() => setFilterTier(undefined)}
         >
           All
@@ -238,7 +175,11 @@ export default function MemoryPage() {
         {['core', 'recall', 'archival'].map((t) => (
           <button
             key={t}
-            style={filterTier === t ? styles.filterActive : styles.filterBtn}
+            className={
+              filterTier === t
+                ? 'cyber-btn-primary text-xs font-semibold'
+                : 'cyber-btn-secondary text-xs'
+            }
             onClick={() => setFilterTier(t)}
           >
             {t}
@@ -247,22 +188,28 @@ export default function MemoryPage() {
       </div>
 
       {memories.length === 0 ? (
-        <div style={styles.empty}>No memories found in this tier.</div>
+        <div className="text-center text-gray-500 py-10 text-sm">
+          No memories found in this tier.
+        </div>
       ) : (
-        <div style={styles.list}>
+        <div className="flex flex-col gap-2">
           {memories.map((m) => (
-            <div key={m.id} style={styles.card}>
-              <div style={styles.cardTop}>
-                <span style={styles.memKey}>{m.key}</span>
-                <span style={{ ...styles.tierBadge, color: TIER_COLORS[m.tier] || '#6b7280' }}>
+            <div key={m.id} className="cyber-card">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[13px] font-bold font-mono flex-1">{m.key}</span>
+                <span
+                  className={`text-[10px] font-semibold ${TIER_COLORS[m.tier] || 'text-gray-500'}`}
+                >
                   {m.tier}
                 </span>
                 {m.confidence != null && (
-                  <span style={styles.confidence}>{(m.confidence * 100).toFixed(0)}%</span>
+                  <span className="text-[10px] text-gray-500">
+                    {(m.confidence * 100).toFixed(0)}%
+                  </span>
                 )}
               </div>
-              <div style={styles.content}>{m.content}</div>
-              <div style={styles.meta}>
+              <div className="text-xs text-gray-300 leading-relaxed mb-1.5">{m.content}</div>
+              <div className="flex gap-4 text-[10px] text-gray-600 font-mono">
                 <span>ID: {m.id.slice(0, 8)}</span>
                 {m.source && <span>Source: {m.source.slice(0, 8)}</span>}
               </div>
@@ -272,50 +219,4 @@ export default function MemoryPage() {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 },
-  statCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 14,
-    border: '1px solid #374151',
-    textAlign: 'center' as const,
-  },
-  statValue: { fontSize: 22, fontWeight: 700 },
-  statLabel: { fontSize: 11, color: '#6b7280', marginTop: 2, textTransform: 'capitalize' as const },
-  filters: { display: 'flex', gap: 6, marginBottom: 16 },
-  filterBtn: {
-    background: '#1f2937',
-    color: '#9ca3af',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '4px 12px',
-    fontSize: 12,
-    cursor: 'pointer',
-  },
-  filterActive: {
-    background: '#818cf8',
-    color: '#f9fafb',
-    border: '1px solid #818cf8',
-    borderRadius: 6,
-    padding: '4px 12px',
-    fontSize: 12,
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-  list: { display: 'flex', flexDirection: 'column' as const, gap: 8 },
-  card: { background: '#1f2937', borderRadius: 8, padding: 14, border: '1px solid #374151' },
-  cardTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 },
-  memKey: { fontSize: 13, fontWeight: 700, fontFamily: 'monospace', flex: 1 },
-  tierBadge: { fontSize: 10, fontWeight: 600 },
-  confidence: { fontSize: 10, color: '#6b7280' },
-  content: { fontSize: 12, color: '#d1d5db', lineHeight: 1.5, marginBottom: 6 },
-  meta: { display: 'flex', gap: 16, fontSize: 10, color: '#4b5563' },
 }

@@ -67,7 +67,7 @@ export default function SettingsPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -75,18 +75,10 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching settings</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching settings</div>
         </div>
       </div>
     )
@@ -100,34 +92,20 @@ export default function SettingsPage() {
   const providers = providersQuery.data as Array<{ provider: string; createdAt: Date }> | undefined
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Settings</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Settings</h2>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Configure brain identity, API keys, LLM providers, and system preferences.
         </p>
       </div>
-      <div style={styles.section}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 10,
-          }}
-        >
-          <div style={styles.sectionTitle}>LLM Providers</div>
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-2.5">
+          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide font-orbitron">
+            LLM Providers
+          </div>
           <button
-            style={{
-              background: '#818cf8',
-              color: '#f9fafb',
-              border: 'none',
-              borderRadius: 6,
-              padding: '4px 12px',
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="cyber-btn-primary text-[11px] px-3 py-1"
             onClick={() => setShowKeyForm(!showKeyForm)}
           >
             {showKeyForm ? 'Cancel' : '+ Add API Key'}
@@ -135,25 +113,10 @@ export default function SettingsPage() {
         </div>
 
         {showKeyForm && (
-          <div
-            style={{
-              background: '#111827',
-              borderRadius: 8,
-              padding: 14,
-              border: '1px solid #374151',
-              marginBottom: 12,
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+          <div className="cyber-card bg-bg-deep rounded-lg p-3.5 border border-border-dim mb-3">
+            <div className="flex flex-col gap-2">
               <select
-                style={{
-                  background: '#1f2937',
-                  color: '#f9fafb',
-                  border: '1px solid #374151',
-                  borderRadius: 6,
-                  padding: '6px 10px',
-                  fontSize: 12,
-                }}
+                className="cyber-select"
                 value={keyProvider}
                 onChange={(e) => setKeyProvider(e.target.value)}
               >
@@ -164,15 +127,7 @@ export default function SettingsPage() {
               </select>
               {keyProvider === 'ollama' && (
                 <input
-                  style={{
-                    background: '#1f2937',
-                    color: '#f9fafb',
-                    border: '1px solid #374151',
-                    borderRadius: 6,
-                    padding: '8px 12px',
-                    fontSize: 13,
-                    fontFamily: 'monospace',
-                  }}
+                  className="cyber-input font-mono"
                   type="text"
                   placeholder="https://ollama.com/api (Ollama Cloud) or http://localhost:11434 (local)"
                   value={ollamaUrl}
@@ -180,15 +135,7 @@ export default function SettingsPage() {
                 />
               )}
               <input
-                style={{
-                  background: '#1f2937',
-                  color: '#f9fafb',
-                  border: '1px solid #374151',
-                  borderRadius: 6,
-                  padding: '8px 12px',
-                  fontSize: 13,
-                  fontFamily: 'monospace',
-                }}
+                className="cyber-input font-mono"
                 type="password"
                 placeholder={
                   keyProvider === 'ollama' ? 'Bearer token / API key' : 'sk-... or API key'
@@ -196,25 +143,16 @@ export default function SettingsPage() {
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
               />
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div className="flex gap-2 items-center">
                 <button
-                  style={{
-                    background: '#22c55e',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '6px 14px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
+                  className="cyber-btn-primary text-[12px] px-3.5 py-1.5 font-semibold"
                   onClick={handleStoreKey}
                   disabled={storeKeyMut.isPending || !apiKey.trim()}
                 >
                   {storeKeyMut.isPending ? 'Storing...' : 'Store Key (Encrypted)'}
                 </button>
                 {storeKeyMut.error && (
-                  <span style={{ color: '#fca5a5', fontSize: 11 }}>
+                  <span className="text-neon-red text-[11px]">
                     {storeKeyMut.error.message.includes('does not exist')
                       ? 'Database tables not provisioned — run migrations first.'
                       : storeKeyMut.error.message}
@@ -226,33 +164,21 @@ export default function SettingsPage() {
         )}
 
         {providers && providers.filter((p) => p.provider !== 'ollama_url').length > 0 ? (
-          <div style={styles.providerList}>
+          <div className="flex flex-col gap-1">
             {providers
               .filter((p) => p.provider !== 'ollama_url')
               .map((p) => (
-                <div key={p.provider} style={styles.providerRow}>
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: '#22c55e',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ ...styles.providerName, flex: 1 }}>{p.provider}</span>
-                  <span style={{ fontSize: 10, color: '#4b5563' }}>
+                <div
+                  key={p.provider}
+                  className="flex items-center gap-2 px-3 py-2 bg-bg-surface rounded-md border border-border-dim"
+                >
+                  <span className="w-2 h-2 rounded-full bg-neon-green shrink-0" />
+                  <span className="text-[13px] font-mono flex-1">{p.provider}</span>
+                  <span className="text-[10px] text-gray-600">
                     {new Date(p.createdAt).toLocaleDateString()}
                   </span>
                   <button
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#6b7280',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      padding: '0 4px',
-                    }}
+                    className="cyber-btn-danger bg-transparent border-none text-gray-500 cursor-pointer text-sm px-1"
                     onClick={() => deleteKeyMut.mutate({ provider: p.provider })}
                     title="Remove key"
                   >
@@ -262,35 +188,21 @@ export default function SettingsPage() {
               ))}
           </div>
         ) : (
-          <div style={styles.empty}>
-            No providers configured. Click "+ Add API Key" above to get started.
+          <div className="text-center text-gray-500 p-5 text-[13px]">
+            No providers configured. Click &quot;+ Add API Key&quot; above to get started.
           </div>
         )}
       </div>
 
-      <div style={styles.section}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 10,
-          }}
-        >
-          <div style={styles.sectionTitle}>Ollama Cloud Models</div>
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-2.5">
+          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide font-orbitron">
+            Ollama Cloud Models
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <div className="flex gap-2 mb-3">
           <input
-            style={{
-              flex: 1,
-              background: '#1f2937',
-              color: '#f9fafb',
-              border: '1px solid #374151',
-              borderRadius: 6,
-              padding: '8px 12px',
-              fontSize: 13,
-              fontFamily: 'monospace',
-            }}
+            className="cyber-input font-mono flex-1"
             type="text"
             placeholder="Model name (e.g. kimi-k2.5:cloud, qwen3:8b)"
             value={newModelName}
@@ -303,16 +215,7 @@ export default function SettingsPage() {
             }}
           />
           <button
-            style={{
-              background: '#818cf8',
-              color: '#f9fafb',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="cyber-btn-primary text-[12px] px-3.5 py-1.5 font-semibold"
             onClick={() => {
               if (!newModelName.trim()) return
               setPullStatus((prev) => ({ ...prev, [newModelName.trim()]: 'pulling' }))
@@ -324,17 +227,7 @@ export default function SettingsPage() {
           </button>
         </div>
         {pullOllamaModelMut.error && (
-          <div
-            style={{
-              background: '#1e1b4b',
-              border: '1px solid #ef4444',
-              borderRadius: 6,
-              padding: '8px 12px',
-              marginBottom: 8,
-              fontSize: 12,
-              color: '#fca5a5',
-            }}
-          >
+          <div className="bg-bg-deep border border-neon-red rounded-md px-3 py-2 mb-2 text-[12px] text-neon-red">
             {pullOllamaModelMut.error.message}
           </div>
         )}
@@ -351,13 +244,14 @@ export default function SettingsPage() {
             | undefined
           if (!models?.length) {
             return (
-              <div style={styles.empty}>
-                No Ollama models configured. Enter a model name above and click "Pull & Add Model".
+              <div className="text-center text-gray-500 p-5 text-[13px]">
+                No Ollama models configured. Enter a model name above and click &quot;Pull &amp; Add
+                Model&quot;.
               </div>
             )
           }
           return (
-            <div style={styles.providerList}>
+            <div className="flex flex-col gap-1">
               {models.map((m) => {
                 const isAvailable =
                   availableNames.has(m.name) ||
@@ -365,36 +259,24 @@ export default function SettingsPage() {
                   [...availableNames].some((n) => n.startsWith(m.name))
                 const status = pullStatus[m.name]
                 return (
-                  <div key={m.id} style={styles.providerRow}>
+                  <div
+                    key={m.id}
+                    className="flex items-center gap-2 px-3 py-2 bg-bg-surface rounded-md border border-border-dim"
+                  >
                     <span
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        background: isAvailable ? '#22c55e' : '#f59e0b',
-                        flexShrink: 0,
-                      }}
+                      className={`w-2 h-2 rounded-full shrink-0 ${isAvailable ? 'bg-neon-green' : 'bg-neon-yellow'}`}
                       title={isAvailable ? 'Available' : 'Not yet pulled'}
                     />
-                    <span style={{ ...styles.providerName, flex: 1 }}>{m.name}</span>
+                    <span className="text-[13px] font-mono flex-1">{m.name}</span>
                     {status === 'pulling' && (
-                      <span style={{ fontSize: 10, color: '#818cf8' }}>pulling...</span>
+                      <span className="text-[10px] text-neon-purple">pulling...</span>
                     )}
                     {status === 'success' && (
-                      <span style={{ fontSize: 10, color: '#22c55e' }}>ready</span>
+                      <span className="text-[10px] text-neon-green">ready</span>
                     )}
                     {!isAvailable && status !== 'pulling' && (
                       <button
-                        style={{
-                          background: '#374151',
-                          border: 'none',
-                          borderRadius: 4,
-                          color: '#818cf8',
-                          cursor: 'pointer',
-                          fontSize: 10,
-                          padding: '2px 8px',
-                          fontWeight: 600,
-                        }}
+                        className="cyber-btn-secondary bg-bg-elevated border-none rounded text-neon-purple cursor-pointer text-[10px] px-2 py-0.5 font-semibold"
                         onClick={() => {
                           setPullStatus((prev) => ({ ...prev, [m.name]: 'pulling' }))
                           pullOllamaModelMut.mutate({ name: m.name })
@@ -405,13 +287,7 @@ export default function SettingsPage() {
                       </button>
                     )}
                     <button
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#6b7280',
-                        cursor: 'pointer',
-                        fontSize: 14,
-                      }}
+                      className="bg-transparent border-none text-gray-500 cursor-pointer text-sm"
                       onClick={() => removeOllamaModelMut.mutate({ id: m.id })}
                       title="Remove model"
                     >
@@ -425,49 +301,63 @@ export default function SettingsPage() {
         })()}
       </div>
 
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>
+      <div className="mb-6">
+        <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide font-orbitron">
           Feature Flags ({features ? Object.keys(features).length : 0})
         </div>
         {features && Object.keys(features).length > 0 ? (
-          <div style={styles.kvList}>
+          <div className="flex flex-col gap-1">
             {Object.entries(features).map(([key, val]) => (
-              <div key={key} style={styles.kvRow}>
-                <span style={styles.kvKey}>{key}</span>
-                <span style={{ color: val ? '#22c55e' : '#ef4444', fontWeight: 600, fontSize: 11 }}>
+              <div
+                key={key}
+                className="flex justify-between items-center px-3 py-2 bg-bg-surface rounded-md border border-border-dim"
+              >
+                <span className="text-[12px] font-mono">{key}</span>
+                <span
+                  className={`font-semibold text-[11px] ${val ? 'text-neon-green' : 'text-neon-red'}`}
+                >
                   {val ? 'ON' : 'OFF'}
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <div style={styles.empty}>No feature flags configured.</div>
+          <div className="text-center text-gray-500 p-5 text-[13px]">
+            No feature flags configured.
+          </div>
         )}
       </div>
 
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>
+      <div className="mb-6">
+        <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide font-orbitron">
           System Policies ({policies ? Object.keys(policies).length : 0})
         </div>
         {policies && Object.keys(policies).length > 0 ? (
-          <div style={styles.kvList}>
+          <div className="flex flex-col gap-1">
             {Object.entries(policies).map(([key, val]) => (
-              <div key={key} style={styles.kvRow}>
-                <span style={styles.kvKey}>{key}</span>
-                <span style={styles.kvVal}>{JSON.stringify(val)}</span>
+              <div
+                key={key}
+                className="flex justify-between items-center px-3 py-2 bg-bg-surface rounded-md border border-border-dim"
+              >
+                <span className="text-[12px] font-mono">{key}</span>
+                <span className="text-[11px] font-mono text-gray-500 max-w-[50%] overflow-hidden text-ellipsis">
+                  {JSON.stringify(val)}
+                </span>
               </div>
             ))}
           </div>
         ) : (
-          <div style={styles.empty}>No policies defined.</div>
+          <div className="text-center text-gray-500 p-5 text-[13px]">No policies defined.</div>
         )}
       </div>
 
       {cognition && (
-        <div style={styles.section}>
-          <div style={styles.sectionTitle}>Cognition State</div>
-          <div style={styles.cognitionCard}>
-            <div style={styles.meta}>
+        <div className="mb-6">
+          <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide font-orbitron">
+            Cognition State
+          </div>
+          <div className="cyber-card bg-bg-surface rounded-lg p-3.5 border border-border-dim">
+            <div className="text-[12px] text-gray-500">
               Last updated:{' '}
               {cognition.updatedAt ? new Date(cognition.updatedAt).toLocaleString() : 'unknown'}
             </div>
@@ -476,58 +366,4 @@ export default function SettingsPage() {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 20, fontSize: 13 },
-  section: { marginBottom: 24 },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: '#9ca3af',
-    marginBottom: 10,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  providerList: { display: 'flex', flexDirection: 'column' as const, gap: 4 },
-  providerRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 12px',
-    background: '#1f2937',
-    borderRadius: 6,
-    border: '1px solid #374151',
-  },
-  providerName: { fontSize: 13, fontFamily: 'monospace' },
-  kvList: { display: 'flex', flexDirection: 'column' as const, gap: 4 },
-  kvRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '8px 12px',
-    background: '#1f2937',
-    borderRadius: 6,
-    border: '1px solid #374151',
-  },
-  kvKey: { fontSize: 12, fontFamily: 'monospace' },
-  kvVal: {
-    fontSize: 11,
-    fontFamily: 'monospace',
-    color: '#6b7280',
-    maxWidth: '50%',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  cognitionCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 14,
-    border: '1px solid #374151',
-  },
-  meta: { fontSize: 12, color: '#6b7280' },
 }
