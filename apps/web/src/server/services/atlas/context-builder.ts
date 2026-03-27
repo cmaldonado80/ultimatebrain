@@ -23,7 +23,7 @@ let cachedSections: Map<string, string> | null = null
  */
 function parseSections(content: string): Map<string, string> {
   const sections = new Map<string, string>()
-  const sectionRegex = /<!-- @section:(\w+) -->\n([\s\S]*?)<!-- @end -->/g
+  const sectionRegex = /<!-- @section:([\w-]+) -->\n([\s\S]*?)<!-- @end -->/g
 
   let match: RegExpExecArray | null
   while ((match = sectionRegex.exec(content)) !== null) {
