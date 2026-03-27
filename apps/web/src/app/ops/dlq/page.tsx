@@ -17,7 +17,7 @@ export default function DLQPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-slate-100">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -32,18 +32,10 @@ export default function DLQPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching diagnostics</div>
+      <div className="p-6 text-slate-100 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-xs">Fetching diagnostics</div>
         </div>
       </div>
     )
@@ -57,59 +49,54 @@ export default function DLQPage() {
     | undefined
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Dead Letter Queue</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-slate-100">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Dead Letter Queue</h2>
+        <p className="mt-1 mb-0 text-xs text-slate-500">
           Inspect and retry failed jobs — ticket executions, cron runs, and webhook deliveries.
         </p>
       </div>
       {health && (
-        <div style={styles.healthCard}>
-          <div style={styles.healthTop}>
-            <span style={styles.healthLabel}>System Health</span>
+        <div className="cyber-card p-4 mb-4">
+          <div className="flex justify-between items-center mb-2.5">
+            <span className="text-xs font-bold">System Health</span>
             <span
-              style={{
-                ...styles.healthStatus,
-                color: health.status === 'healthy' ? '#22c55e' : '#ef4444',
-              }}
+              className={`text-sm font-bold uppercase ${health.status === 'healthy' ? 'text-neon-green' : 'text-neon-red'}`}
             >
               {health.status}
             </span>
           </div>
           {health.checks &&
             Object.entries(health.checks).map(([name, check]) => (
-              <div key={name} style={styles.checkRow}>
+              <div key={name} className="flex items-center gap-2 py-1 text-xs">
                 <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: check.status === 'ok' ? '#22c55e' : '#ef4444',
-                    flexShrink: 0,
-                  }}
+                  className={`neon-dot ${check.status === 'ok' ? 'neon-dot-green' : 'neon-dot-red'}`}
                 />
-                <span style={styles.checkName}>{name}</span>
-                {check.message && <span style={styles.checkMsg}>{check.message}</span>}
+                <span className="flex-1 font-mono">{name}</span>
+                {check.message && (
+                  <span className="text-[11px] text-slate-500">{check.message}</span>
+                )}
               </div>
             ))}
         </div>
       )}
 
       {diagnosis?.issues && diagnosis.issues.length > 0 && (
-        <div style={styles.section}>
-          <div style={styles.sectionTitle}>Issues ({diagnosis.issues.length})</div>
+        <div className="mb-4">
+          <div className="text-xs font-bold text-neon-yellow mb-2">
+            Issues ({diagnosis.issues.length})
+          </div>
           {diagnosis.issues.map((issue, i) => (
-            <div key={i} style={styles.issueRow}>
+            <div key={i} className="cyber-card px-3 py-2 rounded-md text-xs text-neon-yellow mb-1">
               {String(issue)}
             </div>
           ))}
         </div>
       )}
 
-      <div style={styles.actions}>
+      <div className="flex gap-2 mb-5">
         <button
-          style={styles.actionBtn}
+          className="cyber-btn-danger"
           onClick={handleClearLeases}
           disabled={clearLeasesMut.isPending}
         >
@@ -121,56 +108,10 @@ export default function DLQPage() {
         !diagnosis.issues?.length &&
         !diagnosis.failedTickets?.length &&
         !diagnosis.expiredLeases?.length && (
-          <div style={styles.empty}>No issues found. System is healthy.</div>
+          <div className="text-center text-slate-500 py-10 text-sm">
+            No issues found. System is healthy.
+          </div>
         )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  healthCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 16,
-    border: '1px solid #374151',
-    marginBottom: 16,
-  },
-  healthTop: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  healthLabel: { fontSize: 13, fontWeight: 700 },
-  healthStatus: { fontSize: 14, fontWeight: 700, textTransform: 'uppercase' as const },
-  checkRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 12 },
-  checkName: { flex: 1, fontFamily: 'monospace' },
-  checkMsg: { fontSize: 11, color: '#6b7280' },
-  section: { marginBottom: 16 },
-  sectionTitle: { fontSize: 13, fontWeight: 700, color: '#f97316', marginBottom: 8 },
-  issueRow: {
-    background: '#1f2937',
-    padding: '8px 12px',
-    borderRadius: 6,
-    fontSize: 12,
-    color: '#fbbf24',
-    marginBottom: 4,
-    border: '1px solid #374151',
-  },
-  actions: { display: 'flex', gap: 8, marginBottom: 20 },
-  actionBtn: {
-    background: '#7f1d1d',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 6,
-    padding: '8px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
 }

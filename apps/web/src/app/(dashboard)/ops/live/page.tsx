@@ -63,64 +63,44 @@ export default function LiveViewerPage() {
   function renderSpan(span: Span, depth: number): React.ReactNode {
     const children = childMap.get(span.spanId) ?? []
     const isRunning = !span.durationMs && span.status !== 'error'
+    const statusColor =
+      span.status === 'ok'
+        ? '#22c55e'
+        : span.status === 'error'
+          ? '#ef4444'
+          : isRunning
+            ? '#eab308'
+            : '#6b7280'
 
     return (
       <div key={span.spanId}>
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 12px',
-            paddingLeft: 12 + depth * 20,
-            background: depth % 2 === 0 ? '#1f2937' : '#111827',
-            borderBottom: '1px solid #374151',
-            fontSize: 12,
-          }}
+          className={`flex items-center gap-2 py-1.5 px-3 border-b border-gray-700 text-xs ${
+            depth % 2 === 0 ? 'bg-gray-800' : 'bg-gray-900'
+          }`}
+          style={{ paddingLeft: 12 + depth * 20 }}
         >
           <span
+            className="w-2 h-2 rounded-full shrink-0"
             style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              flexShrink: 0,
-              background:
-                span.status === 'ok'
-                  ? '#22c55e'
-                  : span.status === 'error'
-                    ? '#ef4444'
-                    : isRunning
-                      ? '#eab308'
-                      : '#6b7280',
+              background: statusColor,
               animation: isRunning ? 'pulse 1.5s infinite' : 'none',
             }}
           />
-          <span style={{ flex: 1, fontFamily: 'monospace', fontWeight: 600 }}>
-            {span.operation}
-          </span>
+          <span className="flex-1 font-mono font-semibold">{span.operation}</span>
           {span.service && (
-            <span
-              style={{
-                fontSize: 10,
-                color: '#4b5563',
-                background: '#1e1b4b',
-                padding: '1px 6px',
-                borderRadius: 3,
-              }}
-            >
+            <span className="text-[10px] text-gray-600 bg-indigo-950 py-px px-1.5 rounded-sm">
               {span.service}
             </span>
           )}
           {span.durationMs != null ? (
-            <span style={{ fontSize: 10, color: '#6b7280', fontFamily: 'monospace' }}>
-              {span.durationMs}ms
-            </span>
+            <span className="text-[10px] text-gray-500 font-mono">{span.durationMs}ms</span>
           ) : isRunning ? (
-            <span style={{ fontSize: 10, color: '#eab308' }}>running...</span>
+            <span className="text-[10px] text-yellow-500">running...</span>
           ) : null}
           <span
+            className="text-[10px]"
             style={{
-              fontSize: 10,
               color:
                 span.status === 'ok' ? '#22c55e' : span.status === 'error' ? '#ef4444' : '#6b7280',
             }}
@@ -134,17 +114,17 @@ export default function LiveViewerPage() {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Live Execution Viewer</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 font-sans text-gray-50">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Live Execution Viewer</h2>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Watch agent execution traces in real-time. Select a ticket to monitor.
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+      <div className="flex gap-2 mb-4 items-center">
         <select
-          style={styles.select}
+          className="cyber-select flex-1"
           value={selectedTicket}
           onChange={(e) => setSelectedTicket(e.target.value)}
         >
@@ -156,50 +136,37 @@ export default function LiveViewerPage() {
           ))}
         </select>
         <button
-          style={{
-            ...styles.btn,
-            background: isLive ? '#ef4444' : '#22c55e',
-          }}
+          className="text-white border-none rounded-md py-2 px-4 text-xs font-semibold cursor-pointer"
+          style={{ background: isLive ? '#ef4444' : '#22c55e' }}
           onClick={() => setIsLive(!isLive)}
           disabled={!selectedTicket}
         >
           {isLive ? 'Stop' : 'Live'}
         </button>
         {isLive && (
-          <span
-            style={{
-              fontSize: 11,
-              color: '#22c55e',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
+          <span className="text-[11px] text-green-500 flex items-center gap-1">
             <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: '#22c55e',
-                animation: 'pulse 1.5s infinite',
-              }}
+              className="w-1.5 h-1.5 rounded-full bg-green-500"
+              style={{ animation: 'pulse 1.5s infinite' }}
             />
             Polling every 2s
           </span>
         )}
-        <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 'auto' }}>
-          {spans.length} spans
-        </span>
+        <span className="text-[11px] text-gray-500 ml-auto">{spans.length} spans</span>
       </div>
 
       {!selectedTicket ? (
-        <div style={styles.empty}>Select a ticket to view its execution traces.</div>
+        <div className="text-center text-gray-500 p-10 text-sm cyber-card">
+          Select a ticket to view its execution traces.
+        </div>
       ) : spans.length === 0 ? (
-        <div style={styles.empty}>
+        <div className="text-center text-gray-500 p-10 text-sm cyber-card">
           No traces found for this ticket. {isLive && 'Waiting for execution...'}
         </div>
       ) : (
-        <div style={styles.traceContainer}>{rootSpans.map((span) => renderSpan(span, 0))}</div>
+        <div className="cyber-card overflow-hidden !p-0">
+          {rootSpans.map((span) => renderSpan(span, 0))}
+        </div>
       )}
 
       <style>{`
@@ -210,44 +177,4 @@ export default function LiveViewerPage() {
       `}</style>
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  select: {
-    background: '#1f2937',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '8px 12px',
-    fontSize: 13,
-    flex: 1,
-  },
-  btn: {
-    color: '#fff',
-    border: 'none',
-    borderRadius: 6,
-    padding: '8px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  empty: {
-    textAlign: 'center' as const,
-    color: '#6b7280',
-    padding: 40,
-    fontSize: 14,
-    background: '#1f2937',
-    borderRadius: 8,
-    border: '1px solid #374151',
-  },
-  traceContainer: {
-    background: '#1f2937',
-    borderRadius: 8,
-    border: '1px solid #374151',
-    overflow: 'hidden',
-  },
 }

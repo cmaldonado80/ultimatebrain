@@ -33,17 +33,17 @@ export default function CheckpointsPage() {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Checkpoints</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-slate-100">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Checkpoints</h2>
+        <p className="mt-1 mb-0 text-xs text-slate-500">
           State snapshots for agent execution — restore, compare, and debug from any checkpoint.
         </p>
       </div>
 
-      <div style={styles.searchBar}>
+      <div className="flex gap-2 mb-5">
         <select
-          style={styles.select}
+          className="cyber-select"
           value={entityType}
           onChange={(e) => {
             setEntityType(e.target.value)
@@ -55,7 +55,7 @@ export default function CheckpointsPage() {
           <option value="flow">Flow</option>
         </select>
         <input
-          style={styles.input}
+          className="cyber-input flex-1"
           placeholder="Entity ID (UUID)"
           value={entityId}
           onChange={(e) => {
@@ -63,32 +63,40 @@ export default function CheckpointsPage() {
             setSearching(false)
           }}
         />
-        <button style={styles.searchBtn} onClick={handleSearch}>
+        <button className="cyber-btn-primary" onClick={handleSearch}>
           Search
         </button>
       </div>
 
       {!searching ? (
-        <div style={styles.empty}>Enter an entity type and ID to browse checkpoints.</div>
+        <div className="text-center text-slate-500 py-10 text-sm">
+          Enter an entity type and ID to browse checkpoints.
+        </div>
       ) : listQuery.isLoading ? (
-        <div style={styles.empty}>Loading checkpoints...</div>
+        <div className="text-center text-slate-500 py-10 text-sm">Loading checkpoints...</div>
       ) : listQuery.error ? (
         <DbErrorBanner error={listQuery.error} />
       ) : (
         (() => {
           const checkpoints: Checkpoint[] = listQuery.data ?? []
           return checkpoints.length === 0 ? (
-            <div style={styles.empty}>No checkpoints found for this entity.</div>
+            <div className="text-center text-slate-500 py-10 text-sm">
+              No checkpoints found for this entity.
+            </div>
           ) : (
-            <div style={styles.list}>
+            <div className="flex flex-col gap-2">
               {checkpoints.map((cp) => (
-                <div key={cp.id} style={styles.card}>
-                  <div style={styles.cardTop}>
-                    <span style={styles.stepBadge}>Step {cp.stepIndex}</span>
-                    <span style={styles.entityType}>{cp.entityType}</span>
-                    <span style={styles.timestamp}>{new Date(cp.createdAt).toLocaleString()}</span>
+                <div key={cp.id} className="cyber-card p-3.5">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <span className="cyber-badge bg-neon-blue/10 text-neon-blue border-neon-blue/20">
+                      Step {cp.stepIndex}
+                    </span>
+                    <span className="text-[11px] text-slate-500">{cp.entityType}</span>
+                    <span className="text-[10px] text-slate-600 ml-auto">
+                      {new Date(cp.createdAt).toLocaleString()}
+                    </span>
                   </div>
-                  <div style={styles.statePreview}>
+                  <div className="text-[11px] font-mono text-slate-400 whitespace-pre-wrap leading-snug">
                     {JSON.stringify(cp.state, null, 2).slice(0, 200)}
                     {JSON.stringify(cp.state).length > 200 ? '...' : ''}
                   </div>
@@ -100,60 +108,4 @@ export default function CheckpointsPage() {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  searchBar: { display: 'flex', gap: 8, marginBottom: 20 },
-  select: {
-    background: '#1f2937',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '6px 10px',
-    fontSize: 13,
-  },
-  input: {
-    flex: 1,
-    background: '#1f2937',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '6px 10px',
-    fontSize: 13,
-  },
-  searchBtn: {
-    background: '#818cf8',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 16px',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  list: { display: 'flex', flexDirection: 'column' as const, gap: 8 },
-  card: { background: '#1f2937', borderRadius: 8, padding: 14, border: '1px solid #374151' },
-  cardTop: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 },
-  stepBadge: {
-    fontSize: 11,
-    fontWeight: 700,
-    background: '#1e3a5f',
-    color: '#93c5fd',
-    padding: '2px 8px',
-    borderRadius: 4,
-  },
-  entityType: { fontSize: 11, color: '#6b7280' },
-  timestamp: { fontSize: 10, color: '#4b5563', marginLeft: 'auto' },
-  statePreview: {
-    fontSize: 11,
-    fontFamily: 'monospace',
-    color: '#9ca3af',
-    whiteSpace: 'pre-wrap' as const,
-    lineHeight: 1.4,
-  },
 }

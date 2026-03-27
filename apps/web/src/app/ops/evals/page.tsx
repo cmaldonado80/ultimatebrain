@@ -88,15 +88,18 @@ const SCORE_DIMENSIONS: ScoreDimension[] = [
 function ScoreBar({ score, color }: { score: number; color: string }) {
   const pct = Math.round(score * 100)
   return (
-    <div style={styles.scoreBarWrapper}>
-      <div style={{ ...styles.scoreBarFill, width: `${pct}%`, background: color }} />
-      <span style={styles.scoreBarLabel}>{pct}%</span>
+    <div className="h-1.5 bg-bg-elevated rounded-sm relative flex items-center">
+      <div
+        className="h-full rounded-sm transition-[width] duration-300"
+        style={{ width: `${pct}%`, background: color }}
+      />
+      <span className="absolute right-0 text-[10px] text-gray-400 top-2">{pct}%</span>
     </div>
   )
 }
 
 function ScoreTrend({ history, dimension }: { history: RunHistory[]; dimension: ScoreDimension }) {
-  if (history.length < 2) return <span style={styles.noData}>Not enough runs</span>
+  if (history.length < 2) return <span className="text-xs text-gray-500">Not enough runs</span>
 
   const values = history.map((h) => (h.scores as Record<string, number>)?.[dimension.key] ?? 0)
   const max = Math.max(...values, 1)
@@ -111,7 +114,7 @@ function ScoreTrend({ history, dimension }: { history: RunHistory[]; dimension: 
     .join(' ')
 
   return (
-    <svg width={width} height={height} style={styles.trendSvg}>
+    <svg width={width} height={height} className="block">
       <polyline
         points={points}
         fill="none"
@@ -135,15 +138,19 @@ function ScoreTrend({ history, dimension }: { history: RunHistory[]; dimension: 
 
 function CaseCompare({ evalCase }: { evalCase: EvalCase }) {
   return (
-    <div style={styles.caseCompare}>
-      <div style={styles.casePanel}>
-        <div style={styles.casePanelHeader}>Input</div>
-        <pre style={styles.caseJson}>{JSON.stringify(evalCase.input, null, 2)}</pre>
+    <div className="flex gap-3 items-start">
+      <div className="flex-1">
+        <div className="text-[11px] font-semibold text-gray-400 mb-1.5 uppercase">Input</div>
+        <pre className="bg-bg-deep rounded-md p-3 text-[11px] font-mono text-gray-300 overflow-auto max-h-60 m-0">
+          {JSON.stringify(evalCase.input, null, 2)}
+        </pre>
       </div>
-      <div style={styles.casePanelDivider}>→</div>
-      <div style={styles.casePanel}>
-        <div style={styles.casePanelHeader}>Expected Output</div>
-        <pre style={styles.caseJson}>
+      <div className="text-lg text-border-dim pt-8">{'\u2192'}</div>
+      <div className="flex-1">
+        <div className="text-[11px] font-semibold text-gray-400 mb-1.5 uppercase">
+          Expected Output
+        </div>
+        <pre className="bg-bg-deep rounded-md p-3 text-[11px] font-mono text-gray-300 overflow-auto max-h-60 m-0">
           {evalCase.expectedOutput
             ? JSON.stringify(evalCase.expectedOutput, null, 2)
             : '(no expected output)'}
@@ -164,14 +171,22 @@ function DatasetRow({
 }) {
   return (
     <div
-      style={{ ...styles.datasetRow, ...(isSelected ? styles.datasetRowSelected : {}) }}
+      className={`px-3 py-2.5 rounded-md cursor-pointer mb-1 border ${
+        isSelected ? 'bg-[#1e3a5f] border-blue-600' : 'border-transparent hover:bg-bg-surface'
+      }`}
       onClick={onSelect}
     >
-      <div style={styles.datasetName}>{dataset.name}</div>
-      <div style={styles.datasetMeta}>
-        {dataset.description && <span style={styles.datasetDesc}>{dataset.description}</span>}
-        <span style={styles.caseCount}>{dataset.caseCount} cases</span>
-        <span style={styles.datasetDate}>{new Date(dataset.createdAt).toLocaleDateString()}</span>
+      <div className="text-[13px] font-semibold mb-0.5">{dataset.name}</div>
+      <div className="flex gap-2 items-center flex-wrap">
+        {dataset.description && (
+          <span className="text-[11px] text-gray-500">{dataset.description}</span>
+        )}
+        <span className="text-[11px] bg-bg-elevated rounded-full px-1.5 py-px text-gray-400">
+          {dataset.caseCount} cases
+        </span>
+        <span className="text-[11px] text-gray-600">
+          {new Date(dataset.createdAt).toLocaleDateString()}
+        </span>
       </div>
     </div>
   )
@@ -203,18 +218,10 @@ export default function EvalsPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching eval datasets</div>
+      <div className="bg-bg-deep min-h-screen text-gray-50 p-6 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-xs">Fetching eval datasets</div>
         </div>
       </div>
     )
@@ -241,7 +248,7 @@ export default function EvalsPage() {
 
   if (datasetsQuery.error) {
     return (
-      <div style={styles.page}>
+      <div className="bg-bg-deep min-h-screen text-gray-50 p-6">
         <DbErrorBanner error={datasetsQuery.error} />
       </div>
     )
@@ -266,22 +273,24 @@ export default function EvalsPage() {
   }))
 
   return (
-    <div style={styles.page}>
+    <div className="bg-bg-deep min-h-screen text-gray-50 p-6">
       {/* Header */}
-      <div style={styles.header}>
+      <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 style={styles.pageTitle}>Eval Dashboard</h1>
-          <p style={styles.pageSubtitle}>
-            Production-to-eval pipeline · automated regression detection
+          <h1 className="m-0 text-[22px] font-bold font-orbitron">Eval Dashboard</h1>
+          <p className="mt-1 mb-0 text-xs text-gray-500">
+            Production-to-eval pipeline &middot; automated regression detection
           </p>
         </div>
       </div>
-      <div style={styles.layout}>
+      <div className="flex gap-5">
         {/* Sidebar — Dataset List */}
-        <div style={styles.sidebar}>
-          <div style={styles.sidebarHeader}>Datasets</div>
+        <div className="w-[220px] shrink-0">
+          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-2">
+            Datasets
+          </div>
           {datasets.length === 0 ? (
-            <div style={{ fontSize: 12, color: '#6b7280', padding: 12 }}>No datasets found</div>
+            <div className="text-xs text-gray-500 p-3">No datasets found</div>
           ) : (
             datasets.map((d) => (
               <DatasetRow
@@ -298,20 +307,24 @@ export default function EvalsPage() {
         </div>
 
         {/* Main Content */}
-        <div style={styles.main}>
+        <div className="flex-1">
           {selectedDataset && (
             <>
-              <div style={styles.datasetTitle}>
-                <span style={styles.datasetTitleText}>{selectedDataset.name}</span>
-                <span style={styles.datasetTitleMeta}>{selectedDataset.caseCount} cases</span>
+              <div className="flex items-center gap-2.5 mb-4">
+                <span className="text-base font-bold">{selectedDataset.name}</span>
+                <span className="text-xs text-gray-400">{selectedDataset.caseCount} cases</span>
               </div>
 
               {/* Tabs */}
-              <div style={styles.tabs}>
+              <div className="flex gap-1 mb-5 border-b border-bg-surface pb-2">
                 {(['overview', 'cases', 'trends'] as const).map((tab) => (
                   <button
                     key={tab}
-                    style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }}
+                    className={`bg-transparent border-none text-[13px] px-3 py-1 cursor-pointer rounded ${
+                      activeTab === tab
+                        ? 'text-neon-blue bg-[#1e3a5f]'
+                        : 'text-gray-500 hover:text-gray-300'
+                    }`}
                     onClick={() => setActiveTab(tab)}
                   >
                     {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -321,11 +334,11 @@ export default function EvalsPage() {
 
               {/* Overview Tab */}
               {activeTab === 'overview' && latestRun && (
-                <div style={styles.overviewGrid}>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
                   {SCORE_DIMENSIONS.map((dim) => (
-                    <div key={dim.key} style={styles.scoreCard}>
-                      <div style={styles.scoreCardLabel}>{dim.label}</div>
-                      <div style={styles.scoreCardValue}>
+                    <div key={dim.key} className="cyber-card p-3.5">
+                      <div className="text-[11px] text-gray-400 mb-1">{dim.label}</div>
+                      <div className="text-2xl font-bold mb-2">
                         {Math.round(
                           ((latestRun.scores as Record<string, number>)?.[dim.key] ?? 0) * 100,
                         )}
@@ -341,13 +354,13 @@ export default function EvalsPage() {
               )}
 
               {activeTab === 'overview' && !latestRun && !runsQuery.isLoading && (
-                <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>
+                <div className="text-gray-500 text-[13px] text-center py-10">
                   No eval runs yet for this dataset.
                 </div>
               )}
 
               {activeTab === 'overview' && runsQuery.isLoading && (
-                <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>
+                <div className="text-gray-500 text-[13px] text-center py-10">
                   Loading run data...
                 </div>
               )}
@@ -356,25 +369,21 @@ export default function EvalsPage() {
               {activeTab === 'trends' && (
                 <div>
                   {runsQuery.isLoading ? (
-                    <div
-                      style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}
-                    >
+                    <div className="text-gray-500 text-[13px] text-center py-10">
                       Loading trends...
                     </div>
                   ) : history.length === 0 ? (
-                    <div
-                      style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}
-                    >
+                    <div className="text-gray-500 text-[13px] text-center py-10">
                       No run history available.
                     </div>
                   ) : (
-                    <div style={styles.trendsGrid}>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
                       {SCORE_DIMENSIONS.map((dim) => (
-                        <div key={dim.key} style={styles.trendCard}>
-                          <div style={styles.trendLabel}>{dim.label}</div>
+                        <div key={dim.key} className="cyber-card p-3.5">
+                          <div className="text-xs font-semibold mb-2">{dim.label}</div>
                           <ScoreTrend history={history} dimension={dim} />
                           {history.length >= 2 && (
-                            <div style={styles.trendRange}>
+                            <div className="flex justify-between text-[10px] text-gray-500 mt-1">
                               <span>{new Date(history[0]?.createdAt).toLocaleDateString()}</span>
                               <span>
                                 {new Date(
@@ -394,46 +403,47 @@ export default function EvalsPage() {
               {activeTab === 'cases' && (
                 <div>
                   {casesQuery.isLoading ? (
-                    <div
-                      style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}
-                    >
+                    <div className="text-gray-500 text-[13px] text-center py-10">
                       Loading cases...
                     </div>
                   ) : evalCases.length === 0 ? (
-                    <div
-                      style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}
-                    >
+                    <div className="text-gray-500 text-[13px] text-center py-10">
                       No cases in this dataset.
                     </div>
                   ) : (
                     <>
-                      <div style={styles.caseList}>
+                      <div className="flex flex-col gap-1 mb-4">
                         {evalCases.map((c) => (
                           <div
                             key={c.id}
-                            style={{
-                              ...styles.caseRow,
-                              ...(selectedCase?.id === c.id ? styles.caseRowSelected : {}),
-                            }}
+                            className={`bg-bg-surface rounded-md px-3 py-2.5 cursor-pointer flex gap-3 items-center border ${
+                              selectedCase?.id === c.id
+                                ? 'border-blue-600'
+                                : 'border-transparent hover:bg-bg-elevated'
+                            }`}
                             onClick={() => setSelectedCase(selectedCase?.id === c.id ? null : c)}
                           >
-                            <span style={styles.caseId}>{c.id.slice(0, 8)}</span>
-                            <span style={styles.casePrompt}>
+                            <span className="text-[11px] text-gray-500 font-mono min-w-[30px]">
+                              {c.id.slice(0, 8)}
+                            </span>
+                            <span className="flex-1 text-xs text-gray-300">
                               {String(
                                 (c.input as Record<string, unknown>).prompt ??
                                   JSON.stringify(c.input).slice(0, 80),
                               )}
                             </span>
                             {c.traceId && (
-                              <span style={styles.traceLink}>trace: {c.traceId.slice(0, 10)}</span>
+                              <span className="text-[11px] text-gray-500 font-mono">
+                                trace: {c.traceId.slice(0, 10)}
+                              </span>
                             )}
                           </div>
                         ))}
                       </div>
 
                       {selectedCase && (
-                        <div style={styles.caseDetail}>
-                          <div style={styles.caseDetailHeader}>
+                        <div className="cyber-card p-4">
+                          <div className="text-[13px] font-semibold mb-3">
                             Case {selectedCase.id.slice(0, 8)} — Expected vs. Actual
                           </div>
                           <CaseCompare evalCase={selectedCase} />
@@ -447,7 +457,7 @@ export default function EvalsPage() {
           )}
 
           {!selectedDataset && (
-            <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>
+            <div className="text-gray-500 text-[13px] text-center py-10">
               Select a dataset from the sidebar to view eval results.
             </div>
           )}
@@ -455,152 +465,4 @@ export default function EvalsPage() {
       </div>
     </div>
   )
-}
-
-// ── Styles ────────────────────────────────────────────────────────────────
-
-const styles = {
-  page: {
-    background: '#0f172a',
-    minHeight: '100vh',
-    color: '#f9fafb',
-    fontFamily: 'sans-serif',
-    padding: 24,
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-  },
-  pageTitle: { margin: 0, fontSize: 22, fontWeight: 700 },
-  pageSubtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  layout: { display: 'flex', gap: 20 },
-  sidebar: { width: 220, flexShrink: 0 },
-  sidebarHeader: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  datasetRow: {
-    padding: '10px 12px',
-    borderRadius: 6,
-    cursor: 'pointer',
-    marginBottom: 4,
-    border: '1px solid transparent',
-  },
-  datasetRowSelected: { background: '#1e3a5f', border: '1px solid #2563eb' },
-  datasetName: { fontSize: 13, fontWeight: 600, marginBottom: 2 },
-  datasetMeta: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const },
-  datasetDesc: { fontSize: 11, color: '#6b7280' },
-  caseCount: {
-    fontSize: 11,
-    background: '#374151',
-    borderRadius: 10,
-    padding: '1px 6px',
-    color: '#9ca3af',
-  },
-  datasetDate: { fontSize: 11, color: '#4b5563' },
-  main: { flex: 1 },
-  datasetTitle: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 },
-  datasetTitleText: { fontSize: 16, fontWeight: 700 },
-  datasetTitleMeta: { fontSize: 12, color: '#9ca3af' },
-  tabs: {
-    display: 'flex',
-    gap: 4,
-    marginBottom: 20,
-    borderBottom: '1px solid #1f2937',
-    paddingBottom: 8,
-  },
-  tab: {
-    background: 'transparent',
-    border: 'none',
-    color: '#6b7280',
-    fontSize: 13,
-    padding: '4px 12px',
-    cursor: 'pointer',
-    borderRadius: 4,
-  },
-  tabActive: { color: '#93c5fd', background: '#1e3a5f' },
-  overviewGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-    gap: 12,
-  },
-  scoreCard: { background: '#1f2937', borderRadius: 8, padding: 14 },
-  scoreCardLabel: { fontSize: 11, color: '#9ca3af', marginBottom: 4 },
-  scoreCardValue: { fontSize: 24, fontWeight: 700, marginBottom: 8 },
-  scoreBarWrapper: {
-    height: 6,
-    background: '#374151',
-    borderRadius: 3,
-    position: 'relative' as const,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  scoreBarFill: { height: '100%', borderRadius: 3, transition: 'width 0.3s' },
-  scoreBarLabel: {
-    position: 'absolute' as const,
-    right: 0,
-    fontSize: 10,
-    color: '#9ca3af',
-    top: 8,
-  },
-  trendsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-    gap: 12,
-  },
-  trendCard: { background: '#1f2937', borderRadius: 8, padding: 14 },
-  trendLabel: { fontSize: 12, fontWeight: 600, marginBottom: 8 },
-  trendSvg: { display: 'block' },
-  trendRange: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: 10,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  noData: { fontSize: 12, color: '#6b7280' },
-  caseList: { display: 'flex', flexDirection: 'column' as const, gap: 4, marginBottom: 16 },
-  caseRow: {
-    background: '#1f2937',
-    borderRadius: 6,
-    padding: '10px 12px',
-    cursor: 'pointer',
-    display: 'flex',
-    gap: 12,
-    alignItems: 'center',
-    border: '1px solid transparent',
-  },
-  caseRowSelected: { border: '1px solid #2563eb' },
-  caseId: { fontSize: 11, color: '#6b7280', fontFamily: 'monospace', minWidth: 30 },
-  casePrompt: { flex: 1, fontSize: 12, color: '#d1d5db' },
-  traceLink: { fontSize: 11, color: '#6b7280', fontFamily: 'monospace' },
-  caseDetail: { background: '#1f2937', borderRadius: 8, padding: 16 },
-  caseDetailHeader: { fontSize: 13, fontWeight: 600, marginBottom: 12 },
-  caseCompare: { display: 'flex', gap: 12, alignItems: 'flex-start' },
-  casePanel: { flex: 1 },
-  casePanelHeader: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: '#9ca3af',
-    marginBottom: 6,
-    textTransform: 'uppercase' as const,
-  },
-  caseJson: {
-    background: '#111827',
-    borderRadius: 6,
-    padding: 12,
-    fontSize: 11,
-    fontFamily: 'monospace',
-    color: '#d1d5db',
-    overflow: 'auto',
-    maxHeight: 240,
-    margin: 0,
-  },
-  casePanelDivider: { fontSize: 18, color: '#374151', paddingTop: 32 },
 }
