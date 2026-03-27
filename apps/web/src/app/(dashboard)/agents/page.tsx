@@ -91,6 +91,11 @@ export default function AgentsPage() {
     speedTier: string | null
   }>
 
+  // Build workspace name lookup map
+  const wsMap = new Map(
+    (workspacesQuery.data ?? []).map((w: { id: string; name: string }) => [w.id, w.name]),
+  )
+
   const utils = trpc.useUtils()
   const createMut = trpc.agents.create.useMutation({
     onSuccess: () => {
@@ -358,6 +363,14 @@ export default function AgentsPage() {
                 >
                   {agent.name}
                 </span>
+                {agent.workspaceId && wsMap.get(agent.workspaceId) && (
+                  <span
+                    className="text-[10px] text-gray-500 font-mono truncate max-w-[120px]"
+                    title={wsMap.get(agent.workspaceId)}
+                  >
+                    {wsMap.get(agent.workspaceId)}
+                  </span>
+                )}
                 {agent.type && <span className="cyber-badge text-neon-blue">{agent.type}</span>}
                 {agent.requiredModelType && (
                   <span className="cyber-badge text-neon-purple">{agent.requiredModelType}</span>

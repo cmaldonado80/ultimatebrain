@@ -20,6 +20,16 @@ function getFactory() {
   return (_factory ??= new MiniBrainFactory())
 }
 
+/** Resolve the best Ollama cloud model for a given agent role */
+function modelForRole(role: string): string {
+  if (role.includes('review') || role.includes('judge')) return 'gemini-3-flash-preview:cloud'
+  if (role.includes('plan') || role.includes('reason')) return 'deepseek-v3.2:cloud'
+  // Default for specialists, executors, and general agentic work
+  return 'qwen3.5:cloud'
+}
+
+const ORCHESTRATOR_MODEL = 'gemini-3-flash-preview:cloud'
+
 const templateEnum = z.enum([
   'astrology',
   'hospitality',
@@ -154,6 +164,7 @@ export const miniBrainFactoryRouter = router({
             parentOrchestratorId,
             soul: `You are the orchestrator for ${input.name}, a ${template.domain} mini-brain. Coordinate domain agents, route tasks, monitor health. Engines: ${template.engines.join(', ')}.`,
             skills: ['coordination', 'task-routing', 'domain-routing', 'monitoring'],
+            model: ORCHESTRATOR_MODEL,
             requiredModelType: 'router',
             tags: ['orchestrator', template.id],
           })
@@ -177,6 +188,7 @@ export const miniBrainFactoryRouter = router({
                 agentDef.soul ??
                 `You are ${agentDef.name}, a ${template.domain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}. Be domain-expert, precise, and actionable.`,
               skills: agentDef.capabilities,
+              model: modelForRole(agentDef.role),
               requiredModelType: 'agentic',
               tags: [template.id, 'domain-agent'],
             })
@@ -351,6 +363,7 @@ export const miniBrainFactoryRouter = router({
           parentOrchestratorId: parentOrch?.id ?? null,
           soul: `You are the orchestrator for ${input.name}, a development app under ${parent.name}.`,
           skills: ['coordination', 'task-routing'],
+          model: ORCHESTRATOR_MODEL,
           requiredModelType: 'router',
         })
 
@@ -379,6 +392,7 @@ export const miniBrainFactoryRouter = router({
                 agentDef.soul ??
                 `You are ${agentDef.name}, a ${agentDomain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}.`,
               skills: agentDef.capabilities,
+              model: modelForRole(agentDef.role),
               requiredModelType: 'agentic',
               tags: [parent.domain ?? 'unknown', agentSource, 'development-agent'],
             })
@@ -692,6 +706,7 @@ export const miniBrainFactoryRouter = router({
               agentDef.soul ??
               `You are ${agentDef.name}, a specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}.`,
             skills: agentDef.capabilities,
+            model: modelForRole(agentDef.role),
             requiredModelType: 'agentic',
             tags: [domain, 'reprovisioned'],
           })
