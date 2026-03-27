@@ -35,7 +35,7 @@ export default function QAPage() {
 
   if (datasetsQuery.error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={datasetsQuery.error} />
       </div>
     )
@@ -43,18 +43,10 @@ export default function QAPage() {
 
   if (datasetsQuery.isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching QA data</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching QA data</div>
         </div>
       </div>
     )
@@ -64,56 +56,73 @@ export default function QAPage() {
   const runs: EvalRun[] = (runsQuery.data as EvalRun[]) ?? []
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>QA Recordings</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">QA Recordings</h2>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Record, replay, and validate visual test sessions for quality assurance.
         </p>
       </div>
-      <div style={styles.layout}>
-        <div style={styles.sidebar}>
-          <div style={styles.sidebarTitle}>Datasets ({datasets.length})</div>
+
+      <div className="flex gap-4 min-h-[400px]">
+        {/* Sidebar */}
+        <div className="w-[260px] bg-bg-surface rounded-lg p-3 border border-border">
+          <div className="text-[11px] font-bold text-gray-500 uppercase mb-2">
+            Datasets ({datasets.length})
+          </div>
           {datasets.length === 0 ? (
-            <div style={styles.sidebarEmpty}>No eval datasets found.</div>
+            <div className="text-xs text-gray-600 p-3 text-center">No eval datasets found.</div>
           ) : (
             datasets.map((ds) => (
               <div
                 key={ds.id}
-                style={selectedDataset === ds.id ? styles.dsActive : styles.dsItem}
+                className={`px-2.5 py-2 rounded-md cursor-pointer mb-1 ${
+                  selectedDataset === ds.id ? 'bg-bg-elevated' : 'hover:bg-white/5'
+                }`}
                 onClick={() => setSelectedDataset(ds.id)}
               >
-                <div style={styles.dsName}>{ds.name}</div>
-                <div style={styles.dsMeta}>{ds.caseCount} cases</div>
+                <div className="text-[13px] font-semibold">{ds.name}</div>
+                <div className="text-[10px] text-gray-600">{ds.caseCount} cases</div>
               </div>
             ))
           )}
         </div>
 
-        <div style={styles.main}>
+        {/* Main */}
+        <div className="flex-1 flex flex-col">
           {!selectedDataset ? (
-            <div style={styles.empty}>Select a dataset to view its eval runs.</div>
+            <div className="flex items-center justify-center flex-1 text-gray-500 text-sm">
+              Select a dataset to view its eval runs.
+            </div>
           ) : runsQuery.isLoading ? (
-            <div style={styles.empty}>Loading runs...</div>
+            <div className="flex items-center justify-center flex-1 text-gray-500 text-sm">
+              Loading runs...
+            </div>
           ) : runs.length === 0 ? (
-            <div style={styles.empty}>No runs for this dataset yet.</div>
+            <div className="flex items-center justify-center flex-1 text-gray-500 text-sm">
+              No runs for this dataset yet.
+            </div>
           ) : (
-            <div style={styles.list}>
+            <div className="flex flex-col gap-2">
               {runs.map((run) => {
                 const scores = run.scores as Record<string, number> | null
                 return (
-                  <div key={run.id} style={styles.card}>
-                    <div style={styles.cardTop}>
-                      <span style={styles.runId}>Run {run.id.slice(0, 8)}</span>
-                      {run.version && <span style={styles.versionBadge}>v{run.version}</span>}
-                      <span style={styles.timestamp}>
+                  <div key={run.id} className="cyber-card p-3.5">
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <span className="text-sm font-bold font-mono">Run {run.id.slice(0, 8)}</span>
+                      {run.version && (
+                        <span className="cyber-badge text-neon-blue text-[10px]">
+                          v{run.version}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-gray-600 ml-auto">
                         {new Date(run.createdAt).toLocaleString()}
                       </span>
                     </div>
                     {scores && (
-                      <div style={styles.scoreRow}>
+                      <div className="flex gap-2 flex-wrap">
                         {Object.entries(scores).map(([key, val]) => (
-                          <span key={key} style={styles.scoreBadge}>
+                          <span key={key} className="cyber-badge text-neon-purple text-[10px]">
                             {key}: {typeof val === 'number' ? val.toFixed(2) : String(val)}
                           </span>
                         ))}
@@ -128,66 +137,4 @@ export default function QAPage() {
       </div>
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    color: '#6b7280',
-    fontSize: 14,
-  },
-  layout: { display: 'flex', gap: 16, minHeight: 400 },
-  sidebar: {
-    width: 260,
-    background: '#111827',
-    borderRadius: 8,
-    padding: 12,
-    border: '1px solid #374151',
-  },
-  sidebarTitle: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    marginBottom: 8,
-  },
-  sidebarEmpty: { fontSize: 12, color: '#4b5563', padding: 12, textAlign: 'center' as const },
-  dsItem: { padding: '8px 10px', borderRadius: 6, cursor: 'pointer', marginBottom: 4 },
-  dsActive: {
-    padding: '8px 10px',
-    borderRadius: 6,
-    cursor: 'pointer',
-    marginBottom: 4,
-    background: '#1f2937',
-  },
-  dsName: { fontSize: 13, fontWeight: 600 },
-  dsMeta: { fontSize: 10, color: '#4b5563' },
-  main: { flex: 1, display: 'flex', flexDirection: 'column' as const },
-  list: { display: 'flex', flexDirection: 'column' as const, gap: 8 },
-  card: { background: '#1f2937', borderRadius: 8, padding: 14, border: '1px solid #374151' },
-  cardTop: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 },
-  runId: { fontSize: 14, fontWeight: 700, fontFamily: 'monospace' },
-  versionBadge: {
-    fontSize: 10,
-    background: '#1e3a5f',
-    color: '#93c5fd',
-    padding: '2px 6px',
-    borderRadius: 4,
-  },
-  timestamp: { fontSize: 10, color: '#4b5563', marginLeft: 'auto' },
-  scoreRow: { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
-  scoreBadge: {
-    fontSize: 10,
-    background: '#1e1b4b',
-    color: '#818cf8',
-    padding: '2px 6px',
-    borderRadius: 4,
-  },
 }

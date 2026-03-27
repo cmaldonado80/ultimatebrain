@@ -17,7 +17,7 @@ export default function CanvasPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -32,18 +32,10 @@ export default function CanvasPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching canvas data</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching canvas data</div>
         </div>
       </div>
     )
@@ -53,22 +45,30 @@ export default function CanvasPage() {
   const policies = policiesQuery.data as Record<string, unknown> | undefined
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Canvas</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Canvas</h2>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Visual workspace for orchestrating agent workflows and viewing execution graphs.
         </p>
       </div>
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>Feature Flags</div>
+
+      <div className="mb-6">
+        <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+          Feature Flags
+        </div>
         {features && Object.keys(features).length > 0 ? (
-          <div style={styles.list}>
+          <div className="flex flex-col gap-1.5">
             {Object.entries(features).map(([name, enabled]) => (
-              <div key={name} style={styles.featureRow}>
-                <span style={styles.featureName}>{name}</span>
+              <div
+                key={name}
+                className="flex items-center justify-between bg-bg-elevated rounded-md px-3.5 py-2.5 border border-border"
+              >
+                <span className="text-[13px] font-mono">{name}</span>
                 <button
-                  style={enabled ? styles.enabledBtn : styles.disabledBtn}
+                  className={`border-none rounded px-3 py-0.5 text-[11px] font-bold cursor-pointer min-w-[40px] ${
+                    enabled ? 'bg-green-900 text-gray-50' : 'bg-gray-700 text-gray-400'
+                  }`}
                   onClick={() => handleToggleFeature(name, !enabled)}
                 >
                   {enabled ? 'ON' : 'OFF'}
@@ -77,86 +77,34 @@ export default function CanvasPage() {
             ))}
           </div>
         ) : (
-          <div style={styles.empty}>No feature flags configured.</div>
+          <div className="text-center text-gray-500 py-5 text-[13px]">
+            No feature flags configured.
+          </div>
         )}
       </div>
 
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>System Policies</div>
+      <div className="mb-6">
+        <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+          System Policies
+        </div>
         {policies && Object.keys(policies).length > 0 ? (
-          <div style={styles.list}>
+          <div className="flex flex-col gap-1.5">
             {Object.entries(policies).map(([name, value]) => (
-              <div key={name} style={styles.policyRow}>
-                <span style={styles.policyName}>{name}</span>
-                <span style={styles.policyValue}>{JSON.stringify(value)}</span>
+              <div
+                key={name}
+                className="flex items-center justify-between bg-bg-elevated rounded-md px-3.5 py-2.5 border border-border"
+              >
+                <span className="text-[13px] font-mono font-semibold">{name}</span>
+                <span className="text-[11px] font-mono text-gray-500">{JSON.stringify(value)}</span>
               </div>
             ))}
           </div>
         ) : (
-          <div style={styles.empty}>No system policies defined.</div>
+          <div className="text-center text-gray-500 py-5 text-[13px]">
+            No system policies defined.
+          </div>
         )}
       </div>
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 20, fontSize: 13 },
-  section: { marginBottom: 24 },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: '#9ca3af',
-    marginBottom: 10,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  list: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
-  featureRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    background: '#1f2937',
-    borderRadius: 6,
-    padding: '10px 14px',
-    border: '1px solid #374151',
-  },
-  featureName: { fontSize: 13, fontFamily: 'monospace' },
-  enabledBtn: {
-    background: '#166534',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 4,
-    padding: '3px 12px',
-    fontSize: 11,
-    fontWeight: 700,
-    cursor: 'pointer',
-    minWidth: 40,
-  },
-  disabledBtn: {
-    background: '#374151',
-    color: '#9ca3af',
-    border: 'none',
-    borderRadius: 4,
-    padding: '3px 12px',
-    fontSize: 11,
-    fontWeight: 700,
-    cursor: 'pointer',
-    minWidth: 40,
-  },
-  policyRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    background: '#1f2937',
-    borderRadius: 6,
-    padding: '10px 14px',
-    border: '1px solid #374151',
-  },
-  policyName: { fontSize: 13, fontFamily: 'monospace', fontWeight: 600 },
-  policyValue: { fontSize: 11, fontFamily: 'monospace', color: '#6b7280' },
 }

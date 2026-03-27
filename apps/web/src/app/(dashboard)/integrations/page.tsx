@@ -43,7 +43,7 @@ export default function IntegrationsPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -63,18 +63,10 @@ export default function IntegrationsPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching integrations</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching integrations</div>
         </div>
       </div>
     )
@@ -84,34 +76,22 @@ export default function IntegrationsPage() {
   const webhooks: Webhook[] = (webhooksQuery.data as Webhook[]) ?? []
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Integrations</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Integrations</h2>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Connect third-party services — GitHub, Slack, Jira, and custom webhooks.
         </p>
       </div>
-      <div style={styles.section}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 10,
-          }}
-        >
-          <div style={styles.sectionTitle}>Channels ({channels.length})</div>
+
+      {/* Channels */}
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-2.5">
+          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide">
+            Channels ({channels.length})
+          </div>
           <button
-            style={{
-              background: '#818cf8',
-              color: '#f9fafb',
-              border: 'none',
-              borderRadius: 6,
-              padding: '4px 12px',
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="cyber-btn-primary !text-[11px] !py-1 !px-3"
             onClick={() => setShowChannelForm(!showChannelForm)}
           >
             {showChannelForm ? 'Cancel' : '+ Add Channel'}
@@ -119,25 +99,10 @@ export default function IntegrationsPage() {
         </div>
 
         {showChannelForm && (
-          <div
-            style={{
-              background: '#111827',
-              borderRadius: 8,
-              padding: 14,
-              border: '1px solid #374151',
-              marginBottom: 12,
-            }}
-          >
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="bg-bg-elevated rounded-lg p-3.5 border border-border mb-3">
+            <div className="flex gap-2 items-center">
               <select
-                style={{
-                  background: '#1f2937',
-                  color: '#f9fafb',
-                  border: '1px solid #374151',
-                  borderRadius: 6,
-                  padding: '6px 10px',
-                  fontSize: 12,
-                }}
+                className="cyber-select text-xs"
                 value={channelType}
                 onChange={(e) => setChannelType(e.target.value)}
               >
@@ -149,16 +114,7 @@ export default function IntegrationsPage() {
                 <option value="webhook">Webhook</option>
               </select>
               <button
-                style={{
-                  background: '#22c55e',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="bg-green-600 hover:bg-green-700 text-white border-none rounded-md px-3.5 py-1.5 text-xs font-semibold cursor-pointer transition-colors"
                 onClick={() => {
                   if (!channelType) return
                   createChannelMut.mutate(
@@ -177,57 +133,44 @@ export default function IntegrationsPage() {
                 {createChannelMut.isPending ? 'Adding...' : 'Add'}
               </button>
               {createChannelMut.error && (
-                <span style={{ color: '#fca5a5', fontSize: 11 }}>
-                  {createChannelMut.error.message}
-                </span>
+                <span className="text-neon-red text-[11px]">{createChannelMut.error.message}</span>
               )}
             </div>
           </div>
         )}
 
         {channels.length === 0 ? (
-          <div style={styles.empty}>No channels configured.</div>
+          <div className="text-center text-gray-500 py-5 text-[13px]">No channels configured.</div>
         ) : (
-          <div style={styles.list}>
+          <div className="flex flex-col gap-2">
             {channels.map((ch) => (
-              <div key={ch.id} style={styles.card}>
-                <div style={styles.cardTop}>
-                  <span style={styles.cardName}>{ch.type}</span>
+              <div key={ch.id} className="cyber-card p-3.5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-sm font-bold">{ch.type}</span>
                   <button
-                    style={ch.enabled ? styles.enabledBtn : styles.disabledBtn}
+                    className={`border-none rounded px-2.5 py-0.5 text-[11px] cursor-pointer ${
+                      ch.enabled ? 'bg-green-900 text-gray-50' : 'bg-gray-700 text-gray-400'
+                    }`}
                     onClick={() => handleToggleChannel(ch.id, !ch.enabled)}
                   >
                     {ch.enabled ? 'Enabled' : 'Disabled'}
                   </button>
                 </div>
-                <div style={styles.meta}>ID: {ch.id.slice(0, 8)}</div>
+                <div className="text-[10px] text-gray-600">ID: {ch.id.slice(0, 8)}</div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <div style={styles.section}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 10,
-          }}
-        >
-          <div style={styles.sectionTitle}>Webhooks ({webhooks.length})</div>
+      {/* Webhooks */}
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-2.5">
+          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide">
+            Webhooks ({webhooks.length})
+          </div>
           <button
-            style={{
-              background: '#818cf8',
-              color: '#f9fafb',
-              border: 'none',
-              borderRadius: 6,
-              padding: '4px 12px',
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="cyber-btn-primary !text-[11px] !py-1 !px-3"
             onClick={() => setShowWebhookForm(!showWebhookForm)}
           >
             {showWebhookForm ? 'Cancel' : '+ Add Webhook'}
@@ -235,59 +178,25 @@ export default function IntegrationsPage() {
         </div>
 
         {showWebhookForm && (
-          <div
-            style={{
-              background: '#111827',
-              borderRadius: 8,
-              padding: 14,
-              border: '1px solid #374151',
-              marginBottom: 12,
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-              <div style={{ display: 'flex', gap: 8 }}>
+          <div className="bg-bg-elevated rounded-lg p-3.5 border border-border mb-3">
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
                 <input
-                  style={{
-                    background: '#1f2937',
-                    color: '#f9fafb',
-                    border: '1px solid #374151',
-                    borderRadius: 6,
-                    padding: '6px 10px',
-                    fontSize: 12,
-                    flex: 1,
-                  }}
+                  className="cyber-input text-xs flex-1"
                   placeholder="Source (e.g. github, custom)..."
                   value={webhookSource}
                   onChange={(e) => setWebhookSource(e.target.value)}
                 />
                 <input
-                  style={{
-                    background: '#1f2937',
-                    color: '#f9fafb',
-                    border: '1px solid #374151',
-                    borderRadius: 6,
-                    padding: '6px 10px',
-                    fontSize: 12,
-                    flex: 2,
-                    fontFamily: 'monospace',
-                  }}
+                  className="cyber-input text-xs flex-[2] font-mono"
                   placeholder="https://..."
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
                 />
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div className="flex gap-2 items-center">
                 <button
-                  style={{
-                    background: '#22c55e',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '6px 14px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white border-none rounded-md px-3.5 py-1.5 text-xs font-semibold cursor-pointer transition-colors"
                   onClick={() => {
                     if (!webhookUrl.trim()) return
                     createWebhookMut.mutate(
@@ -311,7 +220,7 @@ export default function IntegrationsPage() {
                   {createWebhookMut.isPending ? 'Adding...' : 'Add Webhook'}
                 </button>
                 {createWebhookMut.error && (
-                  <span style={{ color: '#fca5a5', fontSize: 11 }}>
+                  <span className="text-neon-red text-[11px]">
                     {createWebhookMut.error.message}
                   </span>
                 )}
@@ -321,21 +230,23 @@ export default function IntegrationsPage() {
         )}
 
         {webhooks.length === 0 ? (
-          <div style={styles.empty}>No webhooks configured.</div>
+          <div className="text-center text-gray-500 py-5 text-[13px]">No webhooks configured.</div>
         ) : (
-          <div style={styles.list}>
+          <div className="flex flex-col gap-2">
             {webhooks.map((wh) => (
-              <div key={wh.id} style={styles.card}>
-                <div style={styles.cardTop}>
-                  <span style={styles.cardName}>{wh.source}</span>
+              <div key={wh.id} className="cyber-card p-3.5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-sm font-bold">{wh.source}</span>
                   <button
-                    style={wh.enabled ? styles.enabledBtn : styles.disabledBtn}
+                    className={`border-none rounded px-2.5 py-0.5 text-[11px] cursor-pointer ${
+                      wh.enabled ? 'bg-green-900 text-gray-50' : 'bg-gray-700 text-gray-400'
+                    }`}
                     onClick={() => handleToggleWebhook(wh.id, !wh.enabled)}
                   >
                     {wh.enabled ? 'Enabled' : 'Disabled'}
                   </button>
                 </div>
-                <div style={styles.webhookUrl}>{wh.url}</div>
+                <div className="text-[11px] font-mono text-gray-500">{wh.url}</div>
               </div>
             ))}
           </div>
@@ -343,50 +254,4 @@ export default function IntegrationsPage() {
       </div>
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 20, fontSize: 13 },
-  section: { marginBottom: 24 },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: '#9ca3af',
-    marginBottom: 10,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  list: { display: 'flex', flexDirection: 'column' as const, gap: 8 },
-  card: { background: '#1f2937', borderRadius: 8, padding: 14, border: '1px solid #374151' },
-  cardTop: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  cardName: { fontSize: 14, fontWeight: 700 },
-  meta: { fontSize: 10, color: '#4b5563' },
-  webhookUrl: { fontSize: 11, fontFamily: 'monospace', color: '#6b7280' },
-  enabledBtn: {
-    background: '#166534',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 4,
-    padding: '3px 10px',
-    fontSize: 11,
-    cursor: 'pointer',
-  },
-  disabledBtn: {
-    background: '#374151',
-    color: '#9ca3af',
-    border: 'none',
-    borderRadius: 4,
-    padding: '3px 10px',
-    fontSize: 11,
-    cursor: 'pointer',
-  },
 }

@@ -26,7 +26,7 @@ export default function TracesPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -34,18 +34,10 @@ export default function TracesPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching traces</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching traces</div>
         </div>
       </div>
     )
@@ -54,44 +46,64 @@ export default function TracesPage() {
   const spans: Span[] = (data as Span[]) ?? []
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Traces</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Traces</h2>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Distributed tracing for agent executions — spans, latency, and dependency graphs.
         </p>
       </div>
+
       {spans.length === 0 ? (
-        <div style={styles.empty}>No traces found. Traces appear as agents execute tasks.</div>
+        <div className="text-center text-gray-500 py-10 text-sm">
+          No traces found. Traces appear as agents execute tasks.
+        </div>
       ) : (
-        <div style={styles.table}>
-          <div style={styles.tableHeader}>
-            <span style={{ ...styles.th, flex: 2 }}>Operation</span>
-            <span style={styles.th}>Service</span>
-            <span style={styles.th}>Status</span>
-            <span style={styles.th}>Duration</span>
-            <span style={styles.th}>Trace ID</span>
+        <div className="bg-bg-elevated rounded-lg border border-border overflow-hidden">
+          {/* Header */}
+          <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border">
+            <span className="flex-[2] text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              Operation
+            </span>
+            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              Service
+            </span>
+            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              Status
+            </span>
+            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              Duration
+            </span>
+            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              Trace ID
+            </span>
           </div>
+
+          {/* Rows */}
           {spans.map((s) => (
-            <div key={s.spanId} style={styles.tableRow}>
-              <span style={{ ...styles.td, flex: 2, fontWeight: 600, fontFamily: 'monospace' }}>
-                {s.operation}
-              </span>
-              <span style={styles.td}>{s.service || '—'}</span>
-              <span style={styles.td}>
+            <div
+              key={s.spanId}
+              className="flex px-4 py-2.5 border-b border-border-dim items-center"
+            >
+              <span className="flex-[2] text-[13px] font-semibold font-mono">{s.operation}</span>
+              <span className="flex-1 text-[13px]">{s.service || '—'}</span>
+              <span className="flex-1 text-[13px]">
                 <span
-                  style={{
-                    color:
-                      s.status === 'ok' ? '#22c55e' : s.status === 'error' ? '#ef4444' : '#eab308',
-                  }}
+                  className={
+                    s.status === 'ok'
+                      ? 'text-neon-green'
+                      : s.status === 'error'
+                        ? 'text-neon-red'
+                        : 'text-neon-yellow'
+                  }
                 >
                   {s.status || '—'}
                 </span>
               </span>
-              <span style={styles.td}>{s.durationMs != null ? `${s.durationMs}ms` : '—'}</span>
-              <span
-                style={{ ...styles.td, fontFamily: 'monospace', fontSize: 10, color: '#6b7280' }}
-              >
+              <span className="flex-1 text-[13px]">
+                {s.durationMs != null ? `${s.durationMs}ms` : '—'}
+              </span>
+              <span className="flex-1 font-mono text-[10px] text-gray-500">
                 {s.traceId.slice(0, 12)}
               </span>
             </div>
@@ -100,39 +112,4 @@ export default function TracesPage() {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  table: {
-    background: '#1f2937',
-    borderRadius: 8,
-    border: '1px solid #374151',
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    display: 'flex',
-    padding: '10px 16px',
-    background: '#111827',
-    borderBottom: '1px solid #374151',
-  },
-  th: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  tableRow: {
-    display: 'flex',
-    padding: '10px 16px',
-    borderBottom: '1px solid #1f2937',
-    alignItems: 'center',
-  },
-  td: { flex: 1, fontSize: 13 },
 }
