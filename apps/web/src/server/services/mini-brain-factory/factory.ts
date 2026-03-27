@@ -904,6 +904,31 @@ export class MiniBrainFactory {
   }
 
   /**
+   * Fuzzy match a development template by prefix or substring.
+   * Handles cases like "personal" matching "personal-astrology".
+   */
+  findDevelopmentTemplate(
+    parentTemplate: MiniBrainTemplate,
+    partialId: string,
+  ): DevelopmentTemplateDefinition | null {
+    // Try exact match first
+    const exact = this.getDevelopmentTemplate(parentTemplate, partialId)
+    if (exact) return exact
+
+    // Try prefix match: "personal" matches "personal-astrology"
+    const prefix = DEVELOPMENT_TEMPLATES.find(
+      (dt) => dt.parentTemplate === parentTemplate && dt.id.startsWith(partialId),
+    )
+    if (prefix) return prefix
+
+    // Try substring match: "sports" matches "sports-astrology"
+    const substring = DEVELOPMENT_TEMPLATES.find(
+      (dt) => dt.parentTemplate === parentTemplate && dt.id.includes(partialId),
+    )
+    return substring ?? null
+  }
+
+  /**
    * @deprecated Use the `smartCreate` tRPC mutation in mini-brain-factory router instead.
    * This legacy method clones templates to the filesystem which does not work on
    * serverless platforms (Vercel). Kept for reference only.

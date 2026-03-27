@@ -295,12 +295,16 @@ export const miniBrainFactoryRouter = router({
       })
       if (!parent) throw new Error('Parent mini-brain not found')
 
-      // Resolve template before transaction
+      // Resolve template before transaction — fuzzy match with parent fallback
       const templateId = input.template ?? input.name.toLowerCase().replace(/\s+/g, '-')
-      const devTemplate = getFactory().getDevelopmentTemplate(
+      const devTemplate = getFactory().findDevelopmentTemplate(
         parent.domain as MiniBrainTemplate,
         templateId,
       )
+      // Fallback: if no development template matches, use parent mini-brain's template agents
+      const parentTemplate = !devTemplate
+        ? getFactory().getTemplate(parent.domain as MiniBrainTemplate)
+        : null
 
       // Wrap core provisioning in a transaction
       const txResult = await ctx.db.transaction(async (tx) => {
@@ -350,42 +354,47 @@ export const miniBrainFactoryRouter = router({
           requiredModelType: 'router',
         })
 
-        // 5. Create development-specific domain agents from template
+        // 5. Create development-specific domain agents from template (or parent fallback)
+        const agentDefs = devTemplate?.agents ?? parentTemplate?.agents ?? []
+        const agentSource = devTemplate
+          ? devTemplate.id
+          : parentTemplate
+            ? `${parentTemplate.id}-fallback`
+            : 'none'
+        const agentDomain = devTemplate?.domain ?? parent.domain ?? 'unknown'
         const devAgentIds: string[] = []
-        if (devTemplate) {
-          for (const agentDef of devTemplate.agents) {
-            const [agent] = await tx
-              .insert(agents)
-              .values({
-                name: agentDef.name,
-                type: agentDef.role.includes('review')
-                  ? 'reviewer'
-                  : agentDef.role.includes('plan')
-                    ? 'planner'
-                    : 'specialist',
-                workspaceId: ws.id,
-                description: `${agentDef.role} — ${agentDef.capabilities.join(', ')}`,
-                soul:
-                  agentDef.soul ??
-                  `You are ${agentDef.name}, a ${devTemplate.domain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}.`,
-                skills: agentDef.capabilities,
-                requiredModelType: 'agentic',
-                tags: [parent.domain ?? 'unknown', devTemplate.id, 'development-agent'],
-              })
-              .returning()
+        for (const agentDef of agentDefs) {
+          const [agent] = await tx
+            .insert(agents)
+            .values({
+              name: agentDef.name,
+              type: agentDef.role.includes('review')
+                ? 'reviewer'
+                : agentDef.role.includes('plan')
+                  ? 'planner'
+                  : 'specialist',
+              workspaceId: ws.id,
+              description: `${agentDef.role} — ${agentDef.capabilities.join(', ')}`,
+              soul:
+                agentDef.soul ??
+                `You are ${agentDef.name}, a ${agentDomain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}.`,
+              skills: agentDef.capabilities,
+              requiredModelType: 'agentic',
+              tags: [parent.domain ?? 'unknown', agentSource, 'development-agent'],
+            })
+            .returning()
 
-            if (agent) {
-              devAgentIds.push(agent.id)
-              try {
-                await tx
-                  .insert(brainEntityAgents)
-                  .values({ entityId: entity.id, agentId: agent.id, role: 'primary' })
-              } catch (linkErr) {
-                console.warn(
-                  `[smartCreateDev] Failed to link agent ${agent.id} to entity ${entity.id}:`,
-                  linkErr,
-                )
-              }
+          if (agent) {
+            devAgentIds.push(agent.id)
+            try {
+              await tx
+                .insert(brainEntityAgents)
+                .values({ entityId: entity.id, agentId: agent.id, role: 'primary' })
+            } catch (linkErr) {
+              console.warn(
+                `[smartCreateDev] Failed to link agent ${agent.id} to entity ${entity.id}:`,
+                linkErr,
+              )
             }
           }
         }
@@ -618,8 +627,8 @@ export const miniBrainFactoryRouter = router({
       const domain = (parent?.domain ?? entity.domain) as MiniBrainTemplate
       if (!domain) throw new Error('Cannot determine domain for template lookup')
 
-      // 3. Find matching development template
-      const devTemplate = getFactory().getDevelopmentTemplate(
+      // 3. Find matching development template (fuzzy match)
+      const devTemplate = getFactory().findDevelopmentTemplate(
         domain,
         entity.name.toLowerCase().replace(/\s+/g, '-'),
       )
