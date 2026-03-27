@@ -168,6 +168,64 @@ export const flowsRouter = router({
     return ctx.db.query.flows.findMany({ limit: 100 })
   }),
 
+  /** Create a new flow definition */
+  create: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        steps: z.array(z.object({ name: z.string(), action: z.string() })).default([]),
+        status: z.enum(['draft', 'active', 'paused', 'archived']).default('draft'),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [flow] = await ctx.db
+        .insert(flowsTable)
+        .values({
+          name: input.name,
+          description: input.description,
+          steps: input.steps,
+          status: input.status,
+        })
+        .returning()
+      if (!flow) throw new Error('Failed to create flow')
+      return flow
+    }),
+
+  /** Update a flow definition */
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        steps: z.array(z.object({ name: z.string(), action: z.string() })).optional(),
+        status: z.enum(['draft', 'active', 'paused', 'archived']).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...fields } = input
+      const [updated] = await ctx.db
+        .update(flowsTable)
+        .set({ ...fields, updatedAt: new Date() })
+        .where(eq(flowsTable.id, id))
+        .returning()
+      if (!updated) throw new Error('Flow not found')
+      return updated
+    }),
+
+  /** Delete a flow definition */
+  delete: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const [deleted] = await ctx.db
+        .delete(flowsTable)
+        .where(eq(flowsTable.id, input.id))
+        .returning()
+      if (!deleted) throw new Error('Flow not found')
+      return { id: deleted.id }
+    }),
+
   // ── Crew Execution ────────────────────────────────────────────────────
 
   /** Run a crew on a task (ReAct loop, auto-delegation) */

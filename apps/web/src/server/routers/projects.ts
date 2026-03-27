@@ -50,6 +50,7 @@ export const projectsRouter = router({
         name: z.string().min(1).optional(),
         goal: z.string().optional(),
         status: z.enum(['planning', 'active', 'completed', 'cancelled']).optional(),
+        deadline: z.date().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -61,5 +62,12 @@ export const projectsRouter = router({
         .returning()
       if (!updated) throw new TRPCError({ code: 'NOT_FOUND', message: 'Project not found' })
       return updated
+    }),
+  delete: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const [deleted] = await ctx.db.delete(projects).where(eq(projects.id, input.id)).returning()
+      if (!deleted) throw new TRPCError({ code: 'NOT_FOUND', message: 'Project not found' })
+      return { id: deleted.id }
     }),
 })

@@ -46,6 +46,10 @@ export default function ProjectsPage() {
       setGoal('')
     },
   })
+  const deleteMut = trpc.projects.delete.useMutation({
+    onSuccess: () => utils.projects.list.invalidate(),
+  })
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   if (error) {
     return (
@@ -143,11 +147,31 @@ export default function ProjectsPage() {
                 >
                   {p.name}
                 </span>
-                <span
-                  className={`cyber-badge uppercase ${STATUS_CLASS[p.status] || 'text-gray-500 border-gray-500'}`}
-                >
-                  {p.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`cyber-badge uppercase ${STATUS_CLASS[p.status] || 'text-gray-500 border-gray-500'}`}
+                  >
+                    {p.status}
+                  </span>
+                  <button
+                    className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                      deleteConfirm === p.id
+                        ? 'bg-neon-red/20 text-neon-red'
+                        : 'text-slate-600 hover:text-neon-red'
+                    }`}
+                    onClick={() => {
+                      if (deleteConfirm === p.id) {
+                        deleteMut.mutate({ id: p.id })
+                        setDeleteConfirm(null)
+                      } else {
+                        setDeleteConfirm(p.id)
+                      }
+                    }}
+                    disabled={deleteMut.isPending}
+                  >
+                    {deleteConfirm === p.id ? 'Confirm?' : 'x'}
+                  </button>
+                </div>
               </div>
               {p.goal && <div className="text-xs text-gray-400 mb-2 leading-relaxed">{p.goal}</div>}
               <div className="flex gap-4 text-[11px] text-gray-500">

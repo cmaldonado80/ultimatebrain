@@ -120,8 +120,13 @@ export default function AgentsPage() {
   const importMut = trpc.agents.importAgent.useMutation({
     onSuccess: () => utils.agents.list.invalidate(),
   })
+  const [bulkResult, setBulkResult] = useState<string | null>(null)
   const bulkModelsMut = trpc.agents.bulkAssignModels.useMutation({
-    onSuccess: () => utils.agents.list.invalidate(),
+    onSuccess: (data) => {
+      utils.agents.list.invalidate()
+      setBulkResult(`Updated ${data.updated} of ${data.total} agents`)
+      setTimeout(() => setBulkResult(null), 4000)
+    },
   })
 
   const handleExport = async (agentId: string, agentName: string) => {
@@ -203,6 +208,9 @@ export default function AgentsPage() {
             >
               {bulkModelsMut.isPending ? 'Assigning...' : 'Assign Models'}
             </button>
+            {bulkResult && (
+              <span className="text-neon-green text-[11px] font-medium">{bulkResult}</span>
+            )}
             <button className="cyber-btn-secondary" onClick={() => fileInputRef.current?.click()}>
               Import
             </button>

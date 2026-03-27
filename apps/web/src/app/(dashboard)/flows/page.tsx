@@ -41,6 +41,7 @@ export default function FlowsPage() {
   const [runResult, setRunResult] = useState<string | null>(null)
   const { data, isLoading, error } = trpc.flows.list.useQuery()
 
+  const utils = trpc.useUtils()
   const runCrewMut = trpc.flows.runCrew.useMutation({
     onSuccess: (data) => {
       setRunResult(
@@ -53,6 +54,10 @@ export default function FlowsPage() {
       setTask('')
     },
   })
+  const deleteMut = trpc.flows.delete.useMutation({
+    onSuccess: () => utils.flows.list.invalidate(),
+  })
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   if (error) {
     return (
@@ -164,14 +169,34 @@ export default function FlowsPage() {
             <div key={f.id} className="cyber-card">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[15px] font-bold font-orbitron">{f.name}</span>
-                <span className="flex items-center gap-1.5">
-                  <span className={STATUS_DOT[f.status] || 'neon-dot neon-dot-blue'} />
-                  <span
-                    className={`text-[10px] font-semibold uppercase ${STATUS_TEXT[f.status] || 'text-gray-500'}`}
-                  >
-                    {f.status}
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5">
+                    <span className={STATUS_DOT[f.status] || 'neon-dot neon-dot-blue'} />
+                    <span
+                      className={`text-[10px] font-semibold uppercase ${STATUS_TEXT[f.status] || 'text-gray-500'}`}
+                    >
+                      {f.status}
+                    </span>
                   </span>
-                </span>
+                  <button
+                    className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                      deleteConfirm === f.id
+                        ? 'bg-neon-red/20 text-neon-red'
+                        : 'text-slate-600 hover:text-neon-red'
+                    }`}
+                    onClick={() => {
+                      if (deleteConfirm === f.id) {
+                        deleteMut.mutate({ id: f.id })
+                        setDeleteConfirm(null)
+                      } else {
+                        setDeleteConfirm(f.id)
+                      }
+                    }}
+                    disabled={deleteMut.isPending}
+                  >
+                    {deleteConfirm === f.id ? 'Confirm?' : 'x'}
+                  </button>
+                </div>
               </div>
               {f.description && (
                 <div className="text-xs text-gray-400 mb-2 leading-relaxed">{f.description}</div>
