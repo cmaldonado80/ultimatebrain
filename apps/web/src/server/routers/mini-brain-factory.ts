@@ -651,12 +651,56 @@ export const miniBrainFactoryRouter = router({
       const parentTemplate = !devTemplate ? getFactory().getTemplate(domain) : null
 
       const templateAgents = devTemplate?.agents ?? parentTemplate?.agents ?? []
-      if (templateAgents.length === 0) {
-        return { added: 0, existing: 0, message: 'No matching template found' }
+
+      // 4. Find or create workspace for this entity
+      let wsId: string | null = null
+
+      // Try binding lookup first
+      const existingBinding = await ctx.db.query.workspaceBindings.findFirst({
+        where: eq(workspaceBindings.bindingKey, entity.parentId ?? input.entityId),
+      })
+      wsId = existingBinding?.workspaceId ?? null
+
+      // Fallback: match by entity name
+      if (!wsId) {
+        const ws = await ctx.db.query.workspaces.findFirst({
+          where: eq(workspaces.name, entity.name),
+        })
+        wsId = ws?.id ?? null
       }
 
-      // 4. Get existing agents for this entity
+      // Create workspace if none exists
+      if (!wsId) {
+        const [ws] = await ctx.db
+          .insert(workspaces)
+          .values({
+            name: entity.name,
+            type: 'development',
+            goal: `Development app under ${parent?.name ?? 'Brain'}`,
+          })
+          .returning()
+        if (ws) wsId = ws.id
+      }
+
+      if (!wsId) throw new Error('Failed to find or create workspace')
+
+      // 5. Ensure binding exists (link workspace → parent entity)
+      if (!existingBinding && entity.parentId) {
+        try {
+          await ctx.db.insert(workspaceBindings).values({
+            workspaceId: wsId,
+            bindingType: 'brain',
+            bindingKey: entity.parentId,
+            enabled: true,
+          })
+        } catch (bindErr) {
+          console.warn(`[reprovision] Failed to create binding:`, bindErr)
+        }
+      }
+
+      // 6. Get existing agents for this entity
       let existingAgentNames: string[] = []
+      let hasOrchestrator = false
       try {
         const links = await ctx.db.query.brainEntityAgents.findMany({
           where: eq(brainEntityAgents.entityId, input.entityId),
@@ -672,22 +716,62 @@ export const miniBrainFactoryRouter = router({
         // brainEntityAgents may not exist yet
       }
 
-      // 5. Find the workspace for this entity (via workspace bindings)
-      const binding = await ctx.db.query.workspaceBindings.findFirst({
-        where: eq(workspaceBindings.bindingKey, entity.parentId ?? input.entityId),
+      // Also check workspace agents for orchestrator
+      const wsAgents = await ctx.db.query.agents.findMany({
+        where: eq(agents.workspaceId, wsId),
       })
-
-      // Also check by entity name matching workspace name
-      let wsId = binding?.workspaceId
-      if (!wsId) {
-        const ws = await ctx.db.query.workspaces.findFirst({
-          where: eq(workspaces.name, entity.name),
-        })
-        wsId = ws?.id
+      hasOrchestrator = wsAgents.some((a) => a.isWsOrchestrator)
+      // Merge workspace agent names into existing list
+      for (const a of wsAgents) {
+        if (!existingAgentNames.includes(a.name.toLowerCase())) {
+          existingAgentNames.push(a.name.toLowerCase())
+        }
       }
 
-      // 6. Create missing agents
       let added = 0
+
+      // 7. Create orchestrator if missing
+      if (!hasOrchestrator) {
+        const parentWs = parent
+          ? await ctx.db.query.workspaces.findFirst({
+              where: eq(workspaces.name, parent.name),
+            })
+          : null
+        const parentOrch = parentWs
+          ? await ctx.db.query.agents.findFirst({
+              where: and(eq(agents.workspaceId, parentWs.id), eq(agents.isWsOrchestrator, true)),
+            })
+          : null
+
+        const [orch] = await ctx.db
+          .insert(agents)
+          .values({
+            name: `${entity.name} Orchestrator`,
+            type: 'orchestrator',
+            workspaceId: wsId,
+            isWsOrchestrator: true,
+            parentOrchestratorId: parentOrch?.id ?? null,
+            soul: `You are the orchestrator for ${entity.name}, a development app under ${parent?.name ?? 'Brain'}.`,
+            skills: ['coordination', 'task-routing'],
+            model: ORCHESTRATOR_MODEL,
+            requiredModelType: 'router',
+            tags: [domain, 'reprovisioned'],
+          })
+          .returning()
+
+        if (orch) {
+          try {
+            await ctx.db
+              .insert(brainEntityAgents)
+              .values({ entityId: input.entityId, agentId: orch.id, role: 'primary' })
+          } catch (linkErr) {
+            console.warn(`[reprovision] Failed to link orchestrator:`, linkErr)
+          }
+          added++
+        }
+      }
+
+      // 8. Create missing domain agents from template
       for (const agentDef of templateAgents) {
         if (existingAgentNames.includes(agentDef.name.toLowerCase())) continue
 
@@ -700,11 +784,11 @@ export const miniBrainFactoryRouter = router({
               : agentDef.role.includes('plan')
                 ? 'planner'
                 : 'specialist',
-            workspaceId: wsId ?? null,
+            workspaceId: wsId,
             description: `${agentDef.role} — ${agentDef.capabilities.join(', ')}`,
             soul:
               agentDef.soul ??
-              `You are ${agentDef.name}, a specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}.`,
+              `You are ${agentDef.name}, a ${domain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}.`,
             skills: agentDef.capabilities,
             model: modelForRole(agentDef.role),
             requiredModelType: 'agentic',
@@ -727,6 +811,18 @@ export const miniBrainFactoryRouter = router({
         }
       }
 
-      return { added, existing: existingAgentNames.length }
+      // 9. Activate workspace and entity if agents were provisioned
+      if (added > 0) {
+        await ctx.db
+          .update(workspaces)
+          .set({ lifecycleState: 'active' })
+          .where(eq(workspaces.id, wsId))
+        await ctx.db
+          .update(brainEntities)
+          .set({ status: 'active' })
+          .where(eq(brainEntities.id, input.entityId))
+      }
+
+      return { added, existing: existingAgentNames.length, activated: added > 0 }
     }),
 })
