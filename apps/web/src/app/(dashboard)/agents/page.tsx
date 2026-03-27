@@ -120,6 +120,9 @@ export default function AgentsPage() {
   const importMut = trpc.agents.importAgent.useMutation({
     onSuccess: () => utils.agents.list.invalidate(),
   })
+  const bulkModelsMut = trpc.agents.bulkAssignModels.useMutation({
+    onSuccess: () => utils.agents.list.invalidate(),
+  })
 
   const handleExport = async (agentId: string, agentName: string) => {
     const manifest = utils.agents.exportAgent.fetch({ id: agentId })
@@ -192,6 +195,14 @@ export default function AgentsPage() {
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron">Agents ({allAgents.length})</h2>
           <div className="flex gap-2">
+            <button
+              className="cyber-btn-secondary"
+              onClick={() => bulkModelsMut.mutate()}
+              disabled={bulkModelsMut.isPending}
+              title="Assign Ollama cloud models to all agents without an explicit model"
+            >
+              {bulkModelsMut.isPending ? 'Assigning...' : 'Assign Models'}
+            </button>
             <button className="cyber-btn-secondary" onClick={() => fileInputRef.current?.click()}>
               Import
             </button>
@@ -354,27 +365,16 @@ export default function AgentsPage() {
         <div className="cyber-grid">
           {agents.map((agent) => (
             <div key={agent.id} className="cyber-card p-4">
-              <div className="flex items-center gap-2 mb-2">
+              {/* Row 1: Status + Name + Actions */}
+              <div className="flex items-center gap-2 mb-1">
                 <StatusDot status={agent.status} />
                 <span
-                  className="text-[15px] font-bold flex-1 cursor-pointer font-orbitron"
+                  className="text-[14px] font-bold flex-1 cursor-pointer font-orbitron truncate"
                   onClick={() => navRouter.push(`/agents/${agent.id}`)}
                   title="Open agent detail"
                 >
                   {agent.name}
                 </span>
-                {agent.workspaceId && wsMap.get(agent.workspaceId) && (
-                  <span
-                    className="text-[10px] text-gray-500 font-mono truncate max-w-[120px]"
-                    title={wsMap.get(agent.workspaceId)}
-                  >
-                    {wsMap.get(agent.workspaceId)}
-                  </span>
-                )}
-                {agent.type && <span className="cyber-badge text-neon-blue">{agent.type}</span>}
-                {agent.requiredModelType && (
-                  <span className="cyber-badge text-neon-purple">{agent.requiredModelType}</span>
-                )}
                 <button
                   className="bg-transparent text-gray-500 border-none text-[11px] cursor-pointer hover:text-gray-300"
                   onClick={() => handleExport(agent.id, agent.name)}
@@ -389,13 +389,26 @@ export default function AgentsPage() {
                   Del
                 </button>
               </div>
-              <div className="text-xs text-gray-400 mb-2 leading-relaxed">
+              {/* Row 2: Workspace + Badges */}
+              <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                {agent.workspaceId && wsMap.get(agent.workspaceId) && (
+                  <span className="text-[10px] text-neon-blue/70 truncate max-w-[140px]">
+                    {wsMap.get(agent.workspaceId)}
+                  </span>
+                )}
+                {agent.type && (
+                  <span className="cyber-badge text-neon-blue text-[9px]">{agent.type}</span>
+                )}
+              </div>
+              {/* Description */}
+              <div className="text-xs text-gray-400 mb-2 leading-relaxed line-clamp-2">
                 {agent.description || 'No description'}
               </div>
-              <div className="flex gap-4 text-[11px] text-gray-500 mb-1.5 font-mono">
+              {/* Model + Status row */}
+              <div className="flex items-center gap-3 text-[11px] text-gray-500 mb-1.5">
                 {editingModel === agent.id ? (
                   <select
-                    className="cyber-select text-[11px] !py-0.5 !px-1.5 !border-neon-purple"
+                    className="cyber-select text-[11px] !py-0.5 !px-1.5 !border-neon-purple flex-1"
                     value={agent.model ?? ''}
                     onChange={(e) => updateMut.mutate({ id: agent.id, model: e.target.value })}
                     onBlur={() => setEditingModel(null)}
@@ -414,14 +427,14 @@ export default function AgentsPage() {
                   </select>
                 ) : (
                   <span
-                    className="cursor-pointer border-b border-dashed border-gray-600"
+                    className="cursor-pointer border-b border-dashed border-gray-600 font-mono truncate"
                     onClick={() => setEditingModel(agent.id)}
                     title="Click to change model"
                   >
-                    Model: {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
+                    {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
                   </span>
                 )}
-                <span>Status: {agent.status}</span>
+                <span className="text-gray-600 shrink-0">{agent.status}</span>
               </div>
               {agent.skills && agent.skills.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1.5">
