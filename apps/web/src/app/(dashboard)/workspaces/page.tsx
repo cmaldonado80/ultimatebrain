@@ -44,9 +44,9 @@ interface Goal {
 
 const LIFECYCLE_COLORS: Record<string, string> = {
   draft: '#6b7280',
-  active: 'var(--color-neon-green)',
-  paused: 'var(--color-neon-yellow)',
-  retired: 'var(--color-neon-red)',
+  active: '#00ff88',
+  paused: '#ffd200',
+  retired: '#ff3a5c',
 }
 
 const BINDING_ICONS: Record<string, string> = {
@@ -84,7 +84,7 @@ export default function WorkspacesPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -92,18 +92,10 @@ export default function WorkspacesPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching workspaces</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching workspaces</div>
         </div>
       </div>
     )
@@ -115,135 +107,65 @@ export default function WorkspacesPage() {
     : allWorkspaces
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Workspaces ({allWorkspaces.length})</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <div className="flex justify-between items-center">
+          <h2 className="m-0 text-[22px] font-bold font-orbitron">
+            Workspaces ({allWorkspaces.length})
+          </h2>
+          <div className="flex gap-2">
             <button
-              style={{
-                background: 'var(--color-neon-purple)',
-                color: '#f9fafb',
-                border: 'none',
-                borderRadius: 6,
-                padding: '6px 14px',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
+              className="cyber-btn-primary"
               onClick={() => setShowSeedConfirm(true)}
               disabled={seedBrainMut.isPending}
             >
               {seedBrainMut.isPending ? 'Seeding...' : 'Initialize Brain'}
             </button>
-            <button
-              style={{
-                background: '#818cf8',
-                color: '#f9fafb',
-                border: 'none',
-                borderRadius: 6,
-                padding: '6px 14px',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-              onClick={() => setShowForm(!showForm)}
-            >
+            <button className="cyber-btn-secondary" onClick={() => setShowForm(!showForm)}>
               {showForm ? 'Cancel' : '+ New Workspace'}
             </button>
           </div>
         </div>
-        <p style={styles.subtitle}>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Lifecycle-managed organizational units with bindings, goals, and execution boundaries.
         </p>
       </div>
 
       <input
-        style={{
-          width: '100%',
-          background: 'var(--color-bg-elevated)',
-          color: '#f9fafb',
-          border: '1px solid var(--color-border)',
-          borderRadius: 6,
-          padding: '8px 12px',
-          fontSize: 13,
-          boxSizing: 'border-box' as const,
-          marginBottom: 16,
-        }}
+        className="cyber-input w-full mb-4"
         placeholder="Search workspaces..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
 
       {showForm && (
-        <div
-          style={{
-            background: 'var(--color-bg-elevated)',
-            borderRadius: 8,
-            padding: 16,
-            border: '1px solid var(--color-border)',
-            marginBottom: 16,
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+        <div className="bg-bg-elevated rounded-lg p-4 border border-border mb-4">
+          <div className="flex flex-col gap-2">
             <input
-              style={{
-                background: 'var(--color-bg-elevated)',
-                color: '#f9fafb',
-                border: '1px solid var(--color-border)',
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 13,
-              }}
+              className="cyber-input"
               placeholder="Workspace name..."
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <select
-                style={{
-                  background: 'var(--color-bg-elevated)',
-                  color: '#f9fafb',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 6,
-                  padding: '6px 10px',
-                  fontSize: 12,
-                  flex: 1,
-                }}
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-              >
-                <option value="">Type (optional)</option>
-                <option value="general">General</option>
-                <option value="development">Development</option>
-                <option value="staging">Staging</option>
-              </select>
-            </div>
+            <select
+              className="cyber-select flex-1"
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+            >
+              <option value="">Type (optional)</option>
+              <option value="general">General</option>
+              <option value="development">Development</option>
+              <option value="staging">Staging</option>
+            </select>
             <input
-              style={{
-                background: 'var(--color-bg-elevated)',
-                color: '#f9fafb',
-                border: '1px solid var(--color-border)',
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 13,
-              }}
+              className="cyber-input"
               placeholder="Goal (optional)..."
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="flex gap-2 items-center">
               <button
-                style={{
-                  background: 'var(--color-neon-green)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="bg-neon-green/80 hover:bg-neon-green text-white border-none rounded-md px-3.5 py-1.5 text-xs font-semibold cursor-pointer transition-colors"
                 onClick={() =>
                   name.trim() &&
                   createMut.mutate({
@@ -257,26 +179,15 @@ export default function WorkspacesPage() {
                 {createMut.isPending ? 'Creating...' : 'Create Workspace'}
               </button>
               {createMut.error && (
-                <span style={{ color: 'var(--color-neon-red)', fontSize: 11 }}>
-                  {createMut.error.message}
-                </span>
+                <span className="text-neon-red text-[11px]">{createMut.error.message}</span>
               )}
             </div>
           </div>
         </div>
       )}
+
       {seedBrainMut.data && (
-        <div
-          style={{
-            background: 'rgba(0,255,136,0.1)',
-            border: '1px solid #22c55e',
-            borderRadius: 6,
-            padding: '8px 12px',
-            marginBottom: 12,
-            fontSize: 12,
-            color: 'var(--color-neon-green)',
-          }}
-        >
+        <div className="bg-neon-green/10 border border-neon-green/30 rounded-md px-3 py-2 mb-3 text-xs text-neon-green">
           Brain initialized: {seedBrainMut.data.workspacesCreated} workspaces,{' '}
           {seedBrainMut.data.agentsCreated} agents created.
           {seedBrainMut.data.skipped.length > 0 &&
@@ -284,33 +195,23 @@ export default function WorkspacesPage() {
         </div>
       )}
       {seedBrainMut.error && (
-        <div
-          style={{
-            background: 'rgba(139,92,246,0.12)',
-            border: '1px solid #ef4444',
-            borderRadius: 6,
-            padding: '8px 12px',
-            marginBottom: 12,
-            fontSize: 12,
-            color: 'var(--color-neon-red)',
-          }}
-        >
+        <div className="bg-neon-red/10 border border-neon-red/30 rounded-md px-3 py-2 mb-3 text-xs text-neon-red">
           Seed failed: {seedBrainMut.error.message}
         </div>
       )}
 
       {workspaces.length === 0 ? (
-        <div style={styles.empty}>
+        <div className="text-center text-gray-500 py-10 text-sm">
           No workspaces found. Click &quot;Initialize Brain&quot; to create 10 category workspaces
           with 30+ agents.
         </div>
       ) : (
-        <div style={styles.grid}>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-3">
           {workspaces.map((ws) => (
             <div
               key={ws.id}
               onClick={() => navRouter.push(`/workspaces/${ws.id}`)}
-              style={{ cursor: 'pointer' }}
+              className="cursor-pointer"
             >
               <WorkspaceCard workspace={ws} />
             </div>
@@ -344,54 +245,43 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
   const lifecycleColor = LIFECYCLE_COLORS[ws.lifecycleState] || '#6b7280'
 
   return (
-    <div style={styles.card}>
-      <div style={styles.cardTop}>
-        <span style={styles.cardIcon}>{ws.type === 'system' ? '🔒' : ws.icon || '📁'}</span>
-        <span style={styles.cardName}>{ws.name}</span>
+    <div className="cyber-card p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xl">{ws.type === 'system' ? '🔒' : ws.icon || '📁'}</span>
+        <span className="text-[15px] font-bold flex-1">{ws.name}</span>
         {ws.type === 'system' && (
-          <span
-            style={{
-              fontSize: 10,
-              background: 'var(--color-neon-red)',
-              color: '#fff',
-              padding: '1px 6px',
-              borderRadius: 4,
-              fontWeight: 600,
-            }}
-          >
+          <span className="text-[10px] bg-neon-red text-white px-1.5 py-0.5 rounded font-semibold">
             SYSTEM
           </span>
         )}
         <span
-          style={{
-            ...styles.lifecycleBadge,
-            color: lifecycleColor,
-            borderColor: lifecycleColor,
-          }}
+          className="text-[10px] font-semibold px-2 py-0.5 rounded border uppercase"
+          style={{ color: lifecycleColor, borderColor: lifecycleColor }}
         >
           {ws.lifecycleState}
         </span>
       </div>
 
-      {ws.goal && <div style={styles.cardGoal}>{ws.goal}</div>}
+      {ws.goal && <div className="text-xs text-gray-400 mb-2 leading-relaxed">{ws.goal}</div>}
 
-      <div style={styles.cardMeta}>
+      <div className="flex gap-4 text-[11px] text-gray-500 mb-2">
         {ws.type && <span>{ws.type}</span>}
         <span>{agentCount} agents</span>
         <span>Autonomy: {ws.autonomyLevel ?? 1}/5</span>
       </div>
 
       {bindings.length > 0 && (
-        <div style={styles.bindingsSection}>
-          <div style={styles.sectionLabel}>Bindings</div>
-          <div style={styles.bindingList}>
+        <div className="mt-2 pt-2 border-t border-border">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+            Bindings
+          </div>
+          <div className="flex flex-wrap gap-1">
             {bindings.map((b) => (
               <span
                 key={b.id}
-                style={{
-                  ...styles.bindingTag,
-                  opacity: b.enabled ? 1 : 0.5,
-                }}
+                className={`text-[11px] bg-neon-purple/10 text-neon-purple px-2 py-0.5 rounded ${
+                  !b.enabled ? 'opacity-50' : ''
+                }`}
               >
                 {BINDING_ICONS[b.bindingType] || '📦'} {b.bindingKey}
               </span>
@@ -401,13 +291,15 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
       )}
 
       {goals.length > 0 && (
-        <div style={styles.goalsSection}>
-          <div style={styles.sectionLabel}>Goals</div>
+        <div className="mt-2 pt-2 border-t border-border">
+          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+            Goals
+          </div>
           {goals.slice(0, 3).map((g) => (
-            <div key={g.id} style={styles.goalRow}>
-              <span style={styles.goalTitle}>{g.title}</span>
+            <div key={g.id} className="flex justify-between items-center text-xs mb-0.5">
+              <span className="text-gray-300">{g.title}</span>
               {g.targetMetric && g.targetValue != null && (
-                <span style={styles.goalMetric}>
+                <span className="text-gray-500 text-[11px] font-mono">
                   {g.currentValue != null ? `${g.currentValue}/${g.targetValue}` : g.targetValue}{' '}
                   {g.targetMetric}
                 </span>
@@ -418,64 +310,4 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-    gap: 12,
-  },
-  card: {
-    background: 'var(--color-bg-card)',
-    backdropFilter: 'blur(12px)',
-    borderRadius: 8,
-    padding: 16,
-    border: '1px solid var(--color-border)',
-  },
-  cardTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
-  cardIcon: { fontSize: 20 },
-  cardName: { fontSize: 15, fontWeight: 700, flex: 1 },
-  lifecycleBadge: {
-    fontSize: 10,
-    fontWeight: 600,
-    padding: '2px 8px',
-    borderRadius: 4,
-    border: '1px solid',
-    textTransform: 'uppercase' as const,
-  },
-  cardGoal: { fontSize: 12, color: '#9ca3af', marginBottom: 8, lineHeight: 1.4 },
-  cardMeta: { display: 'flex', gap: 16, fontSize: 11, color: '#6b7280', marginBottom: 8 },
-  bindingsSection: { marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--color-border)' },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  bindingList: { display: 'flex', flexWrap: 'wrap' as const, gap: 4 },
-  bindingTag: {
-    fontSize: 11,
-    background: 'rgba(139,92,246,0.12)',
-    color: 'var(--color-neon-purple)',
-    padding: '2px 8px',
-    borderRadius: 4,
-  },
-  goalsSection: { marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--color-border)' },
-  goalRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  goalTitle: { color: '#d1d5db' },
-  goalMetric: { color: '#6b7280', fontSize: 11, fontFamily: 'monospace' },
 }

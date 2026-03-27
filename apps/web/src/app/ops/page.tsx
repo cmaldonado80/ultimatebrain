@@ -24,7 +24,7 @@ export default function OpsOverviewPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -32,18 +32,10 @@ export default function OpsOverviewPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching ops overview</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching ops overview</div>
         </div>
       </div>
     )
@@ -57,137 +49,109 @@ export default function OpsOverviewPage() {
   const gatewayHealth = gatewayHealthQuery.data as { status: string } | undefined
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Ops Overview</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Ops Overview</h2>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           System-wide operational dashboard — health, throughput, errors, and SLA compliance.
         </p>
       </div>
-      <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
+
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-2.5 mb-6">
+        <div className="cyber-card p-3.5 text-center">
           <div
-            style={{
-              ...styles.statValue,
-              color: health?.status === 'healthy' ? '#22c55e' : '#ef4444',
-            }}
+            className={`text-xl font-bold ${health?.status === 'healthy' ? 'text-neon-green' : 'text-neon-red'}`}
           >
             {health?.status || 'unknown'}
           </div>
-          <div style={styles.statLabel}>System Health</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">System Health</div>
         </div>
-        <div style={styles.statCard}>
+        <div className="cyber-card p-3.5 text-center">
           <div
-            style={{
-              ...styles.statValue,
-              color: gatewayHealth?.status === 'healthy' ? '#22c55e' : '#f97316',
-            }}
+            className={`text-xl font-bold ${gatewayHealth?.status === 'healthy' ? 'text-neon-green' : 'text-neon-yellow'}`}
           >
             {gatewayHealth?.status || 'unknown'}
           </div>
-          <div style={styles.statLabel}>Gateway</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">Gateway</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>{traces.length}</div>
-          <div style={styles.statLabel}>Recent Traces</div>
+        <div className="cyber-card p-3.5 text-center">
+          <div className="text-xl font-bold">{traces.length}</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">Recent Traces</div>
         </div>
-        <div style={styles.statCard}>
+        <div className="cyber-card p-3.5 text-center">
           <div
-            style={{
-              ...styles.statValue,
-              color: pendingApprovals.length > 0 ? '#f97316' : '#22c55e',
-            }}
+            className={`text-xl font-bold ${pendingApprovals.length > 0 ? 'text-neon-yellow' : 'text-neon-green'}`}
           >
             {pendingApprovals.length}
           </div>
-          <div style={styles.statLabel}>Pending Approvals</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">Pending Approvals</div>
         </div>
       </div>
 
-      {/* Cost & Performance Summary */}
+      {/* Cost & Performance */}
       {costQuery.data && (
-        <div style={styles.section}>
-          <div style={styles.sectionTitle}>Cost & Performance</div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 10,
-              marginBottom: 16,
-            }}
-          >
-            <div style={styles.statCard}>
-              <div style={{ ...styles.statValue, color: '#22c55e' }}>
+        <div className="mb-6">
+          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+            Cost & Performance
+          </div>
+          <div className="grid grid-cols-4 gap-2.5 mb-4">
+            <div className="cyber-card p-3.5 text-center">
+              <div className="text-xl font-bold text-neon-green">
                 ${costQuery.data.totalCostUsd.toFixed(4)}
               </div>
-              <div style={styles.statLabel}>Total Cost</div>
+              <div className="text-[11px] text-gray-500 mt-0.5">Total Cost</div>
             </div>
-            <div style={styles.statCard}>
-              <div style={styles.statValue}>
+            <div className="cyber-card p-3.5 text-center">
+              <div className="text-xl font-bold">
                 {(costQuery.data.totalTokensIn + costQuery.data.totalTokensOut).toLocaleString()}
               </div>
-              <div style={styles.statLabel}>Total Tokens</div>
+              <div className="text-[11px] text-gray-500 mt-0.5">Total Tokens</div>
             </div>
-            <div style={styles.statCard}>
-              <div style={styles.statValue}>{costQuery.data.avgLatencyMs}ms</div>
-              <div style={styles.statLabel}>Avg Latency</div>
+            <div className="cyber-card p-3.5 text-center">
+              <div className="text-xl font-bold">{costQuery.data.avgLatencyMs}ms</div>
+              <div className="text-[11px] text-gray-500 mt-0.5">Avg Latency</div>
             </div>
-            <div style={styles.statCard}>
-              <div style={{ ...styles.statValue, color: '#818cf8' }}>
+            <div className="cyber-card p-3.5 text-center">
+              <div className="text-xl font-bold text-neon-purple">
                 {costQuery.data.cacheHitRate}%
               </div>
-              <div style={styles.statLabel}>Cache Hit Rate</div>
+              <div className="text-[11px] text-gray-500 mt-0.5">Cache Hit Rate</div>
             </div>
           </div>
+
           {costQuery.data.byProvider.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
-                Cost by Provider
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+            <div className="mb-3">
+              <div className="text-[11px] text-gray-500 mb-1">Cost by Provider</div>
+              <div className="flex flex-col gap-1">
                 {costQuery.data.byProvider.map((p) => (
                   <div
                     key={p.provider}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '4px 12px',
-                      background: '#111827',
-                      borderRadius: 4,
-                      fontSize: 12,
-                    }}
+                    className="flex items-center gap-2 px-3 py-1 bg-bg-elevated rounded text-xs"
                   >
-                    <span style={{ flex: 1, fontFamily: 'monospace' }}>{p.provider}</span>
-                    <span style={{ color: '#22c55e' }}>${p.cost.toFixed(4)}</span>
-                    <span style={{ color: '#6b7280' }}>{p.tokens.toLocaleString()} tokens</span>
-                    <span style={{ color: '#4b5563' }}>{p.count} calls</span>
+                    <span className="flex-1 font-mono">{p.provider}</span>
+                    <span className="text-neon-green">${p.cost.toFixed(4)}</span>
+                    <span className="text-gray-500">{p.tokens.toLocaleString()} tokens</span>
+                    <span className="text-gray-600">{p.count} calls</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
+
           {costQuery.data.byModel.length > 0 && (
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Cost by Model</div>
-              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+              <div className="text-[11px] text-gray-500 mb-1">Cost by Model</div>
+              <div className="flex flex-col gap-1">
                 {costQuery.data.byModel.map((m) => (
                   <div
                     key={m.model}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '4px 12px',
-                      background: '#111827',
-                      borderRadius: 4,
-                      fontSize: 12,
-                    }}
+                    className="flex items-center gap-2 px-3 py-1 bg-bg-elevated rounded text-xs"
                   >
-                    <span style={{ flex: 1, fontFamily: 'monospace' }}>{m.model}</span>
-                    <span style={{ color: '#22c55e' }}>${m.cost.toFixed(4)}</span>
-                    <span style={{ color: '#6b7280' }}>{m.tokens.toLocaleString()} tokens</span>
-                    <span style={{ color: '#4b5563' }}>{m.count} calls</span>
+                    <span className="flex-1 font-mono">{m.model}</span>
+                    <span className="text-neon-green">${m.cost.toFixed(4)}</span>
+                    <span className="text-gray-500">{m.tokens.toLocaleString()} tokens</span>
+                    <span className="text-gray-600">{m.count} calls</span>
                   </div>
                 ))}
               </div>
@@ -196,33 +160,38 @@ export default function OpsOverviewPage() {
         </div>
       )}
 
+      {/* Health Checks */}
       {health?.checks && (
-        <div style={styles.section}>
-          <div style={styles.sectionTitle}>Health Checks</div>
-          <div style={styles.healthList}>
+        <div className="mb-6">
+          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+            Health Checks
+          </div>
+          <div className="flex flex-col gap-1">
             {Object.entries(health.checks).map(([name, check]) => (
-              <div key={name} style={styles.healthRow}>
+              <div
+                key={name}
+                className="flex items-center gap-2 px-3 py-1.5 bg-bg-elevated rounded-md border border-border text-xs"
+              >
                 <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: check.status === 'ok' ? '#22c55e' : '#ef4444',
-                    flexShrink: 0,
-                  }}
+                  className={`neon-dot ${check.status === 'ok' ? 'neon-dot-green' : 'neon-dot-red'}`}
                 />
-                <span style={styles.healthName}>{name}</span>
-                <span style={styles.healthStatus}>{check.status}</span>
-                {check.message && <span style={styles.healthMsg}>{check.message}</span>}
+                <span className="flex-1 font-mono">{name}</span>
+                <span className="text-gray-500">{check.status}</span>
+                {check.message && (
+                  <span className="text-gray-600 max-w-[200px] truncate">{check.message}</span>
+                )}
               </div>
             ))}
           </div>
         </div>
       )}
 
+      {/* Recent Traces */}
       {traces.length > 0 && (
-        <div style={styles.section}>
-          <div style={styles.sectionTitle}>Recent Traces</div>
+        <div className="mb-6">
+          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+            Recent Traces
+          </div>
           {(
             traces as {
               spanId: string
@@ -231,18 +200,23 @@ export default function OpsOverviewPage() {
               durationMs: number | null
             }[]
           ).map((t) => (
-            <div key={t.spanId} style={styles.traceRow}>
-              <span style={styles.traceOp}>{t.operation}</span>
+            <div
+              key={t.spanId}
+              className="flex items-center gap-3 px-3 py-1.5 bg-bg-elevated rounded-md border border-border text-xs mb-1"
+            >
+              <span className="flex-1 font-mono font-semibold">{t.operation}</span>
               <span
-                style={{
-                  color:
-                    t.status === 'ok' ? '#22c55e' : t.status === 'error' ? '#ef4444' : '#6b7280',
-                  fontSize: 11,
-                }}
+                className={
+                  t.status === 'ok'
+                    ? 'text-neon-green'
+                    : t.status === 'error'
+                      ? 'text-neon-red'
+                      : 'text-gray-500'
+                }
               >
                 {t.status || '—'}
               </span>
-              <span style={styles.traceDuration}>
+              <span className="text-gray-500">
                 {t.durationMs != null ? `${t.durationMs}ms` : '—'}
               </span>
             </div>
@@ -251,63 +225,4 @@ export default function OpsOverviewPage() {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 24 },
-  statCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 14,
-    border: '1px solid #374151',
-    textAlign: 'center' as const,
-  },
-  statValue: { fontSize: 20, fontWeight: 700 },
-  statLabel: { fontSize: 11, color: '#6b7280', marginTop: 2 },
-  section: { marginBottom: 24 },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: '#9ca3af',
-    marginBottom: 10,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  healthList: { display: 'flex', flexDirection: 'column' as const, gap: 4 },
-  healthRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '6px 12px',
-    background: '#1f2937',
-    borderRadius: 6,
-    border: '1px solid #374151',
-    fontSize: 12,
-  },
-  healthName: { flex: 1, fontFamily: 'monospace' },
-  healthStatus: { fontSize: 11, color: '#6b7280' },
-  healthMsg: {
-    fontSize: 10,
-    color: '#4b5563',
-    maxWidth: 200,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  traceRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '6px 12px',
-    background: '#1f2937',
-    borderRadius: 6,
-    border: '1px solid #374151',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  traceOp: { flex: 1, fontFamily: 'monospace', fontWeight: 600 },
-  traceDuration: { fontSize: 11, color: '#6b7280' },
 }
