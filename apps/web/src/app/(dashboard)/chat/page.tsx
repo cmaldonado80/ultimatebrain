@@ -1,12 +1,14 @@
 'use client'
 
 /**
- * Chat — interactive chat interface for communicating with agents.
+ * Chat — modern agent chat interface with markdown rendering,
+ * syntax highlighting, streaming indicators, and multi-agent crew support.
  */
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { trpc } from '../../../utils/trpc'
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { MarkdownMessage } from '../../../components/chat/markdown-message'
 
 interface ChatSession {
   id: string
@@ -18,6 +20,7 @@ interface ChatMessage {
   id: string
   role: string
   text: string
+  sourceAgentId: string | null
   createdAt: Date
 }
 
@@ -30,6 +33,60 @@ interface Agent {
   workspaceId: string | null
 }
 
+/** Deterministic color from agent name for avatar */
+function agentColor(name: string): string {
+  const colors = ['#00d4ff', '#8b5cf6', '#00ff88', '#ffd200', '#ff3a5c', '#f472b6', '#38bdf8']
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  return colors[Math.abs(hash) % colors.length]
+}
+
+/** Agent avatar circle with initials */
+function AgentAvatar({ name, size = 28 }: { name: string; size?: number }) {
+  const initials = name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+  const color = agentColor(name)
+  return (
+    <div
+      className="flex-shrink-0 rounded-full flex items-center justify-center font-mono font-bold"
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.36,
+        background: `${color}20`,
+        color,
+        border: `1px solid ${color}40`,
+        boxShadow: `0 0 8px ${color}15`,
+      }}
+    >
+      {initials}
+    </div>
+  )
+}
+
+/** Animated thinking dots */
+function ThinkingIndicator({ agentName }: { agentName?: string | null }) {
+  return (
+    <div className="flex items-start gap-3 max-w-[80%] mb-3">
+      <AgentAvatar name={agentName ?? 'AI'} />
+      <div className="chat-bubble-agent">
+        <div className="chat-agent-label" style={{ color: agentColor(agentName ?? 'AI') }}>
+          {agentName ?? 'Assistant'}
+        </div>
+        <div className="flex items-center gap-1.5 py-1">
+          <span className="chat-thinking-dot" style={{ animationDelay: '0ms' }} />
+          <span className="chat-thinking-dot" style={{ animationDelay: '150ms' }} />
+          <span className="chat-thinking-dot" style={{ animationDelay: '300ms' }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ChatPage() {
   const [selectedSession, setSelectedSession] = useState<string | null>(null)
   const [selectedAgents, setSelectedAgents] = useState<string[]>([])
@@ -39,7 +96,11 @@ export default function ChatPage() {
   const [streamAgentName, setStreamAgentName] = useState<string | null>(null)
   const [streamError, setStreamError] = useState<string | null>(null)
   const [wsFilter, setWsFilter] = useState('')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const sessionsQuery = trpc.intelligence.chatSessions.useQuery()
   const sessionQuery = trpc.intelligence.chatSession.useQuery(
@@ -57,7 +118,23 @@ export default function ChatPage() {
   const agents = ((wsFilter ? wsAgentsQuery.data : allAgentsQuery.data) ?? []) as Agent[]
   const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
   const createSessionMut = trpc.intelligence.createChatSession.useMutation()
+  const deleteSessionMut = trpc.intelligence.deleteChatSession.useMutation()
   const utils = trpc.useUtils()
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [sessionQuery.data, streamText, streaming])
+
+  // Auto-resize textarea
+  const autoResize = useCallback(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px'
+  }, [])
+
+  const agentMap = new Map(agents.map((a) => [a.id, a]))
 
   const handleNewSession = async () => {
     const primaryAgentId = selectedAgents[0] || undefined
@@ -70,10 +147,20 @@ export default function ChatPage() {
     if (session) setSelectedSession(session.id)
   }
 
+  const handleDeleteSession = async (id: string) => {
+    await deleteSessionMut.mutateAsync({ id })
+    utils.intelligence.chatSessions.invalidate()
+    if (selectedSession === id) setSelectedSession(null)
+    setDeleteConfirm(null)
+  }
+
   const handleSend = useCallback(async () => {
     if (!selectedSession || !newMessage.trim() || streaming) return
     const text = newMessage.trim()
     setNewMessage('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
     setStreaming(true)
     setStreamText('')
     setStreamAgentName(null)
@@ -95,7 +182,8 @@ export default function ChatPage() {
       })
 
       if (!res.ok) {
-        setStreamError(`Error: ${res.status}`)
+        const errText = await res.text().catch(() => `HTTP ${res.status}`)
+        setStreamError(errText)
         setStreaming(false)
         return
       }
@@ -119,6 +207,8 @@ export default function ChatPage() {
               error?: string
               agentStart?: string
               agentName?: string
+              type?: string
+              name?: string
             }
             if (event.error) {
               setStreamError(event.error)
@@ -131,7 +221,7 @@ export default function ChatPage() {
             if (event.text) setStreamText((prev) => prev + event.text)
             if (event.done) break
           } catch {
-            /* skip */
+            /* skip malformed events */
           }
         }
       }
@@ -142,7 +232,6 @@ export default function ChatPage() {
     } finally {
       setStreaming(false)
       abortRef.current = null
-      // Reload messages from DB first, then clear streaming text
       await utils.intelligence.chatSession.invalidate({ id: selectedSession })
       setStreamText('')
     }
@@ -150,7 +239,7 @@ export default function ChatPage() {
 
   if (sessionsQuery.error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6">
         <DbErrorBanner error={sessionsQuery.error} />
       </div>
     )
@@ -158,18 +247,10 @@ export default function ChatPage() {
 
   if (sessionsQuery.isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching chat sessions</div>
+      <div className="flex items-center justify-center h-[calc(100vh-60px)]">
+        <div className="text-center text-slate-500">
+          <div className="text-lg mb-1">Loading...</div>
+          <div className="text-xs">Fetching chat sessions</div>
         </div>
       </div>
     )
@@ -177,275 +258,327 @@ export default function ChatPage() {
 
   const sessions: ChatSession[] = (sessionsQuery.data as ChatSession[]) ?? []
   const sessionData = sessionQuery.data as
-    | { messages?: { id: string; role: string; text: string; createdAt: Date }[] }
+    | {
+        messages?: {
+          id: string
+          role: string
+          text: string
+          sourceAgentId: string | null
+          createdAt: Date
+        }[]
+      }
     | null
     | undefined
-  const messages: ChatMessage[] = sessionData?.messages ?? []
+  const messages: ChatMessage[] = (sessionData?.messages ?? []) as ChatMessage[]
+
+  const getAgentNameForMessage = (msg: ChatMessage): string => {
+    if (msg.role === 'user') return 'You'
+    if (msg.sourceAgentId) {
+      return agentMap.get(msg.sourceAgentId)?.name ?? 'Agent'
+    }
+    // Try session agent
+    const session = sessions.find((s) => s.id === selectedSession)
+    if (session?.agentId) {
+      return agentMap.get(session.agentId)?.name ?? 'Assistant'
+    }
+    return 'Assistant'
+  }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.layout}>
-        {/* Sidebar */}
-        <div style={styles.sidebar}>
-          <div style={styles.sidebarHeader}>
-            <span style={styles.sidebarTitle}>Sessions</span>
-            <button style={styles.newBtn} onClick={handleNewSession}>
-              + New
-            </button>
-          </div>
-          <select
-            value={wsFilter}
-            onChange={(e) => {
-              setWsFilter(e.target.value)
-              setSelectedAgents([])
-            }}
-            style={{
-              width: '100%',
-              marginBottom: 6,
-              background: 'var(--color-bg-elevated)',
-              color: '#d1d5db',
-              border: '1px solid var(--color-border)',
-              borderRadius: 4,
-              padding: '4px 6px',
-              fontSize: 11,
-            }}
+    <div className="h-[calc(100vh-60px)] flex">
+      {/* ── Sidebar ─────────────────────────────────────────────── */}
+      <div
+        className={`chat-sidebar transition-all duration-200 ${sidebarCollapsed ? 'chat-sidebar-collapsed' : ''}`}
+      >
+        <div className="flex items-center justify-between mb-3 px-1">
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="text-slate-500 hover:text-slate-300 text-xs"
+            title={sidebarCollapsed ? 'Expand' : 'Collapse'}
           >
-            <option value="">All agents</option>
-            {(workspacesQuery.data ?? []).map((ws: { id: string; name: string }) => (
-              <option key={ws.id} value={ws.id}>
-                {ws.name}
-              </option>
-            ))}
-          </select>
-          <div style={{ maxHeight: 120, overflowY: 'auto', marginBottom: 8, fontSize: 11 }}>
-            {agents.slice(0, 30).map((a) => (
-              <label
-                key={a.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '2px 4px',
-                  cursor: 'pointer',
-                  color: selectedAgents.includes(a.id) ? 'var(--color-neon-purple)' : '#9ca3af',
-                }}
+            {sidebarCollapsed ? '>' : '<'}
+          </button>
+          {!sidebarCollapsed && (
+            <>
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                Chats
+              </span>
+              <button
+                onClick={handleNewSession}
+                className="cyber-btn-primary !py-1 !px-2.5 !text-xs"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedAgents.includes(a.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) setSelectedAgents((prev) => [...prev, a.id])
-                    else setSelectedAgents((prev) => prev.filter((id) => id !== a.id))
-                  }}
-                  style={{ width: 12, height: 12 }}
-                />
-                {a.name}
-              </label>
-            ))}
-            {selectedAgents.length > 1 && (
-              <div
-                style={{ color: 'var(--color-neon-purple)', padding: '2px 4px', fontWeight: 600 }}
-              >
-                Crew mode: {selectedAgents.length} agents
-              </div>
-            )}
-          </div>
-          {sessions.length === 0 ? (
-            <div style={styles.sidebarEmpty}>No sessions yet.</div>
-          ) : (
-            sessions.map((s) => (
-              <div
-                key={s.id}
-                style={selectedSession === s.id ? styles.sessionActive : styles.sessionItem}
-                onClick={() => setSelectedSession(s.id)}
-              >
-                <div style={styles.sessionLabel}>
-                  {s.agentId
-                    ? (agents.find((a) => a.id === s.agentId)?.name ?? 'Agent')
-                    : `Session ${s.id.slice(0, 8)}`}
-                </div>
-                <div style={styles.sessionMeta}>{new Date(s.createdAt).toLocaleDateString()}</div>
-              </div>
-            ))
+                + New
+              </button>
+            </>
           )}
         </div>
 
-        {/* Main chat area */}
-        <div style={styles.main}>
-          {!selectedSession ? (
-            <div style={styles.noSession}>
-              Select a session or create a new one to start chatting.
+        {!sidebarCollapsed && (
+          <>
+            {/* Workspace filter */}
+            <select
+              value={wsFilter}
+              onChange={(e) => {
+                setWsFilter(e.target.value)
+                setSelectedAgents([])
+              }}
+              className="cyber-select w-full !text-xs !py-1.5 mb-2"
+            >
+              <option value="">All workspaces</option>
+              {(workspacesQuery.data ?? []).map((ws: { id: string; name: string }) => (
+                <option key={ws.id} value={ws.id}>
+                  {ws.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Agent selection */}
+            <div className="max-h-[140px] overflow-y-auto mb-3 space-y-0.5">
+              {agents.slice(0, 30).map((a) => {
+                const selected = selectedAgents.includes(a.id)
+                return (
+                  <label
+                    key={a.id}
+                    className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-xs transition-colors ${
+                      selected
+                        ? 'bg-neon-purple/10 text-neon-purple'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedAgents((prev) => [...prev, a.id])
+                        else setSelectedAgents((prev) => prev.filter((id) => id !== a.id))
+                      }}
+                      className="w-3 h-3 accent-[#8b5cf6]"
+                    />
+                    <AgentAvatar name={a.name} size={18} />
+                    <span className="truncate">{a.name}</span>
+                  </label>
+                )
+              })}
             </div>
-          ) : sessionQuery.isLoading ? (
-            <div style={styles.noSession}>Loading messages...</div>
-          ) : (
-            <>
-              <div style={styles.messages}>
-                {messages.length === 0 && !streaming ? (
-                  <div style={styles.noSession}>No messages yet. Send one below.</div>
-                ) : (
-                  <>
-                    {messages.map((m) => (
-                      <div key={m.id} style={m.role === 'user' ? styles.msgUser : styles.msgAgent}>
-                        <div style={styles.msgRole}>{m.role}</div>
-                        <div style={styles.msgText}>{m.text}</div>
-                      </div>
-                    ))}
-                    {streaming && streamText && (
-                      <div style={styles.msgAgent}>
-                        <div style={styles.msgRole}>{streamAgentName ?? 'assistant'}</div>
-                        <div style={styles.msgText}>
-                          {streamText}
-                          <span style={{ opacity: 0.4 }}>|</span>
+
+            {selectedAgents.length > 1 && (
+              <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-neon-purple/10 border border-neon-purple/20 mb-3">
+                <span className="neon-dot neon-dot-purple neon-dot-pulse" />
+                <span className="text-[11px] text-neon-purple font-semibold">
+                  Crew mode: {selectedAgents.length} agents
+                </span>
+              </div>
+            )}
+
+            {/* Session list */}
+            <div className="text-[10px] text-slate-600 uppercase tracking-wider mb-1.5 px-1">
+              Sessions
+            </div>
+            <div className="space-y-0.5 flex-1 overflow-y-auto">
+              {sessions.length === 0 ? (
+                <div className="text-xs text-slate-600 text-center py-4">
+                  No sessions yet. Click + New.
+                </div>
+              ) : (
+                sessions.map((s) => {
+                  const agentName = s.agentId
+                    ? (agentMap.get(s.agentId)?.name ?? 'Agent')
+                    : `Chat ${s.id.slice(0, 6)}`
+                  const isActive = selectedSession === s.id
+                  return (
+                    <div
+                      key={s.id}
+                      className={`group flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all text-xs ${
+                        isActive
+                          ? 'bg-neon-blue/10 text-neon-blue border border-neon-blue/20'
+                          : 'text-slate-400 hover:bg-white/5 hover:text-slate-300 border border-transparent'
+                      }`}
+                      onClick={() => setSelectedSession(s.id)}
+                    >
+                      {s.agentId && <AgentAvatar name={agentName} size={20} />}
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate font-medium">{agentName}</div>
+                        <div className="text-[10px] text-slate-600">
+                          {new Date(s.createdAt).toLocaleDateString()}
                         </div>
                       </div>
-                    )}
-                    {streaming && !streamText && (
-                      <div style={styles.msgAgent}>
-                        <div style={styles.msgRole}>assistant</div>
-                        <div style={{ ...styles.msgText, color: '#6b7280' }}>Thinking...</div>
-                      </div>
-                    )}
-                  </>
-                )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (deleteConfirm === s.id) handleDeleteSession(s.id)
+                          else setDeleteConfirm(s.id)
+                        }}
+                        className={`opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded transition-all ${
+                          deleteConfirm === s.id
+                            ? 'opacity-100 bg-neon-red/20 text-neon-red'
+                            : 'text-slate-500 hover:text-neon-red'
+                        }`}
+                        title="Delete session"
+                      >
+                        {deleteConfirm === s.id ? 'Confirm?' : 'x'}
+                      </button>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Main Chat Area ──────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {!selectedSession ? (
+          /* Empty state */
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center max-w-md">
+              <div className="text-4xl mb-4 opacity-20">
+                <span className="font-orbitron">Chat</span>
               </div>
-              {streamError && (
-                <div
-                  style={{
-                    padding: '8px 16px',
-                    background: 'rgba(255,58,92,0.15)',
-                    color: 'var(--color-neon-red)',
-                    fontSize: 12,
-                  }}
-                >
-                  {streamError}
+              <p className="text-slate-500 text-sm mb-6">
+                Select a session from the sidebar or create a new one to start chatting with your
+                agents.
+              </p>
+              <button onClick={handleNewSession} className="cyber-btn-primary">
+                Start New Chat
+              </button>
+            </div>
+          </div>
+        ) : sessionQuery.isLoading ? (
+          <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
+            Loading messages...
+          </div>
+        ) : (
+          <>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 chat-messages-area">
+              {messages.length === 0 && !streaming ? (
+                <div className="flex items-center justify-center h-full text-slate-600 text-sm">
+                  Send a message to start the conversation.
+                </div>
+              ) : (
+                <div className="max-w-3xl mx-auto space-y-1">
+                  {messages.map((m) => {
+                    const name = getAgentNameForMessage(m)
+                    if (m.role === 'user') {
+                      return (
+                        <div key={m.id} className="flex justify-end mb-3">
+                          <div className="chat-bubble-user">
+                            <div className="chat-markdown">
+                              <p>{m.text}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    }
+                    return (
+                      <div key={m.id} className="flex items-start gap-3 max-w-[80%] mb-3">
+                        <AgentAvatar name={name} />
+                        <div className="chat-bubble-agent">
+                          <div className="chat-agent-label" style={{ color: agentColor(name) }}>
+                            {name}
+                          </div>
+                          <MarkdownMessage content={m.text} />
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {/* Streaming response */}
+                  {streaming && streamText && (
+                    <div className="flex items-start gap-3 max-w-[80%] mb-3">
+                      <AgentAvatar name={streamAgentName ?? 'AI'} />
+                      <div className="chat-bubble-agent">
+                        <div
+                          className="chat-agent-label"
+                          style={{ color: agentColor(streamAgentName ?? 'AI') }}
+                        >
+                          {streamAgentName ?? 'Assistant'}
+                        </div>
+                        <MarkdownMessage content={streamText} />
+                        <span className="chat-cursor" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Thinking indicator */}
+                  {streaming && !streamText && <ThinkingIndicator agentName={streamAgentName} />}
+
+                  <div ref={messagesEndRef} />
                 </div>
               )}
-              <div style={styles.inputBar}>
-                <input
-                  style={styles.input}
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                />
+            </div>
+
+            {/* Error banner */}
+            {streamError && (
+              <div className="mx-4 mb-2 px-4 py-2 rounded-lg bg-neon-red/10 border border-neon-red/20 text-neon-red text-xs flex items-center justify-between">
+                <span>{streamError}</span>
+                <button
+                  onClick={() => setStreamError(null)}
+                  className="text-neon-red/60 hover:text-neon-red ml-3"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Input area */}
+            <div className="border-t border-border px-4 py-3">
+              <div className="max-w-3xl mx-auto flex gap-2 items-end">
+                <div className="flex-1 relative">
+                  <textarea
+                    ref={textareaRef}
+                    className="cyber-input !rounded-xl !py-2.5 !pr-4 resize-none"
+                    placeholder={
+                      selectedAgents.length > 1
+                        ? `Message ${selectedAgents.length} agents...`
+                        : 'Type a message...'
+                    }
+                    value={newMessage}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value)
+                      autoResize()
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSend()
+                      }
+                    }}
+                    rows={1}
+                    style={{ maxHeight: 160 }}
+                  />
+                </div>
                 {streaming ? (
                   <button
-                    style={{ ...styles.sendBtn, background: 'var(--color-neon-red)' }}
+                    className="cyber-btn-danger !rounded-xl !py-2.5 flex-shrink-0"
                     onClick={() => abortRef.current?.abort()}
                   >
-                    Cancel
+                    Stop
                   </button>
                 ) : (
-                  <button style={styles.sendBtn} onClick={handleSend}>
+                  <button
+                    className="cyber-btn-primary !rounded-xl !py-2.5 flex-shrink-0 disabled:opacity-30"
+                    onClick={handleSend}
+                    disabled={!newMessage.trim()}
+                  >
                     Send
                   </button>
                 )}
               </div>
-            </>
-          )}
-        </div>
+              <div className="max-w-3xl mx-auto mt-1.5 text-[10px] text-slate-600 text-center">
+                Shift+Enter for new line
+                {selectedAgents.length > 0 && (
+                  <span className="ml-2">
+                    Talking to:{' '}
+                    {selectedAgents.map((id) => agentMap.get(id)?.name ?? 'Agent').join(', ')}
+                  </span>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 0, fontFamily: 'sans-serif', color: '#f9fafb', height: 'calc(100vh - 60px)' },
-  layout: { display: 'flex', height: '100%' },
-  sidebar: {
-    width: 260,
-    borderRight: '1px solid var(--color-border)',
-    background: 'var(--color-bg-elevated)',
-    padding: 12,
-    overflowY: 'auto' as const,
-  },
-  sidebarHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sidebarTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-  },
-  newBtn: {
-    background: 'var(--color-neon-purple)',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 4,
-    padding: '3px 10px',
-    fontSize: 11,
-    cursor: 'pointer',
-  },
-  sidebarEmpty: { fontSize: 12, color: '#4b5563', padding: 12, textAlign: 'center' as const },
-  sessionItem: { padding: '8px 10px', borderRadius: 6, cursor: 'pointer', marginBottom: 4 },
-  sessionActive: {
-    padding: '8px 10px',
-    borderRadius: 6,
-    cursor: 'pointer',
-    marginBottom: 4,
-    background: 'var(--color-bg-card)',
-    backdropFilter: 'blur(12px)',
-  },
-  sessionLabel: { fontSize: 13, fontWeight: 600 },
-  sessionMeta: { fontSize: 10, color: '#4b5563' },
-  main: { flex: 1, display: 'flex', flexDirection: 'column' as const },
-  noSession: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    color: '#6b7280',
-    fontSize: 14,
-  },
-  messages: { flex: 1, overflowY: 'auto' as const, padding: 16 },
-  msgUser: {
-    background: 'rgba(0,212,255,0.1)',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 8,
-    maxWidth: '70%',
-    marginLeft: 'auto',
-  },
-  msgAgent: {
-    background: 'var(--color-bg-card)',
-    backdropFilter: 'blur(12px)',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 8,
-    maxWidth: '70%',
-  },
-  msgRole: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: '#6b7280',
-    marginBottom: 4,
-    textTransform: 'uppercase' as const,
-  },
-  msgText: { fontSize: 13, lineHeight: 1.5 },
-  inputBar: { display: 'flex', gap: 8, padding: 12, borderTop: '1px solid var(--color-border)' },
-  input: {
-    flex: 1,
-    background: 'var(--color-bg-card)',
-    backdropFilter: 'blur(12px)',
-    color: '#f9fafb',
-    border: '1px solid var(--color-border)',
-    borderRadius: 6,
-    padding: '8px 12px',
-    fontSize: 13,
-  },
-  sendBtn: {
-    background: 'var(--color-neon-purple)',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 6,
-    padding: '8px 16px',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
 }

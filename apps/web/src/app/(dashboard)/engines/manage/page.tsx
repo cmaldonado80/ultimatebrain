@@ -364,12 +364,15 @@ export default function BrainManagerPage() {
             depth={depth}
           />
         )}
-        {/* Reprovision button for developments */}
-        {entity.tier === 'development' && entity.status === 'active' && (
+        {/* Reprovision button for developments (available in any state for recovery) */}
+        {entity.tier === 'development' && (
           <div
             style={{
               paddingLeft: 16 + depth * 24,
               paddingBottom: 4,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
             <button
@@ -379,6 +382,11 @@ export default function BrainManagerPage() {
             >
               {reprovisionMut.isPending ? 'Provisioning...' : '↻ Reprovision Agents'}
             </button>
+            {entity.status !== 'active' && (
+              <span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600 }}>
+                Needs provisioning
+              </span>
+            )}
           </div>
         )}
         {children.map((child) => renderEntity(child, depth + 1))}
