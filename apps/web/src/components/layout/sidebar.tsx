@@ -46,6 +46,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Checkpoints', href: '/ops/checkpoints', icon: '⟲' },
       { label: 'Live Viewer', href: '/ops/live', icon: '◉' },
       { label: 'Databases', href: '/ops/databases', icon: '⊟' },
+      { label: 'Cron Jobs', href: '/ops/cron', icon: '⏱' },
     ],
   },
   {

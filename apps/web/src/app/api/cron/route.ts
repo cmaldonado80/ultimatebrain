@@ -1,11 +1,12 @@
-// Vercel Cron Route — runs scheduled tasks like health sweeps.
-// Configure in vercel.json: crons: [{ path: "/api/cron", schedule: "every 5 minutes" }]
+// Vercel Cron Route — runs scheduled tasks like health sweeps and user-defined cron jobs.
+// Configure in vercel.json: crons: [{ path: "/api/cron", schedule: "*/5 * * * *" }]
 
 export const dynamic = 'force-dynamic'
 
 import { createDb, waitForSchema } from '@solarc/db'
-import { SystemOrchestrator } from '../../../server/services/orchestration'
+import { SystemOrchestrator, CronEngine } from '../../../server/services/orchestration'
 import { HealingEngine } from '../../../server/services/healing/healing-engine'
+import { GatewayRouter } from '../../../server/services/gateway'
 
 export async function GET(req: Request) {
   // Verify cron secret — Vercel sends this automatically for cron jobs
@@ -26,6 +27,7 @@ export async function GET(req: Request) {
 
     const orchestrator = new SystemOrchestrator(db)
     const healer = new HealingEngine(db)
+    const cronEngine = new CronEngine(db)
 
     // 1. Run health sweep
     const healthResult = await orchestrator.monitorHealth()
@@ -47,6 +49,43 @@ export async function GET(req: Request) {
       console.warn('[Cron] rebalance failed:', err)
     }
 
+    // 4. Execute due user-defined cron jobs
+    let jobsExecuted = 0
+    let jobsFailed = 0
+    try {
+      const dueJobs = await cronEngine.getDueJobs()
+      for (const job of dueJobs) {
+        try {
+          // If job has an agentId, dispatch to agent via gateway
+          if (job.agentId) {
+            const gateway = new GatewayRouter(db)
+            const result = await gateway.chat({
+              model: undefined,
+              messages: [
+                {
+                  role: 'system',
+                  content: `You are executing a scheduled cron job: "${job.name}". Task: ${job.task ?? 'Execute your assigned duties.'}`,
+                },
+                { role: 'user', content: job.task ?? `Run scheduled task: ${job.name}` },
+              ],
+              agentId: job.agentId,
+            })
+            await cronEngine.recordSuccess(job.id, result.content?.slice(0, 500))
+          } else {
+            // Job without agent — just mark as executed
+            await cronEngine.recordSuccess(job.id, 'Executed (no agent assigned)')
+          }
+          jobsExecuted++
+        } catch (jobErr) {
+          const errMsg = jobErr instanceof Error ? jobErr.message : String(jobErr)
+          await cronEngine.recordFailure(job.id, errMsg)
+          jobsFailed++
+        }
+      }
+    } catch (err) {
+      console.warn('[Cron] job execution failed:', err)
+    }
+
     return Response.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -59,6 +98,10 @@ export async function GET(req: Request) {
       },
       rebalance: {
         moves: rebalanceMoves.length,
+      },
+      cronJobs: {
+        executed: jobsExecuted,
+        failed: jobsFailed,
       },
     })
   } catch (err) {
