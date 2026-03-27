@@ -12,6 +12,7 @@ import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-
 import { auth } from '../../../../server/auth'
 import { eventBus } from '../../../../server/services/orchestration/event-bus'
 import { TokenLedgerService } from '../../../../server/services/platform/token-ledger'
+import { buildAtlasContext } from '../../../../server/services/atlas'
 
 // ── Rate Limiting ────────────────────────────────────────────────────────
 const RATE_LIMIT_WINDOW_MS = 60_000
@@ -85,6 +86,9 @@ async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: st
     temperature: agent.temperature ?? undefined,
     maxTokens: agent.maxTokens ?? undefined,
     workspaceId: agent.workspaceId ?? undefined,
+    agentType: agent.type ?? undefined,
+    capability: agent.requiredModelType ?? undefined,
+    skills: agent.skills ?? undefined,
     entityDatabaseUrl,
   }
 }
@@ -131,6 +135,9 @@ export async function POST(req: Request) {
     temperature?: number
     maxTokens?: number
     workspaceId?: string
+    agentType?: string
+    capability?: string
+    skills?: string[]
     entityDatabaseUrl?: string
   }> = []
 
@@ -248,8 +255,13 @@ export async function POST(req: Request) {
           let fullContent = ''
 
           // Build the base messages for this agent
+          const atlasContext = buildAtlasContext({
+            agentType: agentConfig.agentType,
+            capability: agentConfig.capability,
+            skills: agentConfig.skills,
+          })
           const baseMessages = [
-            { role: 'system', content: agentConfig.soul + memoryContext },
+            { role: 'system', content: agentConfig.soul + atlasContext + memoryContext },
             ...history,
           ]
 

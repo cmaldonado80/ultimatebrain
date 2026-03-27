@@ -7,6 +7,7 @@ import { createDb, waitForSchema } from '@solarc/db'
 import { SystemOrchestrator, CronEngine } from '../../../server/services/orchestration'
 import { HealingEngine } from '../../../server/services/healing/healing-engine'
 import { GatewayRouter } from '../../../server/services/gateway'
+import { AtlasFreshnessScanner } from '../../../server/services/atlas'
 
 export async function GET(req: Request) {
   // Verify cron secret — Vercel sends this automatically for cron jobs
@@ -86,6 +87,25 @@ export async function GET(req: Request) {
       console.warn('[Cron] job execution failed:', err)
     }
 
+    // 5. ATLAS freshness scan — run weekly (every ~2016 cron ticks at 5min intervals)
+    // Simple check: run on Sundays at the first cron tick (hour 0, minute 0-4)
+    let atlasTicketsCreated = 0
+    try {
+      const now = new Date()
+      if (now.getDay() === 0 && now.getHours() === 0 && now.getMinutes() < 5) {
+        const scanner = new AtlasFreshnessScanner(db)
+        const scanResult = await scanner.scan()
+        if (scanResult.uncoveredFiles.length > 0) {
+          atlasTicketsCreated = await scanner.createDiscoveryTickets(scanResult)
+          console.log(
+            `[ATLAS] Freshness scan: ${scanResult.coveredFiles}/${scanResult.totalFiles} covered, ${atlasTicketsCreated} tickets created`,
+          )
+        }
+      }
+    } catch (err) {
+      console.warn('[Cron] ATLAS freshness scan failed:', err)
+    }
+
     return Response.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -102,6 +122,9 @@ export async function GET(req: Request) {
       cronJobs: {
         executed: jobsExecuted,
         failed: jobsFailed,
+      },
+      atlas: {
+        ticketsCreated: atlasTicketsCreated,
       },
     })
   } catch (err) {
