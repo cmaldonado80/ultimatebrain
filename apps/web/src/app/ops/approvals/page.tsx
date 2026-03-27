@@ -29,7 +29,7 @@ export default function ApprovalsPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -47,18 +47,10 @@ export default function ApprovalsPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching approvals</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-xs">Fetching approvals</div>
         </div>
       </div>
     )
@@ -67,48 +59,52 @@ export default function ApprovalsPage() {
   const gates: ApprovalGate[] = (data as ApprovalGate[]) ?? []
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Approvals</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Approvals</h2>
+        <p className="mt-1 mb-0 text-xs text-gray-500">
           Review and approve pending agent actions that require human-in-the-loop authorization.
         </p>
       </div>
       {gates.length === 0 ? (
-        <div style={styles.empty}>No pending approvals. All clear.</div>
+        <div className="text-center text-gray-500 py-10 text-sm">
+          No pending approvals. All clear.
+        </div>
       ) : (
-        <div style={styles.list}>
+        <div className="flex flex-col gap-3">
           {gates.map((g) => (
-            <div key={g.id} style={styles.card}>
-              <div style={styles.cardTop}>
-                <span style={styles.action}>{g.action}</span>
+            <div key={g.id} className="cyber-card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-bold font-mono">{g.action}</span>
                 {g.risk && (
                   <span
-                    style={{
-                      ...styles.riskBadge,
-                      color:
-                        g.risk === 'high' ? '#ef4444' : g.risk === 'medium' ? '#f97316' : '#22c55e',
-                    }}
+                    className={`text-[11px] font-semibold ${
+                      g.risk === 'high'
+                        ? 'text-neon-red'
+                        : g.risk === 'medium'
+                          ? 'text-orange-500'
+                          : 'text-neon-green'
+                    }`}
                   >
                     {g.risk} risk
                   </span>
                 )}
               </div>
-              <div style={styles.meta}>
+              <div className="flex gap-4 text-[11px] text-gray-500 mb-3">
                 {g.agentId && <span>Agent: {g.agentId.slice(0, 8)}</span>}
                 <span>Requested: {new Date(g.requestedAt).toLocaleString()}</span>
                 {g.expiresAt && <span>Expires: {new Date(g.expiresAt).toLocaleString()}</span>}
               </div>
-              <div style={styles.actions}>
+              <div className="flex gap-2">
                 <button
-                  style={styles.approveBtn}
+                  className="cyber-btn-primary text-xs font-semibold px-4 py-1.5"
                   onClick={() => handleDecide(g.id, 'approved')}
                   disabled={decideMutation.isPending}
                 >
                   Approve
                 </button>
                 <button
-                  style={styles.denyBtn}
+                  className="cyber-btn-danger text-xs font-semibold px-4 py-1.5"
                   onClick={() => handleDecide(g.id, 'denied')}
                   disabled={decideMutation.isPending}
                 >
@@ -121,44 +117,4 @@ export default function ApprovalsPage() {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  list: { display: 'flex', flexDirection: 'column' as const, gap: 12 },
-  card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
-  cardTop: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  action: { fontSize: 14, fontWeight: 700, fontFamily: 'monospace' },
-  riskBadge: { fontSize: 11, fontWeight: 600 },
-  meta: { display: 'flex', gap: 16, fontSize: 11, color: '#6b7280', marginBottom: 12 },
-  actions: { display: 'flex', gap: 8 },
-  approveBtn: {
-    background: '#166534',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  denyBtn: {
-    background: '#7f1d1d',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
 }

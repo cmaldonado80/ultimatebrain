@@ -128,17 +128,22 @@ function ModuleCard({ mod }: { mod: EngineModule }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div style={styles.moduleCard}>
-      <button style={styles.moduleHeader} onClick={() => setExpanded(!expanded)}>
-        <span style={styles.moduleArrow}>{expanded ? '▾' : '▸'}</span>
-        <span style={styles.moduleName}>{mod.name}</span>
-        <span style={styles.moduleCount}>{mod.endpoints.length}</span>
+    <div className="rounded-md overflow-hidden">
+      <button
+        className="flex items-center gap-2 w-full py-2 px-2.5 bg-transparent border-none border-b border-gray-900 text-gray-300 text-[13px] cursor-pointer text-left"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <span className="text-[10px] text-gray-500 w-3">{expanded ? '▾' : '▸'}</span>
+        <span className="flex-1 font-semibold">{mod.name}</span>
+        <span className="text-[10px] bg-gray-700 text-gray-400 py-px px-1.5 rounded-lg font-semibold">
+          {mod.endpoints.length}
+        </span>
       </button>
       {expanded && (
-        <div style={styles.moduleEndpoints}>
+        <div className="py-1 px-2.5 pl-[30px] flex flex-col gap-0.5">
           {mod.endpoints.map((ep) => (
-            <div key={ep} style={styles.endpointItem}>
-              <code style={styles.endpointCode}>ephemeris.{ep}</code>
+            <div key={ep} className="py-0.5">
+              <code className="text-[11px] text-cyan-200 font-mono">ephemeris.{ep}</code>
             </div>
           ))}
         </div>
@@ -282,38 +287,47 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
   }
 
   return (
-    <div style={styles.page}>
+    <div className="p-6 font-sans text-gray-50 max-w-[900px]">
       {/* Header */}
-      <div style={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <a
-            href="/engines/registry"
-            style={{ color: '#6b7280', fontSize: 13, textDecoration: 'none' }}
-          >
+      <div className="mb-5">
+        <div className="flex items-center gap-3">
+          <a href="/engines/registry" className="text-gray-500 text-[13px] no-underline">
             ← Engine Registry
           </a>
-          <span style={{ color: '#374151' }}>/</span>
-          <h2 style={styles.title}>{doc?.title ?? engineId}</h2>
-          {engineId === 'swiss-ephemeris' && <span style={styles.domainBadge}>Astrology</span>}
+          <span className="text-gray-700">/</span>
+          <h2 className="m-0 text-xl font-bold inline">{doc?.title ?? engineId}</h2>
+          {engineId === 'swiss-ephemeris' && (
+            <span className="text-[10px] bg-green-500/[0.13] text-green-500 py-0.5 px-2 rounded font-semibold">
+              Astrology
+            </span>
+          )}
         </div>
-        <p style={styles.subtitle}>{doc?.description ?? 'Engine details'}</p>
+        <p className="mt-1.5 mb-0 text-[13px] text-gray-500">
+          {doc?.description ?? 'Engine details'}
+        </p>
         {engineId === 'swiss-ephemeris' && (
-          <div style={styles.statsRow}>
-            <span style={styles.stat}>22 modules</span>
-            <span style={styles.statDot} />
-            <span style={styles.stat}>{TOTAL_ENDPOINTS} endpoints</span>
-            <span style={styles.statDot} />
-            <span style={styles.stat}>7,421 lines</span>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[11px] text-neon-purple font-semibold">22 modules</span>
+            <span className="w-[3px] h-[3px] rounded-full bg-gray-700" />
+            <span className="text-[11px] text-neon-purple font-semibold">
+              {TOTAL_ENDPOINTS} endpoints
+            </span>
+            <span className="w-[3px] h-[3px] rounded-full bg-gray-700" />
+            <span className="text-[11px] text-neon-purple font-semibold">7,421 lines</span>
           </div>
         )}
       </div>
 
       {/* Tabs */}
-      <div style={styles.tabs}>
+      <div className="flex gap-1 mb-5 border-b border-gray-700 pb-0">
         {(['overview', 'test', 'code'] as const).map((tab) => (
           <button
             key={tab}
-            style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }}
+            className={`bg-transparent border-none text-[13px] py-2 px-4 cursor-pointer -mb-px border-b-2 ${
+              activeTab === tab
+                ? 'text-neon-purple border-neon-purple'
+                : 'text-gray-500 border-transparent'
+            }`}
             onClick={() => setActiveTab(tab)}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -323,28 +337,36 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (
-        <div style={styles.content}>
+        <div className="flex flex-col gap-5">
           {engineId === 'swiss-ephemeris' ? (
             <>
-              <div style={styles.section}>
-                <div style={styles.sectionTitle}>Source</div>
-                <code style={styles.code}>{doc?.filePath}</code>
+              <div className="cyber-card">
+                <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+                  Source
+                </div>
+                <code className="text-xs text-neon-purple bg-gray-900 py-1 px-2 rounded">
+                  {doc?.filePath}
+                </code>
               </div>
 
-              <div style={styles.section}>
-                <div style={styles.sectionTitle}>Modules ({SWISS_MODULES.length})</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div className="cyber-card">
+                <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+                  Modules ({SWISS_MODULES.length})
+                </div>
+                <div className="flex flex-col gap-0.5">
                   {SWISS_MODULES.map((mod) => (
                     <ModuleCard key={mod.name} mod={mod} />
                   ))}
                 </div>
               </div>
 
-              <div style={styles.section}>
-                <div style={styles.sectionTitle}>Usage in Agents</div>
-                <div style={{ fontSize: 12, color: '#9ca3af', lineHeight: 1.6 }}>
+              <div className="cyber-card">
+                <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+                  Usage in Agents
+                </div>
+                <div className="text-xs text-gray-400 leading-relaxed">
                   Agents call the engine via tRPC:
-                  <pre style={{ ...styles.preBlock, marginTop: 8 }}>
+                  <pre className="bg-slate-900 border border-slate-800 rounded-md p-3 text-[11px] text-slate-400 overflow-x-auto leading-normal m-0 mt-2">
                     {`const chart = await trpc.ephemeris.natalChart.query({
   birthYear: 1990, birthMonth: 6, birthDay: 15,
   birthHour: 14.5,
@@ -357,12 +379,16 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
               </div>
             </>
           ) : doc ? (
-            <div style={styles.section}>
-              <div style={styles.sectionTitle}>File Path</div>
-              <code style={styles.code}>{doc.filePath}</code>
+            <div className="cyber-card">
+              <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+                File Path
+              </div>
+              <code className="text-xs text-neon-purple bg-gray-900 py-1 px-2 rounded">
+                {doc.filePath}
+              </code>
             </div>
           ) : (
-            <div style={{ color: '#6b7280', textAlign: 'center', padding: 40 }}>
+            <div className="text-gray-500 text-center p-10">
               No documentation available for this engine.
             </div>
           )}
@@ -371,40 +397,42 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
 
       {/* Test Tab */}
       {activeTab === 'test' && engineId === 'swiss-ephemeris' && (
-        <div style={styles.content}>
-          <div style={styles.section}>
-            <div style={styles.sectionTitle}>Birth / Date Parameters</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 12 }}>
-              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
-                <label style={styles.label}>Date</label>
+        <div className="flex flex-col gap-5">
+          <div className="cyber-card">
+            <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+              Birth / Date Parameters
+            </div>
+            <div className="flex flex-wrap gap-2 mb-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-gray-500">Date</label>
                 <input
-                  style={styles.input}
+                  className="cyber-input text-[13px]"
                   type="date"
                   value={testDate}
                   onChange={(e) => setTestDate(e.target.value)}
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
-                <label style={styles.label}>Time (UTC)</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-gray-500">Time (UTC)</label>
                 <input
-                  style={styles.input}
+                  className="cyber-input text-[13px]"
                   type="time"
                   value={testTime}
                   onChange={(e) => setTestTime(e.target.value)}
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
-                <label style={styles.label}>Latitude</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-gray-500">Latitude</label>
                 <input
-                  style={{ ...styles.input, width: 100 }}
+                  className="cyber-input text-[13px] w-[100px]"
                   value={testLat}
                   onChange={(e) => setTestLat(e.target.value)}
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
-                <label style={styles.label}>Longitude</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-gray-500">Longitude</label>
                 <input
-                  style={{ ...styles.input, width: 100 }}
+                  className="cyber-input text-[13px] w-[100px]"
                   value={testLon}
                   onChange={(e) => setTestLon(e.target.value)}
                 />
@@ -476,18 +504,17 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
             { label: 'Financial', tests: ['bradley'] },
             { label: 'Composite', tests: ['synastry', 'composite'] },
           ].map((group) => (
-            <div key={group.label} style={styles.section}>
-              <div style={styles.sectionTitle}>{group.label}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+            <div key={group.label} className="cyber-card">
+              <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+                {group.label}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
                 {group.tests.map((t) => (
                   <button
                     key={t}
-                    style={{
-                      ...styles.btnSecondary,
-                      ...(activeTestName === t ? { borderColor: '#818cf8', color: '#818cf8' } : {}),
-                      fontSize: 11,
-                      padding: '5px 10px',
-                    }}
+                    className={`cyber-btn-secondary text-[11px] py-[5px] px-2.5 ${
+                      activeTestName === t ? 'border-neon-purple text-neon-purple' : ''
+                    }`}
                     onClick={() => runEndpointTest(t)}
                   >
                     {t}
@@ -498,16 +525,14 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
           ))}
 
           {testResult && (
-            <div style={styles.section}>
-              <div style={styles.sectionTitle}>
+            <div className="cyber-card">
+              <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
                 Result{' '}
                 {activeTestName && (
-                  <span style={{ color: '#a5f3fc', fontWeight: 400 }}>
-                    — ephemeris.{activeTestName}
-                  </span>
+                  <span className="text-cyan-200 font-normal">— ephemeris.{activeTestName}</span>
                 )}
               </div>
-              <pre style={{ ...styles.preBlock, maxHeight: 500, overflowY: 'auto' }}>
+              <pre className="bg-slate-900 border border-slate-800 rounded-md p-3 text-[11px] text-slate-400 overflow-x-auto leading-normal m-0 max-h-[500px] overflow-y-auto">
                 {testResult}
               </pre>
             </div>
@@ -515,27 +540,20 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
         </div>
       )}
       {activeTab === 'test' && engineId !== 'swiss-ephemeris' && (
-        <div style={{ color: '#6b7280', textAlign: 'center', padding: 40 }}>
+        <div className="text-gray-500 text-center p-10">
           Live testing is currently available for the Swiss Ephemeris engine only.
         </div>
       )}
 
       {/* Code Tab */}
       {activeTab === 'code' && (
-        <div style={styles.content}>
+        <div className="flex flex-col gap-5">
           {engineId === 'swiss-ephemeris' ? (
             <>
-              <div
-                style={{
-                  marginBottom: 12,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <span style={{ fontSize: 12, color: '#6b7280' }}>
+              <div className="mb-3 flex justify-between items-center">
+                <span className="text-xs text-gray-500">
                   Source:{' '}
-                  <code style={{ color: '#818cf8' }}>
+                  <code className="text-neon-purple">
                     apps/web/src/server/services/engines/swiss-ephemeris/
                   </code>
                 </span>
@@ -543,33 +561,26 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
                   href="https://github.com/cmaldonado80/ultimatebrain/tree/main/apps/web/src/server/services/engines/swiss-ephemeris"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ fontSize: 11, color: '#818cf8', textDecoration: 'none' }}
+                  className="text-[11px] text-neon-purple no-underline"
                 >
                   Browse on GitHub →
                 </a>
               </div>
-              <div style={{ ...styles.section, background: '#111827' }}>
-                <div style={{ fontSize: 11, color: '#22c55e', marginBottom: 6, fontWeight: 600 }}>
+              <div className="cyber-card bg-gray-900">
+                <div className="text-[11px] text-green-500 mb-1.5 font-semibold">
                   Production Ready
                 </div>
-                <div style={{ fontSize: 12, color: '#9ca3af', lineHeight: 1.6 }}>
+                <div className="text-xs text-gray-400 leading-relaxed">
                   Uses the swisseph native C binding for &lt; 1 arcminute accuracy with .se1 data
                   files. Falls back to pure-JS mean-motion approximations (~1 deg) on Vercel
                   serverless.
                 </div>
               </div>
-              <div style={styles.section}>
-                <div style={styles.sectionTitle}>Module Files (22)</div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: 4,
-                    fontSize: 12,
-                    color: '#94a3b8',
-                    fontFamily: 'monospace',
-                  }}
-                >
+              <div className="cyber-card">
+                <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+                  Module Files (22)
+                </div>
+                <div className="grid grid-cols-2 gap-1 text-xs text-slate-400 font-mono">
                   {[
                     'engine.ts',
                     'patterns.ts',
@@ -595,7 +606,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
                     'report-generator.ts',
                     'index.ts',
                   ].map((f) => (
-                    <div key={f} style={{ padding: '3px 0' }}>
+                    <div key={f} className="py-[3px]">
                       {f}
                     </div>
                   ))}
@@ -603,7 +614,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
               </div>
             </>
           ) : (
-            <div style={{ color: '#6b7280', textAlign: 'center', padding: 40 }}>
+            <div className="text-gray-500 text-center p-10">
               Source code viewer is currently available for domain engines only.
             </div>
           )}
@@ -611,132 +622,4 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
       )}
     </div>
   )
-}
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb', maxWidth: 900 },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 20, fontWeight: 700, display: 'inline' },
-  subtitle: { margin: '6px 0 0', fontSize: 13, color: '#6b7280' },
-  domainBadge: {
-    fontSize: 10,
-    background: '#22c55e20',
-    color: '#22c55e',
-    padding: '2px 8px',
-    borderRadius: 4,
-    fontWeight: 600,
-  },
-  statsRow: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 },
-  stat: { fontSize: 11, color: '#818cf8', fontWeight: 600 },
-  statDot: { width: 3, height: 3, borderRadius: '50%', background: '#374151' },
-  tabs: {
-    display: 'flex',
-    gap: 4,
-    marginBottom: 20,
-    borderBottom: '1px solid #374151',
-    paddingBottom: 0,
-  },
-  tab: {
-    background: 'none',
-    border: 'none',
-    color: '#6b7280',
-    fontSize: 13,
-    padding: '8px 16px',
-    cursor: 'pointer',
-    borderBottom: '2px solid transparent',
-    marginBottom: -1,
-  },
-  tabActive: { color: '#818cf8', borderBottom: '2px solid #818cf8' },
-  content: { display: 'flex', flexDirection: 'column' as const, gap: 20 },
-  section: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#4b5563',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-    marginBottom: 10,
-  },
-  code: {
-    fontSize: 12,
-    color: '#818cf8',
-    background: '#111827',
-    padding: '4px 8px',
-    borderRadius: 4,
-  },
-  moduleCard: { borderRadius: 6, overflow: 'hidden' },
-  moduleHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    width: '100%',
-    padding: '8px 10px',
-    background: 'none',
-    border: 'none',
-    borderBottom: '1px solid #111827',
-    color: '#d1d5db',
-    fontSize: 13,
-    cursor: 'pointer',
-    textAlign: 'left' as const,
-  },
-  moduleArrow: { fontSize: 10, color: '#6b7280', width: 12 },
-  moduleName: { flex: 1, fontWeight: 600 },
-  moduleCount: {
-    fontSize: 10,
-    background: '#374151',
-    color: '#9ca3af',
-    padding: '1px 6px',
-    borderRadius: 8,
-    fontWeight: 600,
-  },
-  moduleEndpoints: {
-    padding: '4px 10px 8px 30px',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 2,
-  },
-  endpointItem: { padding: '2px 0' },
-  endpointCode: { fontSize: 11, color: '#a5f3fc', fontFamily: 'monospace' },
-  preBlock: {
-    background: '#0f172a',
-    border: '1px solid #1e293b',
-    borderRadius: 6,
-    padding: 12,
-    fontSize: 11,
-    color: '#94a3b8',
-    overflowX: 'auto' as const,
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  label: { fontSize: 11, color: '#6b7280' },
-  input: {
-    background: '#111827',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '7px 10px',
-    fontSize: 13,
-  },
-  btnPrimary: {
-    background: '#818cf8',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 6,
-    padding: '7px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  btnSecondary: {
-    background: '#1f2937',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '7px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
 }

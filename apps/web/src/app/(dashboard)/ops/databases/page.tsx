@@ -8,7 +8,6 @@ import { useState } from 'react'
 import { trpc } from '../../../../utils/trpc'
 
 export default function DatabasesPage() {
-  // Fetch all mini-brain entities
   const entitiesQuery = trpc.platform.entitiesByTier.useQuery({ tier: 'mini_brain' })
   const provisionMut = trpc.factory.provisionDatabase.useMutation()
   const deprovisionMut = trpc.factory.deprovisionDatabase.useMutation()
@@ -18,16 +17,15 @@ export default function DatabasesPage() {
   const entities = entitiesQuery.data ?? []
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Databases</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-gray-50 max-w-[1000px]">
+      <div className="mb-6">
+        <h2 className="m-0 text-xl font-bold font-orbitron">Databases</h2>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Provision dedicated PostgreSQL databases for mini-brains via Neon
         </p>
       </div>
 
-      {/* Entity database cards */}
-      <div style={styles.grid}>
+      <div className="cyber-grid">
         {entities.map((entity) => (
           <DatabaseCard
             key={entity.id}
@@ -42,12 +40,14 @@ export default function DatabasesPage() {
       </div>
 
       {entities.length === 0 && !entitiesQuery.isLoading && (
-        <div style={styles.empty}>
+        <div className="text-center text-gray-500 py-10 text-[13px]">
           No mini-brains found. Create one from the Brain Manager first.
         </div>
       )}
 
-      {entitiesQuery.isLoading && <div style={styles.empty}>Loading mini-brains...</div>}
+      {entitiesQuery.isLoading && (
+        <div className="text-center text-gray-500 py-10 text-[13px]">Loading mini-brains...</div>
+      )}
     </div>
   )
 }
@@ -106,62 +106,59 @@ function DatabaseCard({
   }
 
   return (
-    <div style={styles.card}>
-      <div style={styles.cardHeader}>
-        <span
-          style={{
-            ...styles.statusDot,
-            background: provisioned ? '#22c55e' : '#6b7280',
-          }}
-        />
-        <span style={styles.cardName}>{entity.name}</span>
-        {entity.domain && <span style={styles.domainBadge}>{entity.domain}</span>}
+    <div className="cyber-card p-4 flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <span className={`neon-dot ${provisioned ? 'neon-dot-green' : 'neon-dot-yellow'}`} />
+        <span className="font-bold text-sm flex-1">{entity.name}</span>
+        {entity.domain && (
+          <span className="cyber-badge text-neon-purple text-[10px]">{entity.domain}</span>
+        )}
       </div>
 
-      <div style={styles.cardBody}>
+      <div className="flex flex-col gap-1.5">
         {provisioned && data?.host && (
-          <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Host</span>
-            <code style={styles.infoValue}>{data.host}</code>
+          <div className="flex gap-2 items-baseline">
+            <span className="text-[11px] text-gray-500 min-w-[50px]">Host</span>
+            <code className="text-[11px] text-cyan-300 bg-bg-deep px-1.5 py-0.5 rounded break-all">
+              {data.host}
+            </code>
           </div>
         )}
 
         {provisioned && data?.branchId && (
-          <div style={styles.infoRow}>
-            <span style={styles.infoLabel}>Branch</span>
-            <code style={styles.infoValue}>{data.branchId}</code>
+          <div className="flex gap-2 items-baseline">
+            <span className="text-[11px] text-gray-500 min-w-[50px]">Branch</span>
+            <code className="text-[11px] text-cyan-300 bg-bg-deep px-1.5 py-0.5 rounded break-all">
+              {data.branchId}
+            </code>
           </div>
         )}
 
-        {!provisioned && (
-          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
-            No database provisioned
-          </div>
-        )}
+        {!provisioned && <div className="text-xs text-gray-500 mb-2">No database provisioned</div>}
 
         {!neonAvailable && (
-          <div style={styles.warning}>
+          <div className="text-[11px] text-neon-yellow bg-neon-yellow/5 px-2.5 py-1.5 rounded border border-neon-yellow/20">
             Neon API not configured. Set NEON_API_KEY and NEON_PROJECT_ID in Vercel env vars.
           </div>
         )}
 
         {provisionResult && (
           <div
-            style={{
-              ...styles.resultBanner,
-              borderColor: provisionResult.startsWith('Error') ? '#ef4444' : '#22c55e',
-              color: provisionResult.startsWith('Error') ? '#fca5a5' : '#86efac',
-            }}
+            className={`text-[11px] px-2.5 py-1.5 rounded border mt-1 ${
+              provisionResult.startsWith('Error')
+                ? 'border-neon-red/30 text-red-300'
+                : 'border-neon-green/30 text-green-300'
+            }`}
           >
             {provisionResult}
           </div>
         )}
       </div>
 
-      <div style={styles.cardFooter}>
+      <div className="flex gap-2 mt-1">
         {!provisioned && neonAvailable && (
           <button
-            style={styles.btnPrimary}
+            className="cyber-btn-primary !text-xs"
             onClick={handleProvision}
             disabled={provisionMut.isPending}
           >
@@ -172,16 +169,22 @@ function DatabaseCard({
         {provisioned && neonAvailable && (
           <>
             {confirmDelete === entity.id ? (
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button style={styles.btnDanger} onClick={handleDeprovision}>
+              <div className="flex gap-1.5">
+                <button className="cyber-btn-danger !text-xs" onClick={handleDeprovision}>
                   Confirm Delete
                 </button>
-                <button style={styles.btnSecondary} onClick={() => setConfirmDelete(null)}>
+                <button
+                  className="cyber-btn-secondary !text-xs"
+                  onClick={() => setConfirmDelete(null)}
+                >
                   Cancel
                 </button>
               </div>
             ) : (
-              <button style={styles.btnSecondary} onClick={() => setConfirmDelete(entity.id)}>
+              <button
+                className="cyber-btn-secondary !text-xs"
+                onClick={() => setConfirmDelete(entity.id)}
+              >
                 Deprovision
               </button>
             )}
@@ -190,124 +193,4 @@ function DatabaseCard({
       </div>
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb', maxWidth: 1000 },
-  header: { marginBottom: 24 },
-  title: { margin: 0, fontSize: 20, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(320, 1fr))',
-    gap: 16,
-  },
-  card: {
-    background: '#1f2937',
-    borderRadius: 8,
-    border: '1px solid #374151',
-    padding: 16,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 12,
-  },
-  cardHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    flexShrink: 0,
-  },
-  cardName: { fontWeight: 700, fontSize: 14, flex: 1 },
-  domainBadge: {
-    fontSize: 10,
-    background: '#818cf820',
-    color: '#818cf8',
-    padding: '2px 8px',
-    borderRadius: 4,
-    fontWeight: 600,
-  },
-  cardBody: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 6,
-  },
-  infoRow: {
-    display: 'flex',
-    gap: 8,
-    alignItems: 'baseline',
-  },
-  infoLabel: {
-    fontSize: 11,
-    color: '#6b7280',
-    minWidth: 50,
-  },
-  infoValue: {
-    fontSize: 11,
-    color: '#a5f3fc',
-    background: '#111827',
-    padding: '2px 6px',
-    borderRadius: 4,
-    wordBreak: 'break-all' as const,
-  },
-  warning: {
-    fontSize: 11,
-    color: '#f59e0b',
-    background: '#f59e0b10',
-    padding: '6px 10px',
-    borderRadius: 4,
-    border: '1px solid #f59e0b30',
-  },
-  resultBanner: {
-    fontSize: 11,
-    padding: '6px 10px',
-    borderRadius: 4,
-    border: '1px solid',
-    marginTop: 4,
-  },
-  cardFooter: {
-    display: 'flex',
-    gap: 8,
-    marginTop: 4,
-  },
-  btnPrimary: {
-    background: '#818cf8',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 6,
-    padding: '7px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  btnSecondary: {
-    background: '#374151',
-    color: '#d1d5db',
-    border: '1px solid #4b5563',
-    borderRadius: 6,
-    padding: '7px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  btnDanger: {
-    background: '#dc2626',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 6,
-    padding: '7px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  empty: {
-    textAlign: 'center' as const,
-    color: '#6b7280',
-    padding: 40,
-    fontSize: 13,
-  },
 }

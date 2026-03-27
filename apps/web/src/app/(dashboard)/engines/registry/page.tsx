@@ -59,7 +59,7 @@ export default function EngineRegistryPage() {
   const error = enginesQuery.error
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 font-sans text-neon-text">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -67,16 +67,8 @@ export default function EngineRegistryPage() {
 
   if (enginesQuery.isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>Loading engines...</div>
+      <div className="p-6 font-sans text-neon-text flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">Loading engines...</div>
       </div>
     )
   }
@@ -103,106 +95,85 @@ export default function EngineRegistryPage() {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Engine Registry</h2>
-          <button style={styles.btnPrimary} onClick={() => setShowRegister(!showRegister)}>
+    <div className="p-6 font-sans text-neon-text">
+      <div className="mb-5">
+        <div className="flex justify-between items-center">
+          <h2 className="m-0 text-[22px] font-bold font-orbitron">Engine Registry</h2>
+          <button className="cyber-btn-primary" onClick={() => setShowRegister(!showRegister)}>
             {showRegister ? 'Cancel' : '+ Register Engine'}
           </button>
         </div>
-        <p style={styles.subtitle}>Browse and manage brain engines — system, domain, and custom.</p>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+          Browse and manage brain engines — system, domain, and custom.
+        </p>
       </div>
 
       {/* Stats */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 10,
-          marginBottom: 16,
-        }}
-      >
+      <div className="grid grid-cols-4 gap-2.5 mb-4">
         <div
-          style={{
-            ...styles.statCard,
-            cursor: 'pointer',
-            border: filter === 'all' ? '2px solid #818cf8' : '1px solid #374151',
-          }}
+          className={`cyber-card text-center cursor-pointer ${filter === 'all' ? 'border-2 border-indigo-400' : 'border border-border-dim'}`}
           onClick={() => setFilter('all')}
         >
-          <div style={styles.statValue}>{allEngines.length}</div>
-          <div style={styles.statLabel}>All Engines</div>
+          <div className="text-xl font-bold">{allEngines.length}</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">All Engines</div>
         </div>
         <div
-          style={{
-            ...styles.statCard,
-            cursor: 'pointer',
-            border: filter === 'system' ? '2px solid #818cf8' : '1px solid #374151',
-          }}
+          className={`cyber-card text-center cursor-pointer ${filter === 'system' ? 'border-2 border-indigo-400' : 'border border-border-dim'}`}
           onClick={() => setFilter('system')}
         >
-          <div style={{ ...styles.statValue, color: CATEGORY_COLORS.system }}>{systemCount}</div>
-          <div style={styles.statLabel}>System</div>
+          <div className="text-xl font-bold text-neon-indigo">{systemCount}</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">System</div>
         </div>
         <div
-          style={{
-            ...styles.statCard,
-            cursor: 'pointer',
-            border: filter === 'domain' ? '2px solid #22c55e' : '1px solid #374151',
-          }}
+          className={`cyber-card text-center cursor-pointer ${filter === 'domain' ? 'border-2 border-green-500' : 'border border-border-dim'}`}
           onClick={() => setFilter('domain')}
         >
-          <div style={{ ...styles.statValue, color: CATEGORY_COLORS.domain }}>{domainCount}</div>
-          <div style={styles.statLabel}>Domain</div>
+          <div className="text-xl font-bold text-neon-green">{domainCount}</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">Domain</div>
         </div>
         <div
-          style={{
-            ...styles.statCard,
-            cursor: 'pointer',
-            border: filter === 'custom' ? '2px solid #eab308' : '1px solid #374151',
-          }}
+          className={`cyber-card text-center cursor-pointer ${filter === 'custom' ? 'border-2 border-yellow-500' : 'border border-border-dim'}`}
           onClick={() => setFilter('custom')}
         >
-          <div style={{ ...styles.statValue, color: CATEGORY_COLORS.custom }}>{customCount}</div>
-          <div style={styles.statLabel}>Custom</div>
+          <div className="text-xl font-bold text-neon-yellow">{customCount}</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">Custom</div>
         </div>
       </div>
 
       {/* Register Form */}
       {showRegister && (
-        <div style={styles.formCard}>
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-            <div style={{ display: 'flex', gap: 8 }}>
+        <div className="cyber-card border border-border-dim mb-4 p-4">
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
               <input
-                style={{ ...styles.input, flex: 1 }}
+                className="cyber-input flex-1"
                 placeholder="Engine ID (e.g., my-engine)..."
                 value={newId}
                 onChange={(e) => setNewId(e.target.value)}
               />
               <input
-                style={{ ...styles.input, flex: 1 }}
+                className="cyber-input flex-1"
                 placeholder="Display name..."
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
               />
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="flex gap-2">
               <input
-                style={{ ...styles.input, flex: 2 }}
+                className="cyber-input flex-[2]"
                 placeholder="Description..."
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
               />
               <input
-                style={{ ...styles.input, flex: 1 }}
+                className="cyber-input flex-1"
                 placeholder="Domain (optional)..."
                 value={newDomain}
                 onChange={(e) => setNewDomain(e.target.value)}
               />
             </div>
             <button
-              style={styles.btnCreate}
+              className="cyber-btn-primary bg-green-500 hover:bg-green-600"
               onClick={() =>
                 newId.trim() &&
                 newName.trim() &&
@@ -218,20 +189,14 @@ export default function EngineRegistryPage() {
               {registerMut.isPending ? 'Registering...' : 'Register Engine'}
             </button>
             {registerMut.error && (
-              <div style={{ color: '#fca5a5', fontSize: 11 }}>{registerMut.error.message}</div>
+              <div className="text-red-300 text-[11px]">{registerMut.error.message}</div>
             )}
           </div>
         </div>
       )}
 
       {/* Engine Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 10,
-        }}
-      >
+      <div className="cyber-grid">
         {engines.map((engine) => {
           const catColor = CATEGORY_COLORS[engine.category] ?? '#6b7280'
           const statusColor = STATUS_COLORS[engine.status] ?? '#6b7280'
@@ -239,48 +204,32 @@ export default function EngineRegistryPage() {
             <a
               key={engine.id}
               href={`/engines/registry/${engine.id}`}
-              style={{
-                ...styles.card,
-                textDecoration: 'none',
-                display: 'block',
-                cursor: 'pointer',
-              }}
+              className="cyber-card border border-border-dim no-underline block cursor-pointer"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <div className="flex items-center gap-2 mb-1.5">
                 <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: statusColor,
-                    flexShrink: 0,
-                  }}
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: statusColor }}
                 />
-                <span style={{ fontWeight: 700, fontSize: 13, flex: 1 }}>{engine.name}</span>
+                <span className="font-bold text-[13px] flex-1">{engine.name}</span>
                 <span
-                  style={{
-                    fontSize: 9,
-                    background: catColor + '20',
-                    color: catColor,
-                    padding: '1px 6px',
-                    borderRadius: 3,
-                    fontWeight: 600,
-                  }}
+                  className="cyber-badge text-[9px] font-semibold"
+                  style={{ background: catColor + '20', color: catColor }}
                 >
                   {engine.category}
                 </span>
               </div>
-              <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6, lineHeight: 1.4 }}>
+              <div className="text-[11px] text-gray-400 mb-1.5 leading-snug">
                 {engine.description}
               </div>
-              <div style={{ display: 'flex', gap: 12, fontSize: 10, color: '#4b5563' }}>
+              <div className="flex gap-3 text-[10px] text-gray-600">
                 {engine.domain && <span>Domain: {engine.domain}</span>}
                 <span>Status: {engine.status}</span>
                 {engine.totalRequests > 0 && <span>{engine.totalRequests} reqs</span>}
                 {engine.avgResponseMs > 0 && <span>{Math.round(engine.avgResponseMs)}ms avg</span>}
               </div>
               {engine.connectedApps.length > 0 && (
-                <div style={{ fontSize: 10, color: '#6b7280', marginTop: 4 }}>
+                <div className="text-[10px] text-gray-500 mt-1">
                   Connected: {engine.connectedApps.length} apps
                 </div>
               )}
@@ -290,56 +239,10 @@ export default function EngineRegistryPage() {
       </div>
 
       {engines.length === 0 && (
-        <div style={{ textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 }}>
+        <div className="text-center text-gray-500 p-10 text-sm">
           No engines found for this filter.
         </div>
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  statCard: { background: '#1f2937', borderRadius: 8, padding: 14, textAlign: 'center' as const },
-  statValue: { fontSize: 20, fontWeight: 700 },
-  statLabel: { fontSize: 11, color: '#6b7280', marginTop: 2 },
-  formCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 16,
-    border: '1px solid #374151',
-    marginBottom: 16,
-  },
-  input: {
-    background: '#111827',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '8px 12px',
-    fontSize: 13,
-  },
-  btnPrimary: {
-    background: '#818cf8',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 14px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  btnCreate: {
-    background: '#22c55e',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 14px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  card: { background: '#1f2937', borderRadius: 8, padding: 12, border: '1px solid #374151' },
 }

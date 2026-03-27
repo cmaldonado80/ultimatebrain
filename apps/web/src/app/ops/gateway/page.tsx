@@ -31,7 +31,7 @@ export default function GatewayPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-slate-100">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -41,18 +41,10 @@ export default function GatewayPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching gateway data</div>
+      <div className="p-6 text-slate-100 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-xs">Fetching gateway data</div>
         </div>
       </div>
     )
@@ -72,116 +64,84 @@ export default function GatewayPage() {
       : 0
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Gateway</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-slate-100">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Gateway</h2>
+        <p className="mt-1 mb-0 text-xs text-slate-500">
           LLM Gateway metrics — request volume, latency, cost tracking, and cache hit rates.
         </p>
       </div>
-      <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
+      <div className="grid grid-cols-6 gap-2.5 mb-5">
+        <div className="cyber-card p-3.5 text-center">
           <div
-            style={{
-              ...styles.statValue,
-              color: health?.status === 'healthy' ? '#22c55e' : '#f97316',
-            }}
+            className={`text-lg font-bold ${health?.status === 'healthy' ? 'text-neon-green' : 'text-neon-yellow'}`}
           >
             {health?.status || 'unknown'}
           </div>
-          <div style={styles.statLabel}>Health</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Health</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>{metrics.length}</div>
-          <div style={styles.statLabel}>Requests</div>
+        <div className="cyber-card p-3.5 text-center">
+          <div className="text-lg font-bold">{metrics.length}</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Requests</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>${totalCost.toFixed(4)}</div>
-          <div style={styles.statLabel}>Total Cost</div>
+        <div className="cyber-card p-3.5 text-center">
+          <div className="text-lg font-bold">${totalCost.toFixed(4)}</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Total Cost</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>{totalTokens.toLocaleString()}</div>
-          <div style={styles.statLabel}>Total Tokens</div>
+        <div className="cyber-card p-3.5 text-center">
+          <div className="text-lg font-bold">{totalTokens.toLocaleString()}</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Total Tokens</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>{avgLatency}ms</div>
-          <div style={styles.statLabel}>Avg Latency</div>
+        <div className="cyber-card p-3.5 text-center">
+          <div className="text-lg font-bold">{avgLatency}ms</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Avg Latency</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statValue}>{providers?.length ?? 0}</div>
-          <div style={styles.statLabel}>Providers</div>
+        <div className="cyber-card p-3.5 text-center">
+          <div className="text-lg font-bold">{providers?.length ?? 0}</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Providers</div>
         </div>
       </div>
 
       {metrics.length === 0 ? (
-        <div style={styles.empty}>No gateway metrics yet.</div>
+        <div className="text-center text-slate-500 py-10 text-sm">No gateway metrics yet.</div>
       ) : (
-        <div style={styles.table}>
-          <div style={styles.tableHeader}>
-            <span style={styles.th}>Provider</span>
-            <span style={styles.th}>Model</span>
-            <span style={styles.th}>Tokens</span>
-            <span style={styles.th}>Latency</span>
-            <span style={styles.th}>Cost</span>
-            <span style={styles.th}>Cached</span>
+        <div className="cyber-card overflow-hidden">
+          <div className="flex px-4 py-2.5 bg-bg-elevated border-b border-border">
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+              Provider
+            </span>
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+              Model
+            </span>
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+              Tokens
+            </span>
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+              Latency
+            </span>
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+              Cost
+            </span>
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+              Cached
+            </span>
           </div>
           {metrics.map((m) => (
-            <div key={m.id} style={styles.tableRow}>
-              <span style={styles.td}>{m.provider}</span>
-              <span style={{ ...styles.td, fontFamily: 'monospace', fontSize: 11 }}>{m.model}</span>
-              <span style={styles.td}>{(m.tokensIn ?? 0) + (m.tokensOut ?? 0)}</span>
-              <span style={styles.td}>{m.latencyMs != null ? `${m.latencyMs}ms` : '—'}</span>
-              <span style={styles.td}>{m.costUsd != null ? `$${m.costUsd.toFixed(4)}` : '—'}</span>
-              <span style={styles.td}>{m.cached ? 'Yes' : 'No'}</span>
+            <div key={m.id} className="flex px-4 py-2.5 border-b border-border-dim items-center">
+              <span className="flex-1 text-xs">{m.provider}</span>
+              <span className="flex-1 text-[11px] font-mono">{m.model}</span>
+              <span className="flex-1 text-xs">{(m.tokensIn ?? 0) + (m.tokensOut ?? 0)}</span>
+              <span className="flex-1 text-xs">
+                {m.latencyMs != null ? `${m.latencyMs}ms` : '—'}
+              </span>
+              <span className="flex-1 text-xs">
+                {m.costUsd != null ? `$${m.costUsd.toFixed(4)}` : '—'}
+              </span>
+              <span className="flex-1 text-xs">{m.cached ? 'Yes' : 'No'}</span>
             </div>
           ))}
         </div>
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, marginBottom: 20 },
-  statCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 14,
-    border: '1px solid #374151',
-    textAlign: 'center' as const,
-  },
-  statValue: { fontSize: 18, fontWeight: 700 },
-  statLabel: { fontSize: 10, color: '#6b7280', marginTop: 2 },
-  table: {
-    background: '#1f2937',
-    borderRadius: 8,
-    border: '1px solid #374151',
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    display: 'flex',
-    padding: '10px 16px',
-    background: '#111827',
-    borderBottom: '1px solid #374151',
-  },
-  th: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  tableRow: {
-    display: 'flex',
-    padding: '10px 16px',
-    borderBottom: '1px solid #1f2937',
-    alignItems: 'center',
-  },
-  td: { flex: 1, fontSize: 13 },
 }

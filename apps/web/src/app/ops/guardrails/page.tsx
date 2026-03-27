@@ -26,7 +26,7 @@ export default function GuardrailsPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -36,18 +36,10 @@ export default function GuardrailsPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching guardrail data</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-xs">Fetching guardrail data</div>
         </div>
       </div>
     )
@@ -64,61 +56,67 @@ export default function GuardrailsPage() {
     | undefined
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>Guardrails</h2>
-        <p style={styles.subtitle}>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Guardrails</h2>
+        <p className="mt-1 mb-0 text-xs text-gray-500">
           Safety rules, PII detection logs, and content policy enforcement across all agents.
         </p>
       </div>
       {stats && (
-        <div style={styles.statsGrid}>
-          <div style={styles.statCard}>
-            <div style={styles.statValue}>{stats.total}</div>
-            <div style={styles.statLabel}>Total Checks</div>
+        <div className="cyber-grid grid-cols-3 gap-2.5 mb-5">
+          <div className="cyber-card p-3.5 text-center">
+            <div className="text-[22px] font-bold">{stats.total}</div>
+            <div className="text-[11px] text-gray-500 mt-0.5">Total Checks</div>
           </div>
-          <div style={styles.statCard}>
-            <div style={{ ...styles.statValue, color: '#22c55e' }}>{stats.passed}</div>
-            <div style={styles.statLabel}>Passed</div>
+          <div className="cyber-card p-3.5 text-center">
+            <div className="text-[22px] font-bold text-neon-green">{stats.passed}</div>
+            <div className="text-[11px] text-gray-500 mt-0.5">Passed</div>
           </div>
-          <div style={styles.statCard}>
-            <div style={{ ...styles.statValue, color: '#ef4444' }}>{stats.failed}</div>
-            <div style={styles.statLabel}>Violations</div>
+          <div className="cyber-card p-3.5 text-center">
+            <div className="text-[22px] font-bold text-neon-red">{stats.failed}</div>
+            <div className="text-[11px] text-gray-500 mt-0.5">Violations</div>
           </div>
         </div>
       )}
 
       {logs.length === 0 ? (
-        <div style={styles.empty}>No guardrail logs yet.</div>
+        <div className="text-center text-gray-500 py-10 text-sm">No guardrail logs yet.</div>
       ) : (
-        <div style={styles.table}>
-          <div style={styles.tableHeader}>
-            <span style={styles.th}>Layer</span>
-            <span style={{ ...styles.th, flex: 2 }}>Rule</span>
-            <span style={styles.th}>Result</span>
-            <span style={{ ...styles.th, flex: 2 }}>Detail</span>
-            <span style={styles.th}>Agent</span>
+        <div className="cyber-card overflow-hidden">
+          <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border">
+            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              Layer
+            </span>
+            <span className="flex-[2] text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              Rule
+            </span>
+            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              Result
+            </span>
+            <span className="flex-[2] text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              Detail
+            </span>
+            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              Agent
+            </span>
           </div>
           {logs.map((l) => (
-            <div key={l.id} style={styles.tableRow}>
-              <span style={styles.td}>
-                <span style={styles.layerBadge}>{l.layer}</span>
+            <div key={l.id} className="flex px-4 py-2.5 border-b border-bg-surface items-center">
+              <span className="flex-1 text-[13px]">
+                <span className="cyber-badge text-[10px]">{l.layer}</span>
               </span>
-              <span style={{ ...styles.td, flex: 2, fontFamily: 'monospace', fontSize: 11 }}>
-                {l.ruleName || '—'}
-              </span>
-              <span style={styles.td}>
-                <span style={{ color: l.passed ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+              <span className="flex-[2] text-[11px] font-mono">{l.ruleName || '\u2014'}</span>
+              <span className="flex-1 text-[13px]">
+                <span className={`font-semibold ${l.passed ? 'text-neon-green' : 'text-neon-red'}`}>
                   {l.passed ? 'PASS' : 'FAIL'}
                 </span>
               </span>
-              <span style={{ ...styles.td, flex: 2, fontSize: 11, color: '#9ca3af' }}>
-                {l.violationDetail || '—'}
+              <span className="flex-[2] text-[11px] text-gray-400">
+                {l.violationDetail || '\u2014'}
               </span>
-              <span
-                style={{ ...styles.td, fontFamily: 'monospace', fontSize: 10, color: '#6b7280' }}
-              >
-                {l.agentId?.slice(0, 8) || '—'}
+              <span className="flex-1 font-mono text-[10px] text-gray-500">
+                {l.agentId?.slice(0, 8) || '\u2014'}
               </span>
             </div>
           ))}
@@ -126,56 +124,4 @@ export default function GuardrailsPage() {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 },
-  statCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 14,
-    border: '1px solid #374151',
-    textAlign: 'center' as const,
-  },
-  statValue: { fontSize: 22, fontWeight: 700 },
-  statLabel: { fontSize: 11, color: '#6b7280', marginTop: 2 },
-  table: {
-    background: '#1f2937',
-    borderRadius: 8,
-    border: '1px solid #374151',
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    display: 'flex',
-    padding: '10px 16px',
-    background: '#111827',
-    borderBottom: '1px solid #374151',
-  },
-  th: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  tableRow: {
-    display: 'flex',
-    padding: '10px 16px',
-    borderBottom: '1px solid #1f2937',
-    alignItems: 'center',
-  },
-  td: { flex: 1, fontSize: 13 },
-  layerBadge: {
-    fontSize: 10,
-    background: '#1e3a5f',
-    color: '#93c5fd',
-    padding: '2px 6px',
-    borderRadius: 4,
-  },
 }

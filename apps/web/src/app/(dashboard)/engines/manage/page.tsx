@@ -79,26 +79,12 @@ function DevCreationForm({
 
   return (
     <div
-      style={{
-        padding: '8px 16px',
-        paddingLeft: 16 + depth * 24,
-        background: '#0d1117',
-        borderBottom: '1px solid var(--color-border)',
-        display: 'flex',
-        gap: 6,
-        alignItems: 'center',
-      }}
+      className="py-2 px-4 bg-bg-deep border-b border-border flex gap-1.5 items-center"
+      style={{ paddingLeft: 16 + depth * 24 }}
     >
       {devTemplates.length > 0 && (
         <select
-          style={{
-            background: 'var(--color-bg-elevated)',
-            color: '#d1d5db',
-            border: '1px solid var(--color-border)',
-            borderRadius: 4,
-            padding: '4px 6px',
-            fontSize: 11,
-          }}
+          className="cyber-select text-[11px] py-1 px-1.5"
           value={devTemplate}
           onChange={(e) => onTemplateChange(e.target.value)}
         >
@@ -111,30 +97,13 @@ function DevCreationForm({
         </select>
       )}
       <input
-        style={{
-          background: 'var(--color-bg-elevated)',
-          color: '#f9fafb',
-          border: '1px solid var(--color-border)',
-          borderRadius: 4,
-          padding: '4px 8px',
-          fontSize: 11,
-          flex: 1,
-        }}
+        className="cyber-input text-[11px] py-1 px-2 flex-1"
         placeholder="Development name..."
         value={devName}
         onChange={(e) => onNameChange(e.target.value)}
       />
       <button
-        style={{
-          background: 'var(--color-neon-green)',
-          color: '#fff',
-          border: 'none',
-          borderRadius: 4,
-          padding: '4px 10px',
-          fontSize: 11,
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
+        className="cyber-btn-primary bg-neon-green text-white border-none rounded py-1 px-2.5 text-[11px] font-semibold cursor-pointer"
         onClick={onSubmit}
         disabled={isPending || !devName.trim()}
       >
@@ -192,7 +161,7 @@ export default function BrainManagerPage() {
   const error = entitiesQuery.error || miniBrainsQuery.error
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 font-sans text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -201,16 +170,8 @@ export default function BrainManagerPage() {
   const isLoading = entitiesQuery.isLoading || miniBrainsQuery.isLoading
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>Loading brain hierarchy...</div>
+      <div className="p-6 font-sans text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">Loading brain hierarchy...</div>
       </div>
     )
   }
@@ -229,33 +190,12 @@ export default function BrainManagerPage() {
     return (
       <div key={entity.id}>
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '8px 12px',
-            paddingLeft: 12 + depth * 24,
-            background: depth % 2 === 0 ? '#1f2937' : '#111827',
-            borderBottom: '1px solid #374151',
-          }}
+          className={`flex items-center gap-2 py-2 px-3 border-b border-border-dim ${depth % 2 === 0 ? 'bg-bg-surface' : 'bg-bg-deep'}`}
+          style={{ paddingLeft: 12 + depth * 24 }}
         >
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: statusColor }} />
           <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: statusColor,
-              flexShrink: 0,
-            }}
-          />
-          <span
-            style={{
-              fontWeight: 700,
-              fontSize: 13,
-              flex: 1,
-              cursor: 'pointer',
-              borderBottom: expandedEntity === entity.id ? '2px solid #818cf8' : 'none',
-            }}
+            className={`font-bold text-[13px] flex-1 cursor-pointer ${expandedEntity === entity.id ? 'border-b-2 border-neon-purple' : ''}`}
             onClick={() => setExpandedEntity(expandedEntity === entity.id ? null : entity.id)}
             title="Click to expand"
           >
@@ -263,7 +203,7 @@ export default function BrainManagerPage() {
           </span>
           <Link
             href={`/engines/manage/${entity.id}`}
-            style={{ fontSize: 10, color: '#818cf8', textDecoration: 'none' }}
+            className="text-[10px] text-neon-purple no-underline"
             onClick={(e) => e.stopPropagation()}
             title="View detail"
           >
@@ -271,7 +211,7 @@ export default function BrainManagerPage() {
           </Link>
           {entity.tier === 'mini_brain' && (
             <button
-              style={{ ...styles.btnSmall, background: '#eab308', color: '#000', fontSize: 9 }}
+              className="text-white border-none rounded py-0.5 px-2 text-[9px] font-semibold cursor-pointer bg-yellow-500 text-black"
               onClick={(e) => {
                 e.stopPropagation()
                 setDevCreateTarget(devCreateTarget === entity.id ? null : entity.id)
@@ -281,22 +221,18 @@ export default function BrainManagerPage() {
             </button>
           )}
           <span
-            style={{
-              fontSize: 10,
-              background: tierColor + '20',
-              color: tierColor,
-              padding: '1px 8px',
-              borderRadius: 3,
-              fontWeight: 600,
-            }}
+            className="text-[10px] py-px px-2 rounded font-semibold"
+            style={{ background: tierColor + '20', color: tierColor }}
           >
             {entity.tier.replace('_', ' ')}
           </span>
-          {entity.domain && <span style={{ fontSize: 10, color: '#6b7280' }}>{entity.domain}</span>}
-          <span style={{ fontSize: 10, color: statusColor, fontWeight: 600 }}>{entity.status}</span>
+          {entity.domain && <span className="text-[10px] text-gray-500">{entity.domain}</span>}
+          <span className="text-[10px] font-semibold" style={{ color: statusColor }}>
+            {entity.status}
+          </span>
           {entity.status === 'provisioning' && (
             <button
-              style={{ ...styles.btnSmall, background: '#22c55e' }}
+              className="text-white border-none rounded py-0.5 px-2 text-[10px] font-semibold cursor-pointer bg-green-500"
               onClick={() => activateMut.mutate({ id: entity.id })}
               disabled={activateMut.isPending}
             >
@@ -305,7 +241,7 @@ export default function BrainManagerPage() {
           )}
           {entity.status === 'active' && (
             <button
-              style={{ ...styles.btnSmall, background: '#ef4444' }}
+              className="text-white border-none rounded py-0.5 px-2 text-[10px] font-semibold cursor-pointer bg-red-500"
               onClick={() => suspendMut.mutate({ id: entity.id })}
               disabled={suspendMut.isPending}
             >
@@ -314,7 +250,7 @@ export default function BrainManagerPage() {
           )}
           {entity.status === 'suspended' && (
             <button
-              style={{ ...styles.btnSmall, background: '#22c55e' }}
+              className="text-white border-none rounded py-0.5 px-2 text-[10px] font-semibold cursor-pointer bg-green-500"
               onClick={() => activateMut.mutate({ id: entity.id })}
               disabled={activateMut.isPending}
             >
@@ -325,19 +261,14 @@ export default function BrainManagerPage() {
         {/* Expanded detail */}
         {expandedEntity === entity.id && (
           <div
-            style={{
-              padding: '8px 16px',
-              paddingLeft: 16 + depth * 24,
-              background: '#0d1117',
-              borderBottom: '1px solid #374151',
-              fontSize: 12,
-            }}
+            className="py-2 px-4 bg-bg-deep border-b border-border-dim text-xs"
+            style={{ paddingLeft: 16 + depth * 24 }}
           >
-            <div style={{ display: 'flex', gap: 16, marginBottom: 6 }}>
-              <span style={{ color: '#6b7280' }}>
+            <div className="flex gap-4 mb-1.5">
+              <span className="text-gray-500">
                 Engines: {entity.enginesEnabled?.join(', ') || 'None'}
               </span>
-              <span style={{ color: '#6b7280' }}>
+              <span className="text-gray-500">
                 Health:{' '}
                 {entity.lastHealthCheck
                   ? new Date(entity.lastHealthCheck).toLocaleString()
@@ -345,7 +276,7 @@ export default function BrainManagerPage() {
               </span>
             </div>
             {entity.tier === 'mini_brain' && entity.domain && (
-              <div style={{ color: '#9ca3af', marginBottom: 4 }}>Domain: {entity.domain}</div>
+              <div className="text-gray-400 mb-1">Domain: {entity.domain}</div>
             )}
           </div>
         )}
@@ -375,26 +306,16 @@ export default function BrainManagerPage() {
         )}
         {/* Reprovision button for developments (available in any state for recovery) */}
         {entity.tier === 'development' && (
-          <div
-            style={{
-              paddingLeft: 16 + depth * 24,
-              paddingBottom: 4,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
+          <div className="pb-1 flex items-center gap-2" style={{ paddingLeft: 16 + depth * 24 }}>
             <button
-              style={{ ...styles.btnSmall, fontSize: 10, color: 'var(--color-neon-blue)' }}
+              className="text-neon-blue border-none rounded py-0.5 px-2 text-[10px] font-semibold cursor-pointer"
               onClick={() => reprovisionMut.mutate({ entityId: entity.id })}
               disabled={reprovisionMut.isPending}
             >
               {reprovisionMut.isPending ? 'Provisioning...' : '↻ Reprovision Agents'}
             </button>
             {entity.status !== 'active' && (
-              <span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600 }}>
-                Needs provisioning
-              </span>
+              <span className="text-[10px] text-amber-400 font-semibold">Needs provisioning</span>
             )}
           </div>
         )}
@@ -407,70 +328,48 @@ export default function BrainManagerPage() {
   const rootEntities = allEntities.filter((e) => !e.parentId)
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Brain Manager</h2>
-          <button style={styles.btnPrimary} onClick={() => setShowCreateForm(!showCreateForm)}>
+    <div className="p-6 font-sans text-gray-50">
+      <div className="mb-5">
+        <div className="flex justify-between items-center">
+          <h2 className="m-0 text-[22px] font-bold font-orbitron">Brain Manager</h2>
+          <button className="cyber-btn-primary" onClick={() => setShowCreateForm(!showCreateForm)}>
             {showCreateForm ? 'Cancel' : '+ Create Entity'}
           </button>
         </div>
-        <p style={styles.subtitle}>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Manage the brain hierarchy — Brain → Mini-Brain → Development.
         </p>
       </div>
 
       {/* Stats */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 10,
-          marginBottom: 20,
-        }}
-      >
-        <div style={styles.statCard}>
-          <div style={{ ...styles.statValue, color: TIER_COLORS.brain }}>{brains.length}</div>
-          <div style={styles.statLabel}>Brains</div>
+      <div className="grid grid-cols-3 gap-2.5 mb-5">
+        <div className="cyber-card text-center">
+          <div className="text-2xl font-bold" style={{ color: TIER_COLORS.brain }}>
+            {brains.length}
+          </div>
+          <div className="text-[11px] text-gray-500 mt-0.5">Brains</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={{ ...styles.statValue, color: TIER_COLORS.mini_brain }}>
+        <div className="cyber-card text-center">
+          <div className="text-2xl font-bold" style={{ color: TIER_COLORS.mini_brain }}>
             {miniBrains.length}
           </div>
-          <div style={styles.statLabel}>Mini-Brains</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">Mini-Brains</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={{ ...styles.statValue, color: TIER_COLORS.development }}>
+        <div className="cyber-card text-center">
+          <div className="text-2xl font-bold" style={{ color: TIER_COLORS.development }}>
             {developments.length}
           </div>
-          <div style={styles.statLabel}>Developments</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">Developments</div>
         </div>
       </div>
 
       {/* Success Banner */}
       {createResult && (
-        <div
-          style={{
-            background: '#064e3b',
-            border: '1px solid #22c55e',
-            borderRadius: 6,
-            padding: '10px 14px',
-            marginBottom: 12,
-            fontSize: 12,
-            color: '#6ee7b7',
-          }}
-        >
+        <div className="bg-emerald-950 border border-green-500 rounded-md py-2.5 px-3.5 mb-3 text-xs text-emerald-300">
           Mini-Brain &quot;{createResult.name}&quot; created with {createResult.agentCount} agents —
           workspace active!
           <button
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#6ee7b7',
-              cursor: 'pointer',
-              marginLeft: 8,
-              fontSize: 11,
-            }}
+            className="bg-transparent border-none text-emerald-300 cursor-pointer ml-2 text-[11px]"
             onClick={() => setCreateResult(null)}
           >
             ×
@@ -480,16 +379,17 @@ export default function BrainManagerPage() {
 
       {/* Create Form */}
       {showCreateForm && (
-        <div style={styles.formCard}>
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+        <div className="cyber-card mb-4">
+          <div className="flex flex-col gap-2">
             <input
-              style={styles.input}
+              className="cyber-input"
               placeholder="Mini-Brain name (e.g., Hotel Revenue AI)..."
               value={entityName}
               onChange={(e) => setEntityName(e.target.value)}
             />
             <select
-              style={{ ...styles.select, borderColor: selectedTemplate ? '#22c55e' : '#374151' }}
+              className="cyber-select"
+              style={{ borderColor: selectedTemplate ? '#22c55e' : undefined }}
               value={selectedTemplate}
               onChange={(e) => setSelectedTemplate(e.target.value)}
             >
@@ -508,36 +408,21 @@ export default function BrainManagerPage() {
                 const tpl = templates.find((t) => t.id === selectedTemplate)
                 if (!tpl) return null
                 return (
-                  <div
-                    style={{
-                      background: '#0d1117',
-                      borderRadius: 6,
-                      padding: 10,
-                      border: '1px solid #1e3a5f',
-                    }}
-                  >
-                    <div
-                      style={{ fontSize: 11, color: '#818cf8', fontWeight: 700, marginBottom: 6 }}
-                    >
+                  <div className="bg-bg-deep rounded-md p-2.5 border border-border">
+                    <div className="text-[11px] text-neon-purple font-bold mb-1.5">
                       Template Preview: {tpl.domain}
                     </div>
-                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
+                    <div className="text-[11px] text-gray-500 mb-1">
                       Engines: {tpl.engines.join(' · ')}
                     </div>
-                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>
+                    <div className="text-[11px] text-gray-500 mb-1.5">
                       Agents ({tpl.agents.length}):
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+                    <div className="flex flex-wrap gap-1">
                       {tpl.agents.map((a) => (
                         <span
                           key={a.name}
-                          style={{
-                            fontSize: 10,
-                            background: '#1e1b4b',
-                            color: '#818cf8',
-                            padding: '2px 6px',
-                            borderRadius: 3,
-                          }}
+                          className="cyber-badge text-[10px]"
                           title={`${a.role} — ${a.capabilities.join(', ')}`}
                         >
                           {a.name}
@@ -545,7 +430,7 @@ export default function BrainManagerPage() {
                       ))}
                     </div>
                     {tpl.developmentTemplates.length > 0 && (
-                      <div style={{ fontSize: 10, color: '#4b5563', marginTop: 6 }}>
+                      <div className="text-[10px] text-gray-600 mt-1.5">
                         Development variants: {tpl.developmentTemplates.join(', ')}
                       </div>
                     )}
@@ -554,7 +439,7 @@ export default function BrainManagerPage() {
               })()}
 
             <button
-              style={styles.btnCreate}
+              className="cyber-btn-primary bg-green-500 hover:bg-green-600"
               onClick={() =>
                 entityName.trim() &&
                 selectedTemplate &&
@@ -575,23 +460,23 @@ export default function BrainManagerPage() {
               {createMut.isPending ? 'Provisioning Mini-Brain...' : 'Create Mini-Brain'}
             </button>
             {createMut.error && (
-              <div style={{ color: '#fca5a5', fontSize: 11 }}>{createMut.error.message}</div>
+              <div className="text-red-300 text-[11px]">{createMut.error.message}</div>
             )}
           </div>
         </div>
       )}
 
       {/* Hierarchy Tree */}
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>Entity Hierarchy ({allEntities.length})</div>
+      <div className="mb-6">
+        <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide">
+          Entity Hierarchy ({allEntities.length})
+        </div>
         {allEntities.length === 0 ? (
-          <div
-            style={{ color: '#4b5563', fontSize: 13, textAlign: 'center' as const, padding: 20 }}
-          >
+          <div className="text-gray-600 text-[13px] text-center p-5">
             No brain entities yet. Create one to get started.
           </div>
         ) : (
-          <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #374151' }}>
+          <div className="rounded-lg overflow-hidden border border-border-dim">
             {rootEntities.map((e) => renderEntity(e, 0))}
           </div>
         )}
@@ -599,32 +484,18 @@ export default function BrainManagerPage() {
 
       {/* Templates */}
       {templates.length > 0 && (
-        <div style={styles.section}>
-          <div style={styles.sectionTitle}>Available Templates ({templates.length})</div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-              gap: 8,
-            }}
-          >
+        <div className="mb-6">
+          <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide">
+            Available Templates ({templates.length})
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2">
             {templates.map((t) => (
-              <div
-                key={t.id}
-                style={{
-                  background: '#111827',
-                  borderRadius: 6,
-                  padding: 10,
-                  border: '1px solid #374151',
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
+              <div key={t.id} className="bg-bg-deep rounded-md p-2.5 border border-border-dim">
+                <div className="font-bold text-[13px] mb-1">
                   {t.id.charAt(0).toUpperCase() + t.id.slice(1)}
                 </div>
-                <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
-                  {t.domain} domain
-                </div>
-                <div style={{ display: 'flex', gap: 8, fontSize: 10, color: '#4b5563' }}>
+                <div className="text-[11px] text-gray-500 mb-1">{t.domain} domain</div>
+                <div className="flex gap-2 text-[10px] text-gray-600">
                   <span>Engines: {t.engines.length}</span>
                   <span>Agents: {t.agents.length}</span>
                   <span>Dev templates: {t.developmentTemplates.length}</span>
@@ -672,26 +543,21 @@ function HealthSection() {
   }>
 
   return (
-    <div style={styles.section}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 10,
-        }}
-      >
-        <div style={styles.sectionTitle}>Health & Healing</div>
-        <div style={{ display: 'flex', gap: 6 }}>
+    <div className="mb-6">
+      <div className="flex justify-between items-center mb-2.5">
+        <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide">
+          Health & Healing
+        </div>
+        <div className="flex gap-1.5">
           <button
-            style={{ ...styles.btnSmall, background: '#818cf8' }}
+            className="cyber-btn-secondary text-[10px]"
             onClick={() => monitorMut.mutate()}
             disabled={monitorMut.isPending}
           >
             {monitorMut.isPending ? 'Sweeping...' : 'Health Sweep'}
           </button>
           <button
-            style={{ ...styles.btnSmall, background: '#22c55e' }}
+            className="cyber-btn-primary bg-green-500 text-[10px]"
             onClick={() => autoHealMut.mutate()}
             disabled={autoHealMut.isPending}
           >
@@ -700,74 +566,46 @@ function HealthSection() {
         </div>
       </div>
       {monitorMut.data && (
-        <div style={{ fontSize: 11, color: '#6ee7b7', marginBottom: 8 }}>
+        <div className="text-[11px] text-emerald-300 mb-2">
           Checked {(monitorMut.data as { workspacesChecked: number }).workspacesChecked} workspaces,{' '}
           {(monitorMut.data as { issues: unknown[] }).issues.length} issues found
         </div>
       )}
       {healthData.length > 0 && (
-        <div
-          style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, marginBottom: 12 }}
-        >
+        <div className="flex flex-col gap-1 mb-3">
           {healthData.map((h) => (
             <div
               key={h.workspaceId}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '4px 12px',
-                background: '#111827',
-                borderRadius: 4,
-                fontSize: 12,
-              }}
+              className="flex items-center gap-2 py-1 px-3 bg-bg-deep rounded text-xs"
             >
               <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: h.errorAgents > 0 ? '#ef4444' : '#22c55e',
-                }}
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: h.errorAgents > 0 ? '#ef4444' : '#22c55e' }}
               />
-              <span style={{ flex: 1 }}>{h.workspaceName}</span>
-              <span style={{ color: '#6b7280' }}>{h.agentCount} agents</span>
-              <span style={{ color: '#22c55e' }}>{h.idleAgents} idle</span>
-              {h.errorAgents > 0 && <span style={{ color: '#ef4444' }}>{h.errorAgents} error</span>}
-              {!h.hasOrchestrator && <span style={{ color: '#f97316' }}>no orchestrator!</span>}
+              <span className="flex-1">{h.workspaceName}</span>
+              <span className="text-gray-500">{h.agentCount} agents</span>
+              <span className="text-neon-green">{h.idleAgents} idle</span>
+              {h.errorAgents > 0 && <span className="text-neon-red">{h.errorAgents} error</span>}
+              {!h.hasOrchestrator && <span className="text-orange-500">no orchestrator!</span>}
             </div>
           ))}
         </div>
       )}
       {healingLog.length > 0 && (
         <>
-          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
-            Recent Healing Actions
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+          <div className="text-[11px] text-gray-500 mb-1">Recent Healing Actions</div>
+          <div className="flex flex-col gap-[3px]">
             {healingLog.map((log) => (
               <div
                 key={log.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '3px 10px',
-                  background: '#111827',
-                  borderRadius: 3,
-                  fontSize: 11,
-                }}
+                className="flex items-center gap-1.5 py-[3px] px-2.5 bg-bg-deep rounded-sm text-[11px]"
               >
                 <span
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: '50%',
-                    background: log.success ? '#22c55e' : '#ef4444',
-                  }}
+                  className="w-[5px] h-[5px] rounded-full"
+                  style={{ background: log.success ? '#22c55e' : '#ef4444' }}
                 />
-                <span style={{ flex: 1, fontFamily: 'monospace' }}>{log.action}</span>
-                <span style={{ color: '#6b7280' }}>{log.target}</span>
+                <span className="flex-1 font-mono">{log.action}</span>
+                <span className="text-gray-500">{log.target}</span>
               </div>
             ))}
           </div>
@@ -807,24 +645,22 @@ function RoutesSection() {
   const workspaces = (wsQuery.data ?? []) as Array<{ id: string; name: string }>
 
   return (
-    <div style={styles.section}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 10,
-        }}
-      >
-        <div style={styles.sectionTitle}>Cross-Workspace Routes ({routes.length})</div>
-        <button style={styles.btnSmall} onClick={() => setShowAddRoute(!showAddRoute)}>
+    <div className="mb-6">
+      <div className="flex justify-between items-center mb-2.5">
+        <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide">
+          Cross-Workspace Routes ({routes.length})
+        </div>
+        <button
+          className="cyber-btn-secondary text-[10px]"
+          onClick={() => setShowAddRoute(!showAddRoute)}
+        >
           {showAddRoute ? 'Cancel' : '+ Add Route'}
         </button>
       </div>
       {showAddRoute && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' as const }}>
+        <div className="flex gap-1.5 mb-2.5 flex-wrap">
           <select
-            style={{ ...styles.select, flex: 1, minWidth: 120 }}
+            className="cyber-select flex-1 min-w-[120px]"
             value={fromWs}
             onChange={(e) => setFromWs(e.target.value)}
           >
@@ -836,7 +672,7 @@ function RoutesSection() {
             ))}
           </select>
           <select
-            style={{ ...styles.select, flex: 1, minWidth: 120 }}
+            className="cyber-select flex-1 min-w-[120px]"
             value={toWs}
             onChange={(e) => setToWs(e.target.value)}
           >
@@ -848,20 +684,20 @@ function RoutesSection() {
             ))}
           </select>
           <input
-            style={{ ...styles.input, flex: 1, minWidth: 100 }}
+            className="cyber-input flex-1 min-w-[100px]"
             placeholder="Rule..."
             value={rule}
             onChange={(e) => setRule(e.target.value)}
           />
           <input
-            style={{ ...styles.input, width: 60 }}
+            className="cyber-input w-[60px]"
             type="number"
             placeholder="Priority"
             value={priority}
             onChange={(e) => setPriority(parseInt(e.target.value) || 0)}
           />
           <button
-            style={{ ...styles.btnCreate, padding: '4px 10px' }}
+            className="cyber-btn-primary bg-green-500 py-1 px-2.5"
             onClick={() =>
               fromWs &&
               toWs &&
@@ -879,36 +715,24 @@ function RoutesSection() {
         </div>
       )}
       {routes.length === 0 ? (
-        <div style={{ color: '#4b5563', fontSize: 12, textAlign: 'center' as const, padding: 12 }}>
-          No routes configured.
-        </div>
+        <div className="text-gray-600 text-xs text-center p-3">No routes configured.</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+        <div className="flex flex-col gap-1">
           {routes.map((r) => (
             <div
               key={r.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '4px 12px',
-                background: '#111827',
-                borderRadius: 4,
-                fontSize: 12,
-              }}
+              className="flex items-center gap-2 py-1 px-3 bg-bg-deep rounded text-xs"
             >
-              <span style={{ flex: 1 }}>
+              <span className="flex-1">
                 {workspaces.find((w) => w.id === r.fromWorkspace)?.name ??
                   r.fromWorkspace?.slice(0, 8)}
                 {' → '}
                 {workspaces.find((w) => w.id === r.toWorkspace)?.name ?? r.toWorkspace?.slice(0, 8)}
               </span>
-              {r.rule && (
-                <span style={{ color: '#6b7280', fontFamily: 'monospace' }}>{r.rule}</span>
-              )}
-              <span style={{ color: '#4b5563' }}>P{r.priority}</span>
+              {r.rule && <span className="text-gray-500 font-mono">{r.rule}</span>}
+              <span className="text-gray-600">P{r.priority}</span>
               <button
-                style={{ ...styles.btnSmall, background: '#ef4444', padding: '1px 6px' }}
+                className="cyber-btn-danger text-[10px] py-px px-1.5"
                 onClick={() => deleteRouteMut.mutate({ id: r.id })}
               >
                 ×
@@ -933,84 +757,45 @@ function BudgetSection() {
     | undefined
 
   return (
-    <div style={styles.section}>
-      <div style={styles.sectionTitle}>System Budget</div>
+    <div className="mb-6">
+      <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide">
+        System Budget
+      </div>
       {!budget ? (
-        <div style={{ color: '#4b5563', fontSize: 12 }}>Loading budget data...</div>
+        <div className="text-gray-600 text-xs">Loading budget data...</div>
       ) : (
         <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 8,
-              marginBottom: 12,
-            }}
-          >
-            <div
-              style={{
-                background: '#111827',
-                borderRadius: 6,
-                padding: 10,
-                textAlign: 'center' as const,
-              }}
-            >
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#22c55e' }}>
-                {budget.activeWorkspaces}
-              </div>
-              <div style={{ fontSize: 10, color: '#6b7280' }}>Active</div>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="bg-bg-deep rounded-md p-2.5 text-center">
+              <div className="text-lg font-bold text-neon-green">{budget.activeWorkspaces}</div>
+              <div className="text-[10px] text-gray-500">Active</div>
             </div>
-            <div
-              style={{
-                background: '#111827',
-                borderRadius: 6,
-                padding: 10,
-                textAlign: 'center' as const,
-              }}
-            >
-              <div style={{ fontSize: 18, fontWeight: 700 }}>{budget.totalWorkspaces}</div>
-              <div style={{ fontSize: 10, color: '#6b7280' }}>Total</div>
+            <div className="bg-bg-deep rounded-md p-2.5 text-center">
+              <div className="text-lg font-bold">{budget.totalWorkspaces}</div>
+              <div className="text-[10px] text-gray-500">Total</div>
             </div>
-            <div
-              style={{
-                background: '#111827',
-                borderRadius: 6,
-                padding: 10,
-                textAlign: 'center' as const,
-              }}
-            >
+            <div className="bg-bg-deep rounded-md p-2.5 text-center">
               <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: budget.workspacesOverBudget > 0 ? '#ef4444' : '#22c55e',
-                }}
+                className="text-lg font-bold"
+                style={{ color: budget.workspacesOverBudget > 0 ? '#ef4444' : '#22c55e' }}
               >
                 {budget.workspacesOverBudget}
               </div>
-              <div style={{ fontSize: 10, color: '#6b7280' }}>Over Budget</div>
+              <div className="text-[10px] text-gray-500">Over Budget</div>
             </div>
           </div>
           {budget.budgetDetails.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 3 }}>
+            <div className="flex flex-col gap-[3px]">
               {budget.budgetDetails.map((d) => (
                 <div
                   key={d.entityId}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '4px 10px',
-                    background: '#111827',
-                    borderRadius: 4,
-                    fontSize: 12,
-                  }}
+                  className="flex items-center gap-2 py-1 px-2.5 bg-bg-deep rounded text-xs"
                 >
-                  <span style={{ flex: 1 }}>{d.entityName}</span>
+                  <span className="flex-1">{d.entityName}</span>
                   <span style={{ color: d.spent > d.limit ? '#ef4444' : '#22c55e' }}>
                     ${d.spent.toFixed(4)}
                   </span>
-                  <span style={{ color: '#6b7280' }}>/ ${d.limit.toFixed(2)}</span>
+                  <span className="text-gray-500">/ ${d.limit.toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -1019,82 +804,4 @@ function BudgetSection() {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  statCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 14,
-    border: '1px solid #374151',
-    textAlign: 'center' as const,
-  },
-  statValue: { fontSize: 24, fontWeight: 700 },
-  statLabel: { fontSize: 11, color: '#6b7280', marginTop: 2 },
-  section: { marginBottom: 24 },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: '#9ca3af',
-    marginBottom: 10,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  formCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 16,
-    border: '1px solid #374151',
-    marginBottom: 16,
-  },
-  input: {
-    background: '#111827',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '8px 12px',
-    fontSize: 13,
-  },
-  select: {
-    background: '#111827',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '6px 10px',
-    fontSize: 12,
-    flex: 1,
-  },
-  btnPrimary: {
-    background: '#818cf8',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 14px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  btnCreate: {
-    background: '#22c55e',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 14px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  btnSmall: {
-    color: '#fff',
-    border: 'none',
-    borderRadius: 4,
-    padding: '2px 8px',
-    fontSize: 10,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
 }

@@ -37,7 +37,7 @@ export default function AppDetailPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="min-h-screen bg-bg-deep text-gray-50 p-6">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -45,18 +45,10 @@ export default function AppDetailPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching app details</div>
+      <div className="min-h-screen bg-bg-deep text-gray-50 p-6 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching app details</div>
         </div>
       </div>
     )
@@ -64,18 +56,10 @@ export default function AppDetailPage() {
 
   if (!app && !error) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#f87171' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>App not found</div>
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>No agent with ID {appId}</div>
+      <div className="min-h-screen bg-bg-deep text-gray-50 p-6 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-red-400">
+          <div className="text-lg font-bold mb-2">App not found</div>
+          <div className="text-[13px] text-gray-400">No agent with ID {appId}</div>
         </div>
       </div>
     )
@@ -90,55 +74,64 @@ export default function AppDetailPage() {
   const agentTags: string[] = agent.tags ?? []
 
   return (
-    <div style={styles.page}>
+    <div className="min-h-screen bg-bg-deep text-gray-50 p-6">
       {/* Header */}
-      <div style={styles.header}>
-        <a href="/apps" style={styles.back}>
+      <div className="mb-5">
+        <a href="/apps" className="text-xs text-gray-500 no-underline block mb-2">
           ← Apps
         </a>
-        <div style={styles.headerMain}>
+        <div className="flex justify-between items-start">
           <div>
-            <h1 style={styles.title}>{agentName}</h1>
-            <div style={styles.headerMeta}>
-              <span style={styles.tierBadge}>{agentType}</span>
-              {agentDescription && <span style={styles.metaText}>{agentDescription}</span>}
+            <h1 className="m-0 mb-1.5 text-[22px] font-bold">{agentName}</h1>
+            <div className="flex gap-2 items-center">
+              <span className="cyber-badge bg-[#1e3a5f] text-blue-300 font-semibold">
+                {agentType}
+              </span>
+              {agentDescription && (
+                <span className="text-xs text-gray-500">{agentDescription}</span>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* Stats row */}
-      <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
-          <div style={styles.statBig}>{agentModel}</div>
-          <div style={styles.statLabel}>Model</div>
+      <div className="grid grid-cols-4 gap-2.5 mb-5">
+        <div className="cyber-card p-3 text-center">
+          <div className="text-[22px] font-bold">{agentModel}</div>
+          <div className="text-[10px] text-gray-500 mt-0.5">Model</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statBig}>{agentSkills.length}</div>
-          <div style={styles.statLabel}>Skills</div>
+        <div className="cyber-card p-3 text-center">
+          <div className="text-[22px] font-bold">{agentSkills.length}</div>
+          <div className="text-[10px] text-gray-500 mt-0.5">Skills</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statBig}>{agentTags.length}</div>
-          <div style={styles.statLabel}>Tags</div>
+        <div className="cyber-card p-3 text-center">
+          <div className="text-[22px] font-bold">{agentTags.length}</div>
+          <div className="text-[10px] text-gray-500 mt-0.5">Tags</div>
         </div>
-        <div style={styles.statCard}>
-          <div style={styles.statBig}>{agentType}</div>
-          <div style={styles.statLabel}>Type</div>
+        <div className="cyber-card p-3 text-center">
+          <div className="text-[22px] font-bold">{agentType}</div>
+          <div className="text-[10px] text-gray-500 mt-0.5">Type</div>
         </div>
       </div>
 
-      <div style={styles.columns}>
+      <div className="grid grid-cols-[1fr_320px] gap-4">
         {/* Left: Skills */}
-        <div style={styles.colLeft}>
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>Skills</div>
+        <div>
+          <div className="cyber-card p-4 mb-3">
+            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2.5">
+              Skills
+            </div>
             {agentSkills.length === 0 ? (
-              <div style={styles.emptyText}>No skills assigned</div>
+              <div className="text-xs text-gray-600 text-center p-4">No skills assigned</div>
             ) : (
               agentSkills.map((skill) => (
-                <div key={skill} style={styles.engineRow}>
-                  <span style={{ ...styles.eDot, background: '#22c55e' }} />
-                  <span style={styles.eName}>{skill}</span>
+                <div
+                  key={skill}
+                  className="flex items-center gap-2 py-1.5 border-b border-gray-900 text-xs"
+                >
+                  <span className="neon-dot neon-dot-green" />
+                  <span className="flex-1 font-semibold">{skill}</span>
                 </div>
               ))
             )}
@@ -146,15 +139,17 @@ export default function AppDetailPage() {
         </div>
 
         {/* Right: Tags & Details */}
-        <div style={styles.colRight}>
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>Tags</div>
+        <div>
+          <div className="cyber-card p-4 mb-3">
+            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2.5">
+              Tags
+            </div>
             {agentTags.length === 0 ? (
-              <div style={styles.emptyText}>No tags</div>
+              <div className="text-xs text-gray-600 text-center p-4">No tags</div>
             ) : (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+              <div className="flex gap-1.5 flex-wrap">
                 {agentTags.map((tag) => (
-                  <span key={tag} style={styles.tagChip}>
+                  <span key={tag} className="cyber-badge bg-gray-700 text-gray-400">
                     {tag}
                   </span>
                 ))}
@@ -162,22 +157,26 @@ export default function AppDetailPage() {
             )}
           </div>
 
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>Details</div>
-            <div style={styles.detailRow}>
-              <span style={styles.detailKey}>ID:</span>
-              <span style={styles.detailVal}>{appId}</span>
+          <div className="cyber-card p-4 mb-3">
+            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2.5">
+              Details
+            </div>
+            <div className="flex gap-2 py-1 text-xs border-b border-gray-900">
+              <span className="text-gray-500 min-w-[80px]">ID:</span>
+              <span className="text-gray-300 font-mono text-[11px] break-all">{appId}</span>
             </div>
             {agent.workspaceId && (
-              <div style={styles.detailRow}>
-                <span style={styles.detailKey}>Workspace:</span>
-                <span style={styles.detailVal}>{agent.workspaceId}</span>
+              <div className="flex gap-2 py-1 text-xs border-b border-gray-900">
+                <span className="text-gray-500 min-w-[80px]">Workspace:</span>
+                <span className="text-gray-300 font-mono text-[11px] break-all">
+                  {agent.workspaceId}
+                </span>
               </div>
             )}
             {agent.createdAt && (
-              <div style={styles.detailRow}>
-                <span style={styles.detailKey}>Created:</span>
-                <span style={styles.detailVal}>
+              <div className="flex gap-2 py-1 text-xs border-b border-gray-900">
+                <span className="text-gray-500 min-w-[80px]">Created:</span>
+                <span className="text-gray-300 font-mono text-[11px] break-all">
                   {new Date(agent.createdAt).toLocaleDateString()}
                 </span>
               </div>
@@ -187,110 +186,4 @@ export default function AppDetailPage() {
       </div>
     </div>
   )
-}
-
-const styles = {
-  page: {
-    background: '#0f172a',
-    minHeight: '100vh',
-    color: '#f9fafb',
-    fontFamily: 'sans-serif',
-    padding: 24,
-  },
-  header: { marginBottom: 20 },
-  back: {
-    fontSize: 12,
-    color: '#6b7280',
-    textDecoration: 'none',
-    display: 'block',
-    marginBottom: 8,
-  },
-  headerMain: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  title: { margin: '0 0 6px', fontSize: 22, fontWeight: 700 },
-  headerMeta: { display: 'flex', gap: 8, alignItems: 'center' },
-  tierBadge: {
-    fontSize: 10,
-    background: '#1e3a5f',
-    color: '#93c5fd',
-    padding: '2px 8px',
-    borderRadius: 4,
-    fontWeight: 600,
-  },
-  metaText: { fontSize: 12, color: '#6b7280' },
-  ring: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: '12px 20px',
-    border: '1px solid #374151',
-  },
-  ringValue: { fontSize: 28, fontWeight: 700 },
-  ringLabel: { fontSize: 10, color: '#6b7280' },
-  // Stats
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 },
-  statCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 12,
-    textAlign: 'center' as const,
-    border: '1px solid #374151',
-  },
-  statBig: { fontSize: 22, fontWeight: 700 },
-  statLabel: { fontSize: 10, color: '#6b7280', marginTop: 2 },
-  // Columns
-  columns: { display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 },
-  colLeft: {},
-  colRight: {},
-  section: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 16,
-    border: '1px solid #374151',
-    marginBottom: 12,
-  },
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-    marginBottom: 10,
-  },
-  // Engine rows
-  engineRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '5px 0',
-    borderBottom: '1px solid #111827',
-    fontSize: 12,
-  },
-  eDot: { width: 6, height: 6, borderRadius: '50%', flexShrink: 0 },
-  eName: { flex: 1, fontWeight: 600 },
-  // Tags
-  tagChip: {
-    fontSize: 11,
-    background: '#374151',
-    borderRadius: 4,
-    padding: '2px 8px',
-    color: '#9ca3af',
-  },
-  // Details
-  detailRow: {
-    display: 'flex',
-    gap: 8,
-    padding: '4px 0',
-    fontSize: 12,
-    borderBottom: '1px solid #111827',
-  },
-  detailKey: { color: '#6b7280', minWidth: 80 },
-  detailVal: {
-    color: '#d1d5db',
-    fontFamily: 'monospace',
-    fontSize: 11,
-    wordBreak: 'break-all' as const,
-  },
-  emptyText: { fontSize: 12, color: '#4b5563', textAlign: 'center' as const, padding: 16 },
 }
