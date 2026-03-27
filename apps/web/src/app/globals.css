@@ -141,6 +141,102 @@
   .cyber-grid {
     @apply grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3;
   }
+
+  /* ── Chat System ─────────────────────────────────────────────────── */
+
+  .chat-sidebar {
+    @apply w-64 border-r border-border bg-bg-surface p-3 flex flex-col overflow-y-auto;
+  }
+  .chat-sidebar-collapsed {
+    @apply w-10 p-1;
+  }
+
+  .chat-messages-area {
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(0, 212, 255, 0.02), transparent 50%),
+      radial-gradient(ellipse at 100% 100%, rgba(139, 92, 246, 0.02), transparent 50%);
+  }
+
+  .chat-bubble-user {
+    @apply bg-neon-blue/10 border border-neon-blue/15 rounded-2xl rounded-br-sm
+           px-4 py-2.5 max-w-[70%] text-sm text-slate-200;
+  }
+
+  .chat-bubble-agent {
+    @apply bg-bg-card border border-border rounded-2xl rounded-bl-sm
+           backdrop-blur-md px-4 py-2.5 text-sm text-slate-200 flex-1 min-w-0;
+  }
+
+  .chat-agent-label {
+    @apply text-[10px] font-semibold uppercase tracking-wider mb-1;
+  }
+
+  /* Markdown inside chat bubbles */
+  .chat-markdown p          { @apply mb-2 last:mb-0 leading-relaxed; }
+  .chat-markdown ul         { @apply list-disc pl-5 mb-2; }
+  .chat-markdown ol         { @apply list-decimal pl-5 mb-2; }
+  .chat-markdown li         { @apply mb-0.5; }
+  .chat-markdown h1         { @apply text-base font-bold mb-2 mt-3 first:mt-0 text-white; }
+  .chat-markdown h2         { @apply text-sm font-bold mb-1.5 mt-2.5 first:mt-0 text-white; }
+  .chat-markdown h3         { @apply text-sm font-semibold mb-1 mt-2 first:mt-0 text-white; }
+  .chat-markdown blockquote { @apply border-l-2 border-neon-purple/40 pl-3 italic text-slate-400 mb-2; }
+  .chat-markdown hr         { @apply border-border my-3; }
+  .chat-markdown strong     { @apply text-white font-semibold; }
+
+  .chat-inline-code {
+    @apply bg-white/8 text-neon-blue px-1.5 py-0.5 rounded text-xs font-mono;
+  }
+
+  .chat-code-block {
+    @apply rounded-lg overflow-hidden border border-white/8 my-2;
+  }
+  .chat-code-header {
+    @apply flex items-center justify-between px-3 py-1.5 bg-white/5 text-[10px];
+  }
+  .chat-code-lang {
+    @apply text-slate-500 uppercase font-mono font-semibold tracking-wider;
+  }
+  .chat-code-copy {
+    @apply text-slate-500 hover:text-neon-blue transition-colors cursor-pointer
+           bg-transparent border-none text-[10px] font-medium;
+  }
+
+  .chat-link {
+    @apply text-neon-blue underline underline-offset-2 hover:text-neon-blue/80;
+  }
+
+  .chat-table-wrap {
+    @apply overflow-x-auto my-2;
+  }
+  .chat-table {
+    @apply w-full text-xs border-collapse;
+  }
+  .chat-table th {
+    @apply text-left px-2 py-1.5 bg-white/5 border-b border-border text-slate-400 font-semibold;
+  }
+  .chat-table td {
+    @apply px-2 py-1.5 border-b border-border-dim;
+  }
+
+  .chat-cursor {
+    @apply inline-block w-0.5 h-4 bg-neon-blue ml-0.5 align-text-bottom;
+    animation: cursor-blink 1s step-end infinite;
+  }
+
+  .chat-thinking-dot {
+    @apply w-1.5 h-1.5 rounded-full bg-slate-500;
+    animation: thinking-bounce 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes thinking-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
 }
 
 /* ── Animations ─────────────────────────────────────────────────────────── */
