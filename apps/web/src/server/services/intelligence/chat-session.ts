@@ -17,6 +17,7 @@ export interface ChatMessage {
   id: string
   role: string
   text: string
+  sourceAgentId?: string | null
   attachment?: unknown
   createdAt: Date
 }
@@ -74,6 +75,7 @@ export class ChatSessionManager {
         id: m.id,
         role: m.role,
         text: m.text,
+        sourceAgentId: m.sourceAgentId ?? null,
         attachment: m.attachment,
         createdAt: m.createdAt,
       })),
@@ -110,6 +112,7 @@ export class ChatSessionManager {
       id: msg!.id,
       role: msg!.role,
       text: msg!.text,
+      sourceAgentId: msg!.sourceAgentId ?? null,
       attachment: msg!.attachment,
       createdAt: msg!.createdAt,
     }
