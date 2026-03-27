@@ -58,7 +58,7 @@ export default function OpsOverviewPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-2.5 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-6">
         <div className="cyber-card p-3.5 text-center">
           <div
             className={`text-xl font-bold ${health?.status === 'healthy' ? 'text-neon-green' : 'text-neon-red'}`}
@@ -95,7 +95,7 @@ export default function OpsOverviewPage() {
           <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
             Cost & Performance
           </div>
-          <div className="grid grid-cols-4 gap-2.5 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
             <div className="cyber-card p-3.5 text-center">
               <div className="text-xl font-bold text-neon-green">
                 ${costQuery.data.totalCostUsd.toFixed(4)}

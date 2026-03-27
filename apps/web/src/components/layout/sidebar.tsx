@@ -140,7 +140,7 @@ const SpotlightSearch = memo(function SpotlightSearch({
 
 // ── Sidebar Component ───────────────────────────────────────────────────
 
-export default function Sidebar() {
+export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname()
   const [spotlightOpen, setSpotlightOpen] = useState(false)
 
@@ -197,6 +197,7 @@ export default function Sidebar() {
                   key={item.href}
                   href={item.href}
                   className={`nav-item ${isActive(item.href) ? 'nav-item-active' : ''}`}
+                  onClick={onNavigate}
                 >
                   <span className="w-[18px] text-center text-xs opacity-70 flex-shrink-0">
                     {item.icon}

@@ -54,6 +54,9 @@ packages/types/            — Shared TypeScript types
 - Flows engine: multi-step workflows with checkpoint resume via `stepIndex`
 - Memory service: pgvector-backed semantic search with embeddings
 - Event bus: `eventBus.emit('ticket.created', { ticketId })` for cross-service coordination
+- Chat stream route: `/api/chat/stream` — SSE endpoint with tool loop (max 5 iterations)
+- Tools available to agents: ephemeris (natal, transits, dasha, synastry) + memory (search, store)
+- A2A protocol: agents can delegate tasks via `a2a.delegate()` with skill-based discovery
 <!-- @end -->
 
 <!-- @section:planner -->
@@ -67,6 +70,9 @@ packages/types/            — Shared TypeScript types
 - Ticket lifecycle: backlog → queued → in_progress → review → done (or failed/cancelled)
 - Workspace types: general, development, staging, system
 - Brain entities (mini-brains): self-contained units with own DB, agents, and governance
+- Development templates: domain-specific agent groups (e.g., personal-astrology with 4 agents)
+- Crew execution: multi-agent ReAct loop with auto-delegation and shared tool access
+- JourneyEngine: declarative state machines for constrained agent workflows (Parlant pattern)
 <!-- @end -->
 
 <!-- @section:reviewer -->
@@ -115,4 +121,17 @@ packages/types/            — Shared TypeScript types
 - DO NOT import from relative paths across package boundaries — use `@solarc/db` or `@solarc/types`
 - DO NOT create new tables without a Drizzle migration
 - DO NOT bypass the Gateway Router to call LLM APIs directly
+- DO NOT add inline `style={{}}` objects — use Tailwind + Dark Cosmic CSS classes
+- DO NOT use `findMany()` without `.limit()` on large tables
+<!-- @end -->
+
+<!-- @section:multimodal -->
+
+## For Multimodal/Vision Agents
+
+- Image inputs supported via Anthropic API `image` content blocks
+- PDF processing available via tRPC `visualQa` router
+- Browser automation via `browserAgent` router (navigate, screenshot, extract)
+- Storyboard generation uses 6-frame narrative visualization
+- Always validate file types before processing — accept only known MIME types
 <!-- @end -->
