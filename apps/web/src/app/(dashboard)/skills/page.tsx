@@ -140,10 +140,14 @@ function SkillCard({
   skill,
   onInstall,
   onUninstall,
+  onScan,
+  scanPending,
 }: {
   skill: SkillListing
   onInstall: () => void
   onUninstall: () => void
+  onScan?: () => void
+  scanPending?: boolean
 }) {
   return (
     <div className="cyber-card">
@@ -165,15 +169,26 @@ function SkillCard({
             by {skill.author} · v{skill.version}
           </div>
         </div>
-        {skill.installed ? (
-          <button className="cyber-btn-secondary shrink-0 text-xs" onClick={onUninstall}>
-            Uninstall
-          </button>
-        ) : (
-          <button className="cyber-btn-primary shrink-0 text-xs" onClick={onInstall}>
-            Install
-          </button>
-        )}
+        <div className="flex gap-1.5 shrink-0">
+          {skill.installed && onScan && (
+            <button
+              className="cyber-btn-secondary shrink-0 text-[10px] !py-0.5"
+              onClick={onScan}
+              disabled={scanPending}
+            >
+              {scanPending ? '...' : 'Scan'}
+            </button>
+          )}
+          {skill.installed ? (
+            <button className="cyber-btn-secondary shrink-0 text-xs" onClick={onUninstall}>
+              Uninstall
+            </button>
+          ) : (
+            <button className="cyber-btn-primary shrink-0 text-xs" onClick={onInstall}>
+              Install
+            </button>
+          )}
+        </div>
       </div>
       <div className="text-xs text-gray-400 mb-2.5 leading-relaxed">{skill.description}</div>
       <div className="flex items-center gap-2.5 flex-wrap">
@@ -221,6 +236,12 @@ export default function SkillsPage() {
   const installedQuery = trpc.skills.installed.useQuery()
   const installMutation = trpc.skills.install.useMutation()
   const uninstallMutation = trpc.skills.uninstall.useMutation()
+  const scanMutation = trpc.skills.scan.useMutation()
+  const [scanResult, setScanResult] = useState<{
+    skillName: string
+    verdict: string
+    reviewRequired: boolean
+  } | null>(null)
 
   const utils = trpc.useUtils()
 
@@ -343,6 +364,31 @@ export default function SkillsPage() {
         </div>
       </div>
 
+      {/* Scan Result Banner */}
+      {scanResult && (
+        <div
+          className={`rounded-lg px-4 py-2 mb-3 text-xs flex items-center justify-between ${
+            scanResult.verdict === 'clean'
+              ? 'bg-neon-green/10 border border-neon-green/20 text-neon-green'
+              : scanResult.verdict === 'suspicious'
+                ? 'bg-neon-yellow/10 border border-neon-yellow/20 text-neon-yellow'
+                : 'bg-neon-red/10 border border-neon-red/20 text-neon-red'
+          }`}
+        >
+          <span>
+            Scan result for <strong>{scanResult.skillName}</strong>:{' '}
+            {scanResult.verdict.toUpperCase()}
+            {scanResult.reviewRequired && ' — review required'}
+          </span>
+          <button
+            className="text-current opacity-60 hover:opacity-100"
+            onClick={() => setScanResult(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Grid */}
       <div className="cyber-grid">
         {displaySkills.map((skill) => (
@@ -351,6 +397,23 @@ export default function SkillsPage() {
             skill={skill}
             onInstall={() => setInstallTarget(skill)}
             onUninstall={() => handleUninstall(skill.id)}
+            onScan={() =>
+              scanMutation.mutate(
+                { skillName: skill.name, content: skill.description },
+                {
+                  onSuccess: (data) => {
+                    const r = data as {
+                      skillName: string
+                      verdict: string
+                      reviewRequired: boolean
+                    }
+                    setScanResult(r)
+                    setTimeout(() => setScanResult(null), 6000)
+                  },
+                },
+              )
+            }
+            scanPending={scanMutation.isPending}
           />
         ))}
         {displaySkills.length === 0 && (
