@@ -7,6 +7,8 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
+import { brainEntities, brainEntityAgents } from '@solarc/db'
+import { eq } from 'drizzle-orm'
 import { DebateEngine, TokenLedgerService, EntityManager } from '../services/platform'
 
 let debate: DebateEngine | null = null
@@ -227,6 +229,19 @@ export const platformRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).suspend(input.id)
+    }),
+
+  deleteEntity: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      // Delete agent links, then entity (children get parentId set to null via FK)
+      await ctx.db.delete(brainEntityAgents).where(eq(brainEntityAgents.entityId, input.id))
+      const [deleted] = await ctx.db
+        .delete(brainEntities)
+        .where(eq(brainEntities.id, input.id))
+        .returning()
+      if (!deleted) throw new Error('Entity not found')
+      return { id: deleted.id }
     }),
 
   entity: protectedProcedure

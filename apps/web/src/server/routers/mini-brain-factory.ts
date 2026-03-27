@@ -57,39 +57,6 @@ export const miniBrainFactoryRouter = router({
       return getFactory().getDevelopmentTemplates(input.template as MiniBrainTemplate)
     }),
 
-  /** Create a new Mini Brain from template (legacy — filesystem-based) */
-  create: protectedProcedure
-    .input(
-      z.object({
-        template: templateEnum,
-        name: z.string().min(1),
-        brainEndpoint: z.string().default('http://localhost:3000'),
-        brainApiKey: z.string().default('dev-key'),
-        databaseUrl: z.string().optional(),
-        targetDir: z.string().optional(),
-      }),
-    )
-    .mutation(async ({ input }) => {
-      return getFactory().createMiniBrain({
-        ...input,
-        template: input.template as MiniBrainTemplate,
-      })
-    }),
-
-  /** Create a Development app from a Mini Brain template (legacy) */
-  createDevelopment: protectedProcedure
-    .input(
-      z.object({
-        template: z.string().min(1),
-        name: z.string().min(1),
-        miniBrainId: z.string().uuid(),
-        targetDir: z.string().optional(),
-      }),
-    )
-    .mutation(async ({ input }) => {
-      return getFactory().createDevelopment(input)
-    }),
-
   /**
    * Smart Create — one-click mini-brain provisioning.
    * Creates: entity + workspace + orchestrator + template agents + binding + activates both.
