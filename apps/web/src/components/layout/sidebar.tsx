@@ -52,6 +52,10 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'A2A Protocol', href: '/ops/a2a', icon: '⇋' },
       { label: 'Task Runner', href: '/ops/task-runner', icon: '▷' },
       { label: 'Journeys', href: '/ops/journeys', icon: '⟿' },
+      { label: 'Browser Sessions', href: '/ops/browser-sessions', icon: '⧉' },
+      { label: 'Visual QA', href: '/ops/visual-qa', icon: '⊡' },
+      { label: 'Instincts', href: '/ops/instincts', icon: '⚡' },
+      { label: 'Marketplace', href: '/ops/aitmpl', icon: '⊞' },
     ],
   },
   {
