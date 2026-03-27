@@ -47,6 +47,9 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Live Viewer', href: '/ops/live', icon: '◉' },
       { label: 'Databases', href: '/ops/databases', icon: '⊟' },
       { label: 'Cron Jobs', href: '/ops/cron', icon: '⏱' },
+      { label: 'Healing', href: '/ops/healing', icon: '♥' },
+      { label: 'MCP Tools', href: '/ops/mcp', icon: '⚙' },
+      { label: 'A2A Protocol', href: '/ops/a2a', icon: '⇋' },
     ],
   },
   {
