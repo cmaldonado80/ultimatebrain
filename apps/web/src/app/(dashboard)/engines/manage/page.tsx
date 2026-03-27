@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { trpc } from '../../../../utils/trpc'
 import { DbErrorBanner } from '../../../../components/db-error-banner'
 
@@ -260,6 +261,14 @@ export default function BrainManagerPage() {
           >
             {entity.name}
           </span>
+          <Link
+            href={`/engines/manage/${entity.id}`}
+            style={{ fontSize: 10, color: '#818cf8', textDecoration: 'none' }}
+            onClick={(e) => e.stopPropagation()}
+            title="View detail"
+          >
+            →
+          </Link>
           {entity.tier === 'mini_brain' && (
             <button
               style={{ ...styles.btnSmall, background: '#eab308', color: '#000', fontSize: 9 }}
