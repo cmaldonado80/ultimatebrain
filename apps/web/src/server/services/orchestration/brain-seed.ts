@@ -1,5 +1,5 @@
 /**
- * Brain Seed — provisions 10 category workspaces with all 141 agents from
+ * Brain Seed — provisions 10 category workspaces with all 143 agents from
  * https://github.com/VoltAgent/awesome-claude-code-subagents
  *
  * Idempotent — skips workspaces that already exist (matched by name).
@@ -9,6 +9,8 @@
 import type { Database } from '@solarc/db'
 import { workspaces, agents, workspaceLifecycleEvents } from '@solarc/db'
 import { eq, and } from 'drizzle-orm'
+import { getAgentSoul } from './agents'
+import { eventBus } from './event-bus'
 
 type Cap =
   | 'reasoning'
@@ -183,6 +185,13 @@ const W: WorkspaceDef[] = [
         '.NET 8 cross-platform specialist',
       ],
       [
+        '.NET Framework 4.8 Expert',
+        'specialist',
+        'coder',
+        ['dotnet-framework', 'aspnet', 'winforms', 'wcf'],
+        '.NET Framework 4.8 legacy and maintenance specialist',
+      ],
+      [
         'Elixir Expert',
         'specialist',
         'coder',
@@ -307,6 +316,13 @@ const W: WorkspaceDef[] = [
         'coder',
         ['spring-boot', 'java', 'microservices', 'jpa'],
         'Spring Boot 3+ microservices expert',
+      ],
+      [
+        'Symfony Specialist',
+        'specialist',
+        'coder',
+        ['symfony', 'php', 'doctrine', 'twig'],
+        'Symfony PHP framework expert',
       ],
     ],
   },
@@ -590,6 +606,13 @@ const W: WorkspaceDef[] = [
         'reasoning',
         ['pytorch', 'tensorflow', 'mlops', 'feature-engineering'],
         'Machine learning systems expert',
+      ],
+      [
+        'Machine Learning Engineer',
+        'executor',
+        'reasoning',
+        ['ml', 'tensorflow', 'pytorch', 'scikit-learn'],
+        'End-to-end ML pipeline specialist',
       ],
       [
         'MLOps Engineer',
@@ -1137,13 +1160,16 @@ const W: WorkspaceDef[] = [
   },
 ]
 
-/** Generate a soul (system prompt) from agent definition */
+/** Generate a soul (system prompt) from agent definition.
+ *  First checks for a rich MD definition file; falls back to a compact prompt. */
 function makeSoul(name: string, desc: string, skills: string[]): string {
+  const rich = getAgentSoul(name)
+  if (rich?.soul) return rich.soul
   return `You are ${name}, a specialized AI agent. ${desc}. Your core skills: ${skills.join(', ')}. Be precise, thorough, and actionable in your responses.`
 }
 
 /**
- * Seed the brain with 10 category workspaces and 141 agents.
+ * Seed the brain with 10 category workspaces and 143 agents.
  * Idempotent — skips workspaces that already exist, adds missing agents.
  */
 export async function seedBrainWorkspaces(db: Database): Promise<{
@@ -1182,15 +1208,17 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
 
       for (const [name, type, cap, skills, desc] of wsDef.agents) {
         if (existingNames.has(name)) continue
+        const richDef = getAgentSoul(name)
         await db.insert(agents).values({
           name,
           type,
           workspaceId: ws.id,
-          description: desc,
+          description: richDef?.description || desc,
           soul: makeSoul(name, desc, skills),
           requiredModelType: cap,
           skills,
           tags: [wsDef.name.toLowerCase().replace(/\s+/g, '-'), type],
+          toolAccess: richDef?.tools ?? [],
         })
         agentsCreated++
       }
@@ -1236,19 +1264,23 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
 
     // Create all agents
     for (const [name, type, cap, skills, desc] of wsDef.agents) {
+      const richDef = getAgentSoul(name)
       await db.insert(agents).values({
         name,
         type,
         workspaceId: ws.id,
-        description: desc,
+        description: richDef?.description || desc,
         soul: makeSoul(name, desc, skills),
         requiredModelType: cap,
         skills,
         tags: [wsDef.name.toLowerCase().replace(/\s+/g, '-'), type],
+        toolAccess: richDef?.tools ?? [],
       })
       agentsCreated++
     }
   }
+
+  await eventBus.emit('brain.seeded', { workspacesCreated, agentsCreated })
 
   return { workspacesCreated, agentsCreated, skipped }
 }

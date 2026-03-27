@@ -119,8 +119,10 @@ function Avatar({
         style={{
           ...styles.avatar,
           background: bg,
-          border: isAgent ? '2px solid #a855f7' : '2px solid #1f2937',
-          animation: isPulsing ? 'pulse 1.5s ease-in-out infinite' : 'none',
+          border: isAgent
+            ? '2px solid var(--color-neon-purple)'
+            : '2px solid var(--color-bg-elevated)',
+          animation: isPulsing ? 'avatar-pulse 1.5s ease-in-out infinite' : 'none',
           boxShadow: isPulsing ? `0 0 8px ${bg}` : 'none',
         }}
       >
@@ -135,8 +137,10 @@ function Avatar({
       <span
         style={{
           ...styles.statusDot,
-          background: isPulsing ? '#f97316' : '#22c55e',
-          boxShadow: isPulsing ? '0 0 4px #f97316' : '0 0 4px #22c55e',
+          background: isPulsing ? 'var(--color-neon-yellow)' : 'var(--color-neon-green)',
+          boxShadow: isPulsing
+            ? '0 0 4px var(--color-neon-yellow)'
+            : '0 0 4px var(--color-neon-green)',
         }}
       />
 
@@ -183,7 +187,11 @@ export default function PresenceAvatars({
   return (
     <div style={styles.container}>
       {isDemo && (
-        <span style={{ fontSize: 9, color: '#818cf8', marginRight: 6, opacity: 0.7 }}>(demo)</span>
+        <span
+          style={{ fontSize: 9, color: 'var(--color-neon-purple)', marginRight: 6, opacity: 0.7 }}
+        >
+          (demo)
+        </span>
       )}
       {/* Avatar stack */}
       <div style={styles.stack}>
@@ -210,13 +218,7 @@ export default function PresenceAvatars({
         </span>
       </div>
 
-      {/* Inline keyframes for pulse animation */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.08); opacity: 0.85; }
-        }
-      `}</style>
+      {/* avatar-pulse keyframe defined in globals.css */}
     </div>
   )
 }
@@ -252,14 +254,14 @@ const styles = {
     width: 8,
     height: 8,
     borderRadius: '50%',
-    border: '2px solid #111827',
+    border: '2px solid var(--color-bg-elevated)',
   },
   overflow: {
     width: 32,
     height: 32,
     borderRadius: '50%',
-    background: '#374151',
-    border: '2px solid #1f2937',
+    background: 'var(--color-border)',
+    border: '2px solid var(--color-bg-elevated)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -274,8 +276,8 @@ const styles = {
     top: 40,
     left: '50%',
     transform: 'translateX(-50%)',
-    background: '#1f2937',
-    border: '1px solid #374151',
+    background: 'var(--color-bg-elevated)',
+    border: '1px solid var(--color-border)',
     borderRadius: 6,
     padding: '8px 12px',
     whiteSpace: 'nowrap' as const,
@@ -286,7 +288,12 @@ const styles = {
   tooltipType: { fontSize: 10, color: '#6b7280', marginBottom: 4 },
   tooltipLocation: { fontSize: 11, color: '#9ca3af' },
   tooltipMeta: { fontSize: 10, color: '#6b7280', marginTop: 2 },
-  tooltipExecuting: { fontSize: 10, color: '#f97316', fontWeight: 600, marginTop: 2 },
+  tooltipExecuting: {
+    fontSize: 10,
+    color: 'var(--color-neon-yellow)',
+    fontWeight: 600,
+    marginTop: 2,
+  },
   // Summary
   summary: { display: 'flex', alignItems: 'center', gap: 4 },
   summaryCount: { fontSize: 11, color: '#6b7280' },

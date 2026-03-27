@@ -21,39 +21,47 @@ interface DisplayApp {
 }
 
 function StatusDot({ status }: { status: string }) {
-  const color = status === 'running' ? '#22c55e' : status === 'degraded' ? '#f97316' : '#ef4444'
-  return <span style={{ ...styles.statusDot, background: color, boxShadow: `0 0 4px ${color}` }} />
+  const dotClass =
+    status === 'running'
+      ? 'neon-dot neon-dot-green'
+      : status === 'degraded'
+        ? 'neon-dot neon-dot-yellow'
+        : 'neon-dot neon-dot-red'
+  return <span className={dotClass} />
 }
 
 function AppCard({ app }: { app: DisplayApp }) {
   return (
-    <a href={`/apps/${app.id}`} style={styles.card}>
-      <div style={styles.cardTop}>
-        <div style={styles.cardLeft}>
+    <a href={`/apps/${app.id}`} className="cyber-card block no-underline text-inherit p-4">
+      <div className="flex justify-between items-center mb-1.5">
+        <div className="flex items-center gap-1.5">
           <StatusDot status={app.status} />
-          <span style={styles.cardName}>{app.name}</span>
-          <span style={styles.tierBadge}>{app.type || 'Agent'}</span>
+          <span className="text-[15px] font-bold font-orbitron">{app.name}</span>
+          <span className="cyber-badge text-neon-blue">{app.type || 'Agent'}</span>
         </div>
       </div>
-      <div style={styles.cardDomain}>{app.description || 'No description'}</div>
-      <div style={styles.statsRow}>
-        <div style={styles.stat}>
-          <span style={styles.statValue}>{app.model || 'N/A'}</span>
-          <span style={styles.statLabel}>Model</span>
+      <div className="text-xs text-gray-500 mb-2.5">{app.description || 'No description'}</div>
+      <div className="flex gap-5 mb-2.5">
+        <div className="flex flex-col items-center">
+          <span className="text-base font-bold font-mono">{app.model || 'N/A'}</span>
+          <span className="text-[10px] text-gray-500">Model</span>
         </div>
-        <div style={styles.stat}>
-          <span style={styles.statValue}>{app.skills.length}</span>
-          <span style={styles.statLabel}>Skills</span>
+        <div className="flex flex-col items-center">
+          <span className="text-base font-bold font-mono">{app.skills.length}</span>
+          <span className="text-[10px] text-gray-500">Skills</span>
         </div>
-        <div style={styles.stat}>
-          <span style={styles.statValue}>{app.tags.length}</span>
-          <span style={styles.statLabel}>Tags</span>
+        <div className="flex flex-col items-center">
+          <span className="text-base font-bold font-mono">{app.tags.length}</span>
+          <span className="text-[10px] text-gray-500">Tags</span>
         </div>
       </div>
       {app.tags.length > 0 && (
-        <div style={styles.engineTags}>
+        <div className="flex gap-1 flex-wrap">
           {app.tags.map((t) => (
-            <span key={t} style={styles.engineTag}>
+            <span
+              key={t}
+              className="text-[10px] bg-bg-elevated rounded px-1.5 py-0.5 text-gray-400"
+            >
               {t}
             </span>
           ))}
@@ -69,7 +77,7 @@ export default function AppsPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="bg-bg-deep min-h-screen text-gray-50 p-6">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -77,18 +85,10 @@ export default function AppsPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching apps</div>
+      <div className="bg-bg-deep min-h-screen text-gray-50 p-6 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2 font-orbitron">Loading...</div>
+          <div className="text-[13px]">Fetching apps</div>
         </div>
       </div>
     )
@@ -120,18 +120,24 @@ export default function AppsPage() {
   const filtered = filter === 'all' ? apps : apps.filter((a) => a.type === filter)
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
+    <div className="bg-bg-deep min-h-screen text-gray-50 p-6">
+      <div className="mb-4">
         <div>
-          <h1 style={styles.title}>Connected Apps</h1>
-          <p style={styles.subtitle}>
+          <h1 className="m-0 text-[22px] font-bold font-orbitron text-neon-purple">
+            Connected Apps
+          </h1>
+          <p className="mt-1 mb-0 text-[13px] text-gray-500">
             {apps.length} agent{apps.length !== 1 ? 's' : ''} registered
           </p>
         </div>
       </div>
-      <div style={styles.tabs}>
+      <div className="flex gap-1 mb-4">
         <button
-          style={filter === 'all' ? styles.tabActive : styles.tab}
+          className={
+            filter === 'all'
+              ? 'cyber-btn-primary rounded-md text-[13px] px-4 py-1.5 font-semibold'
+              : 'cyber-btn-secondary rounded-md text-[13px] px-4 py-1.5'
+          }
           onClick={() => setFilter('all')}
         >
           All ({apps.length})
@@ -139,7 +145,11 @@ export default function AppsPage() {
         {types.map((t) => (
           <button
             key={t}
-            style={filter === t ? styles.tabActive : styles.tab}
+            className={
+              filter === t
+                ? 'cyber-btn-primary rounded-md text-[13px] px-4 py-1.5 font-semibold'
+                : 'cyber-btn-secondary rounded-md text-[13px] px-4 py-1.5'
+            }
             onClick={() => setFilter(t)}
           >
             {t} ({apps.filter((a) => a.type === t).length})
@@ -147,88 +157,13 @@ export default function AppsPage() {
         ))}
       </div>
 
-      <div style={styles.grid}>
+      <div className="flex flex-col gap-2.5">
         {filtered.length === 0 ? (
-          <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 40 }}>
-            No apps found
-          </div>
+          <div className="text-gray-500 text-[13px] text-center p-10">No apps found</div>
         ) : (
           filtered.map((app) => <AppCard key={app.id} app={app} />)
         )}
       </div>
     </div>
   )
-}
-
-const styles = {
-  page: {
-    background: '#0f172a',
-    minHeight: '100vh',
-    color: '#f9fafb',
-    fontFamily: 'sans-serif',
-    padding: 24,
-  },
-  header: { marginBottom: 16 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  tabs: { display: 'flex', gap: 4, marginBottom: 16 },
-  tab: {
-    background: 'transparent',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    color: '#9ca3af',
-    padding: '6px 16px',
-    fontSize: 13,
-    cursor: 'pointer',
-  },
-  tabActive: {
-    background: '#1f2937',
-    border: '1px solid #4b5563',
-    borderRadius: 6,
-    color: '#f9fafb',
-    padding: '6px 16px',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  grid: { display: 'flex', flexDirection: 'column' as const, gap: 10 },
-  card: {
-    display: 'block',
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 16,
-    border: '1px solid #374151',
-    textDecoration: 'none',
-    color: 'inherit',
-  },
-  cardTop: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  cardLeft: { display: 'flex', alignItems: 'center', gap: 6 },
-  cardName: { fontSize: 15, fontWeight: 700 },
-  tierBadge: {
-    fontSize: 10,
-    background: '#1e3a5f',
-    color: '#93c5fd',
-    padding: '1px 6px',
-    borderRadius: 4,
-    fontWeight: 600,
-  },
-  cardDomain: { fontSize: 12, color: '#6b7280', marginBottom: 10 },
-  statusDot: { width: 8, height: 8, borderRadius: '50%', display: 'inline-block' },
-  statsRow: { display: 'flex', gap: 20, marginBottom: 10 },
-  stat: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center' },
-  statValue: { fontSize: 16, fontWeight: 700 },
-  statLabel: { fontSize: 10, color: '#6b7280' },
-  engineTags: { display: 'flex', gap: 4, flexWrap: 'wrap' as const },
-  engineTag: {
-    fontSize: 10,
-    background: '#374151',
-    borderRadius: 4,
-    padding: '2px 6px',
-    color: '#9ca3af',
-  },
 }

@@ -866,17 +866,28 @@ export class GatewayRouter {
       }
 
       // 3. Check semantic cache (skip for streaming / tool-use)
-      if (
+      const cacheable =
         this.config.cacheEnabled &&
         !shouldSkipCache({ stream: input.stream, tools: input.tools, messages })
-      ) {
+      let cacheEmbedding: number[] | undefined
+      if (cacheable) {
         const cacheSpan = this.tracer?.start('gateway.cache.lookup', {
           service: 'gateway',
           parent: rootSpan
             ? { traceId: rootSpan.traceId, parentSpanId: rootSpan.spanId }
             : undefined,
         })
-        const cached = await this.cache.lookup(model, messages)
+        // Compute embedding for semantic similarity search
+        try {
+          const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
+          if (lastUserMsg) {
+            const embedResult = await this.embed(lastUserMsg.content)
+            cacheEmbedding = embedResult.embedding
+          }
+        } catch {
+          // Embedding failure shouldn't block cache lookup — fall back to exact-match only
+        }
+        const cached = await this.cache.lookup(model, messages, cacheEmbedding)
         cacheSpan?.setAttribute('cache.hit', !!cached)
         await cacheSpan?.end()
 
@@ -982,14 +993,18 @@ export class GatewayRouter {
           rootSpan?.setAttribute('llm.cost_usd', costResult.costUsd)
           rootSpan?.setStatus('ok')
 
-          // Store in cache (async, don't block response)
-          if (
-            this.config.cacheEnabled &&
-            !shouldSkipCache({ stream: input.stream, tools: input.tools, messages })
-          ) {
+          // Store in cache with embedding for semantic lookup (async, don't block response)
+          if (cacheable) {
             this.cache
-              .store(targetModel, messages, result.content, result.tokensIn, result.tokensOut)
-              .catch((err) => console.warn('[Gateway] operation failed:', err.message))
+              .store(
+                targetModel,
+                messages,
+                result.content,
+                result.tokensIn,
+                result.tokensOut,
+                cacheEmbedding,
+              )
+              .catch((err) => console.warn('[Gateway] cache store failed:', err.message))
           }
 
           return {

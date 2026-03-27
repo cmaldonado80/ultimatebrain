@@ -27,6 +27,7 @@ interface Agent {
   model: string | null
   soul: string | null
   requiredModelType: string | null
+  workspaceId: string | null
 }
 
 export default function ChatPage() {
@@ -37,6 +38,7 @@ export default function ChatPage() {
   const [streamText, setStreamText] = useState('')
   const [streamAgentName, setStreamAgentName] = useState<string | null>(null)
   const [streamError, setStreamError] = useState<string | null>(null)
+  const [wsFilter, setWsFilter] = useState('')
   const abortRef = useRef<AbortController | null>(null)
 
   const sessionsQuery = trpc.intelligence.chatSessions.useQuery()
@@ -44,14 +46,25 @@ export default function ChatPage() {
     { id: selectedSession!, messageLimit: 100 },
     { enabled: !!selectedSession },
   )
-  const agentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
-  const agents = (agentsQuery.data ?? []) as Agent[]
+  const allAgentsQuery = trpc.agents.list.useQuery(
+    { limit: 100, offset: 0 },
+    { enabled: !wsFilter },
+  )
+  const wsAgentsQuery = trpc.agents.byWorkspace.useQuery(
+    { workspaceId: wsFilter || '00000000-0000-0000-0000-000000000000' },
+    { enabled: !!wsFilter },
+  )
+  const agents = ((wsFilter ? wsAgentsQuery.data : allAgentsQuery.data) ?? []) as Agent[]
+  const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
   const createSessionMut = trpc.intelligence.createChatSession.useMutation()
   const utils = trpc.useUtils()
 
   const handleNewSession = async () => {
+    const primaryAgentId = selectedAgents[0] || undefined
+    const primaryAgent = primaryAgentId ? agents.find((a) => a.id === primaryAgentId) : undefined
     const session = await createSessionMut.mutateAsync({
-      agentId: selectedAgents[0] || undefined,
+      agentId: primaryAgentId,
+      workspaceId: primaryAgent?.workspaceId ?? undefined,
     })
     utils.intelligence.chatSessions.invalidate()
     if (session) setSelectedSession(session.id)
@@ -180,8 +193,32 @@ export default function ChatPage() {
               + New
             </button>
           </div>
+          <select
+            value={wsFilter}
+            onChange={(e) => {
+              setWsFilter(e.target.value)
+              setSelectedAgents([])
+            }}
+            style={{
+              width: '100%',
+              marginBottom: 6,
+              background: 'var(--color-bg-elevated)',
+              color: '#d1d5db',
+              border: '1px solid var(--color-border)',
+              borderRadius: 4,
+              padding: '4px 6px',
+              fontSize: 11,
+            }}
+          >
+            <option value="">All agents</option>
+            {(workspacesQuery.data ?? []).map((ws: { id: string; name: string }) => (
+              <option key={ws.id} value={ws.id}>
+                {ws.name}
+              </option>
+            ))}
+          </select>
           <div style={{ maxHeight: 120, overflowY: 'auto', marginBottom: 8, fontSize: 11 }}>
-            {agents.slice(0, 20).map((a) => (
+            {agents.slice(0, 30).map((a) => (
               <label
                 key={a.id}
                 style={{
@@ -190,7 +227,7 @@ export default function ChatPage() {
                   gap: 4,
                   padding: '2px 4px',
                   cursor: 'pointer',
-                  color: selectedAgents.includes(a.id) ? '#818cf8' : '#9ca3af',
+                  color: selectedAgents.includes(a.id) ? 'var(--color-neon-purple)' : '#9ca3af',
                 }}
               >
                 <input
@@ -206,7 +243,9 @@ export default function ChatPage() {
               </label>
             ))}
             {selectedAgents.length > 1 && (
-              <div style={{ color: '#818cf8', padding: '2px 4px', fontWeight: 600 }}>
+              <div
+                style={{ color: 'var(--color-neon-purple)', padding: '2px 4px', fontWeight: 600 }}
+              >
                 Crew mode: {selectedAgents.length} agents
               </div>
             )}
@@ -274,8 +313,8 @@ export default function ChatPage() {
                 <div
                   style={{
                     padding: '8px 16px',
-                    background: '#7f1d1d',
-                    color: '#fca5a5',
+                    background: 'rgba(255,58,92,0.15)',
+                    color: 'var(--color-neon-red)',
                     fontSize: 12,
                   }}
                 >
@@ -292,7 +331,7 @@ export default function ChatPage() {
                 />
                 {streaming ? (
                   <button
-                    style={{ ...styles.sendBtn, background: '#ef4444' }}
+                    style={{ ...styles.sendBtn, background: 'var(--color-neon-red)' }}
                     onClick={() => abortRef.current?.abort()}
                   >
                     Cancel
@@ -316,8 +355,8 @@ const styles = {
   layout: { display: 'flex', height: '100%' },
   sidebar: {
     width: 260,
-    borderRight: '1px solid #374151',
-    background: '#111827',
+    borderRight: '1px solid var(--color-border)',
+    background: 'var(--color-bg-elevated)',
     padding: 12,
     overflowY: 'auto' as const,
   },
@@ -334,7 +373,7 @@ const styles = {
     textTransform: 'uppercase' as const,
   },
   newBtn: {
-    background: '#818cf8',
+    background: 'var(--color-neon-purple)',
     color: '#f9fafb',
     border: 'none',
     borderRadius: 4,
@@ -349,7 +388,8 @@ const styles = {
     borderRadius: 6,
     cursor: 'pointer',
     marginBottom: 4,
-    background: '#1f2937',
+    background: 'var(--color-bg-card)',
+    backdropFilter: 'blur(12px)',
   },
   sessionLabel: { fontSize: 13, fontWeight: 600 },
   sessionMeta: { fontSize: 10, color: '#4b5563' },
@@ -364,7 +404,7 @@ const styles = {
   },
   messages: { flex: 1, overflowY: 'auto' as const, padding: 16 },
   msgUser: {
-    background: '#1e3a5f',
+    background: 'rgba(0,212,255,0.1)',
     borderRadius: 8,
     padding: 10,
     marginBottom: 8,
@@ -372,7 +412,8 @@ const styles = {
     marginLeft: 'auto',
   },
   msgAgent: {
-    background: '#1f2937',
+    background: 'var(--color-bg-card)',
+    backdropFilter: 'blur(12px)',
     borderRadius: 8,
     padding: 10,
     marginBottom: 8,
@@ -386,18 +427,19 @@ const styles = {
     textTransform: 'uppercase' as const,
   },
   msgText: { fontSize: 13, lineHeight: 1.5 },
-  inputBar: { display: 'flex', gap: 8, padding: 12, borderTop: '1px solid #374151' },
+  inputBar: { display: 'flex', gap: 8, padding: 12, borderTop: '1px solid var(--color-border)' },
   input: {
     flex: 1,
-    background: '#1f2937',
+    background: 'var(--color-bg-card)',
+    backdropFilter: 'blur(12px)',
     color: '#f9fafb',
-    border: '1px solid #374151',
+    border: '1px solid var(--color-border)',
     borderRadius: 6,
     padding: '8px 12px',
     fontSize: 13,
   },
   sendBtn: {
-    background: '#818cf8',
+    background: 'var(--color-neon-purple)',
     color: '#f9fafb',
     border: 'none',
     borderRadius: 6,

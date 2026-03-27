@@ -40,6 +40,7 @@ export const agentsRouter = router({
     .query(async ({ ctx, input }) => {
       return ctx.db.query.agents.findMany({
         where: eq(agents.workspaceId, input.workspaceId),
+        orderBy: desc(agents.createdAt),
         limit: input.limit,
         offset: input.offset,
       })
@@ -167,6 +168,29 @@ export const agentsRouter = router({
       await ctx.db.delete(agents).where(eq(agents.id, input.id))
       return { deleted: true }
     }),
+
+  /** Bulk-assign Ollama cloud models to all agents that don't have an explicit model set */
+  bulkAssignModels: protectedProcedure.mutation(async ({ ctx }) => {
+    const MODEL_MAP: Record<string, string> = {
+      orchestrator: 'gemini-3-flash-preview:cloud',
+      reviewer: 'gemini-3-flash-preview:cloud',
+      planner: 'deepseek-v3.2:cloud',
+      specialist: 'qwen3.5:cloud',
+      executor: 'qwen3.5:cloud',
+    }
+    const allAgents = await ctx.db.query.agents.findMany()
+    let updated = 0
+    for (const agent of allAgents) {
+      if (agent.model) continue // already has explicit model
+      const model = MODEL_MAP[agent.type ?? ''] ?? 'qwen3.5:cloud'
+      await ctx.db
+        .update(agents)
+        .set({ model, updatedAt: new Date() })
+        .where(eq(agents.id, agent.id))
+      updated++
+    }
+    return { updated, total: allAgents.length }
+  }),
 
   /** Export an agent as a portable manifest JSON */
   exportAgent: protectedProcedure

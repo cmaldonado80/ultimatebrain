@@ -243,6 +243,18 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
           latitude: bd.latitude,
           longitude: bd.longitude,
         }
+      case 'animodar':
+        return { ...bd, prenatalSyzygyLon: 120.0, isDayChart: true }
+      case 'huberAgePoint':
+        return { ...bd, age: 30 }
+      case 'huberTimeline':
+        return { ...bd, startAge: 25, endAge: 35, step: 1 }
+      case 'ageHarmonic':
+        return { ...bd, age: 30 }
+      case 'transitCalendar':
+        return { ...bd, startDate: '2026-01-01', endDate: '2026-02-01' }
+      case 'primaryDirections':
+        return { ...bd, targetYear: new Date().getFullYear(), targetMonth: 1, targetDay: 1 }
       default:
         return bd
     }
@@ -439,7 +451,13 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
             },
             {
               label: 'Rectification',
-              tests: ['trutineOfHermes', 'almutenFiguris', 'huberAgePoint'],
+              tests: [
+                'trutineOfHermes',
+                'animodar',
+                'almutenFiguris',
+                'huberAgePoint',
+                'huberTimeline',
+              ],
             },
             { label: 'Transit Calendar', tests: ['transitCalendar'] },
             {

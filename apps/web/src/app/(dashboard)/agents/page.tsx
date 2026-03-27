@@ -44,29 +44,17 @@ const CAPABILITIES = [
 ]
 
 function StatusDot({ status }: { status: string }) {
-  const color =
+  const dotClass =
     status === 'idle'
-      ? '#22c55e'
+      ? 'neon-dot neon-dot-green'
       : status === 'executing'
-        ? '#818cf8'
+        ? 'neon-dot neon-dot-purple'
         : status === 'error'
-          ? '#ef4444'
+          ? 'neon-dot neon-dot-red'
           : status === 'offline'
-            ? '#6b7280'
-            : '#f97316'
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        width: 8,
-        height: 8,
-        borderRadius: '50%',
-        background: color,
-        boxShadow: `0 0 4px ${color}`,
-        flexShrink: 0,
-      }}
-    />
-  )
+            ? 'neon-dot neon-dot-gray'
+            : 'neon-dot neon-dot-yellow'
+  return <span className={dotClass} />
 }
 
 export default function AgentsPage() {
@@ -80,10 +68,20 @@ export default function AgentsPage() {
   const [search, setSearch] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [editingModel, setEditingModel] = useState<string | null>(null)
+  const [workspaceFilter, setWorkspaceFilter] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navRouter = useRouter()
 
-  const { data, isLoading, error } = trpc.agents.list.useQuery({ limit: 500, offset: 0 })
+  const allAgentsQuery = trpc.agents.list.useQuery(
+    { limit: 500, offset: 0 },
+    { enabled: !workspaceFilter },
+  )
+  const wsAgentsQuery = trpc.agents.byWorkspace.useQuery(
+    { workspaceId: workspaceFilter || '00000000-0000-0000-0000-000000000000' },
+    { enabled: !!workspaceFilter },
+  )
+  const { data, isLoading, error } = workspaceFilter ? wsAgentsQuery : allAgentsQuery
+  const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
   const modelsQuery = trpc.models.availableModels.useQuery()
   const availableModels = (modelsQuery.data ?? []) as Array<{
     modelId: string
@@ -92,6 +90,11 @@ export default function AgentsPage() {
     modelType: string
     speedTier: string | null
   }>
+
+  // Build workspace name lookup map
+  const wsMap = new Map(
+    (workspacesQuery.data ?? []).map((w: { id: string; name: string }) => [w.id, w.name]),
+  )
 
   const utils = trpc.useUtils()
   const createMut = trpc.agents.create.useMutation({
@@ -115,6 +118,9 @@ export default function AgentsPage() {
     },
   })
   const importMut = trpc.agents.importAgent.useMutation({
+    onSuccess: () => utils.agents.list.invalidate(),
+  })
+  const bulkModelsMut = trpc.agents.bulkAssignModels.useMutation({
     onSuccess: () => utils.agents.list.invalidate(),
   })
 
@@ -147,7 +153,7 @@ export default function AgentsPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -155,18 +161,10 @@ export default function AgentsPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching agents</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching agents</div>
         </div>
       </div>
     )
@@ -192,50 +190,72 @@ export default function AgentsPage() {
   )
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Agents ({allAgents.length})</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button style={styles.btnSecondary} onClick={() => fileInputRef.current?.click()}>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <div className="flex justify-between items-center">
+          <h2 className="m-0 text-[22px] font-bold font-orbitron">Agents ({allAgents.length})</h2>
+          <div className="flex gap-2">
+            <button
+              className="cyber-btn-secondary"
+              onClick={() => bulkModelsMut.mutate()}
+              disabled={bulkModelsMut.isPending}
+              title="Assign Ollama cloud models to all agents without an explicit model"
+            >
+              {bulkModelsMut.isPending ? 'Assigning...' : 'Assign Models'}
+            </button>
+            <button className="cyber-btn-secondary" onClick={() => fileInputRef.current?.click()}>
               Import
             </button>
             <input
               ref={fileInputRef}
               type="file"
               accept=".json"
-              style={{ display: 'none' }}
+              className="hidden"
               onChange={handleImport}
             />
-            <button style={styles.btnPrimary} onClick={() => setShowForm(!showForm)}>
+            <button className="cyber-btn-primary" onClick={() => setShowForm(!showForm)}>
               {showForm ? 'Cancel' : '+ New Agent'}
             </button>
           </div>
         </div>
-        <p style={styles.subtitle}>
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
           Portable AI agents — define by capability, deploy on any provider.
         </p>
       </div>
 
-      <input
-        style={{ ...styles.searchInput, marginBottom: 16 }}
-        placeholder="Search agents by name or type..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="flex gap-2 mb-4">
+        <input
+          className="cyber-input flex-1"
+          placeholder="Search agents by name or type..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          className="cyber-select min-w-[180px]"
+          value={workspaceFilter}
+          onChange={(e) => setWorkspaceFilter(e.target.value)}
+        >
+          <option value="">All workspaces</option>
+          {(workspacesQuery.data ?? []).map((ws: { id: string; name: string }) => (
+            <option key={ws.id} value={ws.id}>
+              {ws.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {showForm && (
-        <div style={styles.formCard}>
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+        <div className="cyber-card mb-4 p-4">
+          <div className="flex flex-col gap-2">
             <input
-              style={styles.input}
+              className="cyber-input"
               placeholder="Agent name..."
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="flex gap-2">
               <select
-                style={{ ...styles.select, flex: 1 }}
+                className="cyber-select flex-1"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
               >
@@ -246,7 +266,7 @@ export default function AgentsPage() {
                 <option value="specialist">Specialist</option>
               </select>
               <select
-                style={{ ...styles.select, flex: 1, borderColor: '#818cf8' }}
+                className="cyber-select flex-1 !border-neon-purple"
                 value={capability}
                 onChange={(e) => setCapability(e.target.value)}
               >
@@ -258,17 +278,8 @@ export default function AgentsPage() {
               </select>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label
-                style={{
-                  fontSize: 11,
-                  color: '#6b7280',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] text-gray-500 cursor-pointer flex items-center gap-1">
                 <input
                   type="checkbox"
                   checked={showModelOverride}
@@ -281,7 +292,7 @@ export default function AgentsPage() {
               </label>
               {showModelOverride && (
                 <select
-                  style={{ ...styles.select, flex: 1 }}
+                  className="cyber-select flex-1"
                   value={modelOverride}
                   onChange={(e) => setModelOverride(e.target.value)}
                 >
@@ -300,14 +311,14 @@ export default function AgentsPage() {
             </div>
 
             <input
-              style={styles.input}
+              className="cyber-input"
               placeholder="Description (optional)..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="flex gap-2 items-center">
               <button
-                style={styles.btnCreate}
+                className="cyber-btn-primary"
                 onClick={() =>
                   name.trim() &&
                   createMut.mutate({
@@ -333,7 +344,7 @@ export default function AgentsPage() {
                 {createMut.isPending ? 'Creating...' : 'Create Agent'}
               </button>
               {createMut.error && (
-                <span style={{ color: '#fca5a5', fontSize: 11 }}>{createMut.error.message}</span>
+                <span className="text-neon-red text-[11px]">{createMut.error.message}</span>
               )}
             </div>
           </div>
@@ -341,66 +352,63 @@ export default function AgentsPage() {
       )}
 
       {importMut.error && (
-        <div
-          style={{
-            background: '#1e1b4b',
-            border: '1px solid #ef4444',
-            borderRadius: 6,
-            padding: '8px 12px',
-            marginBottom: 12,
-            fontSize: 12,
-            color: '#fca5a5',
-          }}
-        >
+        <div className="bg-bg-elevated border border-neon-red rounded-md px-3 py-2 mb-3 text-xs text-neon-red">
           Import failed: {importMut.error.message}
         </div>
       )}
 
       {agents.length === 0 ? (
-        <div style={styles.empty}>
+        <div className="text-center text-gray-500 py-10 text-sm">
           No agents found. Create one or import a manifest to get started.
         </div>
       ) : (
-        <div style={styles.grid}>
+        <div className="cyber-grid">
           {agents.map((agent) => (
-            <div key={agent.id} style={styles.card}>
-              <div style={styles.cardTop}>
+            <div key={agent.id} className="cyber-card p-4">
+              {/* Row 1: Status + Name + Actions */}
+              <div className="flex items-center gap-2 mb-1">
                 <StatusDot status={agent.status} />
                 <span
-                  style={{ ...styles.cardName, cursor: 'pointer', textDecoration: 'none' }}
+                  className="text-[14px] font-bold flex-1 cursor-pointer font-orbitron truncate"
                   onClick={() => navRouter.push(`/agents/${agent.id}`)}
                   title="Open agent detail"
                 >
                   {agent.name}
                 </span>
-                {agent.type && <span style={styles.typeBadge}>{agent.type}</span>}
-                {agent.requiredModelType && (
-                  <span style={styles.capBadge}>{agent.requiredModelType}</span>
-                )}
                 <button
-                  style={styles.btnIcon}
+                  className="bg-transparent text-gray-500 border-none text-[11px] cursor-pointer hover:text-gray-300"
                   onClick={() => handleExport(agent.id, agent.name)}
                   title="Export manifest"
                 >
                   Exp
                 </button>
                 <button
-                  style={styles.btnIcon}
+                  className="bg-transparent text-gray-500 border-none text-[11px] cursor-pointer hover:text-gray-300"
                   onClick={() => setDeleteTarget({ id: agent.id, name: agent.name })}
                 >
                   Del
                 </button>
               </div>
-              <div style={styles.cardDesc}>{agent.description || 'No description'}</div>
-              <div style={styles.cardMeta}>
+              {/* Row 2: Workspace + Badges */}
+              <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                {agent.workspaceId && wsMap.get(agent.workspaceId) && (
+                  <span className="text-[10px] text-neon-blue/70 truncate max-w-[140px]">
+                    {wsMap.get(agent.workspaceId)}
+                  </span>
+                )}
+                {agent.type && (
+                  <span className="cyber-badge text-neon-blue text-[9px]">{agent.type}</span>
+                )}
+              </div>
+              {/* Description */}
+              <div className="text-xs text-gray-400 mb-2 leading-relaxed line-clamp-2">
+                {agent.description || 'No description'}
+              </div>
+              {/* Model + Status row */}
+              <div className="flex items-center gap-3 text-[11px] text-gray-500 mb-1.5">
                 {editingModel === agent.id ? (
                   <select
-                    style={{
-                      ...styles.select,
-                      fontSize: 11,
-                      padding: '2px 6px',
-                      border: '1px solid #818cf8',
-                    }}
+                    className="cyber-select text-[11px] !py-0.5 !px-1.5 !border-neon-purple flex-1"
                     value={agent.model ?? ''}
                     onChange={(e) => updateMut.mutate({ id: agent.id, model: e.target.value })}
                     onBlur={() => setEditingModel(null)}
@@ -419,28 +427,28 @@ export default function AgentsPage() {
                   </select>
                 ) : (
                   <span
-                    style={{ cursor: 'pointer', borderBottom: '1px dashed #4b5563' }}
+                    className="cursor-pointer border-b border-dashed border-gray-600 font-mono truncate"
                     onClick={() => setEditingModel(agent.id)}
                     title="Click to change model"
                   >
-                    Model: {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
+                    {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
                   </span>
                 )}
-                <span>Status: {agent.status}</span>
+                <span className="text-gray-600 shrink-0">{agent.status}</span>
               </div>
               {agent.skills && agent.skills.length > 0 && (
-                <div style={styles.tags}>
+                <div className="flex flex-wrap gap-1 mt-1.5">
                   {agent.skills.map((s) => (
-                    <span key={s} style={styles.tag}>
+                    <span key={s} className="cyber-badge text-neon-purple">
                       {s}
                     </span>
                   ))}
                 </div>
               )}
               {agent.tags && agent.tags.length > 0 && (
-                <div style={styles.tags}>
+                <div className="flex flex-wrap gap-1 mt-1.5">
                   {agent.tags.map((t) => (
-                    <span key={t} style={styles.tagAlt}>
+                    <span key={t} className="cyber-badge text-gray-400">
                       {t}
                     </span>
                   ))}
@@ -465,117 +473,4 @@ export default function AgentsPage() {
       />
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  searchInput: {
-    width: '100%',
-    background: '#1f2937',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '8px 12px',
-    fontSize: 13,
-    boxSizing: 'border-box' as const,
-  },
-  input: {
-    background: '#111827',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '8px 12px',
-    fontSize: 13,
-  },
-  select: {
-    background: '#111827',
-    color: '#f9fafb',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    padding: '6px 10px',
-    fontSize: 12,
-  },
-  formCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 16,
-    border: '1px solid #374151',
-    marginBottom: 16,
-  },
-  btnPrimary: {
-    background: '#818cf8',
-    color: '#f9fafb',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 14px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  btnSecondary: {
-    background: '#374151',
-    color: '#d1d5db',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 14px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  btnCreate: {
-    background: '#22c55e',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 6,
-    padding: '6px 14px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  btnIcon: {
-    background: 'transparent',
-    color: '#6b7280',
-    border: 'none',
-    fontSize: 11,
-    cursor: 'pointer',
-  },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 },
-  card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
-  cardTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
-  cardName: { fontSize: 15, fontWeight: 700, flex: 1 },
-  typeBadge: {
-    fontSize: 10,
-    background: '#1e3a5f',
-    color: '#93c5fd',
-    padding: '2px 8px',
-    borderRadius: 4,
-  },
-  capBadge: {
-    fontSize: 10,
-    background: '#1e1b4b',
-    color: '#a78bfa',
-    padding: '2px 8px',
-    borderRadius: 4,
-  },
-  cardDesc: { fontSize: 12, color: '#9ca3af', marginBottom: 8, lineHeight: 1.4 },
-  cardMeta: { display: 'flex', gap: 16, fontSize: 11, color: '#6b7280', marginBottom: 6 },
-  tags: { display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginTop: 6 },
-  tag: {
-    fontSize: 10,
-    background: '#1e1b4b',
-    color: '#818cf8',
-    padding: '2px 6px',
-    borderRadius: 4,
-  },
-  tagAlt: {
-    fontSize: 10,
-    background: '#1c1917',
-    color: '#a3a3a3',
-    padding: '2px 6px',
-    borderRadius: 4,
-  },
 }

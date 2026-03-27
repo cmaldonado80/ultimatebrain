@@ -12,6 +12,7 @@ import type { Database } from '@solarc/db'
 import { agents, tickets, brainEntities, ticketExecution, healingLogs } from '@solarc/db'
 import { eq, and, lte, sql, desc } from 'drizzle-orm'
 import type { HealthCheckOutput } from '@solarc/engine-contracts'
+import { eventBus } from '../orchestration/event-bus'
 
 export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy'
 export type HealingAction =
@@ -188,6 +189,15 @@ export class HealingEngine {
       : hasWarning
         ? 'degraded'
         : 'healthy'
+
+    if (overallStatus !== 'healthy') {
+      eventBus
+        .emit('health.degraded', {
+          status: overallStatus,
+          issueCount: checks.filter((c) => c.status !== 'pass').length,
+        })
+        .catch(() => {})
+    }
 
     return {
       timestamp: new Date(),

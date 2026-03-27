@@ -22,27 +22,35 @@ import {
 } from './core'
 
 // Brain entity hierarchy
-export const brainEntities = pgTable('brain_entities', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
-  domain: text('domain'),
-  tier: entityTierEnum('tier').notNull(),
-  parentId: uuid('parent_id').references((): AnyPgColumn => brainEntities.id, {
-    onDelete: 'set null',
-  }),
-  enginesEnabled: text('engines_enabled').array(),
-  domainEngines: jsonb('domain_engines'),
-  apiKeyHash: text('api_key_hash'),
-  endpoint: text('endpoint'),
-  databaseUrl: text('database_url'),
-  healthEndpoint: text('health_endpoint'),
-  status: entityStatusEnum('status').default('provisioning').notNull(),
-  config: jsonb('config'),
-  hookProfile: text('hook_profile').default('standard'),
-  lastHealthCheck: timestamp('last_health_check'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+export const brainEntities = pgTable(
+  'brain_entities',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    domain: text('domain'),
+    tier: entityTierEnum('tier').notNull(),
+    parentId: uuid('parent_id').references((): AnyPgColumn => brainEntities.id, {
+      onDelete: 'set null',
+    }),
+    enginesEnabled: text('engines_enabled').array(),
+    domainEngines: jsonb('domain_engines'),
+    apiKeyHash: text('api_key_hash'),
+    endpoint: text('endpoint'),
+    databaseUrl: text('database_url'),
+    healthEndpoint: text('health_endpoint'),
+    status: entityStatusEnum('status').default('provisioning').notNull(),
+    config: jsonb('config'),
+    hookProfile: text('hook_profile').default('standard'),
+    lastHealthCheck: timestamp('last_health_check'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('brain_entities_status_idx').on(t.status),
+    index('brain_entities_parent_id_idx').on(t.parentId),
+    index('brain_entities_tier_idx').on(t.tier),
+  ],
+)
 
 export const brainEntityAgents = pgTable(
   'brain_entity_agents',

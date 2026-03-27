@@ -5,6 +5,8 @@
  */
 
 import { useState, useEffect, memo } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 // ── Navigation Structure ────────────────────────────────────────────────
 
@@ -44,6 +46,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Checkpoints', href: '/ops/checkpoints', icon: '⟲' },
       { label: 'Live Viewer', href: '/ops/live', icon: '◉' },
       { label: 'Databases', href: '/ops/databases', icon: '⊟' },
+      { label: 'Cron Jobs', href: '/ops/cron', icon: '⏱' },
     ],
   },
   {
@@ -92,24 +95,37 @@ const SpotlightSearch = memo(function SpotlightSearch({
   if (!open) return null
 
   return (
-    <div style={styles.spotlightOverlay} onClick={onClose}>
-      <div style={styles.spotlightModal} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center pt-28 z-50"
+      onClick={onClose}
+    >
+      <div
+        className="cyber-card w-[520px] max-h-96 overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <input
-          style={styles.spotlightInput}
+          className="w-full px-4 py-3.5 bg-transparent border-0 border-b border-border text-slate-100 text-[15px] placeholder:text-slate-500 focus:outline-none"
           placeholder="Search pages, agents, tickets..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
         />
-        <div style={styles.spotlightResults}>
+        <div className="overflow-y-auto max-h-72 py-1">
           {filtered.map((item) => (
-            <a key={item.href} href={item.href} style={styles.spotlightItem} onClick={onClose}>
-              <span style={styles.spotlightIcon}>{item.icon}</span>
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/5 no-underline transition-colors"
+              onClick={onClose}
+            >
+              <span className="w-5 text-center text-xs opacity-60">{item.icon}</span>
               <span>{item.label}</span>
-            </a>
+            </Link>
           ))}
           {filtered.length === 0 && (
-            <div style={styles.spotlightEmpty}>No results for "{query}"</div>
+            <div className="py-4 text-center text-sm text-slate-500">
+              No results for &ldquo;{query}&rdquo;
+            </div>
           )}
         </div>
       </div>
@@ -120,6 +136,7 @@ const SpotlightSearch = memo(function SpotlightSearch({
 // ── Sidebar Component ───────────────────────────────────────────────────
 
 export default function Sidebar() {
+  const pathname = usePathname()
   const [spotlightOpen, setSpotlightOpen] = useState(false)
 
   // Cmd+K / Ctrl+K shortcut
@@ -135,171 +152,74 @@ export default function Sidebar() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  const isActive = (href: string) =>
+    href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/')
+
   return (
     <>
-      <aside style={styles.sidebar}>
+      <aside className="w-64 flex-shrink-0 bg-bg-surface border-r border-border flex flex-col px-3 py-4 z-20">
         {/* Logo */}
-        <div style={styles.logo}>
-          <span style={styles.logoIcon}>◆</span>
-          <span style={styles.logoText}>Solarc Brain</span>
+        <div className="flex items-center gap-2.5 px-2 mb-5">
+          <span className="text-neon-blue text-lg">◆</span>
+          <span className="font-orbitron text-[14px] font-bold text-white tracking-widest">
+            SOLARC<span className="text-neon-blue">.</span>BRAIN
+          </span>
         </div>
 
         {/* Search trigger */}
-        <button style={styles.searchTrigger} onClick={() => setSpotlightOpen(true)}>
-          <span style={styles.searchIcon}>⌕</span>
-          <span style={styles.searchLabel}>Search</span>
-          <span style={styles.searchKbd}>⌘K</span>
+        <button
+          className="flex items-center gap-2 w-full px-3 py-2 mb-4 bg-bg-elevated border border-border rounded-lg text-sm text-slate-500 hover:text-slate-300 hover:border-white/15 transition-colors cursor-pointer"
+          onClick={() => setSpotlightOpen(true)}
+        >
+          <span className="text-base leading-none">⌕</span>
+          <span className="flex-1 text-left">Search</span>
+          <span className="text-[10px] bg-white/5 border border-white/10 px-1.5 py-0.5 rounded font-mono text-slate-600">
+            ⌘K
+          </span>
         </button>
 
         {/* Navigation */}
-        <nav style={styles.nav}>
+        <nav className="flex-1 overflow-y-auto space-y-0.5">
           {NAV_SECTIONS.map((section, si) => (
             <div key={si}>
-              {section.title && <div style={styles.sectionTitle}>{section.title}</div>}
+              {section.title && (
+                <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/20 px-2 pt-4 pb-1.5">
+                  {section.title}
+                </div>
+              )}
               {section.items.map((item) => (
-                <a key={item.href} href={item.href} style={styles.navItem}>
-                  <span style={styles.navIcon}>{item.icon}</span>
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`nav-item ${isActive(item.href) ? 'nav-item-active' : ''}`}
+                >
+                  <span className="w-[18px] text-center text-xs opacity-70 flex-shrink-0">
+                    {item.icon}
+                  </span>
                   <span>{item.label}</span>
-                </a>
+                </Link>
               ))}
             </div>
           ))}
         </nav>
 
         {/* Footer */}
-        <div style={styles.footer}>
+        <div className="border-t border-border pt-3 px-2 mt-2">
           <button
             onClick={() =>
               fetch('/api/auth/signout', { method: 'POST' }).then(() => {
                 window.location.href = '/auth/signin'
               })
             }
-            style={{
-              fontSize: 12,
-              color: '#6b7280',
-              background: 'none',
-              border: 'none',
-              textDecoration: 'none',
-              cursor: 'pointer',
-              display: 'block',
-              padding: '6px 0',
-            }}
+            className="text-[11px] text-slate-600 hover:text-slate-400 bg-transparent border-none cursor-pointer transition-colors py-1 block w-full text-left"
           >
             Sign out
           </button>
-          <div style={styles.footerVersion}>v0.1.0 · Phase 18</div>
+          <div className="text-[10px] font-mono text-white/10 mt-1">v0.1.0 · Phase 18</div>
         </div>
       </aside>
 
       <SpotlightSearch open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
     </>
   )
-}
-
-// ── Styles ────────────────────────────────────────────────────────────────
-
-const styles = {
-  sidebar: {
-    width: 260,
-    minHeight: '100vh',
-    background: '#0a0f1a',
-    borderRight: '1px solid #1f2937',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    padding: '16px 12px',
-    fontFamily: 'sans-serif',
-    flexShrink: 0,
-  },
-  logo: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, padding: '0 8px' },
-  logoIcon: { fontSize: 18, color: '#818cf8' },
-  logoText: { fontSize: 15, fontWeight: 700, color: '#f9fafb', letterSpacing: -0.3 },
-  searchTrigger: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    width: '100%',
-    padding: '7px 10px',
-    background: '#111827',
-    border: '1px solid #1f2937',
-    borderRadius: 6,
-    color: '#6b7280',
-    fontSize: 13,
-    cursor: 'pointer',
-    marginBottom: 16,
-  },
-  searchIcon: { fontSize: 14 },
-  searchLabel: { flex: 1, textAlign: 'left' as const },
-  searchKbd: {
-    fontSize: 10,
-    background: '#1f2937',
-    padding: '1px 5px',
-    borderRadius: 3,
-    color: '#4b5563',
-  },
-  nav: { flex: 1, overflowY: 'auto' as const },
-  sectionTitle: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: '#4b5563',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-    padding: '12px 8px 4px',
-  },
-  navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '6px 8px',
-    borderRadius: 4,
-    fontSize: 13,
-    color: '#9ca3af',
-    textDecoration: 'none',
-    transition: 'background 0.1s',
-  },
-  navIcon: { width: 18, textAlign: 'center' as const, fontSize: 13, opacity: 0.7 },
-  footer: { padding: '12px 8px 0', borderTop: '1px solid #1f2937' },
-  footerVersion: { fontSize: 10, color: '#374151' },
-  // Spotlight
-  spotlightOverlay: {
-    position: 'fixed' as const,
-    inset: 0,
-    background: 'rgba(0,0,0,0.6)',
-    display: 'flex',
-    justifyContent: 'center',
-    paddingTop: 120,
-    zIndex: 300,
-  },
-  spotlightModal: {
-    width: 520,
-    maxHeight: 400,
-    background: '#1f2937',
-    border: '1px solid #374151',
-    borderRadius: 10,
-    overflow: 'hidden',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-  },
-  spotlightInput: {
-    width: '100%',
-    padding: '14px 16px',
-    background: 'transparent',
-    border: 'none',
-    borderBottom: '1px solid #374151',
-    color: '#f9fafb',
-    fontSize: 15,
-    outline: 'none',
-    boxSizing: 'border-box' as const,
-  },
-  spotlightResults: { overflowY: 'auto' as const, maxHeight: 320, padding: '4px 0' },
-  spotlightItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '8px 16px',
-    color: '#d1d5db',
-    fontSize: 14,
-    textDecoration: 'none',
-    cursor: 'pointer',
-  },
-  spotlightIcon: { width: 20, textAlign: 'center' as const, opacity: 0.6 },
-  spotlightEmpty: { padding: 16, textAlign: 'center' as const, color: '#6b7280', fontSize: 13 },
 }

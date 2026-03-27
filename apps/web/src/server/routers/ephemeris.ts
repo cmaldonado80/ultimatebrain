@@ -149,7 +149,7 @@ export const ephemerisRouter = router({
         sidereal: z.boolean().optional(),
       }),
     )
-    .query(async ({ input }) => run(input as SwissEphemerisInput)),
+    .query(async ({ input }) => await run(input as SwissEphemerisInput)),
 
   planetaryPositions: protectedProcedure
     .input(dateInput.extend({ sidereal: z.boolean().optional() }))
@@ -378,8 +378,9 @@ export const ephemerisRouter = router({
         longitude: z.number(),
       }),
     )
-    .query(({ input }) =>
-      solarReturn(input.natalSunLongitude, input.year, input.latitude, input.longitude),
+    .query(
+      async ({ input }) =>
+        await solarReturn(input.natalSunLongitude, input.year, input.latitude, input.longitude),
     ),
   lunarReturn: protectedProcedure
     .input(
@@ -388,7 +389,7 @@ export const ephemerisRouter = router({
     .query(async ({ input }) => {
       const c = await buildChart(input)
       const targetJd = julianDay(input.targetYear, input.targetMonth, input.targetDay, 12)
-      return lunarReturn(c.planets.Moon.longitude, targetJd, input.latitude, input.longitude)
+      return await lunarReturn(c.planets.Moon.longitude, targetJd, input.latitude, input.longitude)
     }),
   nodalReturn: protectedProcedure
     .input(
@@ -397,7 +398,7 @@ export const ephemerisRouter = router({
     .query(async ({ input }) => {
       const c = await buildChart(input)
       const targetJd = julianDay(input.targetYear, input.targetMonth, input.targetDay, 12)
-      return nodalReturn(c.planets.NorthNode.longitude, targetJd)
+      return await nodalReturn(c.planets.NorthNode.longitude, targetJd)
     }),
 
   // ── Profections (Section 29) ────────────────────────────────────────
@@ -471,7 +472,7 @@ export const ephemerisRouter = router({
     .input(birthInput.extend({ startDate: z.string(), endDate: z.string() }))
     .query(async ({ input }) => {
       const c = await buildChart(input)
-      return transitCalendar(c.planets, input.startDate, input.endDate)
+      return await transitCalendar(c.planets, input.startDate, input.endDate)
     }),
 
   // ── Vedic (Sections 41-47) ──────────────────────────────────────────

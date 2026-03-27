@@ -175,6 +175,12 @@ export const workspacesRouter = router({
         toState: 'active',
       })
 
+      // Set all workspace agents to idle
+      await ctx.db
+        .update(agents)
+        .set({ status: 'idle', updatedAt: new Date() })
+        .where(eq(agents.workspaceId, input.id))
+
       return updated
     }),
 
@@ -210,6 +216,12 @@ export const workspacesRouter = router({
         payload: input.reason ? { reason: input.reason } : undefined,
       })
 
+      // Set all workspace agents to offline
+      await ctx.db
+        .update(agents)
+        .set({ status: 'offline', updatedAt: new Date() })
+        .where(eq(agents.workspaceId, input.id))
+
       return updated
     }),
 
@@ -244,6 +256,12 @@ export const workspacesRouter = router({
         toState: 'retired',
         payload: input.reason ? { reason: input.reason } : undefined,
       })
+
+      // Set all workspace agents to offline
+      await ctx.db
+        .update(agents)
+        .set({ status: 'offline', updatedAt: new Date() })
+        .where(eq(agents.workspaceId, input.id))
 
       return updated
     }),

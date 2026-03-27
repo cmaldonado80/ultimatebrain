@@ -7,7 +7,7 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { instincts, instinctObservations } from '@solarc/db'
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, and } from 'drizzle-orm'
 
 export const instinctsRouter = router({
   /** List all instincts, optionally filtered by scope or domain */
@@ -27,7 +27,11 @@ export const instinctsRouter = router({
       if (input?.domain) conditions.push(eq(instincts.domain, input.domain))
       return ctx.db.query.instincts.findMany({
         where:
-          conditions.length > 0 ? (conditions.length === 1 ? conditions[0] : undefined) : undefined,
+          conditions.length > 0
+            ? conditions.length === 1
+              ? conditions[0]
+              : and(...conditions)
+            : undefined,
         orderBy: desc(instincts.confidence),
         limit: input?.limit ?? 100,
       })

@@ -58,22 +58,39 @@ eventBus.on('ticket.completed', async (payload) => {
 })
 
 eventBus.on('ticket.failed', async (payload) => {
-  console.log(
+  console.warn(
     `[EventBus] ticket.failed: ${payload.ticketId} — reason: ${payload.reason ?? 'unknown'}`,
   )
 })
 
 eventBus.on('agent.error', async (payload) => {
-  console.log(
+  console.warn(
     `[EventBus] agent.error: agent ${payload.agentId} — ${payload.error ?? 'unknown error'}`,
   )
 })
 
 eventBus.on('health.degraded', async (payload) => {
-  console.log(
-    `[EventBus] health.degraded: ${payload.entityId} — severity: ${payload.severity ?? 'unknown'}`,
+  console.warn(
+    `[EventBus] health.degraded: status=${payload.status} issues=${payload.issueCount ?? 'unknown'}`,
   )
-  // Future: trigger healing
+  // Trigger auto-healing when health degrades
+  try {
+    const { createDb } = await import('@solarc/db')
+    const { HealingEngine } = await import('../healing/healing-engine')
+    const url = process.env.DATABASE_URL
+    if (!url) return
+    const db = createDb(url)
+    const healer = new HealingEngine(db)
+    const result = await healer.autoHeal()
+    if (result.actions.length > 0) {
+      console.log(
+        `[EventBus] auto-heal completed: ${result.actions.length} action(s) taken`,
+        result.actions.map((a) => `${a.action}:${a.target}:${a.success ? 'ok' : 'fail'}`),
+      )
+    }
+  } catch {
+    // Auto-heal may fail in test environments or when DB is unavailable — non-critical
+  }
 })
 
 eventBus.on('brain.seeded', async (payload) => {

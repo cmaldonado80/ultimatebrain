@@ -1,12 +1,36 @@
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-import { createDb, waitForSchema, type Database } from '@solarc/db'
-import { chatSessions, chatMessages, agents } from '@solarc/db'
+import { createDb, createMiniBrainDb, waitForSchema, type Database } from '@solarc/db'
+import { chatSessions, chatMessages, agents, brainEntityAgents, brainEntities } from '@solarc/db'
 import { eq, desc } from 'drizzle-orm'
 import { GatewayRouter } from '../../../../server/services/gateway'
 import { MemoryService } from '../../../../server/services/memory/memory-service'
+import { createEmbedFn } from '../../../../server/services/memory/embed-helper'
+import { ContextPipeline } from '../../../../server/services/memory/context-pipeline'
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
+import { auth } from '../../../../server/auth'
+import { eventBus } from '../../../../server/services/orchestration/event-bus'
+import { TokenLedgerService } from '../../../../server/services/platform/token-ledger'
+import { buildAtlasContext } from '../../../../server/services/atlas'
+
+// ── Rate Limiting ────────────────────────────────────────────────────────
+const RATE_LIMIT_WINDOW_MS = 60_000
+const MAX_REQUESTS_PER_IP = 20
+
+const ipCounts = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = ipCounts.get(ip)
+  if (!entry || now > entry.resetAt) {
+    ipCounts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= MAX_REQUESTS_PER_IP) return false
+  entry.count++
+  return true
+}
 
 let _db: Database | undefined
 function getDb(): Database {
@@ -25,7 +49,7 @@ function getGateway(): GatewayRouter {
 
 const CONTEXT_WINDOW = 50
 
-/** Load agent config from DB */
+/** Load agent config from DB, including mini-brain database URL if available */
 async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: string) {
   const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) })
   if (!agent) return null
@@ -36,6 +60,24 @@ async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: st
     if (resolved) model = resolved.model
   }
 
+  // Check if this agent belongs to a mini-brain with a dedicated database
+  let entityDatabaseUrl: string | undefined
+  try {
+    const entityLink = await db.query.brainEntityAgents.findFirst({
+      where: eq(brainEntityAgents.agentId, agentId),
+    })
+    if (entityLink) {
+      const entity = await db.query.brainEntities.findFirst({
+        where: eq(brainEntities.id, entityLink.entityId),
+      })
+      if (entity?.databaseUrl) {
+        entityDatabaseUrl = entity.databaseUrl
+      }
+    }
+  } catch {
+    // brainEntityAgents table may not exist yet — skip
+  }
+
   return {
     id: agent.id,
     name: agent.name,
@@ -43,10 +85,27 @@ async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: st
     model,
     temperature: agent.temperature ?? undefined,
     maxTokens: agent.maxTokens ?? undefined,
+    workspaceId: agent.workspaceId ?? undefined,
+    agentType: agent.type ?? undefined,
+    capability: agent.requiredModelType ?? undefined,
+    skills: agent.skills ?? undefined,
+    entityDatabaseUrl,
   }
 }
 
 export async function POST(req: Request) {
+  // Auth check
+  const session = await auth()
+  if (!session) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  // Rate limit
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  if (!checkRateLimit(ip)) {
+    return new Response('Too many requests', { status: 429, headers: { 'Retry-After': '60' } })
+  }
+
   const body = (await req.json()) as { sessionId: string; text: string; agentIds?: string[] }
   if (!body.sessionId || !body.text) {
     return new Response('Missing sessionId or text', { status: 400 })
@@ -75,6 +134,11 @@ export async function POST(req: Request) {
     model?: string
     temperature?: number
     maxTokens?: number
+    workspaceId?: string
+    agentType?: string
+    capability?: string
+    skills?: string[]
+    entityDatabaseUrl?: string
   }> = []
 
   if (body.agentIds && body.agentIds.length > 0) {
@@ -103,18 +167,64 @@ export async function POST(req: Request) {
     })
   }
 
-  // 3. Recall relevant memories
-  let memoryContext = ''
+  // 2b. Token budget check — block if entity budget exceeded
   try {
-    const memoryService = new MemoryService(db)
-    const recalled = await memoryService.search(body.text, { limit: 5 })
-    if (recalled.length > 0) {
-      memoryContext =
-        '\n\nRelevant memories from past interactions:\n' +
-        recalled.map((m) => `- [${m.tier}] ${m.content}`).join('\n')
+    const ledger = new TokenLedgerService(db)
+    for (const agentConfig of agentConfigs) {
+      if (!agentConfig.id) continue
+      // Check entity-level budget via brainEntityAgents linkage
+      const entityLink = await db.query.brainEntityAgents
+        ?.findFirst({
+          where: eq(brainEntityAgents.agentId, agentConfig.id),
+        })
+        .catch(() => null)
+      if (entityLink) {
+        const budgetStatus = await ledger.checkBudget(entityLink.entityId)
+        if (budgetStatus.overBudget) {
+          return new Response(JSON.stringify({ error: 'Token budget exceeded for this agent' }), {
+            status: 429,
+            headers: { 'Content-Type': 'application/json', 'Retry-After': '3600' },
+          })
+        }
+      }
     }
   } catch {
-    // Best-effort
+    // Budget table may not exist yet — proceed without enforcement
+  }
+
+  // 3. Recall relevant context via ContextPipeline (vector search + relevance scoring)
+  // Use mini-brain's dedicated DB for memory ops when available
+  const primaryWorkspaceId = agentConfigs[0]?.workspaceId
+  const entityDbUrl = agentConfigs[0]?.entityDatabaseUrl
+  const memoryDb = entityDbUrl ? createMiniBrainDb(entityDbUrl) : db
+  let memoryContext = ''
+  try {
+    const embedFn = createEmbedFn(db)
+    const pipeline = new ContextPipeline({ db: memoryDb, embedFn })
+    const pipelineResult = await pipeline.run(body.text, {
+      evaluate: false, // Quick mode — skip LLM reranking for chat latency
+      maxSources: 5,
+      ...(primaryWorkspaceId ? { workspaceId: primaryWorkspaceId } : {}),
+    })
+    if (pipelineResult.synthesizedContext) {
+      memoryContext = '\n\n' + pipelineResult.synthesizedContext
+    }
+  } catch {
+    // Fallback: simple keyword search if pipeline fails
+    try {
+      const memoryService = new MemoryService(memoryDb)
+      const recalled = await memoryService.search(body.text, {
+        limit: 5,
+        ...(primaryWorkspaceId ? { workspaceId: primaryWorkspaceId } : {}),
+      })
+      if (recalled.length > 0) {
+        memoryContext =
+          '\n\nRelevant memories from past interactions:\n' +
+          recalled.map((m) => `- [${m.tier}] ${m.content}`).join('\n')
+      }
+    } catch {
+      // Best-effort
+    }
   }
 
   // 4. Load conversation history
@@ -145,8 +255,13 @@ export async function POST(req: Request) {
           let fullContent = ''
 
           // Build the base messages for this agent
+          const atlasContext = buildAtlasContext({
+            agentType: agentConfig.agentType,
+            capability: agentConfig.capability,
+            skills: agentConfig.skills,
+          })
           const baseMessages = [
-            { role: 'system', content: agentConfig.soul + memoryContext },
+            { role: 'system', content: agentConfig.soul + atlasContext + memoryContext },
             ...history,
           ]
 
@@ -174,6 +289,7 @@ export async function POST(req: Request) {
               toolResult.toolUse.name,
               toolResult.toolUse.input,
               db,
+              agentConfig.workspaceId,
             )
 
             // Send SSE events to client showing tool use
@@ -259,6 +375,10 @@ export async function POST(req: Request) {
         const message = err instanceof Error ? err.message : 'Unknown error'
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`))
         controller.close()
+        // Emit agent error event (non-blocking)
+        eventBus
+          .emit('agent.error', { agentId: agentConfigs[0]?.id, error: message })
+          .catch(() => {})
       }
     },
   })

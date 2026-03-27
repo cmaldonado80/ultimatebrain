@@ -803,6 +803,7 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `ALTER TABLE orchestrator_routes ADD COLUMN IF NOT EXISTS orchestrator_id uuid`,
       `ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS source_agent_id uuid`,
       `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS database_url text`,
+      `ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL`,
     ]
     for (const stmt of alterStatements) {
       await client.query(stmt).catch(() => {})

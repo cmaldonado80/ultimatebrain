@@ -4,7 +4,13 @@
  * Shared error banner for database/query errors.
  * Differentiates between missing tables, connection errors, and runtime errors.
  */
-export function DbErrorBanner({ error }: { error: { message: string } }) {
+export function DbErrorBanner({
+  error,
+  onRetry,
+}: {
+  error: { message: string }
+  onRetry?: () => void
+}) {
   const msg = error.message ?? ''
   const isTableMissing = msg.includes('relation') && msg.includes('does not exist')
   const isConnectionError =
@@ -30,36 +36,26 @@ export function DbErrorBanner({ error }: { error: { message: string } }) {
         : msg
 
   return (
-    <div
-      style={{
-        background: '#1e1b4b',
-        border: '1px solid #4338ca',
-        borderRadius: 8,
-        padding: '10px 16px',
-        marginBottom: 16,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-      }}
-    >
+    <div className="cyber-card flex items-center gap-2 p-3 mb-4 border-neon-purple/30">
       <span
-        style={{
-          color: isTableMissing || isAuthError ? '#818cf8' : '#fca5a5',
-          fontSize: 14,
-          fontWeight: 600,
-        }}
+        className={`text-sm font-semibold ${isTableMissing || isAuthError ? 'text-neon-purple' : 'text-neon-red'}`}
       >
         {title}
       </span>
       {isAuthError ? (
-        <a
-          href="/auth/signin"
-          style={{ color: '#818cf8', fontSize: 12, textDecoration: 'underline' }}
-        >
+        <a href="/auth/signin" className="text-neon-purple text-xs underline">
           Please sign in again.
         </a>
       ) : (
-        <span style={{ color: '#6b7280', fontSize: 12 }}>{detail}</span>
+        <span className="text-gray-500 text-xs">{detail}</span>
+      )}
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="cyber-btn-secondary ml-auto !px-2.5 !py-1 !text-[11px]"
+        >
+          Retry
+        </button>
       )}
     </div>
   )

@@ -153,7 +153,10 @@ function StatCard({ stat }: { stat: StatCardData }) {
       </div>
       {stat.change && (
         <div
-          style={{ ...styles.statChange, color: stat.change.value >= 0 ? '#4ade80' : '#f87171' }}
+          style={{
+            ...styles.statChange,
+            color: stat.change.value >= 0 ? 'var(--color-neon-green)' : 'var(--color-neon-red)',
+          }}
         >
           {stat.change.value >= 0 ? '↑' : '↓'} {Math.abs(stat.change.value)} {stat.change.label}
         </div>
@@ -229,13 +232,28 @@ export default function DashboardPage() {
   ).length
 
   const STATS: StatCardData[] = [
-    { label: 'Active Agents', value: String(activeAgents), color: '#818cf8', href: '/agents' },
-    { label: 'Open Tickets', value: String(openTickets), color: '#f97316', href: '/tickets' },
-    { label: 'Total Tickets', value: String(tickets.length), color: '#22c55e', href: '/tickets' },
+    {
+      label: 'Active Agents',
+      value: String(activeAgents),
+      color: 'var(--color-neon-purple)',
+      href: '/agents',
+    },
+    {
+      label: 'Open Tickets',
+      value: String(openTickets),
+      color: 'var(--color-neon-yellow)',
+      href: '/tickets',
+    },
+    {
+      label: 'Total Tickets',
+      value: String(tickets.length),
+      color: 'var(--color-neon-green)',
+      href: '/tickets',
+    },
     {
       label: 'Workspaces',
       value: String(workspacesData.length),
-      color: '#eab308',
+      color: 'var(--color-neon-yellow)',
       href: '/workspaces',
     },
   ]
@@ -258,12 +276,12 @@ export default function DashboardPage() {
       status: t.status ?? 'unknown',
       statusColor:
         t.status === 'done'
-          ? '#22c55e'
+          ? 'var(--color-neon-green)'
           : t.status === 'in_progress'
-            ? '#818cf8'
+            ? 'var(--color-neon-purple)'
             : t.status === 'failed'
-              ? '#ef4444'
-              : '#f97316',
+              ? 'var(--color-neon-red)'
+              : 'var(--color-neon-yellow)',
     }))
 
   const healthData = healthQuery.data as
@@ -341,7 +359,8 @@ export default function DashboardPage() {
               <span
                 style={{
                   ...styles.engineDot,
-                  background: e.status === 'healthy' ? '#22c55e' : '#f97316',
+                  background:
+                    e.status === 'healthy' ? 'var(--color-neon-green)' : 'var(--color-neon-yellow)',
                 }}
               />
               <span style={styles.engineName}>{e.name}</span>
@@ -385,7 +404,13 @@ const styles = {
   subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
   // Stats
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 },
-  statCard: { background: '#1f2937', borderRadius: 8, padding: 14, border: '1px solid #374151' },
+  statCard: {
+    background: 'var(--color-bg-card)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: 8,
+    padding: 14,
+    border: '1px solid var(--color-border)',
+  },
   statTop: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -397,7 +422,13 @@ const styles = {
   statChange: { fontSize: 11 },
   // Bottom
   bottomGrid: { display: 'grid', gridTemplateColumns: '1fr 280px 280px', gap: 12 },
-  panel: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
+  panel: {
+    background: 'var(--color-bg-card)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: 8,
+    padding: 16,
+    border: '1px solid var(--color-border)',
+  },
   panelHeader: {
     fontSize: 11,
     fontWeight: 700,
@@ -411,7 +442,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     padding: '8px 0',
-    borderBottom: '1px solid #111827',
+    borderBottom: '1px solid var(--color-border)',
     gap: 12,
   },
   activityMain: { flex: 1 },
@@ -436,8 +467,8 @@ const styles = {
   topoName: { flex: 1, fontWeight: 600 },
   topoBadge: {
     fontSize: 10,
-    background: '#1e3a5f',
-    color: '#93c5fd',
+    background: 'rgba(0,212,255,0.1)',
+    color: 'var(--color-neon-blue)',
     padding: '1px 5px',
     borderRadius: 4,
   },

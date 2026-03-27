@@ -30,9 +30,15 @@ const CATEGORIES: { id: SkillCategory | 'all'; label: string }[] = [
 ]
 
 const RISK_COLORS: Record<string, string> = {
-  low: '#22c55e',
-  medium: '#f97316',
-  high: '#ef4444',
+  low: 'text-neon-green',
+  medium: 'text-neon-yellow',
+  high: 'text-neon-red',
+}
+
+const RISK_BORDER_COLORS: Record<string, string> = {
+  low: 'border-green-500',
+  medium: 'border-yellow-500',
+  high: 'border-red-500',
 }
 
 function getPermRisk(cap: SkillCapability): 'low' | 'medium' | 'high' {
@@ -47,11 +53,11 @@ function Stars({ rating }: { rating: number }) {
   const full = Math.floor(rating)
   const half = rating - full >= 0.5
   return (
-    <span style={styles.stars}>
+    <span className="text-xs text-yellow-400">
       {'★'.repeat(full)}
       {half ? '½' : ''}
-      <span style={styles.starsEmpty}>{'★'.repeat(5 - full - (half ? 1 : 0))}</span>
-      <span style={styles.ratingNum}>{rating.toFixed(1)}</span>
+      <span className="text-border-dim">{'★'.repeat(5 - full - (half ? 1 : 0))}</span>
+      <span className="text-gray-400 ml-1 text-[11px]">{rating.toFixed(1)}</span>
     </span>
   )
 }
@@ -77,43 +83,48 @@ function PermissionReviewModal({
   }
 
   return (
-    <div style={styles.modalOverlay}>
-      <div style={styles.modal}>
-        <h3 style={styles.modalTitle}>Install "{skill.name}"</h3>
-        <p style={styles.modalSub}>Review the permissions this skill requires:</p>
+    <div className="cyber-overlay">
+      <div className="cyber-modal w-[460px] max-w-[95vw]">
+        <h3 className="m-0 mb-1 text-base font-bold font-orbitron">
+          Install &quot;{skill.name}&quot;
+        </h3>
+        <p className="m-0 mb-4 text-[13px] text-gray-400">
+          Review the permissions this skill requires:
+        </p>
 
-        <div style={styles.permList}>
+        <div className="flex flex-col gap-2.5 mb-4">
           {skill.permissions.map((perm) => {
             const risk = getPermRisk(perm.capability)
             return (
-              <label key={perm.capability} style={styles.permItem}>
+              <label key={perm.capability} className="flex gap-2 items-start cursor-pointer">
                 <input
                   type="checkbox"
                   checked={approved.has(perm.capability)}
                   onChange={() => toggle(perm.capability)}
-                  style={styles.permCheck}
+                  className="mt-[3px]"
                 />
                 <div>
-                  <div style={styles.permCap}>
-                    <code style={styles.permCode}>{perm.capability}</code>
-                    <span style={{ ...styles.riskBadge, color: RISK_COLORS[risk] }}>{risk}</span>
+                  <div className="flex items-center gap-1.5">
+                    <code className="font-mono text-xs bg-bg-deep px-1.5 py-px rounded text-gray-300">
+                      {perm.capability}
+                    </code>
+                    <span className={`text-[10px] font-bold uppercase ${RISK_COLORS[risk]}`}>
+                      {risk}
+                    </span>
                   </div>
-                  <div style={styles.permReason}>{perm.reason}</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">{perm.reason}</div>
                 </div>
               </label>
             )
           })}
         </div>
 
-        <div style={styles.modalActions}>
-          <button style={styles.cancelBtn} onClick={onCancel}>
+        <div className="flex justify-end gap-2">
+          <button className="cyber-btn-secondary" onClick={onCancel}>
             Cancel
           </button>
           <button
-            style={{
-              ...styles.installBtnModal,
-              opacity: approved.size === 0 ? 0.5 : 1,
-            }}
+            className={`cyber-btn-primary ${approved.size === 0 ? 'opacity-50' : ''}`}
             onClick={() => onApprove(Array.from(approved))}
             disabled={approved.size === 0}
           >
@@ -135,9 +146,9 @@ function SkillCard({
   onUninstall: () => void
 }) {
   return (
-    <div style={styles.card}>
-      <div style={styles.cardTop}>
-        <div style={styles.cardIcon}>
+    <div className="cyber-card">
+      <div className="flex items-start gap-2.5 mb-2">
+        <div className="text-2xl leading-none">
           {skill.category === 'coding'
             ? '💻'
             : skill.category === 'data'
@@ -148,31 +159,33 @@ function SkillCard({
                   ? '🔗'
                   : '⚡'}
         </div>
-        <div style={styles.cardInfo}>
-          <div style={styles.cardName}>{skill.name}</div>
-          <div style={styles.cardAuthor}>
+        <div className="flex-1">
+          <div className="text-sm font-bold">{skill.name}</div>
+          <div className="text-[11px] text-gray-500">
             by {skill.author} · v{skill.version}
           </div>
         </div>
         {skill.installed ? (
-          <button style={styles.uninstallBtn} onClick={onUninstall}>
+          <button className="cyber-btn-secondary shrink-0 text-xs" onClick={onUninstall}>
             Uninstall
           </button>
         ) : (
-          <button style={styles.installBtn} onClick={onInstall}>
+          <button className="cyber-btn-primary shrink-0 text-xs" onClick={onInstall}>
             Install
           </button>
         )}
       </div>
-      <div style={styles.cardDesc}>{skill.description}</div>
-      <div style={styles.cardFooter}>
+      <div className="text-xs text-gray-400 mb-2.5 leading-relaxed">{skill.description}</div>
+      <div className="flex items-center gap-2.5 flex-wrap">
         <Stars rating={skill.rating} />
-        <span style={styles.installs}>{skill.installCount.toLocaleString()} installs</span>
-        <div style={styles.permTags}>
+        <span className="text-[11px] text-gray-500">
+          {skill.installCount.toLocaleString()} installs
+        </span>
+        <div className="flex gap-1 flex-wrap ml-auto">
           {skill.permissions.map((p) => (
             <span
               key={p.capability}
-              style={{ ...styles.permTag, borderColor: RISK_COLORS[getPermRisk(p.capability)] }}
+              className={`text-[10px] border rounded px-1.5 py-px text-gray-400 font-mono ${RISK_BORDER_COLORS[getPermRisk(p.capability)]}`}
             >
               {p.capability}
             </span>
@@ -180,7 +193,7 @@ function SkillCard({
         </div>
       </div>
       {skill.installed && skill.usageStats && (
-        <div style={styles.usageRow}>
+        <div className="flex gap-3 mt-2.5 pt-2 border-t border-border-dim text-[11px] text-gray-500">
           <span>{skill.usageStats.totalRuns} runs</span>
           <span>
             {skill.assignedAgents?.length ?? 0} agent
@@ -215,7 +228,7 @@ export default function SkillsPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -225,18 +238,10 @@ export default function SkillsPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching skills</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-[13px]">Fetching skills</div>
         </div>
       </div>
     )
@@ -281,24 +286,32 @@ export default function SkillsPage() {
   }
 
   return (
-    <div style={styles.page}>
+    <div className="p-6 text-gray-50">
       {/* Header */}
-      <div style={styles.header}>
+      <div className="mb-4">
         <div>
-          <h1 style={styles.title}>Skill Store</h1>
-          <p style={styles.subtitle}>Browse, install, and manage agent skills</p>
+          <h1 className="m-0 text-[22px] font-bold font-orbitron">Skill Store</h1>
+          <p className="mt-1 mb-0 text-[13px] text-gray-500">
+            Browse, install, and manage agent skills
+          </p>
         </div>
       </div>
       {/* Tabs */}
-      <div style={styles.tabs}>
+      <div className="flex gap-1 mb-4">
         <button
-          style={tab === 'browse' ? styles.tabActive : styles.tab}
+          className={
+            tab === 'browse' ? 'cyber-btn-primary text-[13px]' : 'cyber-btn-secondary text-[13px]'
+          }
           onClick={() => setTab('browse')}
         >
           Browse ({allSkills.length})
         </button>
         <button
-          style={tab === 'installed' ? styles.tabActive : styles.tab}
+          className={
+            tab === 'installed'
+              ? 'cyber-btn-primary text-[13px]'
+              : 'cyber-btn-secondary text-[13px]'
+          }
           onClick={() => setTab('installed')}
         >
           Installed ({mergedSkills.filter((s) => s.installed).length})
@@ -306,18 +319,22 @@ export default function SkillsPage() {
       </div>
 
       {/* Filters */}
-      <div style={styles.filters}>
+      <div className="mb-4">
         <input
-          style={styles.searchInput}
+          className="cyber-input w-full mb-2.5"
           placeholder="Search skills..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div style={styles.catRow}>
+        <div className="flex gap-1 flex-wrap">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
-              style={category === cat.id ? styles.catBtnActive : styles.catBtn}
+              className={
+                category === cat.id
+                  ? 'cyber-btn-primary rounded-full text-xs px-3 py-0.5'
+                  : 'cyber-btn-secondary rounded-full text-xs px-3 py-0.5'
+              }
               onClick={() => setCategory(cat.id)}
             >
               {cat.label}
@@ -327,7 +344,7 @@ export default function SkillsPage() {
       </div>
 
       {/* Grid */}
-      <div style={styles.grid}>
+      <div className="cyber-grid">
         {displaySkills.map((skill) => (
           <SkillCard
             key={skill.id}
@@ -337,7 +354,9 @@ export default function SkillsPage() {
           />
         ))}
         {displaySkills.length === 0 && (
-          <div style={styles.empty}>No skills found matching your criteria.</div>
+          <div className="col-span-full text-center py-10 text-gray-500 text-[13px]">
+            No skills found matching your criteria.
+          </div>
         )}
       </div>
 
@@ -351,187 +370,4 @@ export default function SkillsPage() {
       )}
     </div>
   )
-}
-
-// ── Styles ────────────────────────────────────────────────────────────────
-
-const styles = {
-  page: {
-    background: '#0f172a',
-    minHeight: '100vh',
-    color: '#f9fafb',
-    fontFamily: 'sans-serif',
-    padding: 24,
-  },
-  header: { marginBottom: 16 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  // Tabs
-  tabs: { display: 'flex', gap: 4, marginBottom: 16 },
-  tab: {
-    background: 'transparent',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    color: '#9ca3af',
-    padding: '6px 16px',
-    fontSize: 13,
-    cursor: 'pointer',
-  },
-  tabActive: {
-    background: '#1f2937',
-    border: '1px solid #4b5563',
-    borderRadius: 6,
-    color: '#f9fafb',
-    padding: '6px 16px',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  // Filters
-  filters: { marginBottom: 16 },
-  searchInput: {
-    width: '100%',
-    background: '#1f2937',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    color: '#f9fafb',
-    padding: '8px 12px',
-    fontSize: 13,
-    marginBottom: 10,
-    boxSizing: 'border-box' as const,
-  },
-  catRow: { display: 'flex', gap: 4, flexWrap: 'wrap' as const },
-  catBtn: {
-    background: 'transparent',
-    border: '1px solid #374151',
-    borderRadius: 12,
-    color: '#9ca3af',
-    padding: '3px 12px',
-    fontSize: 12,
-    cursor: 'pointer',
-  },
-  catBtnActive: {
-    background: '#2563eb',
-    border: '1px solid #2563eb',
-    borderRadius: 12,
-    color: '#fff',
-    padding: '3px 12px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  // Grid
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 },
-  empty: {
-    gridColumn: '1 / -1',
-    textAlign: 'center' as const,
-    padding: 40,
-    color: '#6b7280',
-    fontSize: 13,
-  },
-  // Card
-  card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
-  cardTop: { display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
-  cardIcon: { fontSize: 24, lineHeight: 1 },
-  cardInfo: { flex: 1 },
-  cardName: { fontSize: 14, fontWeight: 700 },
-  cardAuthor: { fontSize: 11, color: '#6b7280' },
-  cardDesc: { fontSize: 12, color: '#9ca3af', marginBottom: 10, lineHeight: 1.5 },
-  cardFooter: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const },
-  stars: { fontSize: 12, color: '#eab308' },
-  starsEmpty: { color: '#374151' },
-  ratingNum: { color: '#9ca3af', marginLeft: 4, fontSize: 11 },
-  installs: { fontSize: 11, color: '#6b7280' },
-  permTags: { display: 'flex', gap: 4, flexWrap: 'wrap' as const, marginLeft: 'auto' },
-  permTag: {
-    fontSize: 10,
-    border: '1px solid',
-    borderRadius: 4,
-    padding: '1px 5px',
-    color: '#9ca3af',
-    fontFamily: 'monospace',
-  },
-  usageRow: {
-    display: 'flex',
-    gap: 12,
-    marginTop: 10,
-    paddingTop: 8,
-    borderTop: '1px solid #374151',
-    fontSize: 11,
-    color: '#6b7280',
-  },
-  installBtn: {
-    background: '#2563eb',
-    border: 'none',
-    borderRadius: 6,
-    color: '#fff',
-    padding: '5px 14px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-    flexShrink: 0,
-  },
-  uninstallBtn: {
-    background: 'transparent',
-    border: '1px solid #374151',
-    borderRadius: 6,
-    color: '#9ca3af',
-    padding: '5px 14px',
-    fontSize: 12,
-    cursor: 'pointer',
-    flexShrink: 0,
-  },
-  // Modal
-  modalOverlay: {
-    position: 'fixed' as const,
-    inset: 0,
-    background: 'rgba(0,0,0,0.7)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-  },
-  modal: {
-    background: '#1f2937',
-    border: '1px solid #374151',
-    borderRadius: 8,
-    padding: 24,
-    width: 460,
-    maxWidth: '95vw',
-  },
-  modalTitle: { margin: '0 0 4px', fontSize: 16, fontWeight: 700 },
-  modalSub: { margin: '0 0 16px', fontSize: 13, color: '#9ca3af' },
-  permList: { display: 'flex', flexDirection: 'column' as const, gap: 10, marginBottom: 16 },
-  permItem: { display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer' },
-  permCheck: { marginTop: 3 },
-  permCap: { display: 'flex', alignItems: 'center', gap: 6 },
-  permCode: {
-    fontSize: 12,
-    background: '#111827',
-    padding: '1px 5px',
-    borderRadius: 3,
-    color: '#d1d5db',
-  },
-  riskBadge: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const },
-  permReason: { fontSize: 11, color: '#6b7280', marginTop: 2 },
-  modalActions: { display: 'flex', justifyContent: 'flex-end', gap: 8 },
-  cancelBtn: {
-    padding: '7px 16px',
-    background: 'transparent',
-    border: '1px solid #4b5563',
-    borderRadius: 6,
-    color: '#9ca3af',
-    fontSize: 13,
-    cursor: 'pointer',
-  },
-  installBtnModal: {
-    padding: '7px 16px',
-    background: '#2563eb',
-    border: 'none',
-    borderRadius: 6,
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: 700,
-    cursor: 'pointer',
-  },
 }

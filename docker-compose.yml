@@ -39,6 +39,30 @@ services:
     command: ["npx", "tsx", "src/migrate.ts"]
     restart: "no"
 
+  # OpenClaw daemon — universal LLM/tool/channel gateway
+  # Provides: 20+ LLM providers, 26+ channels, 67+ skills, 1000+ MCP tools
+  # The Brain connects via WebSocket and gracefully degrades if unavailable.
+  # Replace the image below with the actual OpenClaw image when available.
+  openclaw:
+    image: node:22-slim
+    restart: unless-stopped
+    ports:
+      - "18789:18789"
+    environment:
+      PORT: 18789
+      OPENCLAW_TOKEN: ${OPENCLAW_TOKEN:-}
+      # Add LLM provider keys for OpenClaw to route through:
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    # TODO: Replace with actual OpenClaw startup command when image is available
+    command: >
+      sh -c "echo 'OpenClaw daemon placeholder — replace with actual image' && sleep infinity"
+    healthcheck:
+      test: ["CMD-SHELL", "echo ok"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   app:
     build:
       context: .
@@ -57,6 +81,8 @@ services:
       NODE_ENV: development
       VAULT_SECRET: ${VAULT_SECRET:-default-dev-vault-secret-change-me}
       AUTH_SECRET: ${AUTH_SECRET:-default-dev-auth-secret-change-me}
+      OPENCLAW_WS: ws://openclaw:18789
+      OPENCLAW_TOKEN: ${OPENCLAW_TOKEN:-}
 
 volumes:
   pgdata:

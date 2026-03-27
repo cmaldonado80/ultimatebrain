@@ -20,17 +20,24 @@ interface BrainEntity {
   createdAt: Date
 }
 
-const TIER_COLORS: Record<string, string> = {
-  brain: '#818cf8',
-  mini_brain: '#22c55e',
-  development: '#eab308',
+const TIER_BADGE_CLASS: Record<string, string> = {
+  brain: 'text-neon-purple',
+  mini_brain: 'text-neon-green',
+  development: 'text-neon-yellow',
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  active: '#22c55e',
-  provisioning: '#eab308',
-  suspended: '#ef4444',
-  degraded: '#f97316',
+const STATUS_DOT_CLASS: Record<string, string> = {
+  active: 'neon-dot neon-dot-green',
+  provisioning: 'neon-dot neon-dot-yellow',
+  suspended: 'neon-dot neon-dot-red',
+  degraded: 'neon-dot neon-dot-yellow',
+}
+
+const STATUS_TEXT_CLASS: Record<string, string> = {
+  active: 'text-neon-green',
+  provisioning: 'text-neon-yellow',
+  suspended: 'text-neon-red',
+  degraded: 'text-neon-yellow',
 }
 
 export default function EnginesPage() {
@@ -41,7 +48,7 @@ export default function EnginesPage() {
 
   if (error) {
     return (
-      <div style={styles.page}>
+      <div className="p-6 text-gray-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -51,18 +58,10 @@ export default function EnginesPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: '#6b7280' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>Loading...</div>
-          <div style={{ fontSize: 13 }}>Fetching engine data</div>
+      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2 font-orbitron">Loading...</div>
+          <div className="text-[13px]">Fetching engine data</div>
         </div>
       </div>
     )
@@ -74,68 +73,75 @@ export default function EnginesPage() {
     | undefined
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={styles.title}>Engines</h2>
+    <div className="p-6 text-gray-50">
+      <div className="mb-5">
+        <div className="flex justify-between items-center">
+          <h2 className="m-0 text-[22px] font-bold font-orbitron">Engines</h2>
           <a
             href="/engines/manage"
-            style={{
-              background: '#818cf8',
-              color: '#f9fafb',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontSize: 12,
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
+            className="cyber-btn-primary text-xs font-semibold no-underline"
           >
             Manage Brain
           </a>
         </div>
-        <p style={styles.subtitle}>
-          Monitor the brain's core engines — LLM Gateway, Memory, Orchestration, Guardrails, and
-          more.
+        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+          Monitor the brain&apos;s core engines — LLM Gateway, Memory, Orchestration, Guardrails,
+          and more.
         </p>
       </div>
       {topo && (
-        <div style={styles.statsGrid}>
-          <div style={styles.statCard}>
-            <div style={{ ...styles.statValue, color: '#818cf8' }}>{topo.brain.length}</div>
-            <div style={styles.statLabel}>Brain Entities</div>
+        <div className="grid grid-cols-3 gap-2.5 mb-5">
+          <div className="cyber-card text-center p-3.5">
+            <div className="text-[22px] font-bold font-orbitron text-neon-purple">
+              {topo.brain.length}
+            </div>
+            <div className="text-[11px] text-gray-500 mt-0.5">Brain Entities</div>
           </div>
-          <div style={styles.statCard}>
-            <div style={{ ...styles.statValue, color: '#22c55e' }}>{topo.miniBrains.length}</div>
-            <div style={styles.statLabel}>Mini Brains</div>
+          <div className="cyber-card text-center p-3.5">
+            <div className="text-[22px] font-bold font-orbitron text-neon-green">
+              {topo.miniBrains.length}
+            </div>
+            <div className="text-[11px] text-gray-500 mt-0.5">Mini Brains</div>
           </div>
-          <div style={styles.statCard}>
-            <div style={{ ...styles.statValue, color: '#eab308' }}>{topo.developments.length}</div>
-            <div style={styles.statLabel}>Development</div>
+          <div className="cyber-card text-center p-3.5">
+            <div className="text-[22px] font-bold font-orbitron text-neon-yellow">
+              {topo.developments.length}
+            </div>
+            <div className="text-[11px] text-gray-500 mt-0.5">Development</div>
           </div>
         </div>
       )}
 
       {entities.length === 0 ? (
-        <div style={styles.empty}>No brain entities registered.</div>
+        <div className="text-center text-gray-500 py-10 text-sm">No brain entities registered.</div>
       ) : (
-        <div style={styles.grid}>
+        <div className="cyber-grid">
           {entities.map((e) => (
-            <div key={e.id} style={styles.card}>
-              <div style={styles.cardTop}>
-                <span style={styles.cardName}>{e.name}</span>
-                <span style={{ ...styles.tierBadge, color: TIER_COLORS[e.tier] || '#6b7280' }}>
+            <div key={e.id} className="cyber-card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[15px] font-bold">{e.name}</span>
+                <span
+                  className={`cyber-badge uppercase ${TIER_BADGE_CLASS[e.tier] || 'text-gray-500'}`}
+                >
                   {e.tier}
                 </span>
               </div>
-              <div style={styles.cardMeta}>
-                <span style={{ color: STATUS_COLORS[e.status] || '#6b7280' }}>{e.status}</span>
-                {e.domain && <span>{e.domain}</span>}
+              <div className="flex gap-4 text-[11px] text-gray-500 mb-1.5">
+                <span
+                  className={`flex items-center gap-1.5 ${STATUS_TEXT_CLASS[e.status] || 'text-gray-500'}`}
+                >
+                  <span className={STATUS_DOT_CLASS[e.status] || 'neon-dot'} />
+                  {e.status}
+                </span>
+                {e.domain && <span className="font-mono">{e.domain}</span>}
               </div>
               {e.enginesEnabled && e.enginesEnabled.length > 0 && (
-                <div style={styles.tags}>
+                <div className="flex flex-wrap gap-1 mt-1.5">
                   {e.enginesEnabled.map((eng) => (
-                    <span key={eng} style={styles.tag}>
+                    <span
+                      key={eng}
+                      className="cyber-badge text-neon-purple bg-bg-elevated font-mono"
+                    >
                       {eng}
                     </span>
                   ))}
@@ -147,41 +153,4 @@ export default function EnginesPage() {
       )}
     </div>
   )
-}
-
-const styles = {
-  page: { padding: 24, fontFamily: 'sans-serif', color: '#f9fafb' },
-  header: { marginBottom: 20 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700 },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#6b7280' },
-  empty: { textAlign: 'center' as const, color: '#6b7280', padding: 40, fontSize: 14 },
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 },
-  statCard: {
-    background: '#1f2937',
-    borderRadius: 8,
-    padding: 14,
-    border: '1px solid #374151',
-    textAlign: 'center' as const,
-  },
-  statValue: { fontSize: 22, fontWeight: 700 },
-  statLabel: { fontSize: 11, color: '#6b7280', marginTop: 2 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 },
-  card: { background: '#1f2937', borderRadius: 8, padding: 16, border: '1px solid #374151' },
-  cardTop: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  cardName: { fontSize: 15, fontWeight: 700 },
-  tierBadge: { fontSize: 10, fontWeight: 600, textTransform: 'uppercase' as const },
-  cardMeta: { display: 'flex', gap: 16, fontSize: 11, color: '#6b7280', marginBottom: 6 },
-  tags: { display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginTop: 6 },
-  tag: {
-    fontSize: 10,
-    background: '#1e1b4b',
-    color: '#818cf8',
-    padding: '2px 6px',
-    borderRadius: 4,
-  },
 }

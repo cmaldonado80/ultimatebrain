@@ -169,12 +169,13 @@ export const intelligenceRouter = router({
       z
         .object({
           agentId: z.string().uuid().optional(),
+          workspaceId: z.string().uuid().optional(),
           limit: z.number().min(1).max(100).optional(),
         })
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      return getChatManager(ctx.db).listSessions(input?.agentId, input?.limit)
+      return getChatManager(ctx.db).listSessions(input?.agentId, input?.limit, input?.workspaceId)
     }),
 
   chatSession: protectedProcedure
@@ -184,9 +185,16 @@ export const intelligenceRouter = router({
     }),
 
   createChatSession: protectedProcedure
-    .input(z.object({ agentId: z.string().uuid().optional() }).optional())
+    .input(
+      z
+        .object({
+          agentId: z.string().uuid().optional(),
+          workspaceId: z.string().uuid().optional(),
+        })
+        .optional(),
+    )
     .mutation(async ({ ctx, input }) => {
-      return getChatManager(ctx.db).createSession(input?.agentId)
+      return getChatManager(ctx.db).createSession(input?.agentId, input?.workspaceId)
     }),
 
   addChatMessage: protectedProcedure

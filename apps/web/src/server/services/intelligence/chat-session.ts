@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { chatSessions, chatMessages } from '@solarc/db'
-import { eq, desc, asc, sql } from 'drizzle-orm'
+import { eq, and, desc, asc, sql } from 'drizzle-orm'
 import { GatewayRouter } from '../gateway'
 
 export interface ChatMessage {
@@ -36,11 +36,12 @@ export class ChatSessionManager {
   /**
    * Create a new chat session.
    */
-  async createSession(agentId?: string) {
+  async createSession(agentId?: string, workspaceId?: string) {
     const [session] = await this.db
       .insert(chatSessions)
       .values({
         agentId,
+        workspaceId,
       })
       .returning()
     return session!
@@ -231,11 +232,14 @@ export class ChatSessionManager {
   }
 
   /**
-   * List recent sessions for an agent.
+   * List recent sessions, optionally filtered by agent and/or workspace.
    */
-  async listSessions(agentId?: string, limit = 20) {
+  async listSessions(agentId?: string, limit = 20, workspaceId?: string) {
+    const conditions = []
+    if (agentId) conditions.push(eq(chatSessions.agentId, agentId))
+    if (workspaceId) conditions.push(eq(chatSessions.workspaceId, workspaceId))
     return this.db.query.chatSessions.findMany({
-      where: agentId ? eq(chatSessions.agentId, agentId) : undefined,
+      where: conditions.length > 0 ? and(...conditions) : undefined,
       orderBy: desc(chatSessions.updatedAt),
       limit,
     })
