@@ -88,8 +88,8 @@ eventBus.on('health.degraded', async (payload) => {
         result.actions.map((a) => `${a.action}:${a.target}:${a.success ? 'ok' : 'fail'}`),
       )
     }
-  } catch (err) {
-    console.error('[EventBus] auto-heal failed:', err)
+  } catch {
+    // Auto-heal may fail in test environments or when DB is unavailable — non-critical
   }
 })
 

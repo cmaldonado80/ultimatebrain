@@ -30,10 +30,15 @@ const mockMemoryService = {
   nominateForPromotion: vi.fn(),
   processPromotions: vi.fn(),
   tierStats: vi.fn(),
+  setEmbedFunction: vi.fn(),
 }
 
 vi.mock('../../services/memory', () => ({
   MemoryService: vi.fn().mockImplementation(() => mockMemoryService),
+}))
+
+vi.mock('../../services/memory/embed-helper', () => ({
+  createEmbedFn: vi.fn().mockReturnValue(vi.fn()),
 }))
 
 vi.mock('@solarc/db', () => ({

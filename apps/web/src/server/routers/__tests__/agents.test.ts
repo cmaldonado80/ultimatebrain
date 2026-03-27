@@ -29,11 +29,12 @@ function createMockDb() {
 // ---------------------------------------------------------------------------
 
 vi.mock('@solarc/db', () => ({
-  agents: { id: 'id', workspaceId: 'workspaceId' },
+  agents: { id: 'id', workspaceId: 'workspaceId', createdAt: 'createdAt' },
 }))
 
 vi.mock('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val }),
+  desc: (col: string) => ({ desc: col }),
 }))
 
 // Import after mocks are set up
@@ -126,6 +127,7 @@ describe('agents router', () => {
 
       expect(mockFindMany).toHaveBeenCalledWith({
         where: { col: 'workspaceId', val: wsId },
+        orderBy: { desc: 'createdAt' },
         limit: 50,
         offset: 0,
       })
