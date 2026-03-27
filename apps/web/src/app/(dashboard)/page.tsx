@@ -27,6 +27,23 @@ function StatCard({
   )
 }
 
+const PANEL_ROUTES: Record<string, string> = {
+  standup_summary: '/tickets',
+  ticket_board: '/tickets',
+  agent_status: '/agents',
+  ops_health: '/ops/healing',
+  approvals: '/ops/approvals',
+  security: '/ops/guardrails',
+  metrics: '/ops/evals',
+  dlq: '/ops/dlq',
+  active_flows: '/flows',
+  playbooks: '/playbooks',
+  memory_graph: '/memory',
+  recent_activity: '/ops/traces',
+  browser_sessions: '/ops/browser-sessions',
+  presence: '/ops/live',
+}
+
 export default function DashboardPage() {
   const agentsQuery = trpc.agents.list.useQuery({ limit: 500, offset: 0 })
   const ticketsQuery = trpc.tickets.list.useQuery({ limit: 10, offset: 0 })
@@ -35,6 +52,11 @@ export default function DashboardPage() {
   trpc.memory.list.useQuery({ limit: 1, offset: 0 })
   const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
   const sessionsQuery = trpc.intelligence.chatSessions.useQuery()
+  const rankedPanelsQuery = trpc.adaptive.defaultRank.useQuery({
+    role: 'developer',
+    visibleCount: 6,
+  })
+  const timeOfDayQuery = trpc.adaptive.timeOfDay.useQuery()
 
   const error = agentsQuery.error || ticketsQuery.error || workspacesQuery.error
   const isLoading = agentsQuery.isLoading
@@ -205,6 +227,51 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Adaptive Recommended Panels */}
+      {rankedPanelsQuery.data && (
+        <div className="mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-sm font-orbitron text-white">Recommended for You</h3>
+            {timeOfDayQuery.data && (
+              <span className="cyber-badge text-[9px] bg-neon-teal/10 text-neon-teal border-neon-teal/20">
+                {timeOfDayQuery.data.timeOfDay}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {(
+              rankedPanelsQuery.data as Array<{
+                id: string
+                label: string
+                description: string
+                score: number
+                isVisible: boolean
+                isPinned: boolean
+              }>
+            )
+              .filter((p) => p.isVisible)
+              .map((panel) => (
+                <a
+                  key={panel.id}
+                  href={PANEL_ROUTES[panel.id] ?? '/'}
+                  className="cyber-card p-3 hover:border-neon-teal/40 transition-colors group"
+                >
+                  <div className="text-xs font-medium text-slate-200 group-hover:text-neon-teal transition-colors">
+                    {panel.label}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-1 line-clamp-2">
+                    {panel.description}
+                  </div>
+                  <div className="text-[9px] text-slate-600 mt-1.5">
+                    score: {panel.score.toFixed(1)}
+                    {panel.isPinned && ' · pinned'}
+                  </div>
+                </a>
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
