@@ -169,7 +169,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
 
   return (
     <>
-      <aside className="w-64 flex-shrink-0 bg-bg-surface border-r border-border flex flex-col px-3 py-4 z-20">
+      <aside className="w-64 h-full flex-shrink-0 bg-bg-surface border-r border-border flex flex-col px-3 py-4 z-20 overflow-hidden">
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-2 mb-5">
           <span className="text-neon-blue text-lg">◆</span>

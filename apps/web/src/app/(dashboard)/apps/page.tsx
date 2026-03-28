@@ -78,7 +78,7 @@ export default function AppsPage() {
 
   if (error) {
     return (
-      <div className="bg-bg-deep min-h-screen text-slate-50 p-6">
+      <div className="text-slate-50 p-6">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -86,7 +86,7 @@ export default function AppsPage() {
 
   if (isLoading) {
     return (
-      <div className="bg-bg-deep min-h-screen text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
+      <div className="text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
         <div className="text-center text-slate-500">
           <div className="text-2xl mb-2 font-orbitron">Loading...</div>
           <div className="text-[13px]">Fetching apps</div>
@@ -121,7 +121,7 @@ export default function AppsPage() {
   const filtered = filter === 'all' ? apps : apps.filter((a) => a.type === filter)
 
   return (
-    <div className="bg-bg-deep min-h-screen text-slate-50 p-6">
+    <div className="text-slate-50 p-6">
       <div className="mb-4">
         <div>
           <h1 className="m-0 text-[22px] font-bold font-orbitron text-neon-purple">

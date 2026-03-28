@@ -177,7 +177,7 @@ export default function PlaybooksPage() {
 
   if (error) {
     return (
-      <div className="bg-bg-deep min-h-screen text-slate-50 p-6">
+      <div className="text-slate-50 p-6">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -185,7 +185,7 @@ export default function PlaybooksPage() {
 
   if (isLoading) {
     return (
-      <div className="bg-bg-deep min-h-screen text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
+      <div className="text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
         <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching playbooks</div>
@@ -248,7 +248,7 @@ export default function PlaybooksPage() {
 
   return (
     <div
-      className={`bg-bg-deep min-h-screen text-slate-50 p-6 ${recording ? 'outline outline-3 -outline-offset-[3px] outline-orange-500' : ''}`}
+      className={`text-slate-50 p-6 ${recording ? 'outline outline-3 -outline-offset-[3px] outline-orange-500' : ''}`}
     >
       {/* Header */}
       <div className="flex justify-between items-start mb-5">
