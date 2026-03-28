@@ -1,8 +1,5 @@
-export {
-  buildRuntimeOverlay,
-  buildTopologySnapshot,
-  computeBlastRadius,
-  computeHealthScore,
-  detectInsights,
-} from './builder'
+export { computeBlastRadius } from './analysis'
+export { buildTopologySnapshot } from './builder'
+export { detectInsights } from './insights'
+export { buildRuntimeOverlay, computeHealthScore } from './overlay'
 export * from './schemas'
