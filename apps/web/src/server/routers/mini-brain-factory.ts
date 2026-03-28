@@ -134,7 +134,9 @@ export const miniBrainFactoryRouter = router({
             workspaceId: ws.id,
             isWsOrchestrator: true,
             parentOrchestratorId,
-            soul: `You are the orchestrator for ${input.name}, a ${template.domain} mini-brain. Coordinate domain agents, route tasks, monitor health. Engines: ${template.engines.join(', ')}.`,
+            soul:
+              getAgentSoul('workflow-orchestrator')?.soul ??
+              `You are the orchestrator for ${input.name}, a ${template.domain} mini-brain. Coordinate domain agents, route tasks, monitor health. Engines: ${template.engines.join(', ')}.`,
             skills: ['coordination', 'task-routing', 'domain-routing', 'monitoring'],
             model: ORCHESTRATOR_MODEL,
             requiredModelType: 'router',
@@ -334,7 +336,9 @@ export const miniBrainFactoryRouter = router({
           workspaceId: ws.id,
           isWsOrchestrator: true,
           parentOrchestratorId: parentOrch?.id ?? null,
-          soul: `You are the orchestrator for ${input.name}, a development app under ${parent.name}.`,
+          soul:
+            getAgentSoul('workflow-orchestrator')?.soul ??
+            `You are the orchestrator for ${input.name}, a development app under ${parent.name}.`,
           skills: ['coordination', 'task-routing'],
           model: ORCHESTRATOR_MODEL,
           requiredModelType: 'router',
@@ -724,7 +728,9 @@ export const miniBrainFactoryRouter = router({
             workspaceId: wsId,
             isWsOrchestrator: true,
             parentOrchestratorId: parentOrch?.id ?? null,
-            soul: `You are the orchestrator for ${entity.name}, a development app under ${parent?.name ?? 'Brain'}.`,
+            soul:
+              getAgentSoul('workflow-orchestrator')?.soul ??
+              `You are the orchestrator for ${entity.name}, a development app under ${parent?.name ?? 'Brain'}.`,
             skills: ['coordination', 'task-routing'],
             model: ORCHESTRATOR_MODEL,
             requiredModelType: 'router',

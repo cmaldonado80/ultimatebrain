@@ -1597,7 +1597,9 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
       isWsOrchestrator: true,
       parentOrchestratorId,
       description: `Orchestrator for ${wsDef.name} — coordinates all agents within this domain.`,
-      soul: `You are the orchestrator for the ${wsDef.name} workspace. Coordinate agents, route tasks to the best specialist, monitor progress, and escalate when needed. Goal: ${wsDef.goal}`,
+      soul:
+        getAgentSoul('workflow-orchestrator')?.soul ??
+        `You are the orchestrator for the ${wsDef.name} workspace. Coordinate agents, route tasks to the best specialist, monitor progress, and escalate when needed. Goal: ${wsDef.goal}`,
       skills: ['coordination', 'task-routing', 'monitoring', 'escalation'],
       requiredModelType: 'router',
       tags: ['orchestrator', wsDef.name.toLowerCase().replace(/\s+/g, '-')],
