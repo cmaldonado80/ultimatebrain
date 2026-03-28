@@ -170,7 +170,7 @@ export interface GatewayConfig {
 
 const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
   primaryRoute: 'openclaw',
-  defaultModel: 'claude-sonnet-4-6',
+  defaultModel: 'qwen3.5:cloud',
   cacheEnabled: true,
 }
 
@@ -828,7 +828,7 @@ export class GatewayRouter {
     // Fallback: check if any Ollama model is available
     const ollamaKey = process.env.OLLAMA_API_KEY ?? (await this.keyVault.getKey('ollama'))
     if (ollamaKey) {
-      return { model: 'ollama/default', provider: 'ollama' }
+      return { model: 'qwen3.5:cloud', provider: 'ollama' }
     }
 
     return null
