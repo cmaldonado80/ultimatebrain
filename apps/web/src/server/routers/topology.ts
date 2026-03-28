@@ -1,15 +1,13 @@
 /**
  * Topology Router — thin orchestration layer for Swarm Observatory.
- * Business logic lives in services/topology/builder.ts.
+ * Business logic lives in services/topology/*.
  */
 import { z } from 'zod'
 
-import {
-  buildRuntimeOverlay,
-  buildTopologySnapshot,
-  computeBlastRadius,
-  detectInsights,
-} from '../services/topology'
+import { computeBlastRadius } from '../services/topology/analysis'
+import { buildTopologySnapshot } from '../services/topology/builder'
+import { detectInsights } from '../services/topology/insights'
+import { buildRuntimeOverlay } from '../services/topology/overlay'
 import { protectedProcedure, router } from '../trpc'
 
 export const topologyRouter = router({
