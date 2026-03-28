@@ -17,6 +17,7 @@ type StreamEvent =
   | { type: 'text'; content: string; agentId?: string; agentName?: string }
   | { type: 'tool_use'; name: string; input: unknown }
   | { type: 'tool_result'; name: string; result: string }
+  | { type: 'memory_context'; count: number; sources?: string[] }
   | { type: 'error'; message: string }
 
 interface Agent {
@@ -47,6 +48,8 @@ function streamEventToItem(ev: StreamEvent): ThreadItemData {
       return { type: 'tool_use', name: ev.name, input: ev.input }
     case 'tool_result':
       return { type: 'tool_result', name: ev.name, result: ev.result }
+    case 'memory_context':
+      return { type: 'memory_context', count: ev.count, sources: ev.sources }
     case 'error':
       return { type: 'error', message: ev.message }
   }
@@ -208,6 +211,15 @@ export default function ChatPage() {
               setStreamEvents((p) => [
                 ...p,
                 { type: 'tool_result', name: ev.name as string, result: ev.result as string },
+              ])
+            } else if (ev.type === 'memory_context') {
+              setStreamEvents((p) => [
+                ...p,
+                {
+                  type: 'memory_context',
+                  count: ev.count as number,
+                  sources: ev.sources as string[] | undefined,
+                },
               ])
             }
             if (ev.done) break

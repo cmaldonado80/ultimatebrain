@@ -182,6 +182,33 @@ export function ExecutionGroup({ group, onInspect }: ExecutionGroupProps) {
           >
             Inspect
           </button>
+          {!group.isActive && group.items.length > 0 && (
+            <button
+              className="text-[9px] text-slate-600 hover:text-neon-green px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation()
+                // Extract execution pattern for workflow saving
+                const steps = group.items
+                  .filter((i) => i.type === 'tool_use' || i.type === 'agent')
+                  .map((i) => ({
+                    type: i.type === 'tool_use' ? 'tool' : 'agent',
+                    name: 'name' in i ? (i as { name: string }).name : group.agentName,
+                  }))
+                navigator.clipboard.writeText(
+                  JSON.stringify({ agent: group.agentName, steps }, null, 2),
+                )
+                // Visual feedback
+                const btn = e.currentTarget
+                btn.textContent = 'Saved!'
+                setTimeout(() => {
+                  btn.textContent = 'Save'
+                }, 2000)
+              }}
+              title="Save execution pattern"
+            >
+              Save
+            </button>
+          )}
         </div>
       </div>
 
