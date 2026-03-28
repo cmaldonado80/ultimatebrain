@@ -68,7 +68,7 @@ const DEFAULT_FALLBACKS: Record<ProviderName, ProviderName[]> = {
   anthropic: ['openai', 'google', 'ollama'],
   openai: ['anthropic', 'google', 'ollama'],
   google: ['anthropic', 'openai', 'ollama'],
-  ollama: ['anthropic', 'openai'],
+  ollama: ['google', 'openai', 'anthropic'],
   openclaw: ['anthropic', 'openai', 'google'],
 }
 

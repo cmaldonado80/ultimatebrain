@@ -45,6 +45,7 @@ export default function EntityDetailPage() {
   const agentsQuery = trpc.platform.entityAgents.useQuery({ entityId })
   const healthQuery = trpc.platform.entityHealth.useQuery({ id: entityId })
   const dbStatusQuery = trpc.factory.databaseStatus.useQuery({ entityId })
+  const allAgentsQuery = trpc.agents.list.useQuery({ limit: 200, offset: 0 })
   const utils = trpc.useUtils()
 
   const activateMut = trpc.platform.activateEntity.useMutation({
@@ -356,12 +357,26 @@ export default function EntityDetailPage() {
 
         {/* Assign form */}
         <div className="flex gap-2 mb-3">
-          <input
-            className="cyber-input cyber-input-sm flex-1"
-            placeholder="Agent ID (UUID) to assign..."
+          <select
+            className="cyber-select cyber-select-sm flex-1"
             value={assignAgentId}
             onChange={(e) => setAssignAgentId(e.target.value)}
-          />
+          >
+            <option value="">Select agent to assign...</option>
+            {(
+              (allAgentsQuery.data ?? []) as Array<{
+                id: string
+                name: string
+                type: string | null
+              }>
+            )
+              .filter((a) => !entityAgents.some((ea) => ea.agentId === a.id))
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} {a.type ? `(${a.type})` : ''}
+                </option>
+              ))}
+          </select>
           <select
             className="cyber-select cyber-select-sm"
             value={assignRole}
@@ -408,7 +423,11 @@ export default function EntityDetailPage() {
                 </div>
                 <button
                   className="text-[10px] text-slate-600 hover:text-neon-red transition-colors"
-                  onClick={() => removeMut.mutate({ entityId, agentId: a.agentId })}
+                  onClick={() => {
+                    if (confirm(`Remove agent "${a.agentName}" from this entity?`)) {
+                      removeMut.mutate({ entityId, agentId: a.agentId })
+                    }
+                  }}
                   disabled={removeMut.isPending}
                 >
                   Remove

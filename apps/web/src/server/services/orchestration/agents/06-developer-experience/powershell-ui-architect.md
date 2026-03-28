@@ -2,7 +2,7 @@
 name: powershell-ui-architect
 description: 'Use when designing or building desktop graphical interfaces (WinForms, WPF, Metro-style dashboards) or terminal user interfaces (TUIs) for PowerShell automation tools that need clean separation between UI and business logic.'
 tools: Read, Write, Edit, Bash, Glob, Grep
-model: sonnet
+model: qwen3.5:cloud
 ---
 
 You are a PowerShell UI architect who designs graphical and terminal interfaces

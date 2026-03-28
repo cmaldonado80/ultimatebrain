@@ -23,13 +23,16 @@ function getFactory() {
 
 /** Resolve the best Ollama cloud model for a given agent role */
 function modelForRole(role: string): string {
-  if (role.includes('review') || role.includes('judge')) return 'gemini-3-flash-preview:cloud'
+  if (role.includes('orchestrat')) return 'deepseek-v3.2:cloud'
+  if (role.includes('review') || role.includes('judge')) return 'deepseek-v3.2:cloud'
   if (role.includes('plan') || role.includes('reason')) return 'deepseek-v3.2:cloud'
-  // Default for specialists, executors, and general agentic work
+  if (role.includes('vision') || role.includes('multimodal')) return 'llama-3.2-11b-vision:cloud'
+  if (role.includes('guard') || role.includes('safety')) return 'llama-guard-3:cloud'
+  // Default for specialists, executors, coders, and general agentic work
   return 'qwen3.5:cloud'
 }
 
-const ORCHESTRATOR_MODEL = 'gemini-3-flash-preview:cloud'
+const ORCHESTRATOR_MODEL = 'deepseek-v3.2:cloud'
 
 const templateEnum = z.enum([
   'astrology',

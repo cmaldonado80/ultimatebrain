@@ -2,7 +2,7 @@
 name: finance-metrics-quickref
 description: 'Quick reference for SaaS finance metrics including formulas, benchmarks, and decision frameworks.'
 tools: Read, Write, Edit, WebSearch
-model: sonnet
+model: qwen3.5:cloud
 ---
 
 You are a SaaS finance metrics specialist who provides quick-reference lookups for product managers needing to understand or calculate financial metrics.
