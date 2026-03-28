@@ -10,7 +10,8 @@
  */
 
 import { useState } from 'react'
-import type { PlanStep, ExecutionPlan } from '../../server/services/task-runner/mode-router'
+
+import type { ExecutionPlan, PlanStep } from '../../server/services/task-runner/mode-router'
 
 interface PlanEditorProps {
   plan: ExecutionPlan
@@ -51,7 +52,16 @@ interface StepRowProps {
   isExecuting: boolean
 }
 
-function StepRow({ step, index, total, onMoveUp, onMoveDown, onRemove, onEdit, isExecuting }: StepRowProps) {
+function StepRow({
+  step,
+  index,
+  total,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+  onEdit,
+  isExecuting,
+}: StepRowProps) {
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(step.title)
   const [description, setDescription] = useState(step.description)
@@ -71,11 +81,13 @@ function StepRow({ step, index, total, onMoveUp, onMoveDown, onRemove, onEdit, i
   const isSkipped = step.status === 'skipped'
 
   return (
-    <div style={{
-      ...styles.stepRow,
-      opacity: isSkipped ? 0.5 : 1,
-      borderLeft: `3px solid ${STATUS_COLORS[step.status]}`,
-    }}>
+    <div
+      style={{
+        ...styles.stepRow,
+        opacity: isSkipped ? 0.5 : 1,
+        borderLeft: `3px solid ${STATUS_COLORS[step.status]}`,
+      }}
+    >
       <div style={styles.stepHeader}>
         <div style={styles.stepLeft}>
           <span style={styles.stepIndex}>{index + 1}</span>
@@ -106,8 +118,12 @@ function StepRow({ step, index, total, onMoveUp, onMoveDown, onRemove, onEdit, i
               type="number"
             />
             <div style={styles.editActions}>
-              <button style={styles.btnSave} onClick={handleSave}>Save</button>
-              <button style={styles.btnCancel} onClick={() => setEditing(false)}>Cancel</button>
+              <button style={styles.btnSave} onClick={handleSave}>
+                Save
+              </button>
+              <button style={styles.btnCancel} onClick={() => setEditing(false)}>
+                Cancel
+              </button>
             </div>
           </div>
         ) : (
@@ -117,7 +133,9 @@ function StepRow({ step, index, total, onMoveUp, onMoveDown, onRemove, onEdit, i
             {step.toolsRequired && step.toolsRequired.length > 0 && (
               <div style={styles.toolTags}>
                 {step.toolsRequired.map((t) => (
-                  <span key={t} style={styles.toolTag}>{t}</span>
+                  <span key={t} style={styles.toolTag}>
+                    {t}
+                  </span>
                 ))}
               </div>
             )}
@@ -133,10 +151,32 @@ function StepRow({ step, index, total, onMoveUp, onMoveDown, onRemove, onEdit, i
 
         {!isExecuting && !isDone && (
           <div style={styles.stepActions}>
-            <button style={styles.iconBtn} onClick={onMoveUp} disabled={index === 0} title="Move up">↑</button>
-            <button style={styles.iconBtn} onClick={onMoveDown} disabled={index === total - 1} title="Move down">↓</button>
-            <button style={styles.iconBtn} onClick={() => setEditing(!editing)} title="Edit">✎</button>
-            <button style={{ ...styles.iconBtn, color: '#ef4444' }} onClick={onRemove} title="Remove">✕</button>
+            <button
+              style={styles.iconBtn}
+              onClick={onMoveUp}
+              disabled={index === 0}
+              title="Move up"
+            >
+              ↑
+            </button>
+            <button
+              style={styles.iconBtn}
+              onClick={onMoveDown}
+              disabled={index === total - 1}
+              title="Move down"
+            >
+              ↓
+            </button>
+            <button style={styles.iconBtn} onClick={() => setEditing(!editing)} title="Edit">
+              ✎
+            </button>
+            <button
+              style={{ ...styles.iconBtn, color: '#ef4444' }}
+              onClick={onRemove}
+              title="Remove"
+            >
+              ✕
+            </button>
           </div>
         )}
       </div>
@@ -144,7 +184,13 @@ function StepRow({ step, index, total, onMoveUp, onMoveDown, onRemove, onEdit, i
   )
 }
 
-export function PlanEditor({ plan, ticketTitle, onApprove, onCancel, isExecuting = false }: PlanEditorProps) {
+export function PlanEditor({
+  plan,
+  ticketTitle,
+  onApprove,
+  onCancel,
+  isExecuting = false,
+}: PlanEditorProps) {
   const [steps, setSteps] = useState<PlanStep[]>(plan.steps)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -216,8 +262,8 @@ export function PlanEditor({ plan, ticketTitle, onApprove, onCancel, isExecuting
       </div>
 
       <p style={styles.hint}>
-        Review and edit the plan below. You can reorder, modify, add, or remove steps.
-        Once approved, execution begins autonomously with check-ins every 5 steps.
+        Review and edit the plan below. You can reorder, modify, add, or remove steps. Once
+        approved, execution begins autonomously with check-ins every 5 steps.
       </p>
 
       <div style={styles.stepList}>
@@ -236,8 +282,8 @@ export function PlanEditor({ plan, ticketTitle, onApprove, onCancel, isExecuting
         ))}
       </div>
 
-      {!isExecuting && (
-        showAddForm ? (
+      {!isExecuting &&
+        (showAddForm ? (
           <div style={styles.addForm}>
             <input
               style={styles.editInput}
@@ -254,16 +300,19 @@ export function PlanEditor({ plan, ticketTitle, onApprove, onCancel, isExecuting
               rows={2}
             />
             <div style={styles.editActions}>
-              <button style={styles.btnSave} onClick={addStep}>Add Step</button>
-              <button style={styles.btnCancel} onClick={() => setShowAddForm(false)}>Cancel</button>
+              <button style={styles.btnSave} onClick={addStep}>
+                Add Step
+              </button>
+              <button style={styles.btnCancel} onClick={() => setShowAddForm(false)}>
+                Cancel
+              </button>
             </div>
           </div>
         ) : (
           <button style={styles.addBtn} onClick={() => setShowAddForm(true)}>
             + Add Step
           </button>
-        )
-      )}
+        ))}
 
       <div style={styles.footer}>
         <button style={styles.cancelBtn} onClick={onCancel} disabled={isExecuting}>

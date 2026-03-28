@@ -4,12 +4,13 @@
  * Manages the skill marketplace where agents discover, compose, and acquire
  * reusable capabilities for dynamic tool and behavior extension.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
-import { SkillMarketplace } from '../services/skills/marketplace'
-import type { SkillCapability } from '../services/skills/marketplace'
-import { SkillSecurityScanner } from '../services/skills/scanner'
 import type { Database } from '@solarc/db'
+import { z } from 'zod'
+
+import type { SkillCapability } from '../services/skills/marketplace'
+import { SkillMarketplace } from '../services/skills/marketplace'
+import { SkillSecurityScanner } from '../services/skills/scanner'
+import { protectedProcedure, router } from '../trpc'
 
 let marketplace: SkillMarketplace | null = null
 function getMarketplace(db: Database) {

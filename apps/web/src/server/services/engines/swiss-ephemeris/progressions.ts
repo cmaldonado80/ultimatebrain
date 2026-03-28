@@ -7,8 +7,8 @@
  * - Primary directions (simplified Ptolemaic semi-arc method)
  */
 
-import type { Planet, Position, ZodiacSign, HouseCusps } from './engine'
-import { PLANET_LIST, longitudeToSign, calcAllPlanets, calcHouses, assignHouses } from './engine'
+import type { HouseCusps, Planet, Position, ZodiacSign } from './engine'
+import { assignHouses, calcAllPlanets, calcHouses, longitudeToSign, PLANET_LIST } from './engine'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

@@ -1,23 +1,23 @@
 /* eslint-disable no-console */
 import { createDb } from './index'
 import {
-  workspaces,
   agents,
-  tickets,
-  memories,
-  evalDatasets,
-  evalCases,
-  channels,
   brainEntities,
-  guardrailLogs,
-  chatSessions,
+  channels,
   chatMessages,
+  chatSessions,
   cognitionState,
-  traces,
-  projects,
-  flows,
   cronJobs,
+  evalCases,
+  evalDatasets,
+  flows,
+  guardrailLogs,
+  memories,
   modelRegistry,
+  projects,
+  tickets,
+  traces,
+  workspaces,
 } from './schema/index'
 
 async function seed() {

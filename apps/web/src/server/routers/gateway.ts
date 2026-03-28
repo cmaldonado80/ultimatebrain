@@ -4,14 +4,15 @@
  * Central nervous system for all LLM calls. Provides chat and embedding endpoints,
  * request cost tracking, per-model metrics, and health checks.
  */
-import { z } from 'zod'
-import { TRPCError } from '@trpc/server'
-import { router, publicProcedure, protectedProcedure } from '../trpc'
-import { gatewayMetrics, ollamaModels } from '@solarc/db'
-import { eq } from 'drizzle-orm'
 import type { Database } from '@solarc/db'
+import { gatewayMetrics, ollamaModels } from '@solarc/db'
 import { LlmChatInput, LlmEmbedInput } from '@solarc/engine-contracts'
-import { GatewayRouter, GatewayError, CostTracker } from '../services/gateway'
+import { TRPCError } from '@trpc/server'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+
+import { CostTracker, GatewayError, GatewayRouter } from '../services/gateway'
+import { protectedProcedure, publicProcedure, router } from '../trpc'
 
 /**
  * Singleton gateway instance — initialized lazily with db from context.

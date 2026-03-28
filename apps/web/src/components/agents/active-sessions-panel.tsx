@@ -8,8 +8,9 @@
  */
 
 import { useState } from 'react'
-import LiveViewport from './live-viewport'
+
 import type { StreamEvent } from '../../server/services/browser-agent/stream'
+import LiveViewport from './live-viewport'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 

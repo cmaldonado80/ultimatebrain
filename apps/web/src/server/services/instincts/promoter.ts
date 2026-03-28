@@ -34,6 +34,7 @@
  */
 
 import { randomUUID } from 'crypto'
+
 import type { Instinct, InstinctScope, PromotionResult } from './types'
 
 // ---------------------------------------------------------------------------
@@ -133,10 +134,7 @@ export class InstinctPromoter {
         }
       }
 
-      const peers = await this.lookupPeers(
-        this.fingerprintTrigger(instinct.trigger),
-        'development',
-      )
+      const peers = await this.lookupPeers(this.fingerprintTrigger(instinct.trigger), 'development')
       const uniqueEntities = new Set(peers.map((p) => p.entityId))
 
       if (uniqueEntities.size < PROMOTION_THRESHOLDS.devPeersForMiniPromote) {
@@ -170,10 +168,7 @@ export class InstinctPromoter {
 
     // Mini Brain → Brain promotion
     if (instinct.scope === 'mini_brain') {
-      const peers = await this.lookupPeers(
-        this.fingerprintTrigger(instinct.trigger),
-        'mini_brain',
-      )
+      const peers = await this.lookupPeers(this.fingerprintTrigger(instinct.trigger), 'mini_brain')
       const uniqueMiniBrains = new Set(peers.map((p) => p.entityId))
 
       if (uniqueMiniBrains.size < PROMOTION_THRESHOLDS.miniBrainPeersForBrainPromote) {

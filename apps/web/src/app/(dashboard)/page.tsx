@@ -4,8 +4,8 @@
  * Dashboard — system overview with key metrics, recent activity, and quick actions.
  */
 
-import { trpc } from '../../utils/trpc'
 import { DbErrorBanner } from '../../components/db-error-banner'
+import { trpc } from '../../utils/trpc'
 
 const STAT_COLORS: Record<string, string> = {
   'neon-blue': 'text-neon-blue',

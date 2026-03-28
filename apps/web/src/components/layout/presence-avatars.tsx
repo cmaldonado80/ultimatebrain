@@ -9,6 +9,7 @@
  */
 
 import { useState } from 'react'
+
 import type { PresenceEntry } from '../../server/services/presence/manager'
 import { trpc } from '../../utils/trpc'
 

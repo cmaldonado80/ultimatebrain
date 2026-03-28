@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { EvalRunner } from '../runner'
 import type { Scorer, ScorerInput } from '../scorers'
 
@@ -54,12 +55,7 @@ describe('EvalRunner', () => {
     it('should return a passing result when all scorers return high scores', () => {
       const runner = new EvalRunner(db, allPassScorers)
 
-      const result = runner.scoreCase(
-        'case-1',
-        'What is 2+2?',
-        '4',
-        '4',
-      )
+      const result = runner.scoreCase('case-1', 'What is 2+2?', '4', '4')
 
       expect(result.caseId).toBe('case-1')
       expect(result.passed).toBe(true)

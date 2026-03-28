@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { PlaybookExecutor } from '../executor'
 import type { SavedPlaybook } from '../recorder'
 
@@ -177,17 +178,15 @@ describe('PlaybookExecutor', () => {
 
   describe('resume', () => {
     it('should throw for non-existent run', async () => {
-      await expect(
-        executor.resume('nonexistent', makePlaybook()),
-      ).rejects.toThrow('Run nonexistent not found')
+      await expect(executor.resume('nonexistent', makePlaybook())).rejects.toThrow(
+        'Run nonexistent not found',
+      )
     })
 
     it('should throw when run is not paused', async () => {
       const result = await executor.execute(makePlaybook())
 
-      await expect(
-        executor.resume(result.runId, makePlaybook()),
-      ).rejects.toThrow('is not paused')
+      await expect(executor.resume(result.runId, makePlaybook())).rejects.toThrow('is not paused')
     })
   })
 

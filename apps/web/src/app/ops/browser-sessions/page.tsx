@@ -4,8 +4,8 @@
  * Browser Sessions — live browser agent session management.
  */
 
-import { trpc } from '../../../utils/trpc'
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { trpc } from '../../../utils/trpc'
 
 export default function BrowserSessionsPage() {
   const sessionsQuery = trpc.browserAgent.activeSessions.useQuery(undefined, {

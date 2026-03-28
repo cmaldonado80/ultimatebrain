@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
+
 import {
+  type BehaviorSignal,
+  type ContextSignal,
   LayoutEngine,
   type UserPreferences,
-  type ContextSignal,
-  type BehaviorSignal,
 } from '../layout-engine'
 
 const defaultPrefs: UserPreferences = {

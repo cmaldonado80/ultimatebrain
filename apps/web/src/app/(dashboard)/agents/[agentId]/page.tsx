@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { trpc } from '../../../../utils/trpc'
+import { useState } from 'react'
+
 import { DbErrorBanner } from '../../../../components/db-error-banner'
+import { trpc } from '../../../../utils/trpc'
 
 export default function AgentDetailPage() {
   const params = useParams()

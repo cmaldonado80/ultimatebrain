@@ -1,23 +1,24 @@
 import {
-  pgTable,
-  text,
-  timestamp,
   boolean,
+  index,
   integer,
   jsonb,
-  uuid,
-  primaryKey,
-  index,
   pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
 } from 'drizzle-orm/pg-core'
+
 import {
   agents,
-  workspaces,
-  tickets,
-  projects,
-  cronJobStatusEnum,
-  receiptStatusEnum,
   approvalStatusEnum,
+  cronJobStatusEnum,
+  projects,
+  receiptStatusEnum,
+  tickets,
+  workspaces,
 } from './core'
 
 // === Enums ===

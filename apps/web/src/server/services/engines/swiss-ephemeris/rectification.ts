@@ -5,8 +5,8 @@
  * Trutine of Hermes, Animodar, Almuten Figuris, and Huber Age Point.
  */
 
-import type { Planet, Position, ZodiacSign, HouseCusps } from './engine'
-import { SIGN_ELEMENT, DOMICILE, longitudeToSign } from './engine'
+import type { HouseCusps, Planet, Position, ZodiacSign } from './engine'
+import { DOMICILE, longitudeToSign, SIGN_ELEMENT } from './engine'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

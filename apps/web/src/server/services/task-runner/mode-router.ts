@@ -14,11 +14,12 @@
  */
 
 import type { Database } from '@solarc/db'
-import { tickets, agents } from '@solarc/db'
+import { agents, tickets } from '@solarc/db'
 import { eq } from 'drizzle-orm'
+
+import { assertNever } from '../../utils/exhaustive'
 import { GatewayRouter } from '../gateway'
 import { WebhookService } from '../integrations'
-import { assertNever } from '../../utils/exhaustive'
 
 export type ExecutionMode = 'quick' | 'autonomous' | 'deep_work'
 export type TicketComplexity = 'easy' | 'medium' | 'hard' | 'critical'

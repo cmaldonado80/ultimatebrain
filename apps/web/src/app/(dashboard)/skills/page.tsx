@@ -10,13 +10,14 @@
  */
 
 import { useState } from 'react'
-import { trpc } from '../../../utils/trpc'
+
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import type {
-  SkillListing,
-  SkillCategory,
   SkillCapability,
+  SkillCategory,
+  SkillListing,
 } from '../../../server/services/skills/marketplace'
+import { trpc } from '../../../utils/trpc'
 
 // ── Constants ─────────────────────────────────────────────────────────────
 

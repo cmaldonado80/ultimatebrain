@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { FlushHandler, ObservationEvent } from '../observer'
 import { InstinctObserver } from '../observer'
-import type { ObservationEvent, FlushHandler } from '../observer'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -70,9 +71,9 @@ describe('InstinctObserver', () => {
 
       // flush is fire-and-forget from observe(), but handler should be called
       expect(flushHandler).toHaveBeenCalledTimes(1)
-      expect(flushHandler).toHaveBeenCalledWith(expect.arrayContaining([
-        expect.objectContaining({ eventType: 'tool_call' }),
-      ]))
+      expect(flushHandler).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ eventType: 'tool_call' })]),
+      )
     })
 
     it('should not auto-flush when buffer is below threshold', () => {

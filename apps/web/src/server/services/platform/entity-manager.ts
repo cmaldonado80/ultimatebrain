@@ -10,13 +10,13 @@
 
 import type { Database } from '@solarc/db'
 import {
+  agents,
   brainEntities,
   brainEntityAgents,
-  agents,
-  strategyRuns,
   orchestratorRoutes,
+  strategyRuns,
 } from '@solarc/db'
-import { eq, and, desc, sql } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 
 export type EntityTier = 'brain' | 'mini_brain' | 'development'
 export type EntityStatus = 'active' | 'suspended' | 'degraded' | 'provisioning'

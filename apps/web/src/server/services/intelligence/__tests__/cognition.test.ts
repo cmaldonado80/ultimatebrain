@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { CognitionManager } from '../cognition'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -19,7 +20,9 @@ vi.mock('drizzle-orm', () => ({
 function createMockDb() {
   const whereFn = vi.fn().mockReturnThis()
   const setFn = vi.fn().mockReturnValue({ where: whereFn })
-  const returningFn = vi.fn().mockResolvedValue([{ id: 'overlay-1', content: 'test', active: true }])
+  const returningFn = vi
+    .fn()
+    .mockResolvedValue([{ id: 'overlay-1', content: 'test', active: true }])
   const valuesFn = vi.fn().mockReturnValue({ returning: returningFn })
 
   return {
@@ -202,7 +205,13 @@ describe('CognitionManager', () => {
       db.query.agentTrustScores.findFirst.mockResolvedValue({
         agentId: 'agent-1',
         score: 0.85,
-        factors: { taskCompletionRate: 0.9, errorRate: 0.1, avgResponseTime: 2000, guardrailViolations: 0, userRating: 0.9 },
+        factors: {
+          taskCompletionRate: 0.9,
+          errorRate: 0.1,
+          avgResponseTime: 2000,
+          guardrailViolations: 0,
+          userRating: 0.9,
+        },
       })
 
       const result = await manager.getTrustScore('agent-1')
@@ -228,9 +237,7 @@ describe('CognitionManager', () => {
       await manager.updateTrustScore('agent-1', 1.5)
 
       expect(db.insert).toHaveBeenCalled()
-      expect(db._mock.valuesFn).toHaveBeenCalledWith(
-        expect.objectContaining({ score: 1 }),
-      )
+      expect(db._mock.valuesFn).toHaveBeenCalledWith(expect.objectContaining({ score: 1 }))
     })
   })
 

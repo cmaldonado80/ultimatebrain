@@ -2,8 +2,9 @@
  * Presence Router — real-time user and agent presence tracking.
  */
 import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
+
 import { PresenceManager } from '../services/presence/manager'
+import { protectedProcedure, router } from '../trpc'
 
 let _manager: PresenceManager | null = null
 function getManager() {

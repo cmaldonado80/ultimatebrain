@@ -4,11 +4,12 @@
  * Workspaces — lifecycle-managed organizational units with bindings and goals.
  */
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { trpc } from '../../../utils/trpc'
+import { useState } from 'react'
+
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import ConfirmDialog from '../../../components/ui/confirm-dialog'
+import { trpc } from '../../../utils/trpc'
 
 interface Workspace {
   id: string

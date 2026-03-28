@@ -12,14 +12,15 @@
 
 import type { Database } from '@solarc/db'
 import {
-  workspaces,
   agents,
-  tickets,
-  workspaceLifecycleEvents,
   orchestratorRoutes,
+  tickets,
   tokenLedger,
+  workspaceLifecycleEvents,
+  workspaces,
 } from '@solarc/db'
-import { eq, and, or, desc } from 'drizzle-orm'
+import { and, desc, eq, or } from 'drizzle-orm'
+
 import { NotFoundError, ValidationError } from '../../errors'
 
 // ── Types ───────────────────────────────────────────────────────────────

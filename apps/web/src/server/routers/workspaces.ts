@@ -1,17 +1,18 @@
 /**
  * Workspaces Router — lifecycle-managed organizational units with bindings and goals.
  */
-import { z } from 'zod'
-import { TRPCError } from '@trpc/server'
-import { router, protectedProcedure } from '../trpc'
 import {
-  workspaces,
+  agents,
   workspaceBindings,
   workspaceGoals,
   workspaceLifecycleEvents,
-  agents,
+  workspaces,
 } from '@solarc/db'
-import { eq, and } from 'drizzle-orm'
+import { TRPCError } from '@trpc/server'
+import { and, eq } from 'drizzle-orm'
+import { z } from 'zod'
+
+import { protectedProcedure, router } from '../trpc'
 
 // Valid lifecycle transitions
 const VALID_TRANSITIONS: Record<string, string[]> = {

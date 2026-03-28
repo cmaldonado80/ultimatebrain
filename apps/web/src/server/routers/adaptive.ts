@@ -2,9 +2,10 @@
  * Adaptive Layout Router — behavior-driven dashboard personalization.
  */
 import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
+
+import type { ContextSignal, UserPreferences, UserRole } from '../services/adaptive/layout-engine'
 import { LayoutEngine } from '../services/adaptive/layout-engine'
-import type { UserRole, UserPreferences, ContextSignal } from '../services/adaptive/layout-engine'
+import { protectedProcedure, router } from '../trpc'
 
 let _engine: LayoutEngine | null = null
 function getEngine() {

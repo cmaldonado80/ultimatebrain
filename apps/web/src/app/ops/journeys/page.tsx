@@ -4,8 +4,8 @@
  * Journeys — view and manage active journey (state machine) executions.
  */
 
-import { trpc } from '../../../utils/trpc'
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { trpc } from '../../../utils/trpc'
 
 interface JourneyExecution {
   id: string

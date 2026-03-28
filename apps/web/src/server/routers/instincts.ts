@@ -4,10 +4,11 @@
  * Instincts are learned trigger→action patterns with confidence scoring,
  * scope promotion (development → mini_brain → brain), and evolution into skills.
  */
+import { instinctObservations, instincts } from '@solarc/db'
+import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
-import { instincts, instinctObservations } from '@solarc/db'
-import { eq, desc, and } from 'drizzle-orm'
+
+import { protectedProcedure, router } from '../trpc'
 
 export const instinctsRouter = router({
   /** List all instincts, optionally filtered by scope or domain */

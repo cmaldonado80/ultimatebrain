@@ -4,24 +4,29 @@
  * Manages A2A engine instances, agent card generation, and the agent registry
  * for cross-agent discovery and inter-agent message routing.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
-import { A2AEngine, AgentCardGenerator, A2ARegistry } from '../services/a2a'
+import { z } from 'zod'
+
+import { A2AEngine, A2ARegistry, AgentCardGenerator } from '../services/a2a'
+import { protectedProcedure, router } from '../trpc'
 
 let engine: A2AEngine | null = null
-function getEngine(db: Database) { return engine ??= new A2AEngine(db) }
+function getEngine(db: Database) {
+  return (engine ??= new A2AEngine(db))
+}
 
 export const a2aRouter = router({
   // === Agent Card Registry ===
 
   registerCard: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid(),
-      capabilities: z.unknown().optional(),
-      authRequirements: z.unknown().optional(),
-      endpoint: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        agentId: z.string().uuid(),
+        capabilities: z.unknown().optional(),
+        authRequirements: z.unknown().optional(),
+        endpoint: z.string().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { agentId, ...card } = input
       return getEngine(ctx.db).registerCard(agentId, card)
@@ -52,12 +57,14 @@ export const a2aRouter = router({
   // === Task Delegation ===
 
   delegate: protectedProcedure
-    .input(z.object({
-      agentId: z.string(),
-      task: z.string().min(1),
-      context: z.record(z.unknown()).optional(),
-      callbackUrl: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        agentId: z.string(),
+        task: z.string().min(1),
+        context: z.record(z.unknown()).optional(),
+        callbackUrl: z.string().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getEngine(ctx.db).delegate(input)
     }),
@@ -102,11 +109,13 @@ export const a2aRouter = router({
 
   /** Generate well-known card for a single agent */
   generateCard: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid(),
-      baseUrl: z.string().url(),
-      version: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        agentId: z.string().uuid(),
+        baseUrl: z.string().url(),
+        version: z.string().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const generator = new AgentCardGenerator(ctx.db)
       const card = await generator.generateForAgent(input.agentId, {

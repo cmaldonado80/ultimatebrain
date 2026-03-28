@@ -5,8 +5,9 @@
  */
 
 import { useState } from 'react'
-import { trpc } from '../../../utils/trpc'
+
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { trpc } from '../../../utils/trpc'
 
 export default function HealingPage() {
   const [autoHealResult, setAutoHealResult] = useState<string | null>(null)

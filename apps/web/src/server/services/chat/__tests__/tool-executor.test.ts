@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 // Mock all ephemeris engines to avoid native dependency issues
 vi.mock('../../engines/swiss-ephemeris/engine', () => ({

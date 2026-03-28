@@ -5,6 +5,7 @@
  */
 
 import { usePathname } from 'next/navigation'
+
 import { trpc } from '../../utils/trpc'
 import PresenceAvatars from './presence-avatars'
 

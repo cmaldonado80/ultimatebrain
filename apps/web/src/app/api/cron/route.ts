@@ -4,10 +4,11 @@
 export const dynamic = 'force-dynamic'
 
 import { createDb, waitForSchema } from '@solarc/db'
-import { SystemOrchestrator, CronEngine } from '../../../server/services/orchestration'
-import { HealingEngine } from '../../../server/services/healing/healing-engine'
-import { GatewayRouter } from '../../../server/services/gateway'
+
 import { AtlasFreshnessScanner } from '../../../server/services/atlas'
+import { GatewayRouter } from '../../../server/services/gateway'
+import { HealingEngine } from '../../../server/services/healing/healing-engine'
+import { CronEngine, SystemOrchestrator } from '../../../server/services/orchestration'
 
 export async function GET(req: Request) {
   // Verify cron secret — Vercel sends this automatically for cron jobs
@@ -97,7 +98,7 @@ export async function GET(req: Request) {
         const scanResult = await scanner.scan()
         if (scanResult.uncoveredFiles.length > 0) {
           atlasTicketsCreated = await scanner.createDiscoveryTickets(scanResult)
-          console.log(
+          console.warn(
             `[ATLAS] Freshness scan: ${scanResult.coveredFiles}/${scanResult.totalFiles} covered, ${atlasTicketsCreated} tickets created`,
           )
         }

@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { agentMessages, agents } from '@solarc/db'
-import { eq, and, desc, sql, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 
 export type AckStatus = 'pending' | 'received' | 'processed' | 'failed'
 
@@ -37,13 +37,16 @@ export class AgentMessagingService {
    * Send a message from one agent to another.
    */
   async send(input: SendMessageInput): Promise<AgentMessage> {
-    const [msg] = await this.db.insert(agentMessages).values({
-      fromAgentId: input.fromAgentId,
-      toAgentId: input.toAgentId,
-      text: input.text,
-      read: false,
-      ackStatus: 'pending',
-    }).returning()
+    const [msg] = await this.db
+      .insert(agentMessages)
+      .values({
+        fromAgentId: input.fromAgentId,
+        toAgentId: input.toAgentId,
+        text: input.text,
+        read: false,
+        ackStatus: 'pending',
+      })
+      .returning()
 
     return toMessage(msg!)
   }
@@ -51,11 +54,7 @@ export class AgentMessagingService {
   /**
    * Broadcast a message from one agent to all agents in a workspace.
    */
-  async broadcast(
-    fromAgentId: string,
-    workspaceId: string,
-    text: string,
-  ): Promise<AgentMessage[]> {
+  async broadcast(fromAgentId: string, workspaceId: string, text: string): Promise<AgentMessage[]> {
     const workspaceAgents = await this.db.query.agents.findMany({
       where: eq(agents.workspaceId, workspaceId),
     })
@@ -127,7 +126,9 @@ export class AgentMessagingService {
    */
   async markRead(messageIds: string[]): Promise<void> {
     if (messageIds.length === 0) return
-    await this.db.update(agentMessages).set({ read: true })
+    await this.db
+      .update(agentMessages)
+      .set({ read: true })
       .where(inArray(agentMessages.id, messageIds))
   }
 
@@ -135,7 +136,9 @@ export class AgentMessagingService {
    * Mark all messages in inbox as read.
    */
   async markAllRead(agentId: string): Promise<number> {
-    const result = await this.db.update(agentMessages).set({ read: true })
+    const result = await this.db
+      .update(agentMessages)
+      .set({ read: true })
       .where(and(eq(agentMessages.toAgentId, agentId), eq(agentMessages.read, false)))
       .returning()
     return result.length
@@ -145,7 +148,9 @@ export class AgentMessagingService {
    * Acknowledge a message.
    */
   async acknowledge(messageId: string, status: AckStatus): Promise<void> {
-    await this.db.update(agentMessages).set({ ackStatus: status })
+    await this.db
+      .update(agentMessages)
+      .set({ ackStatus: status })
       .where(eq(agentMessages.id, messageId))
   }
 

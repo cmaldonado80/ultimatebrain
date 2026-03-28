@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
+
+import LiveCursors from './layout/live-cursors'
 import Sidebar from './layout/sidebar'
 import Topbar from './layout/topbar'
-import LiveCursors from './layout/live-cursors'
 import { TRPCProvider } from './trpc-provider'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {

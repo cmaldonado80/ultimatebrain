@@ -1,8 +1,8 @@
-import { initTRPC, TRPCError } from '@trpc/server'
-import superjson from 'superjson'
 import type { Database } from '@solarc/db'
 import { workspaces } from '@solarc/db'
+import { initTRPC, TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
+import superjson from 'superjson'
 
 export interface TRPCContext {
   db: Database

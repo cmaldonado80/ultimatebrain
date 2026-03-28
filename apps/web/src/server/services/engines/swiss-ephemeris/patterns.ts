@@ -5,7 +5,7 @@
  * Yod, Stellium, Kite, Mystic Rectangle) from computed aspects and positions.
  */
 
-import type { Planet, Position, Aspect, AspectType } from './engine'
+import type { Aspect, AspectType, Planet, Position } from './engine'
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface AspectPattern {

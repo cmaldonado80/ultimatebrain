@@ -4,12 +4,13 @@
  * Tickets are the primary work unit: created by users or A2A, assigned to agents,
  * and executed through the ModeRouter pipeline (quick/autonomous/deep_work).
  */
-import { z } from 'zod'
-import { TRPCError } from '@trpc/server'
-import { router, protectedProcedure } from '../trpc'
 import { tickets, ticketStatusHistory } from '@solarc/db'
-import { eq, and } from 'drizzle-orm'
+import { TRPCError } from '@trpc/server'
+import { and, eq } from 'drizzle-orm'
+import { z } from 'zod'
+
 import { eventBus } from '../services/orchestration/event-bus'
+import { protectedProcedure, router } from '../trpc'
 
 export const ticketsRouter = router({
   list: protectedProcedure

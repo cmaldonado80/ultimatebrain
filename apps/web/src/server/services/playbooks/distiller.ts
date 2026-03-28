@@ -9,6 +9,7 @@
  */
 
 import type { Database } from '@solarc/db'
+
 import { GatewayRouter } from '../gateway'
 import type { PlaybookStep, SavedPlaybook } from './recorder'
 
@@ -50,7 +51,7 @@ export class PlaybookDistiller {
     // Step 1: Extract variables (parameterize specific values)
     const { parameterizedSteps, variables } = this.parameterize(
       steps,
-      options.aggressiveParameterization ?? false
+      options.aggressiveParameterization ?? false,
     )
 
     // Step 2: LLM analysis — extract name, description, triggers, outcomes
@@ -84,7 +85,7 @@ export class PlaybookDistiller {
         confidence: 1.0,
       },
       playbook.steps,
-      {}
+      {},
     )
   }
 
@@ -96,7 +97,7 @@ export class PlaybookDistiller {
    */
   private parameterize(
     steps: PlaybookStep[],
-    aggressive: boolean
+    aggressive: boolean,
   ): { parameterizedSteps: PlaybookStep[]; variables: Record<string, string> } {
     const variables: Record<string, string> = {}
     let varCounter = 0
@@ -131,7 +132,7 @@ export class PlaybookDistiller {
 
   private async analyzeWithLLM(
     steps: PlaybookStep[],
-    options: DistillOptions
+    options: DistillOptions,
   ): Promise<{
     name: string
     description: string
@@ -139,7 +140,9 @@ export class PlaybookDistiller {
     expectedOutcomes: string[]
     confidence: number
   }> {
-    const stepSummary = steps.map((s, i) => `${i + 1}. [${s.type}] ${s.name}: ${s.description}`).join('\n')
+    const stepSummary = steps
+      .map((s, i) => `${i + 1}. [${s.type}] ${s.name}: ${s.description}`)
+      .join('\n')
 
     // Try LLM analysis for pattern extraction and parameterization suggestions
     try {
@@ -171,8 +174,12 @@ export class PlaybookDistiller {
         return {
           name: String(parsed.name ?? options.suggestedName ?? 'Unnamed Playbook'),
           description: String(parsed.description ?? ''),
-          triggerConditions: Array.isArray(parsed.triggerConditions) ? parsed.triggerConditions.map(String) : [],
-          expectedOutcomes: Array.isArray(parsed.expectedOutcomes) ? parsed.expectedOutcomes.map(String) : [],
+          triggerConditions: Array.isArray(parsed.triggerConditions)
+            ? parsed.triggerConditions.map(String)
+            : [],
+          expectedOutcomes: Array.isArray(parsed.expectedOutcomes)
+            ? parsed.expectedOutcomes.map(String)
+            : [],
           confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.7,
         }
       }
@@ -184,8 +191,7 @@ export class PlaybookDistiller {
     const firstAction = steps[0]?.name ?? 'unknown action'
     const lastAction = steps[steps.length - 1]?.name ?? 'completion'
     const inferredName =
-      options.suggestedName ??
-      `Playbook: ${firstAction.slice(0, 40)} → ${lastAction.slice(0, 30)}`
+      options.suggestedName ?? `Playbook: ${firstAction.slice(0, 40)} → ${lastAction.slice(0, 30)}`
 
     const triggerConditions = this.inferTriggers(steps)
     const expectedOutcomes = this.inferOutcomes(steps)
@@ -262,7 +268,7 @@ export class PlaybookDistiller {
       confidence: number
     },
     steps: PlaybookStep[],
-    variables: Record<string, string>
+    variables: Record<string, string>,
   ): string {
     const lines: string[] = [
       `# ${analysis.name}`,

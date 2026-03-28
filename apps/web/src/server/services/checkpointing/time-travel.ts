@@ -6,6 +6,7 @@
  */
 
 import type { Database } from '@solarc/db'
+
 import { CheckpointManager, type CheckpointRecord } from './checkpoint-manager'
 
 export interface FieldDiff {
@@ -123,13 +124,14 @@ export class TimeTravelEngine {
     const removed = changes.filter((c) => c.type === 'removed').length
     const changed = changes.filter((c) => c.type === 'changed').length
 
-    const summary = [
-      added > 0 ? `+${added} field${added !== 1 ? 's' : ''}` : '',
-      removed > 0 ? `-${removed} field${removed !== 1 ? 's' : ''}` : '',
-      changed > 0 ? `~${changed} changed` : '',
-    ]
-      .filter(Boolean)
-      .join(', ') || 'No changes'
+    const summary =
+      [
+        added > 0 ? `+${added} field${added !== 1 ? 's' : ''}` : '',
+        removed > 0 ? `-${removed} field${removed !== 1 ? 's' : ''}` : '',
+        changed > 0 ? `~${changed} changed` : '',
+      ]
+        .filter(Boolean)
+        .join(', ') || 'No changes'
 
     return {
       checkpointAId,
@@ -202,7 +204,7 @@ export class TimeTravelEngine {
   private diffObjects(
     before: Record<string, unknown>,
     after: Record<string, unknown>,
-    prefix = ''
+    prefix = '',
   ): FieldDiff[] {
     const changes: FieldDiff[] = []
 
@@ -229,7 +231,7 @@ export class TimeTravelEngine {
         const nested = this.diffObjects(
           bVal as Record<string, unknown>,
           aVal as Record<string, unknown>,
-          field
+          field,
         )
         changes.push(...nested)
       } else if (JSON.stringify(bVal) !== JSON.stringify(aVal)) {

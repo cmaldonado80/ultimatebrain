@@ -2,9 +2,10 @@
  * Engine Registry Router — centralized engine health and usage tracking.
  */
 import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
-import { EngineRegistry } from '../services/engine-registry/registry'
+
 import type { EngineId } from '../services/engine-registry/registry'
+import { EngineRegistry } from '../services/engine-registry/registry'
+import { protectedProcedure, router } from '../trpc'
 
 let _registry: EngineRegistry | null = null
 function getRegistry() {

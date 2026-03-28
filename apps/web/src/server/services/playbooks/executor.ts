@@ -9,6 +9,7 @@
  */
 
 import type { Database } from '@solarc/db'
+
 import { GatewayRouter } from '../gateway'
 import type { PlaybookStep, SavedPlaybook } from './recorder'
 
@@ -112,7 +113,7 @@ export class PlaybookExecutor {
     }
 
     const stepsCompleted = stepResults.filter(
-      (r) => r.status === 'passed' || r.status === 'skipped'
+      (r) => r.status === 'passed' || r.status === 'skipped',
     ).length
 
     const runResult: PlaybookRunResult = {
@@ -123,8 +124,8 @@ export class PlaybookExecutor {
         pausedAtStep !== undefined
           ? 'paused_for_hitl'
           : stepResults.some((r) => r.status === 'failed')
-          ? 'failed'
-          : 'completed',
+            ? 'failed'
+            : 'completed',
       stepResults,
       stepsCompleted,
       totalSteps: playbook.steps.length,
@@ -144,7 +145,7 @@ export class PlaybookExecutor {
   async resume(
     runId: string,
     playbook: SavedPlaybook,
-    options: ExecuteOptions = {}
+    options: ExecuteOptions = {},
   ): Promise<PlaybookRunResult> {
     const existing = runStore.get(runId)
     if (!existing) throw new Error(`Run ${runId} not found`)
@@ -180,7 +181,7 @@ export class PlaybookExecutor {
   async abTest(
     original: SavedPlaybook,
     modified: SavedPlaybook,
-    parameterValues: Record<string, unknown> = {}
+    parameterValues: Record<string, unknown> = {},
   ): Promise<ABTestResult> {
     const [originalResult, modifiedResult] = await Promise.all([
       this.execute(original, { parameterValues }),
@@ -193,7 +194,8 @@ export class PlaybookExecutor {
     let winner: ABTestResult['winner'] = 'tie'
     if (successDelta > 0.05) winner = 'modified'
     else if (successDelta < -0.05) winner = 'original'
-    else if (durationDelta < -500) winner = 'modified' // faster by 500ms+
+    else if (durationDelta < -500)
+      winner = 'modified' // faster by 500ms+
     else if (durationDelta > 500) winner = 'original'
 
     return {
@@ -238,7 +240,7 @@ export class PlaybookExecutor {
   private async executeStep(
     step: PlaybookStep,
     options: ExecuteOptions,
-    maxRetries: number
+    maxRetries: number,
   ): Promise<StepExecutionResult> {
     const start = Date.now()
 
@@ -296,8 +298,14 @@ export class PlaybookExecutor {
     }
   }
 
-  private async runStepAction(step: PlaybookStep, params: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
-    const resolvedParams = this.resolveParameters(step, params).parameters as Record<string, unknown>
+  private async runStepAction(
+    step: PlaybookStep,
+    params: Record<string, unknown> = {},
+  ): Promise<Record<string, unknown>> {
+    const resolvedParams = this.resolveParameters(step, params).parameters as Record<
+      string,
+      unknown
+    >
     switch (step.type) {
       case 'api_call':
         // For API calls, attempt fetch if URL is in parameters
@@ -315,7 +323,13 @@ export class PlaybookExecutor {
         }
         return { executed: true, step: step.name, type: step.type, params: resolvedParams }
       case 'transformation':
-        return { executed: true, step: step.name, type: step.type, input: resolvedParams, output: resolvedParams }
+        return {
+          executed: true,
+          step: step.name,
+          type: step.type,
+          input: resolvedParams,
+          output: resolvedParams,
+        }
       default:
         return { executed: true, step: step.name, type: step.type, params: resolvedParams }
     }
@@ -328,7 +342,8 @@ export class PlaybookExecutor {
         messages: [
           {
             role: 'system',
-            content: 'You are a verification judge. Compare actual output against expected outcome. Answer with exactly "yes" if they match or "no" if they do not.',
+            content:
+              'You are a verification judge. Compare actual output against expected outcome. Answer with exactly "yes" if they match or "no" if they do not.',
           },
           {
             role: 'user',

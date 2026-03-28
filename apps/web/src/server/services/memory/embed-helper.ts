@@ -5,6 +5,7 @@
  */
 
 import type { Database } from '@solarc/db'
+
 import { GatewayRouter } from '../gateway'
 
 let _gateway: GatewayRouter | null = null

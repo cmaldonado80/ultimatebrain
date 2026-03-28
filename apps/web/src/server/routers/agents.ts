@@ -4,11 +4,12 @@
  * Agents have types (executor/reviewer/planner/specialist), belong to workspaces,
  * and are assigned to tickets for execution. Supports capability and model configuration.
  */
-import { z } from 'zod'
-import { TRPCError } from '@trpc/server'
-import { router, protectedProcedure } from '../trpc'
 import { agents, traces } from '@solarc/db'
-import { eq, and, desc } from 'drizzle-orm'
+import { TRPCError } from '@trpc/server'
+import { and, desc, eq } from 'drizzle-orm'
+import { z } from 'zod'
+
+import { protectedProcedure, router } from '../trpc'
 
 export const agentsRouter = router({
   list: protectedProcedure

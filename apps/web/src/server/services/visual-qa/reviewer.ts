@@ -9,6 +9,7 @@
  */
 
 import type { Database } from '@solarc/db'
+
 import { GatewayRouter } from '../gateway'
 import type { QARecording, QAVerdict, RecordingFrame } from './recorder'
 
@@ -96,10 +97,7 @@ export class VisualQAReviewer {
   /**
    * Review a completed recording against criteria.
    */
-  async review(
-    recording: QARecording,
-    criteria: ReviewCriteria
-  ): Promise<ReviewResult> {
+  async review(recording: QARecording, criteria: ReviewCriteria): Promise<ReviewResult> {
     if (recording.status !== 'ready') {
       throw new Error(`Recording ${recording.id} is not ready (status: ${recording.status})`)
     }
@@ -108,7 +106,7 @@ export class VisualQAReviewer {
     const checkpointResults = await this.evaluateCheckpoints(
       recording,
       criteria.checkpoints,
-      criteria.tolerance ?? 0.1
+      criteria.tolerance ?? 0.1,
     )
 
     // Identify failure frames
@@ -120,9 +118,10 @@ export class VisualQAReviewer {
     // Compute overall verdict
     const failed = checkpointResults.filter((r) => r.verdict === 'fail')
     const verdict: QAVerdict = failed.length > 0 ? 'fail' : 'pass'
-    const confidence = checkpointResults.length > 0
-      ? checkpointResults.reduce((sum, r) => sum + r.confidence, 0) / checkpointResults.length
-      : 0.5
+    const confidence =
+      checkpointResults.length > 0
+        ? checkpointResults.reduce((sum, r) => sum + r.confidence, 0) / checkpointResults.length
+        : 0.5
 
     // Build summary
     const summary = this.buildSummary(recording, checkpointResults, verdict)
@@ -158,7 +157,7 @@ export class VisualQAReviewer {
    */
   async quickReview(
     recording: QARecording,
-    expectedState: string
+    expectedState: string,
   ): Promise<{ verdict: QAVerdict; explanation: string; confidence: number }> {
     if (recording.frames.length === 0) {
       return { verdict: 'fail', explanation: 'No frames captured', confidence: 1.0 }
@@ -181,7 +180,7 @@ export class VisualQAReviewer {
   private async evaluateCheckpoints(
     recording: QARecording,
     checkpoints: ReviewCheckpoint[],
-    _tolerance: number
+    _tolerance: number,
   ): Promise<CheckpointResult[]> {
     const results: CheckpointResult[] = []
 
@@ -204,7 +203,7 @@ export class VisualQAReviewer {
       // Stub — real impl sends frame + checkpoint to LLM for evaluation
       const analysis = await this.analyzeFrameWithLLM(
         frame,
-        `Check: ${checkpoint.description}. Expected: ${checkpoint.expectedText ?? 'visible'}`
+        `Check: ${checkpoint.description}. Expected: ${checkpoint.expectedText ?? 'visible'}`,
       )
 
       results.push({
@@ -221,7 +220,7 @@ export class VisualQAReviewer {
 
   private identifyFailures(
     recording: QARecording,
-    checkpointResults: CheckpointResult[]
+    checkpointResults: CheckpointResult[],
   ): FailureFrame[] {
     const failures: FailureFrame[] = []
     const seenFrames = new Set<number>()
@@ -264,16 +263,16 @@ export class VisualQAReviewer {
   private async generateFixes(
     recording: QARecording,
     failures: FailureFrame[],
-    checkpointResults: CheckpointResult[]
+    checkpointResults: CheckpointResult[],
   ): Promise<SuggestedFix[]> {
     if (failures.length === 0) return []
 
     // Try LLM-based fix generation
     try {
       if (this.gateway) {
-        const failureContext = failures.map((f) =>
-          `Frame ${f.frameIndex} (offset ${f.offsetMs}ms): ${f.reason}`
-        ).join('\n')
+        const failureContext = failures
+          .map((f) => `Frame ${f.frameIndex} (offset ${f.offsetMs}ms): ${f.reason}`)
+          .join('\n')
 
         const checkpointContext = checkpointResults
           .filter((r) => r.verdict === 'fail')
@@ -365,8 +364,8 @@ export class VisualQAReviewer {
 
   private findRelevantFrame(recording: QARecording, checkpoint: ReviewCheckpoint): number {
     // Look for annotations that reference this checkpoint
-    const relatedAnn = recording.annotations.find(
-      (a) => a.label.toLowerCase().includes(checkpoint.name.toLowerCase())
+    const relatedAnn = recording.annotations.find((a) =>
+      a.label.toLowerCase().includes(checkpoint.name.toLowerCase()),
     )
     if (relatedAnn) return relatedAnn.screenshotIndex
 
@@ -376,7 +375,7 @@ export class VisualQAReviewer {
 
   private async analyzeFrameWithLLM(
     frame: RecordingFrame,
-    expectedState: string
+    expectedState: string,
   ): Promise<{ matches: boolean; explanation: string; confidence: number }> {
     // Since we cannot send actual images via text, analyze using frame metadata.
     // When multimodal gateway support is available, replace the prompt with image content.
@@ -428,7 +427,7 @@ export class VisualQAReviewer {
   private buildSummary(
     recording: QARecording,
     results: CheckpointResult[],
-    verdict: QAVerdict
+    verdict: QAVerdict,
   ): string {
     const passed = results.filter((r) => r.verdict === 'pass').length
     const failed = results.filter((r) => r.verdict === 'fail').length

@@ -4,24 +4,39 @@
  * Records agent execution traces into reusable playbooks, distills them into
  * optimized step sequences, and replays them for automated workflow execution.
  */
-import { z } from 'zod'
-import { TRPCError } from '@trpc/server'
-import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
-import { PlaybookRecorder, PlaybookDistiller, PlaybookExecutor } from '../services/playbooks'
+import { TRPCError } from '@trpc/server'
+import { z } from 'zod'
+
+import { PlaybookDistiller, PlaybookExecutor, PlaybookRecorder } from '../services/playbooks'
+import { protectedProcedure, router } from '../trpc'
 
 let _recorder: PlaybookRecorder | null = null
 let _distiller: PlaybookDistiller | null = null
 let _executor: PlaybookExecutor | null = null
 
-function getRecorder(db: Database) { return _recorder ??= new PlaybookRecorder(db) }
-function getDistiller() { return _distiller ??= new PlaybookDistiller() }
-function getExecutor(db: Database) { return _executor ??= new PlaybookExecutor(db) }
+function getRecorder(db: Database) {
+  return (_recorder ??= new PlaybookRecorder(db))
+}
+function getDistiller() {
+  return (_distiller ??= new PlaybookDistiller())
+}
+function getExecutor(db: Database) {
+  return (_executor ??= new PlaybookExecutor(db))
+}
 
 const playbookStepSchema = z.object({
   index: z.number().int().min(0),
   name: z.string(),
-  type: z.enum(['click', 'decision', 'transformation', 'navigation', 'form_submit', 'api_call', 'custom']),
+  type: z.enum([
+    'click',
+    'decision',
+    'transformation',
+    'navigation',
+    'form_submit',
+    'api_call',
+    'custom',
+  ]),
   description: z.string(),
   parameters: z.record(z.unknown()),
   expectedOutcome: z.string().optional(),
@@ -46,13 +61,15 @@ export const playbooksRouter = router({
     }),
 
   save: protectedProcedure
-    .input(z.object({
-      name: z.string().min(1),
-      steps: z.array(playbookStepSchema),
-      description: z.string().optional(),
-      createdBy: z.string().optional(),
-      triggerConditions: z.array(z.string()).optional(),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1),
+        steps: z.array(playbookStepSchema),
+        description: z.string().optional(),
+        createdBy: z.string().optional(),
+        triggerConditions: z.array(z.string()).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
       return recorder.save(input.name, input.steps, {
@@ -83,28 +100,45 @@ export const playbooksRouter = router({
 
   /** Record an event into an active session */
   recordEvent: protectedProcedure
-    .input(z.object({
-      sessionId: z.string().uuid(),
-      type: z.enum(['click', 'decision', 'transformation', 'navigation', 'form_submit', 'api_call', 'custom']),
-      component: z.string().optional(),
-      action: z.string().optional(),
-      parameters: z.record(z.unknown()).optional(),
-      decision: z.object({
-        option: z.string(),
-        reason: z.string().optional(),
-        alternatives: z.array(z.string()).optional(),
-      }).optional(),
-      transformation: z.object({
-        input: z.unknown(),
-        output: z.unknown(),
-        description: z.string().optional(),
-      }).optional(),
-      navigation: z.object({ from: z.string(), to: z.string() }).optional(),
-    }))
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        type: z.enum([
+          'click',
+          'decision',
+          'transformation',
+          'navigation',
+          'form_submit',
+          'api_call',
+          'custom',
+        ]),
+        component: z.string().optional(),
+        action: z.string().optional(),
+        parameters: z.record(z.unknown()).optional(),
+        decision: z
+          .object({
+            option: z.string(),
+            reason: z.string().optional(),
+            alternatives: z.array(z.string()).optional(),
+          })
+          .optional(),
+        transformation: z
+          .object({
+            input: z.unknown(),
+            output: z.unknown(),
+            description: z.string().optional(),
+          })
+          .optional(),
+        navigation: z.object({ from: z.string(), to: z.string() }).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
       const { sessionId, ...event } = input
-      recorder.record(sessionId, event as Omit<import('../services/playbooks/recorder').RecordedEvent, 'timestamp'>)
+      recorder.record(
+        sessionId,
+        event as Omit<import('../services/playbooks/recorder').RecordedEvent, 'timestamp'>,
+      )
       return { success: true }
     }),
 
@@ -120,12 +154,14 @@ export const playbooksRouter = router({
 
   /** Distill raw steps into a parameterized playbook */
   distill: protectedProcedure
-    .input(z.object({
-      steps: z.array(playbookStepSchema),
-      suggestedName: z.string().optional(),
-      context: z.string().optional(),
-      aggressiveParameterization: z.boolean().optional(),
-    }))
+    .input(
+      z.object({
+        steps: z.array(playbookStepSchema),
+        suggestedName: z.string().optional(),
+        context: z.string().optional(),
+        aggressiveParameterization: z.boolean().optional(),
+      }),
+    )
     .mutation(async ({ input }) => {
       const distiller = getDistiller()
       return distiller.distill(input.steps, {
@@ -151,11 +187,13 @@ export const playbooksRouter = router({
 
   /** Run a playbook with parameter values */
   run: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      parameterValues: z.record(z.unknown()).optional(),
-      hitlMode: z.boolean().optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        parameterValues: z.record(z.unknown()).optional(),
+        hitlMode: z.boolean().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
       const pb = await recorder.get(input.id)
@@ -179,19 +217,23 @@ export const playbooksRouter = router({
 
   /** A/B test two playbooks */
   abTest: protectedProcedure
-    .input(z.object({
-      originalId: z.string().uuid(),
-      modifiedId: z.string().uuid(),
-      parameterValues: z.record(z.unknown()).optional(),
-    }))
+    .input(
+      z.object({
+        originalId: z.string().uuid(),
+        modifiedId: z.string().uuid(),
+        parameterValues: z.record(z.unknown()).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const recorder = getRecorder(ctx.db)
       const [original, modified] = await Promise.all([
         recorder.get(input.originalId),
         recorder.get(input.modifiedId),
       ])
-      if (!original) throw new TRPCError({ code: 'NOT_FOUND', message: 'Original playbook not found' })
-      if (!modified) throw new TRPCError({ code: 'NOT_FOUND', message: 'Modified playbook not found' })
+      if (!original)
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Original playbook not found' })
+      if (!modified)
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Modified playbook not found' })
       const executor = getExecutor(ctx.db)
       return executor.abTest(original, modified, input.parameterValues)
     }),

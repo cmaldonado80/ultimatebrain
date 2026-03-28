@@ -8,8 +8,8 @@
  * - Skip: streaming, tool-use prompts, volatile system prompts
  */
 
-import { sql } from 'drizzle-orm'
 import type { Database } from '@solarc/db'
+import { sql } from 'drizzle-orm'
 
 export interface CacheEntry {
   promptHash: string

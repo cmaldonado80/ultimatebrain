@@ -1,17 +1,17 @@
-export { CheckpointManager } from './checkpoint-manager'
-export { TimeTravelEngine } from './time-travel'
 export type {
-  CheckpointTrigger,
   CheckpointGranularity,
   CheckpointMetadata,
   CheckpointRecord,
+  CheckpointTrigger,
   CreateCheckpointInput,
 } from './checkpoint-manager'
+export { CheckpointManager } from './checkpoint-manager'
 export type {
-  FieldDiff,
   CheckpointDiff,
-  ReplayOptions,
-  ReplayResult,
   CheckpointTimeline,
   CheckpointTimelineEntry,
+  FieldDiff,
+  ReplayOptions,
+  ReplayResult,
 } from './time-travel'
+export { TimeTravelEngine } from './time-travel'

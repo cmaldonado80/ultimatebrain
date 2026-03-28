@@ -1,15 +1,15 @@
 import {
-  pgTable,
-  text,
-  timestamp,
   boolean,
+  index,
   integer,
   jsonb,
   pgEnum,
-  uuid,
-  real,
+  pgTable,
   primaryKey,
-  index,
+  real,
+  text,
+  timestamp,
+  uuid,
 } from 'drizzle-orm/pg-core'
 
 // === Enums ===

@@ -1,3 +1,13 @@
-export { CognitionManager, type CognitionFeatures, type CognitionPolicies, type TrustFactors } from './cognition'
-export { ChatSessionManager, type ChatMessage, type SessionWithMessages } from './chat-session'
-export { AgentMessagingService, type AckStatus, type SendMessageInput, type AgentMessage } from './agent-messaging'
+export {
+  type AckStatus,
+  type AgentMessage,
+  AgentMessagingService,
+  type SendMessageInput,
+} from './agent-messaging'
+export { type ChatMessage, ChatSessionManager, type SessionWithMessages } from './chat-session'
+export {
+  type CognitionFeatures,
+  CognitionManager,
+  type CognitionPolicies,
+  type TrustFactors,
+} from './cognition'

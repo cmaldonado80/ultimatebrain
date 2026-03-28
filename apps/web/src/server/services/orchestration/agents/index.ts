@@ -161,7 +161,7 @@ if (AGENT_SOULS.size === 0) {
     '[AgentSouls] WARNING: No agent soul files loaded. Agents will use fallback one-liner prompts.',
   )
 } else {
-  console.info(`[AgentSouls] Loaded ${AGENT_SOULS.size} agent soul definitions`)
+  console.warn(`[AgentSouls] Loaded ${AGENT_SOULS.size} agent soul definitions`)
 }
 
 /** Override map for agent names that don't cleanly convert to kebab-case slugs */

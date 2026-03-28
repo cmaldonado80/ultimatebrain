@@ -9,8 +9,8 @@
  */
 
 import type { Database } from '@solarc/db'
-import { cognitionState, promptOverlays, agentTrustScores } from '@solarc/db'
-import { eq, and } from 'drizzle-orm'
+import { agentTrustScores, cognitionState, promptOverlays } from '@solarc/db'
+import { and, eq } from 'drizzle-orm'
 
 export interface CognitionFeatures {
   [key: string]: boolean
@@ -85,10 +85,13 @@ export class CognitionManager {
   private async upsertState(updates: { features?: unknown; policies?: unknown }): Promise<void> {
     const existing = await this.getState()
     if (existing) {
-      await this.db.update(cognitionState).set({
-        ...updates,
-        updatedAt: new Date(),
-      }).where(eq(cognitionState.id, SINGLETON_ID))
+      await this.db
+        .update(cognitionState)
+        .set({
+          ...updates,
+          updatedAt: new Date(),
+        })
+        .where(eq(cognitionState.id, SINGLETON_ID))
     } else {
       await this.db.insert(cognitionState).values({
         id: SINGLETON_ID,
@@ -110,11 +113,14 @@ export class CognitionManager {
   }
 
   async createOverlay(content: string, workspaceId?: string) {
-    const [overlay] = await this.db.insert(promptOverlays).values({
-      content,
-      workspaceId,
-      active: true,
-    }).returning()
+    const [overlay] = await this.db
+      .insert(promptOverlays)
+      .values({
+        content,
+        workspaceId,
+        active: true,
+      })
+      .returning()
     return overlay!
   }
 
@@ -148,7 +154,11 @@ export class CognitionManager {
     }
   }
 
-  async updateTrustScore(agentId: string, score: number, factors?: Partial<TrustFactors>): Promise<void> {
+  async updateTrustScore(
+    agentId: string,
+    score: number,
+    factors?: Partial<TrustFactors>,
+  ): Promise<void> {
     const clamped = Math.max(0, Math.min(1, score))
     const existing = await this.db.query.agentTrustScores.findFirst({
       where: eq(agentTrustScores.agentId, agentId),
@@ -159,11 +169,14 @@ export class CognitionManager {
         ? { ...(existing.factors as TrustFactors | null), ...factors }
         : existing.factors
 
-      await this.db.update(agentTrustScores).set({
-        score: clamped,
-        factors: mergedFactors,
-        updatedAt: new Date(),
-      }).where(eq(agentTrustScores.agentId, agentId))
+      await this.db
+        .update(agentTrustScores)
+        .set({
+          score: clamped,
+          factors: mergedFactors,
+          updatedAt: new Date(),
+        })
+        .where(eq(agentTrustScores.agentId, agentId))
     } else {
       await this.db.insert(agentTrustScores).values({
         agentId,
@@ -182,11 +195,11 @@ export class CognitionManager {
 
     // Weighted formula
     const score =
-      factors.taskCompletionRate * 0.30 +
-      (1 - factors.errorRate) * 0.20 +
+      factors.taskCompletionRate * 0.3 +
+      (1 - factors.errorRate) * 0.2 +
       Math.min(1, 5000 / Math.max(1, factors.avgResponseTime)) * 0.15 + // Faster = better
       (1 - Math.min(1, factors.guardrailViolations / 10)) * 0.15 +
-      factors.userRating * 0.20
+      factors.userRating * 0.2
 
     const clamped = Math.max(0, Math.min(1, score))
     await this.updateTrustScore(agentId, clamped)

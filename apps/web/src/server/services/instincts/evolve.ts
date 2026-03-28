@@ -33,8 +33,9 @@
  */
 
 import { randomUUID } from 'crypto'
-import type { Instinct, EvolutionResult } from './types'
+
 import type { GatewayRouter } from '../gateway'
+import type { EvolutionResult, Instinct } from './types'
 
 // ---------------------------------------------------------------------------
 // Constants

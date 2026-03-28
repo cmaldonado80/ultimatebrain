@@ -4,8 +4,8 @@
  * Dead Letter Queue — inspect failed jobs and system health diagnostics.
  */
 
-import { trpc } from '../../../utils/trpc'
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { trpc } from '../../../utils/trpc'
 
 export default function DLQPage() {
   const diagnoseQuery = trpc.healing.diagnose.useQuery()

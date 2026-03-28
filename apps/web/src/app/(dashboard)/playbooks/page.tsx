@@ -9,10 +9,11 @@
  * - "Run": execute playbook with parameter form
  */
 
-import { useState, useRef, useEffect } from 'react'
-import { trpc } from '../../../utils/trpc'
-import type { SavedPlaybook, PlaybookStep } from '../../../server/services/playbooks/recorder'
+import { useEffect, useRef, useState } from 'react'
+
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import type { PlaybookStep, SavedPlaybook } from '../../../server/services/playbooks/recorder'
+import { trpc } from '../../../utils/trpc'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 

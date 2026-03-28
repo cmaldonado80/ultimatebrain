@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { SkillMarketplace } from '../marketplace'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -16,15 +17,17 @@ vi.mock('drizzle-orm', () => ({
 function createMockDb() {
   const whereFn = vi.fn().mockResolvedValue(undefined)
   const setFn = vi.fn().mockReturnValue({ where: whereFn })
-  const returningFn = vi.fn().mockResolvedValue([{
-    id: 'skill-db-1',
-    name: 'Web Search',
-    sourceUrl: 'openclaw://skills/web-search',
-    version: '1.2.0',
-    installed: true,
-    config: null,
-    createdAt: new Date(),
-  }])
+  const returningFn = vi.fn().mockResolvedValue([
+    {
+      id: 'skill-db-1',
+      name: 'Web Search',
+      sourceUrl: 'openclaw://skills/web-search',
+      version: '1.2.0',
+      installed: true,
+      config: null,
+      createdAt: new Date(),
+    },
+  ])
   const valuesFn = vi.fn().mockReturnValue({ returning: returningFn })
 
   return {
@@ -84,8 +87,7 @@ describe('SkillMarketplace', () => {
       expect(skills.length).toBeGreaterThan(0)
       skills.forEach((s) => {
         const matchesSearch =
-          s.name.toLowerCase().includes('search') ||
-          s.description.toLowerCase().includes('search')
+          s.name.toLowerCase().includes('search') || s.description.toLowerCase().includes('search')
         expect(matchesSearch).toBe(true)
       })
     })
@@ -138,9 +140,9 @@ describe('SkillMarketplace', () => {
     })
 
     it('should throw when skill is not found', async () => {
-      await expect(
-        marketplace.install('nonexistent', []),
-      ).rejects.toThrow('Skill not found: nonexistent')
+      await expect(marketplace.install('nonexistent', [])).rejects.toThrow(
+        'Skill not found: nonexistent',
+      )
     })
 
     it('should throw when required permissions are missing', async () => {
@@ -197,9 +199,9 @@ describe('SkillMarketplace', () => {
     it('should throw when skill not found', async () => {
       db.query.skillsMarketplace.findFirst.mockResolvedValue(undefined)
 
-      await expect(
-        marketplace.assignToAgent('nonexistent', 'agent-1'),
-      ).rejects.toThrow('Skill not found')
+      await expect(marketplace.assignToAgent('nonexistent', 'agent-1')).rejects.toThrow(
+        'Skill not found',
+      )
     })
   })
 
@@ -221,9 +223,9 @@ describe('SkillMarketplace', () => {
     it('should throw when skill not found', async () => {
       db.query.skillsMarketplace.findFirst.mockResolvedValue(undefined)
 
-      await expect(
-        marketplace.unassignFromAgent('nonexistent', 'agent-1'),
-      ).rejects.toThrow('Skill not found')
+      await expect(marketplace.unassignFromAgent('nonexistent', 'agent-1')).rejects.toThrow(
+        'Skill not found',
+      )
     })
   })
 
@@ -255,9 +257,7 @@ describe('SkillMarketplace', () => {
     it('should throw when skill not found', async () => {
       db.query.skillsMarketplace.findFirst.mockResolvedValue(undefined)
 
-      await expect(
-        marketplace.toggleEnabled('nonexistent'),
-      ).rejects.toThrow('Skill not found')
+      await expect(marketplace.toggleEnabled('nonexistent')).rejects.toThrow('Skill not found')
     })
   })
 })

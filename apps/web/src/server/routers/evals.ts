@@ -4,13 +4,14 @@
  * Manages evaluation datasets, test cases, and run results for measuring
  * agent accuracy, detecting drift, and benchmarking model performance.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
-import { evalDatasets, evalCases, evalRuns } from '@solarc/db'
 import type { Database } from '@solarc/db'
-import { eq, desc } from 'drizzle-orm'
-import { EvalRunner, DatasetBuilder, DriftDetector } from '../services/evals'
+import { evalCases, evalDatasets, evalRuns } from '@solarc/db'
+import { desc, eq } from 'drizzle-orm'
+import { z } from 'zod'
+
+import { DatasetBuilder, DriftDetector, EvalRunner } from '../services/evals'
 import type { ScorerInput } from '../services/evals/scorers'
+import { protectedProcedure, router } from '../trpc'
 
 let runnerInstance: EvalRunner | null = null
 

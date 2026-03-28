@@ -9,7 +9,8 @@
  */
 
 import type { Database } from '@solarc/db'
-import { MemoryService, type SearchResult, type EmbedFunction } from './memory-service'
+
+import { type EmbedFunction, MemoryService, type SearchResult } from './memory-service'
 
 export interface RecallQuery {
   query: string
@@ -45,10 +46,7 @@ const DEFAULT_CORE_THRESHOLD = 0.9
 export class RecallFlow {
   private memoryService: MemoryService
 
-  constructor(
-    _db: Database,
-    _embed: EmbedFunction
-  ) {
+  constructor(_db: Database, _embed: EmbedFunction) {
     this.memoryService = new MemoryService(_db)
     this.memoryService.setEmbedFunction(_embed)
   }
@@ -95,7 +93,7 @@ export class RecallFlow {
             tier: 'archival',
             workspaceId: query.workspaceId,
             limit: topK * 2,
-          })
+          }),
         )
       }
 

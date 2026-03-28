@@ -5,10 +5,11 @@
  * Hierarchy: Brain → Mini-Brain → Development
  */
 
-import { useState } from 'react'
 import Link from 'next/link'
-import { trpc } from '../../../../utils/trpc'
+import { useState } from 'react'
+
 import { DbErrorBanner } from '../../../../components/db-error-banner'
+import { trpc } from '../../../../utils/trpc'
 
 interface Entity {
   id: string

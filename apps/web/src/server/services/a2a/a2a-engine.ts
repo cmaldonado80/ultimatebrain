@@ -9,9 +9,9 @@
  */
 
 import type { Database } from '@solarc/db'
-import { agentCards, agents, a2aDelegations } from '@solarc/db'
-import { eq, and, sql, desc } from 'drizzle-orm'
+import { a2aDelegations, agentCards, agents } from '@solarc/db'
 import type { A2ADelegateInput } from '@solarc/engine-contracts'
+import { and, desc, eq, sql } from 'drizzle-orm'
 
 export type DelegationStatus =
   | 'pending'

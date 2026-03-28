@@ -11,9 +11,9 @@
  * can add custom attributes or create child spans.
  */
 
-import type { Tracer, Span } from './tracer'
 import type { TRPCContext } from '../../trpc'
 import { middleware } from '../../trpc'
+import type { Span, Tracer } from './tracer'
 
 export interface TracedContext extends TRPCContext {
   tracer: Tracer

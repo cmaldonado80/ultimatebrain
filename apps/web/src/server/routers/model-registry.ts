@@ -5,12 +5,13 @@
  * coder, embedding, flash, guard, judge, router, multimodal), provider, capabilities,
  * and cost info. Models are auto-typed on registration using the ModelTypeDetector.
  */
-import { z } from 'zod'
-import { TRPCError } from '@trpc/server'
-import { router, protectedProcedure } from '../trpc'
 import { modelRegistry, ollamaModels } from '@solarc/db'
+import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+
 import { ModelTypeDetector } from '../services/gateway/model-type-detector'
+import { protectedProcedure, router } from '../trpc'
 
 const detector = new ModelTypeDetector()
 

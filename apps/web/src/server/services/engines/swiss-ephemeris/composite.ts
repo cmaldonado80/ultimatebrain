@@ -4,8 +4,8 @@
  * Relationship astrology: inter-chart aspects and midpoint composites.
  */
 
-import type { Planet, Position, Aspect, AspectType, NatalChart, HouseCusps } from './engine'
-import { calcAspects, assignHouses, PLANET_LIST, longitudeToSign } from './engine'
+import type { Aspect, AspectType, HouseCusps, NatalChart, Planet, Position } from './engine'
+import { assignHouses, calcAspects, longitudeToSign, PLANET_LIST } from './engine'
 
 // ─── Aspect Configuration (mirroring engine.ts) ─────────────────────────────
 

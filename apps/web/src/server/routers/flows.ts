@@ -4,20 +4,21 @@
  * Flows handle the WHEN — invoking crews with memory recall and gateway integration.
  * Coordinates agent definitions, recall queries, and crew engine execution.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
-import { tickets, flows as flowsTable } from '@solarc/db'
+import { flows as flowsTable, tickets } from '@solarc/db'
 import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+
 import {
-  CrewEngine,
   type AgentDefinition,
+  CrewEngine,
   type ToolDefinition,
 } from '../services/crews/crew-engine'
-import { RecallFlow, type RecallQuery } from '../services/memory/recall-flow'
-import { FlowBuilder, type StepFn, type FlowContext } from '../services/flows/flow-engine'
+import { FlowBuilder, type FlowContext, type StepFn } from '../services/flows/flow-engine'
 import { GatewayRouter } from '../services/gateway'
 import { MemoryService } from '../services/memory/memory-service'
+import { RecallFlow, type RecallQuery } from '../services/memory/recall-flow'
+import { protectedProcedure, router } from '../trpc'
 
 let _crewEngine: CrewEngine | null = null
 let _recallFlow: RecallFlow | null = null

@@ -5,9 +5,10 @@
  */
 
 import { useState } from 'react'
-import { trpc } from '../../../utils/trpc'
-import ConfirmDialog from '../../../components/ui/confirm-dialog'
+
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import ConfirmDialog from '../../../components/ui/confirm-dialog'
+import { trpc } from '../../../utils/trpc'
 
 interface Ticket {
   id: string

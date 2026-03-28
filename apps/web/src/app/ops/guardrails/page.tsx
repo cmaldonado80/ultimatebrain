@@ -4,8 +4,8 @@
  * Guardrails — view guardrail statistics and violation logs.
  */
 
-import { trpc } from '../../../utils/trpc'
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { trpc } from '../../../utils/trpc'
 
 interface GuardrailLog {
   id: string

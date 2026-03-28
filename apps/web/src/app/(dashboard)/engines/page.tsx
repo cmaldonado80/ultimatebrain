@@ -4,8 +4,8 @@
  * Engines — brain entity hierarchy and engine status.
  */
 
-import { trpc } from '../../../utils/trpc'
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { trpc } from '../../../utils/trpc'
 
 interface BrainEntity {
   id: string

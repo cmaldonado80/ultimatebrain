@@ -3,24 +3,25 @@
  * to the appropriate engine/service functions.
  */
 
+import type { Database } from '@solarc/db'
+
+import { synastryAspects } from '../engines/swiss-ephemeris/composite'
+import type { ZodiacSign } from '../engines/swiss-ephemeris/engine'
 import { run as ephemerisRun } from '../engines/swiss-ephemeris/engine'
 import {
-  julianDay,
+  assignHouses,
   calcAllPlanets,
   calcHouses,
-  assignHouses,
+  julianDay,
 } from '../engines/swiss-ephemeris/engine'
 import { moonPhase } from '../engines/swiss-ephemeris/lunar'
-import { panchanga, vimshottariDasha } from '../engines/swiss-ephemeris/vedic'
-import { synastryAspects } from '../engines/swiss-ephemeris/composite'
 import {
+  annualProfections,
   solarReturn,
   transitCalendar,
-  annualProfections,
 } from '../engines/swiss-ephemeris/predictive'
+import { panchanga, vimshottariDasha } from '../engines/swiss-ephemeris/vedic'
 import { MemoryService } from '../memory/memory-service'
-import type { Database } from '@solarc/db'
-import type { ZodiacSign } from '../engines/swiss-ephemeris/engine'
 
 // ─── Tool Definitions (Anthropic format) ─────────────────────────────────────
 

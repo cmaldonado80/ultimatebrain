@@ -9,9 +9,10 @@
  * - "Create eval from trace" button in header
  */
 
-import { useState, useEffect } from 'react'
-import { trpc } from '../../../utils/trpc'
+import { useEffect, useState } from 'react'
+
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { trpc } from '../../../utils/trpc'
 
 // ── Types (mirroring server types for client use) ─────────────────────────
 
@@ -216,17 +217,6 @@ export default function EvalsPage() {
 
   const isLoading = datasetsQuery.isLoading
 
-  if (isLoading) {
-    return (
-      <div className="bg-bg-deep min-h-screen text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-xs">Fetching eval datasets</div>
-        </div>
-      </div>
-    )
-  }
-
   const datasetsRaw: DatasetRaw[] = (datasetsQuery.data ?? []) as DatasetRaw[]
   const datasets: Dataset[] = datasetsRaw.map((d: DatasetRaw) => ({
     id: d.id,
@@ -245,6 +235,17 @@ export default function EvalsPage() {
       setSelectedDatasetId(selectedDataset.id)
     }
   }, [selectedDataset, selectedDatasetId])
+
+  if (isLoading) {
+    return (
+      <div className="bg-bg-deep min-h-screen text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
+          <div className="text-2xl mb-2">Loading...</div>
+          <div className="text-xs">Fetching eval datasets</div>
+        </div>
+      </div>
+    )
+  }
 
   if (datasetsQuery.error) {
     return (

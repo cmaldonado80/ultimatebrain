@@ -4,10 +4,11 @@
  * Brain entities represent structured knowledge items (facts, concepts, relationships)
  * that agents reference during reasoning and execution.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import { brainEntities } from '@solarc/db'
 import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+
+import { protectedProcedure, router } from '../trpc'
 
 export const entitiesRouter = router({
   list: protectedProcedure

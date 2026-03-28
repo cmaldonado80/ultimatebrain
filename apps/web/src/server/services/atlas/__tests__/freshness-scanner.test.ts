@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
+
 import { AtlasFreshnessScanner } from '../freshness-scanner'
 
 // Provide a fake DB — scan() doesn't use it, only createDiscoveryTickets does

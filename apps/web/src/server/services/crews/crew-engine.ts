@@ -17,6 +17,7 @@
  */
 
 import type { Database } from '@solarc/db'
+
 import { GatewayRouter } from '../gateway'
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -145,7 +146,7 @@ export class CrewEngine {
     task: string,
     crewId: string,
     tools: ToolDefinition[],
-    crewName = ''
+    crewName = '',
   ): Promise<AgentRunResult> {
     const start = Date.now()
     const maxIterations = agent.maxIterations ?? DEFAULT_MAX_ITERATIONS
@@ -206,23 +207,23 @@ export class CrewEngine {
     previousSteps: ReActStep[],
     tools: ToolDefinition[],
     ctx: CrewContext,
-    iteration: number
+    iteration: number,
   ): Promise<ReActStep> {
     // Build prompt with agent persona + scratchpad
     const scratchpad = previousSteps
-      .map((s) => [
-        `Thought: ${s.thought}`,
-        s.action ? `Action: ${s.action}` : null,
-        s.actionInput ? `Action Input: ${JSON.stringify(s.actionInput)}` : null,
-        s.observation ? `Observation: ${s.observation}` : null,
-      ]
-        .filter(Boolean)
-        .join('\n'))
+      .map((s) =>
+        [
+          `Thought: ${s.thought}`,
+          s.action ? `Action: ${s.action}` : null,
+          s.actionInput ? `Action Input: ${JSON.stringify(s.actionInput)}` : null,
+          s.observation ? `Observation: ${s.observation}` : null,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      )
       .join('\n\n')
 
-    const toolDescriptions = tools
-      .map((t) => `- ${t.name}: ${t.description}`)
-      .join('\n')
+    const toolDescriptions = tools.map((t) => `- ${t.name}: ${t.description}`).join('\n')
 
     // Stub LLM call — real impl calls GatewayRouter with agent system prompt
     const llmResponse = await this.callLLM({
@@ -291,7 +292,7 @@ export class CrewEngine {
           targetAgent,
           String(args.task_description),
           ctx.crewId,
-          targetTools
+          targetTools,
         )
 
         ctx.delegations.push({
@@ -323,7 +324,7 @@ export class CrewEngine {
           { ...targetAgent, maxIterations: 3 }, // single-shot Q&A
           String(args.question),
           ctx.crewId,
-          targetTools
+          targetTools,
         )
 
         ctx.delegations.push({
@@ -359,7 +360,7 @@ export class CrewEngine {
 
   private parseReActResponse(
     response: string,
-    _tools: ToolDefinition[]
+    _tools: ToolDefinition[],
   ): {
     thought: string
     action: string | null

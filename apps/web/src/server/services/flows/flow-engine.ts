@@ -18,6 +18,7 @@
  */
 
 import type { Database } from '@solarc/db'
+
 import { CheckpointManager } from '../checkpointing/checkpoint-manager'
 
 // ── Types ─────────────────────────────────────────────────────────────────
