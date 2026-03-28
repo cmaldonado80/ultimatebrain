@@ -14,6 +14,7 @@ import { z } from 'zod'
 
 import { MiniBrainFactory, type MiniBrainTemplate } from '../services/mini-brain-factory/factory'
 import { createNeonBranch, deleteNeonBranch, maskConnectionUri } from '../services/neon/neon-api'
+import { getAgentSoul } from '../services/orchestration/agents'
 import { protectedProcedure, router } from '../trpc'
 
 let _factory: MiniBrainFactory | null = null
@@ -156,6 +157,7 @@ export const miniBrainFactoryRouter = router({
               workspaceId: ws.id,
               description: `${agentDef.role} — ${agentDef.capabilities.join(', ')}`,
               soul:
+                getAgentSoul(agentDef.name)?.soul ??
                 agentDef.soul ??
                 `You are ${agentDef.name}, a ${template.domain} specialist. Role: ${agentDef.role}. Capabilities: ${agentDef.capabilities.join(', ')}. Be domain-expert, precise, and actionable.`,
               skills: agentDef.capabilities,
