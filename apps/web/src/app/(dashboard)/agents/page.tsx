@@ -158,7 +158,7 @@ export default function AgentsPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -166,8 +166,8 @@ export default function AgentsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching agents</div>
         </div>
@@ -195,7 +195,7 @@ export default function AgentsPage() {
   )
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron">Agents ({allAgents.length})</h2>
@@ -226,7 +226,7 @@ export default function AgentsPage() {
             </button>
           </div>
         </div>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Portable AI agents — define by capability, deploy on any provider.
         </p>
       </div>
@@ -274,7 +274,7 @@ export default function AgentsPage() {
                 <option value="specialist">Specialist</option>
               </select>
               <select
-                className="cyber-select flex-1 !border-neon-purple"
+                className="cyber-select flex-1 border-neon-purple"
                 value={capability}
                 onChange={(e) => setCapability(e.target.value)}
               >
@@ -287,7 +287,7 @@ export default function AgentsPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-[11px] text-gray-500 cursor-pointer flex items-center gap-1">
+              <label className="text-[11px] text-slate-500 cursor-pointer flex items-center gap-1">
                 <input
                   type="checkbox"
                   checked={showModelOverride}
@@ -366,7 +366,7 @@ export default function AgentsPage() {
       )}
 
       {agents.length === 0 ? (
-        <div className="text-center text-gray-500 py-10 text-sm">
+        <div className="text-center text-slate-500 py-10 text-sm">
           No agents found. Create one or import a manifest to get started.
         </div>
       ) : (
@@ -384,14 +384,14 @@ export default function AgentsPage() {
                   {agent.name}
                 </span>
                 <button
-                  className="bg-transparent text-gray-500 border-none text-[11px] cursor-pointer hover:text-gray-300"
+                  className="bg-transparent text-slate-500 border-none text-[11px] cursor-pointer hover:text-slate-300"
                   onClick={() => handleExport(agent.id, agent.name)}
                   title="Export manifest"
                 >
                   Exp
                 </button>
                 <button
-                  className="bg-transparent text-gray-500 border-none text-[11px] cursor-pointer hover:text-gray-300"
+                  className="bg-transparent text-slate-500 border-none text-[11px] cursor-pointer hover:text-slate-300"
                   onClick={() => setDeleteTarget({ id: agent.id, name: agent.name })}
                 >
                   Del
@@ -409,14 +409,14 @@ export default function AgentsPage() {
                 )}
               </div>
               {/* Description */}
-              <div className="text-xs text-gray-400 mb-2 leading-relaxed line-clamp-2">
+              <div className="text-xs text-slate-400 mb-2 leading-relaxed line-clamp-2">
                 {agent.description || 'No description'}
               </div>
               {/* Model + Status row */}
-              <div className="flex items-center gap-3 text-[11px] text-gray-500 mb-1.5">
+              <div className="flex items-center gap-3 text-[11px] text-slate-500 mb-1.5">
                 {editingModel === agent.id ? (
                   <select
-                    className="cyber-select text-[11px] !py-0.5 !px-1.5 !border-neon-purple flex-1"
+                    className="cyber-select text-[11px] py-0.5 px-1.5 border-neon-purple flex-1"
                     value={agent.model ?? ''}
                     onChange={(e) => updateMut.mutate({ id: agent.id, model: e.target.value })}
                     onBlur={() => setEditingModel(null)}
@@ -442,7 +442,7 @@ export default function AgentsPage() {
                     {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
                   </span>
                 )}
-                <span className="text-gray-600 shrink-0">{agent.status}</span>
+                <span className="text-slate-600 shrink-0">{agent.status}</span>
               </div>
               {agent.skills && agent.skills.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1.5">
@@ -456,7 +456,7 @@ export default function AgentsPage() {
               {agent.tags && agent.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1.5">
                   {agent.tags.map((t) => (
-                    <span key={t} className="cyber-badge text-gray-400">
+                    <span key={t} className="cyber-badge text-slate-400">
                       {t}
                     </span>
                   ))}

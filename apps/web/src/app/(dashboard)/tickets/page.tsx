@@ -25,17 +25,17 @@ interface Ticket {
 }
 
 const STATUS_CLASSES: Record<string, string> = {
-  backlog: 'text-gray-500',
+  backlog: 'text-slate-500',
   queued: 'text-neon-yellow',
   in_progress: 'text-neon-purple',
   review: 'text-orange-400',
   done: 'text-neon-green',
   failed: 'text-neon-red',
-  cancelled: 'text-gray-400',
+  cancelled: 'text-slate-400',
 }
 
 const PRIORITY_CLASSES: Record<string, string> = {
-  low: 'text-gray-500',
+  low: 'text-slate-500',
   medium: 'text-neon-yellow',
   high: 'text-orange-400',
   critical: 'text-neon-red',
@@ -89,7 +89,7 @@ export default function TicketsPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -97,8 +97,8 @@ export default function TicketsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching tickets</div>
         </div>
@@ -114,7 +114,7 @@ export default function TicketsPage() {
   const STATUS_TABS = ['all', 'backlog', 'queued', 'in_progress', 'review', 'done', 'failed']
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron">Tickets ({allTickets.length})</h2>
@@ -122,7 +122,7 @@ export default function TicketsPage() {
             {showForm ? 'Cancel' : '+ New Ticket'}
           </button>
         </div>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Track execution tickets through the pipeline — backlog, queued, in progress, review, done.
         </p>
       </div>
@@ -139,8 +139,8 @@ export default function TicketsPage() {
             key={s}
             className={`border border-border-dim rounded px-2.5 py-0.5 text-[11px] cursor-pointer transition-colors ${
               statusFilter === s
-                ? 'bg-bg-elevated text-gray-50 font-semibold'
-                : 'bg-transparent text-gray-500 font-normal'
+                ? 'bg-bg-elevated text-slate-50 font-semibold'
+                : 'bg-transparent text-slate-500 font-normal'
             }`}
             onClick={() => setStatusFilter(s)}
           >
@@ -226,25 +226,25 @@ export default function TicketsPage() {
         </div>
       )}
       {tickets.length === 0 ? (
-        <div className="text-center text-gray-500 py-10 text-sm">
+        <div className="text-center text-slate-500 py-10 text-sm">
           No tickets found. Create one to get started.
         </div>
       ) : (
         <div className="cyber-card overflow-hidden">
           <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border-dim">
-            <span className="flex-[2] text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+            <span className="flex-[2] text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Title
             </span>
-            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Status
             </span>
-            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Priority
             </span>
-            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Complexity
             </span>
-            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Actions
             </span>
           </div>
@@ -259,13 +259,13 @@ export default function TicketsPage() {
                   {t.title}
                 </span>
                 <span className="flex-1 text-[13px]">
-                  <span className={`cyber-badge ${STATUS_CLASSES[t.status] || 'text-gray-500'}`}>
+                  <span className={`cyber-badge ${STATUS_CLASSES[t.status] || 'text-slate-500'}`}>
                     {t.status}
                   </span>
                 </span>
                 <span className="flex-1 text-[13px]">
                   <span
-                    className={`cyber-badge ${PRIORITY_CLASSES[t.priority] || 'text-gray-500'}`}
+                    className={`cyber-badge ${PRIORITY_CLASSES[t.priority] || 'text-slate-500'}`}
                   >
                     {t.priority}
                   </span>
@@ -284,7 +284,9 @@ export default function TicketsPage() {
                       {executing === t.id ? 'Running...' : 'Execute'}
                     </button>
                   ) : (
-                    <span className="text-[11px] text-gray-500">{t.executionMode || '\u2014'}</span>
+                    <span className="text-[11px] text-slate-500">
+                      {t.executionMode || '\u2014'}
+                    </span>
                   )}
                   <button
                     className="cyber-btn-danger text-[11px] ml-1.5 bg-transparent border-none"
@@ -295,7 +297,7 @@ export default function TicketsPage() {
                 </span>
               </div>
               {expandedTicket === t.id && (
-                <div className="px-4 py-2 pb-3 bg-bg-deep border-b border-border-dim text-xs text-gray-400">
+                <div className="px-4 py-2 pb-3 bg-bg-deep border-b border-border-dim text-xs text-slate-400">
                   <div className="mb-1">
                     <strong>Description:</strong> {t.description || 'None'}
                   </div>

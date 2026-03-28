@@ -55,7 +55,7 @@ export default function CronJobsPage() {
   })
 
   if (error) return <DbErrorBanner error={error} onRetry={() => refetch()} />
-  if (isLoading) return <div className="p-6 text-gray-500">Loading cron jobs...</div>
+  if (isLoading) return <div className="p-6 text-slate-500">Loading cron jobs...</div>
 
   const allJobs = (jobs ?? []) as Array<{
     id: string
@@ -77,11 +77,11 @@ export default function CronJobsPage() {
   }>
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="flex justify-between items-center mb-5">
         <div>
           <h2 className="m-0 text-[22px] font-bold font-orbitron">Cron Jobs ({allJobs.length})</h2>
-          <p className="mt-1 mb-0 text-[13px] text-gray-500">
+          <p className="mt-1 mb-0 text-[13px] text-slate-500">
             Scheduled background tasks — health sweeps, agent tasks, custom automation
           </p>
         </div>
@@ -94,7 +94,7 @@ export default function CronJobsPage() {
         <div className="cyber-card p-4 mb-4">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="text-[11px] text-gray-500 uppercase mb-1 block">Name</label>
+              <label className="text-[11px] text-slate-500 uppercase mb-1 block">Name</label>
               <input
                 className="cyber-input w-full"
                 placeholder="e.g. Daily health check"
@@ -103,7 +103,7 @@ export default function CronJobsPage() {
               />
             </div>
             <div>
-              <label className="text-[11px] text-gray-500 uppercase mb-1 block">Type</label>
+              <label className="text-[11px] text-slate-500 uppercase mb-1 block">Type</label>
               <input
                 className="cyber-input w-full"
                 placeholder="e.g. health, task, report"
@@ -113,7 +113,7 @@ export default function CronJobsPage() {
             </div>
           </div>
           <div className="mb-3">
-            <label className="text-[11px] text-gray-500 uppercase mb-1 block">
+            <label className="text-[11px] text-slate-500 uppercase mb-1 block">
               Schedule (cron expression)
             </label>
             <div className="flex gap-2 items-center">
@@ -140,7 +140,7 @@ export default function CronJobsPage() {
             </div>
           </div>
           <div className="mb-3">
-            <label className="text-[11px] text-gray-500 uppercase mb-1 block">
+            <label className="text-[11px] text-slate-500 uppercase mb-1 block">
               Task description
             </label>
             <textarea
@@ -188,14 +188,14 @@ export default function CronJobsPage() {
         ].map((s) => (
           <div key={s.label} className="cyber-card p-3 text-center">
             <div className={`text-xl font-bold font-orbitron ${s.color}`}>{s.value}</div>
-            <div className="text-[11px] text-gray-500 uppercase">{s.label}</div>
+            <div className="text-[11px] text-slate-500 uppercase">{s.label}</div>
           </div>
         ))}
       </div>
 
       {/* Job List */}
       {allJobs.length === 0 ? (
-        <div className="text-center text-gray-500 py-10 text-sm">
+        <div className="text-center text-slate-500 py-10 text-sm">
           No cron jobs configured. Create one to get started.
         </div>
       ) : (
@@ -204,7 +204,7 @@ export default function CronJobsPage() {
             <div key={job.id} className="cyber-card p-4">
               <div className="flex items-center gap-3 mb-2">
                 <span
-                  className={`text-[10px] font-bold uppercase ${STATUS_CLASS[job.status] ?? 'text-gray-500'}`}
+                  className={`text-[10px] font-bold uppercase ${STATUS_CLASS[job.status] ?? 'text-slate-500'}`}
                 >
                   {job.status}
                 </span>
@@ -213,21 +213,21 @@ export default function CronJobsPage() {
                 <div className="flex gap-1.5">
                   {job.status === 'active' ? (
                     <button
-                      className="cyber-btn-secondary !px-2 !py-0.5 !text-[10px]"
+                      className="cyber-btn-secondary cyber-btn-xs"
                       onClick={() => pauseMut.mutate({ id: job.id })}
                     >
                       Pause
                     </button>
                   ) : (
                     <button
-                      className="cyber-btn-secondary !px-2 !py-0.5 !text-[10px]"
+                      className="cyber-btn-secondary cyber-btn-xs"
                       onClick={() => resumeMut.mutate({ id: job.id })}
                     >
                       Resume
                     </button>
                   )}
                   <button
-                    className="cyber-btn-danger !px-2 !py-0.5 !text-[10px]"
+                    className="cyber-btn-danger cyber-btn-xs"
                     onClick={() => deleteMut.mutate({ id: job.id })}
                   >
                     Del
@@ -235,16 +235,16 @@ export default function CronJobsPage() {
                 </div>
               </div>
               {job.task && (
-                <div className="text-xs text-gray-400 mb-2 line-clamp-1">{job.task}</div>
+                <div className="text-xs text-slate-400 mb-2 line-clamp-1">{job.task}</div>
               )}
-              <div className="flex gap-4 text-[11px] text-gray-500 font-mono flex-wrap">
+              <div className="flex gap-4 text-[11px] text-slate-500 font-mono flex-wrap">
                 <span title="Cron schedule">{job.schedule}</span>
                 <span>
                   Runs: <span className="text-neon-green">{job.runs}</span>
                 </span>
                 <span>
                   Fails:{' '}
-                  <span className={job.fails > 0 ? 'text-neon-red' : 'text-gray-600'}>
+                  <span className={job.fails > 0 ? 'text-neon-red' : 'text-slate-600'}>
                     {job.fails}
                   </span>
                 </span>
@@ -253,7 +253,7 @@ export default function CronJobsPage() {
               </div>
               {job.lastResult && (
                 <div
-                  className={`mt-1.5 text-[10px] font-mono truncate ${job.lastResult.startsWith('FAILED') ? 'text-neon-red' : 'text-gray-500'}`}
+                  className={`mt-1.5 text-[10px] font-mono truncate ${job.lastResult.startsWith('FAILED') ? 'text-neon-red' : 'text-slate-500'}`}
                 >
                   {job.lastResult}
                 </div>

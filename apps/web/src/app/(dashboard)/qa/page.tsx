@@ -35,7 +35,7 @@ export default function QAPage() {
 
   if (datasetsQuery.error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={datasetsQuery.error} />
       </div>
     )
@@ -43,8 +43,8 @@ export default function QAPage() {
 
   if (datasetsQuery.isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching QA data</div>
         </div>
@@ -56,10 +56,10 @@ export default function QAPage() {
   const runs: EvalRun[] = (runsQuery.data as EvalRun[]) ?? []
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <h2 className="m-0 text-[22px] font-bold font-orbitron">QA Recordings</h2>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Record, replay, and validate visual test sessions for quality assurance.
         </p>
       </div>
@@ -67,11 +67,11 @@ export default function QAPage() {
       <div className="flex gap-4 min-h-[400px]">
         {/* Sidebar */}
         <div className="w-[260px] bg-bg-surface rounded-lg p-3 border border-border">
-          <div className="text-[11px] font-bold text-gray-500 uppercase mb-2">
+          <div className="text-[11px] font-bold text-slate-500 uppercase mb-2">
             Datasets ({datasets.length})
           </div>
           {datasets.length === 0 ? (
-            <div className="text-xs text-gray-600 p-3 text-center">No eval datasets found.</div>
+            <div className="text-xs text-slate-600 p-3 text-center">No eval datasets found.</div>
           ) : (
             datasets.map((ds) => (
               <div
@@ -82,7 +82,7 @@ export default function QAPage() {
                 onClick={() => setSelectedDataset(ds.id)}
               >
                 <div className="text-[13px] font-semibold">{ds.name}</div>
-                <div className="text-[10px] text-gray-600">{ds.caseCount} cases</div>
+                <div className="text-[10px] text-slate-600">{ds.caseCount} cases</div>
               </div>
             ))
           )}
@@ -91,15 +91,15 @@ export default function QAPage() {
         {/* Main */}
         <div className="flex-1 flex flex-col">
           {!selectedDataset ? (
-            <div className="flex items-center justify-center flex-1 text-gray-500 text-sm">
+            <div className="flex items-center justify-center flex-1 text-slate-500 text-sm">
               Select a dataset to view its eval runs.
             </div>
           ) : runsQuery.isLoading ? (
-            <div className="flex items-center justify-center flex-1 text-gray-500 text-sm">
+            <div className="flex items-center justify-center flex-1 text-slate-500 text-sm">
               Loading runs...
             </div>
           ) : runs.length === 0 ? (
-            <div className="flex items-center justify-center flex-1 text-gray-500 text-sm">
+            <div className="flex items-center justify-center flex-1 text-slate-500 text-sm">
               No runs for this dataset yet.
             </div>
           ) : (
@@ -115,7 +115,7 @@ export default function QAPage() {
                           v{run.version}
                         </span>
                       )}
-                      <span className="text-[10px] text-gray-600 ml-auto">
+                      <span className="text-[10px] text-slate-600 ml-auto">
                         {new Date(run.createdAt).toLocaleString()}
                       </span>
                     </div>

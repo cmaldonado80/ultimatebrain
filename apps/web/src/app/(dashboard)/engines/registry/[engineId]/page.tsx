@@ -130,12 +130,12 @@ function ModuleCard({ mod }: { mod: EngineModule }) {
   return (
     <div className="rounded-md overflow-hidden">
       <button
-        className="flex items-center gap-2 w-full py-2 px-2.5 bg-transparent border-none border-b border-gray-900 text-gray-300 text-[13px] cursor-pointer text-left"
+        className="flex items-center gap-2 w-full py-2 px-2.5 bg-transparent border-none border-b border-gray-900 text-slate-300 text-[13px] cursor-pointer text-left"
         onClick={() => setExpanded(!expanded)}
       >
-        <span className="text-[10px] text-gray-500 w-3">{expanded ? '▾' : '▸'}</span>
+        <span className="text-[10px] text-slate-500 w-3">{expanded ? '▾' : '▸'}</span>
         <span className="flex-1 font-semibold">{mod.name}</span>
-        <span className="text-[10px] bg-gray-700 text-gray-400 py-px px-1.5 rounded-lg font-semibold">
+        <span className="text-[10px] bg-slate-700 text-slate-400 py-px px-1.5 rounded-lg font-semibold">
           {mod.endpoints.length}
         </span>
       </button>
@@ -287,14 +287,14 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
   }
 
   return (
-    <div className="p-6 font-sans text-gray-50 max-w-[900px]">
+    <div className="p-6 font-sans text-slate-50 max-w-[900px]">
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center gap-3">
-          <a href="/engines/registry" className="text-gray-500 text-[13px] no-underline">
+          <a href="/engines/registry" className="text-slate-500 text-[13px] no-underline">
             ← Engine Registry
           </a>
-          <span className="text-gray-700">/</span>
+          <span className="text-slate-700">/</span>
           <h2 className="m-0 text-xl font-bold inline">{doc?.title ?? engineId}</h2>
           {engineId === 'swiss-ephemeris' && (
             <span className="text-[10px] bg-green-500/[0.13] text-green-500 py-0.5 px-2 rounded font-semibold">
@@ -302,17 +302,17 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
             </span>
           )}
         </div>
-        <p className="mt-1.5 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1.5 mb-0 text-[13px] text-slate-500">
           {doc?.description ?? 'Engine details'}
         </p>
         {engineId === 'swiss-ephemeris' && (
           <div className="flex items-center gap-2 mt-2">
             <span className="text-[11px] text-neon-purple font-semibold">22 modules</span>
-            <span className="w-[3px] h-[3px] rounded-full bg-gray-700" />
+            <span className="w-[3px] h-[3px] rounded-full bg-slate-700" />
             <span className="text-[11px] text-neon-purple font-semibold">
               {TOTAL_ENDPOINTS} endpoints
             </span>
-            <span className="w-[3px] h-[3px] rounded-full bg-gray-700" />
+            <span className="w-[3px] h-[3px] rounded-full bg-slate-700" />
             <span className="text-[11px] text-neon-purple font-semibold">7,421 lines</span>
           </div>
         )}
@@ -326,7 +326,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
             className={`bg-transparent border-none text-[13px] py-2 px-4 cursor-pointer -mb-px border-b-2 ${
               activeTab === tab
                 ? 'text-neon-purple border-neon-purple'
-                : 'text-gray-500 border-transparent'
+                : 'text-slate-500 border-transparent'
             }`}
             onClick={() => setActiveTab(tab)}
           >
@@ -341,16 +341,16 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
           {engineId === 'swiss-ephemeris' ? (
             <>
               <div className="cyber-card">
-                <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+                <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2.5">
                   Source
                 </div>
-                <code className="text-xs text-neon-purple bg-gray-900 py-1 px-2 rounded">
+                <code className="text-xs text-neon-purple bg-slate-900 py-1 px-2 rounded">
                   {doc?.filePath}
                 </code>
               </div>
 
               <div className="cyber-card">
-                <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+                <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2.5">
                   Modules ({SWISS_MODULES.length})
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -361,10 +361,10 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
               </div>
 
               <div className="cyber-card">
-                <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+                <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2.5">
                   Usage in Agents
                 </div>
-                <div className="text-xs text-gray-400 leading-relaxed">
+                <div className="text-xs text-slate-400 leading-relaxed">
                   Agents call the engine via tRPC:
                   <pre className="bg-slate-900 border border-slate-800 rounded-md p-3 text-[11px] text-slate-400 overflow-x-auto leading-normal m-0 mt-2">
                     {`const chart = await trpc.ephemeris.natalChart.query({
@@ -380,15 +380,15 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
             </>
           ) : doc ? (
             <div className="cyber-card">
-              <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+              <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2.5">
                 File Path
               </div>
-              <code className="text-xs text-neon-purple bg-gray-900 py-1 px-2 rounded">
+              <code className="text-xs text-neon-purple bg-slate-900 py-1 px-2 rounded">
                 {doc.filePath}
               </code>
             </div>
           ) : (
-            <div className="text-gray-500 text-center p-10">
+            <div className="text-slate-500 text-center p-10">
               No documentation available for this engine.
             </div>
           )}
@@ -399,12 +399,12 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
       {activeTab === 'test' && engineId === 'swiss-ephemeris' && (
         <div className="flex flex-col gap-5">
           <div className="cyber-card">
-            <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+            <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2.5">
               Birth / Date Parameters
             </div>
             <div className="flex flex-wrap gap-2 mb-3">
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-gray-500">Date</label>
+                <label className="text-[11px] text-slate-500">Date</label>
                 <input
                   className="cyber-input text-[13px]"
                   type="date"
@@ -413,7 +413,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-gray-500">Time (UTC)</label>
+                <label className="text-[11px] text-slate-500">Time (UTC)</label>
                 <input
                   className="cyber-input text-[13px]"
                   type="time"
@@ -422,7 +422,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-gray-500">Latitude</label>
+                <label className="text-[11px] text-slate-500">Latitude</label>
                 <input
                   className="cyber-input text-[13px] w-[100px]"
                   value={testLat}
@@ -430,7 +430,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-gray-500">Longitude</label>
+                <label className="text-[11px] text-slate-500">Longitude</label>
                 <input
                   className="cyber-input text-[13px] w-[100px]"
                   value={testLon}
@@ -505,7 +505,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
             { label: 'Composite', tests: ['synastry', 'composite'] },
           ].map((group) => (
             <div key={group.label} className="cyber-card">
-              <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+              <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2.5">
                 {group.label}
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -526,7 +526,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
 
           {testResult && (
             <div className="cyber-card">
-              <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+              <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2.5">
                 Result{' '}
                 {activeTestName && (
                   <span className="text-cyan-200 font-normal">— ephemeris.{activeTestName}</span>
@@ -540,7 +540,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
         </div>
       )}
       {activeTab === 'test' && engineId !== 'swiss-ephemeris' && (
-        <div className="text-gray-500 text-center p-10">
+        <div className="text-slate-500 text-center p-10">
           Live testing is currently available for the Swiss Ephemeris engine only.
         </div>
       )}
@@ -551,7 +551,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
           {engineId === 'swiss-ephemeris' ? (
             <>
               <div className="mb-3 flex justify-between items-center">
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-slate-500">
                   Source:{' '}
                   <code className="text-neon-purple">
                     apps/web/src/server/services/engines/swiss-ephemeris/
@@ -566,18 +566,18 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
                   Browse on GitHub →
                 </a>
               </div>
-              <div className="cyber-card bg-gray-900">
+              <div className="cyber-card bg-slate-900">
                 <div className="text-[11px] text-green-500 mb-1.5 font-semibold">
                   Production Ready
                 </div>
-                <div className="text-xs text-gray-400 leading-relaxed">
+                <div className="text-xs text-slate-400 leading-relaxed">
                   Uses the swisseph native C binding for &lt; 1 arcminute accuracy with .se1 data
                   files. Falls back to pure-JS mean-motion approximations (~1 deg) on Vercel
                   serverless.
                 </div>
               </div>
               <div className="cyber-card">
-                <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+                <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2.5">
                   Module Files (22)
                 </div>
                 <div className="grid grid-cols-2 gap-1 text-xs text-slate-400 font-mono">
@@ -614,7 +614,7 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
               </div>
             </>
           ) : (
-            <div className="text-gray-500 text-center p-10">
+            <div className="text-slate-500 text-center p-10">
               Source code viewer is currently available for domain engines only.
             </div>
           )}

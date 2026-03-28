@@ -42,17 +42,17 @@ function RunForm({ playbook, onRun, onClose }: RunFormProps) {
   return (
     <div className="cyber-overlay">
       <div className="cyber-modal w-[440px] max-w-[95vw]">
-        <h3 className="text-base font-bold text-gray-50 mb-1">Run: {playbook.name}</h3>
-        <p className="text-xs text-gray-400 mb-3">
+        <h3 className="text-base font-bold text-slate-50 mb-1">Run: {playbook.name}</h3>
+        <p className="text-xs text-slate-400 mb-3">
           {playbook.steps.length} steps · v{playbook.version}
         </p>
 
         {uniqueVars.length > 0 ? (
           <>
-            <p className="text-xs text-gray-500 mb-3">Fill in the required variables:</p>
+            <p className="text-xs text-slate-500 mb-3">Fill in the required variables:</p>
             {uniqueVars.map((varName) => (
               <div key={varName} className="mb-2.5">
-                <label className="block text-xs text-gray-400 mb-1">
+                <label className="block text-xs text-slate-400 mb-1">
                   {varName.replace(/_/g, ' ')}
                 </label>
                 <input
@@ -65,7 +65,7 @@ function RunForm({ playbook, onRun, onClose }: RunFormProps) {
             ))}
           </>
         ) : (
-          <p className="text-xs text-gray-500 mb-3">No variables required. Ready to run.</p>
+          <p className="text-xs text-slate-500 mb-3">No variables required. Ready to run.</p>
         )}
 
         <div className="flex justify-end gap-2 mt-4">
@@ -94,17 +94,17 @@ function PlaybookRow({
     <div className="cyber-card flex justify-between gap-5 p-4 px-5">
       <div className="flex-1">
         <div className="text-[15px] font-bold mb-1">{playbook.name}</div>
-        <div className="text-xs text-gray-400 mb-2">{playbook.description}</div>
+        <div className="text-xs text-slate-400 mb-2">{playbook.description}</div>
         <div className="flex gap-1.5 flex-wrap">
           <span className="cyber-badge">{playbook.steps.length} steps</span>
           <span className="cyber-badge">v{playbook.version}</span>
           {playbook.triggerConditions?.[0] && (
-            <span className="text-[11px] text-gray-500">↯ {playbook.triggerConditions[0]}</span>
+            <span className="text-[11px] text-slate-500">↯ {playbook.triggerConditions[0]}</span>
           )}
         </div>
       </div>
       <div className="flex flex-col items-end gap-1 min-w-[160px]">
-        <div className="text-[11px] text-gray-500">
+        <div className="text-[11px] text-slate-500">
           Created: {new Date(playbook.createdAt).toLocaleDateString()}
         </div>
         <div className="flex gap-1.5 mt-1">
@@ -123,16 +123,16 @@ function PlaybookRow({
 function StepDetail({ step }: { step: PlaybookStep }) {
   return (
     <div className="flex gap-3 items-start py-2.5 border-b border-border-dim">
-      <span className="text-xs text-gray-500 min-w-[20px] pt-0.5">{step.index + 1}</span>
+      <span className="text-xs text-slate-500 min-w-[20px] pt-0.5">{step.index + 1}</span>
       <div className="flex-1">
         <div className="text-[13px] font-semibold mb-0.5">{step.name}</div>
-        <div className="text-xs text-gray-400 mb-1">{step.description}</div>
+        <div className="text-xs text-slate-400 mb-1">{step.description}</div>
         {Object.keys(step.parameters).length > 0 && (
           <div className="flex gap-1 flex-wrap">
             {Object.entries(step.parameters).map(([k, v]) => (
               <span
                 key={k}
-                className="text-[11px] bg-bg-elevated rounded px-1.5 py-px text-gray-300"
+                className="text-[11px] bg-bg-elevated rounded px-1.5 py-px text-slate-300"
               >
                 {k}: <code>{String(v).slice(0, 30)}</code>
               </span>
@@ -140,7 +140,7 @@ function StepDetail({ step }: { step: PlaybookStep }) {
           </div>
         )}
       </div>
-      <span className="text-[11px] text-gray-500 bg-bg-deep px-1.5 py-0.5 rounded">
+      <span className="text-[11px] text-slate-500 bg-bg-deep px-1.5 py-0.5 rounded">
         {step.type}
       </span>
     </div>
@@ -176,7 +176,7 @@ export default function PlaybooksPage() {
 
   if (error) {
     return (
-      <div className="bg-bg-deep min-h-screen text-gray-50 p-6">
+      <div className="bg-bg-deep min-h-screen text-slate-50 p-6">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -184,8 +184,8 @@ export default function PlaybooksPage() {
 
   if (isLoading) {
     return (
-      <div className="bg-bg-deep min-h-screen text-gray-50 p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="bg-bg-deep min-h-screen text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching playbooks</div>
         </div>
@@ -247,20 +247,20 @@ export default function PlaybooksPage() {
 
   return (
     <div
-      className={`bg-bg-deep min-h-screen text-gray-50 p-6 ${recording ? 'outline outline-3 -outline-offset-[3px] outline-orange-500' : ''}`}
+      className={`bg-bg-deep min-h-screen text-slate-50 p-6 ${recording ? 'outline outline-3 -outline-offset-[3px] outline-orange-500' : ''}`}
     >
       {/* Header */}
       <div className="flex justify-between items-start mb-5">
         <div>
           <h1 className="m-0 text-[22px] font-bold font-orbitron">Playbooks</h1>
-          <p className="mt-1 text-[13px] text-gray-500">
+          <p className="mt-1 text-[13px] text-slate-500">
             Teach the brain by recording your actions. Replay anytime.
           </p>
         </div>
         <div className="flex gap-2">
           {recording ? (
             <button
-              className="bg-gray-700 border-2 border-orange-500 rounded-md text-orange-500 px-4 py-2 text-[13px] font-bold cursor-pointer"
+              className="bg-slate-700 border-2 border-orange-500 rounded-md text-orange-500 px-4 py-2 text-[13px] font-bold cursor-pointer"
               onClick={handleStopRecording}
             >
               ⏹ Stop Recording
@@ -288,7 +288,7 @@ export default function PlaybooksPage() {
       {!selectedPlaybook ? (
         <div className="flex flex-col gap-3">
           {playbookList.length === 0 ? (
-            <div className="text-gray-500 text-[13px] text-center p-10">
+            <div className="text-slate-500 text-[13px] text-center p-10">
               No playbooks yet. Click &quot;Record&quot; to create your first one.
             </div>
           ) : (
@@ -306,19 +306,19 @@ export default function PlaybooksPage() {
         /* Detail view */
         <div className="cyber-card p-6">
           <button
-            className="bg-transparent border-none text-gray-500 text-[13px] cursor-pointer mb-3 p-0"
+            className="bg-transparent border-none text-slate-500 text-[13px] cursor-pointer mb-3 p-0"
             onClick={() => setSelectedPlaybook(null)}
           >
             ← Back
           </button>
           <h2 className="m-0 mb-1.5 text-lg font-bold font-orbitron">{selectedPlaybook.name}</h2>
-          <p className="text-[13px] text-gray-400 mb-3">{selectedPlaybook.description}</p>
+          <p className="text-[13px] text-slate-400 mb-3">{selectedPlaybook.description}</p>
           <div className="flex gap-1.5 mb-5">
             <span className="cyber-badge">v{selectedPlaybook.version}</span>
             <span className="cyber-badge">{selectedPlaybook.steps.length} steps</span>
           </div>
           <div>
-            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2.5">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">
               Steps
             </div>
             {selectedPlaybook.steps.map((step) => (

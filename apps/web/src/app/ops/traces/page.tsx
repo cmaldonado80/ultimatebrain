@@ -26,7 +26,7 @@ export default function TracesPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -34,8 +34,8 @@ export default function TracesPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching traces</div>
         </div>
@@ -46,16 +46,16 @@ export default function TracesPage() {
   const spans: Span[] = (data as Span[]) ?? []
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <h2 className="m-0 text-[22px] font-bold font-orbitron">Traces</h2>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Distributed tracing for agent executions — spans, latency, and dependency graphs.
         </p>
       </div>
 
       {spans.length === 0 ? (
-        <div className="text-center text-gray-500 py-10 text-sm">
+        <div className="text-center text-slate-500 py-10 text-sm">
           No traces found. Traces appear as agents execute tasks.
         </div>
       ) : (
@@ -63,19 +63,19 @@ export default function TracesPage() {
           <div className="bg-bg-elevated rounded-lg border border-border overflow-hidden min-w-[700px]">
             {/* Header */}
             <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border">
-              <span className="flex-[2] text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              <span className="flex-[2] text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                 Operation
               </span>
-              <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                 Service
               </span>
-              <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                 Status
               </span>
-              <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                 Duration
               </span>
-              <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                 Trace ID
               </span>
             </div>
@@ -104,7 +104,7 @@ export default function TracesPage() {
                 <span className="flex-1 text-[13px]">
                   {s.durationMs != null ? `${s.durationMs}ms` : '—'}
                 </span>
-                <span className="flex-1 font-mono text-[10px] text-gray-500">
+                <span className="flex-1 font-mono text-[10px] text-slate-500">
                   {s.traceId.slice(0, 12)}
                 </span>
               </div>

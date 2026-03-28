@@ -61,7 +61,7 @@ export default function FlowsPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -69,8 +69,8 @@ export default function FlowsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2 font-orbitron">Loading...</div>
           <div className="text-xs">Fetching flows</div>
         </div>
@@ -81,7 +81,7 @@ export default function FlowsPage() {
   const flows: Flow[] = (data as Flow[]) ?? []
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron text-neon-purple">Flows</h2>
@@ -92,7 +92,7 @@ export default function FlowsPage() {
             {showRun ? 'Cancel' : 'Run Crew'}
           </button>
         </div>
-        <p className="mt-1 mb-0 text-xs text-gray-500">
+        <p className="mt-1 mb-0 text-xs text-slate-500">
           Define and monitor multi-step agent workflows, crew runs, and recall chains.
         </p>
       </div>
@@ -152,7 +152,7 @@ export default function FlowsPage() {
             {runResult}
           </div>
           <button
-            className="mt-2 bg-transparent text-gray-500 border-none text-[11px] cursor-pointer hover:text-gray-300 transition-colors"
+            className="mt-2 bg-transparent text-slate-500 border-none text-[11px] cursor-pointer hover:text-slate-300 transition-colors"
             onClick={() => setRunResult(null)}
           >
             Dismiss
@@ -160,7 +160,7 @@ export default function FlowsPage() {
         </div>
       )}
       {flows.length === 0 ? (
-        <div className="text-center text-gray-500 py-10 text-sm">
+        <div className="text-center text-slate-500 py-10 text-sm">
           No flows defined yet. Create a flow to orchestrate agent workflows.
         </div>
       ) : (
@@ -173,7 +173,7 @@ export default function FlowsPage() {
                   <span className="flex items-center gap-1.5">
                     <span className={STATUS_DOT[f.status] || 'neon-dot neon-dot-blue'} />
                     <span
-                      className={`text-[10px] font-semibold uppercase ${STATUS_TEXT[f.status] || 'text-gray-500'}`}
+                      className={`text-[10px] font-semibold uppercase ${STATUS_TEXT[f.status] || 'text-slate-500'}`}
                     >
                       {f.status}
                     </span>
@@ -199,9 +199,9 @@ export default function FlowsPage() {
                 </div>
               </div>
               {f.description && (
-                <div className="text-xs text-gray-400 mb-2 leading-relaxed">{f.description}</div>
+                <div className="text-xs text-slate-400 mb-2 leading-relaxed">{f.description}</div>
               )}
-              <div className="flex gap-4 text-[11px] text-gray-500 font-mono">
+              <div className="flex gap-4 text-[11px] text-slate-500 font-mono">
                 <span>v{f.version ?? 1}</span>
                 {f.createdBy && <span>by {f.createdBy}</span>}
                 <span>

@@ -57,7 +57,7 @@ function Stars({ rating }: { rating: number }) {
       {'★'.repeat(full)}
       {half ? '½' : ''}
       <span className="text-border-dim">{'★'.repeat(5 - full - (half ? 1 : 0))}</span>
-      <span className="text-gray-400 ml-1 text-[11px]">{rating.toFixed(1)}</span>
+      <span className="text-slate-400 ml-1 text-[11px]">{rating.toFixed(1)}</span>
     </span>
   )
 }
@@ -88,7 +88,7 @@ function PermissionReviewModal({
         <h3 className="m-0 mb-1 text-base font-bold font-orbitron">
           Install &quot;{skill.name}&quot;
         </h3>
-        <p className="m-0 mb-4 text-[13px] text-gray-400">
+        <p className="m-0 mb-4 text-[13px] text-slate-400">
           Review the permissions this skill requires:
         </p>
 
@@ -105,14 +105,14 @@ function PermissionReviewModal({
                 />
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <code className="font-mono text-xs bg-bg-deep px-1.5 py-px rounded text-gray-300">
+                    <code className="font-mono text-xs bg-bg-deep px-1.5 py-px rounded text-slate-300">
                       {perm.capability}
                     </code>
                     <span className={`text-[10px] font-bold uppercase ${RISK_COLORS[risk]}`}>
                       {risk}
                     </span>
                   </div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">{perm.reason}</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">{perm.reason}</div>
                 </div>
               </label>
             )
@@ -165,14 +165,14 @@ function SkillCard({
         </div>
         <div className="flex-1">
           <div className="text-sm font-bold">{skill.name}</div>
-          <div className="text-[11px] text-gray-500">
+          <div className="text-[11px] text-slate-500">
             by {skill.author} · v{skill.version}
           </div>
         </div>
         <div className="flex gap-1.5 shrink-0">
           {skill.installed && onScan && (
             <button
-              className="cyber-btn-secondary shrink-0 text-[10px] !py-0.5"
+              className="cyber-btn-secondary cyber-btn-xs shrink-0"
               onClick={onScan}
               disabled={scanPending}
             >
@@ -190,17 +190,17 @@ function SkillCard({
           )}
         </div>
       </div>
-      <div className="text-xs text-gray-400 mb-2.5 leading-relaxed">{skill.description}</div>
+      <div className="text-xs text-slate-400 mb-2.5 leading-relaxed">{skill.description}</div>
       <div className="flex items-center gap-2.5 flex-wrap">
         <Stars rating={skill.rating} />
-        <span className="text-[11px] text-gray-500">
+        <span className="text-[11px] text-slate-500">
           {skill.installCount.toLocaleString()} installs
         </span>
         <div className="flex gap-1 flex-wrap ml-auto">
           {skill.permissions.map((p) => (
             <span
               key={p.capability}
-              className={`text-[10px] border rounded px-1.5 py-px text-gray-400 font-mono ${RISK_BORDER_COLORS[getPermRisk(p.capability)]}`}
+              className={`text-[10px] border rounded px-1.5 py-px text-slate-400 font-mono ${RISK_BORDER_COLORS[getPermRisk(p.capability)]}`}
             >
               {p.capability}
             </span>
@@ -208,7 +208,7 @@ function SkillCard({
         </div>
       </div>
       {skill.installed && skill.usageStats && (
-        <div className="flex gap-3 mt-2.5 pt-2 border-t border-border-dim text-[11px] text-gray-500">
+        <div className="flex gap-3 mt-2.5 pt-2 border-t border-border-dim text-[11px] text-slate-500">
           <span>{skill.usageStats.totalRuns} runs</span>
           <span>
             {skill.assignedAgents?.length ?? 0} agent
@@ -249,7 +249,7 @@ export default function SkillsPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -259,8 +259,8 @@ export default function SkillsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching skills</div>
         </div>
@@ -307,12 +307,12 @@ export default function SkillsPage() {
   }
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       {/* Header */}
       <div className="mb-4">
         <div>
           <h1 className="m-0 text-[22px] font-bold font-orbitron">Skill Store</h1>
-          <p className="mt-1 mb-0 text-[13px] text-gray-500">
+          <p className="mt-1 mb-0 text-[13px] text-slate-500">
             Browse, install, and manage agent skills
           </p>
         </div>
@@ -417,7 +417,7 @@ export default function SkillsPage() {
           />
         ))}
         {displaySkills.length === 0 && (
-          <div className="col-span-full text-center py-10 text-gray-500 text-[13px]">
+          <div className="col-span-full text-center py-10 text-slate-500 text-[13px]">
             No skills found matching your criteria.
           </div>
         )}

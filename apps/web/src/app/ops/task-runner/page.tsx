@@ -76,7 +76,7 @@ export default function TaskRunnerPage() {
   const modeInfo = detectedMode ? MODE_INFO[detectedMode] : null
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <h2 className="m-0 text-[22px] font-bold font-orbitron">Task Runner</h2>
         <p className="mt-1 mb-0 text-xs text-slate-500">
@@ -161,7 +161,7 @@ export default function TaskRunnerPage() {
             {['quick', 'autonomous', 'deep_work'].map((mode) => (
               <button
                 key={mode}
-                className="cyber-btn-secondary !text-xs"
+                className="cyber-btn-secondary cyber-btn-sm"
                 onClick={() =>
                   routeMut.mutate({
                     ticketId: ticketId.trim(),

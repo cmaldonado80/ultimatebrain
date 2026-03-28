@@ -47,13 +47,10 @@ export function DbErrorBanner({
           Please sign in again.
         </a>
       ) : (
-        <span className="text-gray-500 text-xs">{detail}</span>
+        <span className="text-slate-500 text-xs">{detail}</span>
       )}
       {onRetry && (
-        <button
-          onClick={onRetry}
-          className="cyber-btn-secondary ml-auto !px-2.5 !py-1 !text-[11px]"
-        >
+        <button onClick={onRetry} className="cyber-btn-secondary cyber-btn-sm ml-auto">
           Retry
         </button>
       )}

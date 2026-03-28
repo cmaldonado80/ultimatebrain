@@ -121,6 +121,12 @@
            transition-all duration-150 cursor-pointer;
   }
 
+  /* ── Size Variants (use instead of !important overrides) ───────────── */
+  .cyber-btn-sm { @apply text-xs px-2.5 py-1; }
+  .cyber-btn-xs { @apply text-[10px] px-2 py-0.5; }
+  .cyber-input-sm { @apply text-xs py-1 px-2; }
+  .cyber-select-sm { @apply text-xs py-1.5 px-2; }
+
   /* ── Modal / Overlay ─────────────────────────────────────────────────── */
   .cyber-overlay {
     @apply fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50;

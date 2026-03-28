@@ -43,7 +43,7 @@ export default function IntegrationsPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -63,8 +63,8 @@ export default function IntegrationsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching integrations</div>
         </div>
@@ -76,10 +76,10 @@ export default function IntegrationsPage() {
   const webhooks: Webhook[] = (webhooksQuery.data as Webhook[]) ?? []
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <h2 className="m-0 text-[22px] font-bold font-orbitron">Integrations</h2>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Connect third-party services — GitHub, Slack, Jira, and custom webhooks.
         </p>
       </div>
@@ -87,11 +87,11 @@ export default function IntegrationsPage() {
       {/* Channels */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2.5">
-          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide">
             Channels ({channels.length})
           </div>
           <button
-            className="cyber-btn-primary !text-[11px] !py-1 !px-3"
+            className="cyber-btn-primary cyber-btn-sm"
             onClick={() => setShowChannelForm(!showChannelForm)}
           >
             {showChannelForm ? 'Cancel' : '+ Add Channel'}
@@ -140,7 +140,7 @@ export default function IntegrationsPage() {
         )}
 
         {channels.length === 0 ? (
-          <div className="text-center text-gray-500 py-5 text-[13px]">No channels configured.</div>
+          <div className="text-center text-slate-500 py-5 text-[13px]">No channels configured.</div>
         ) : (
           <div className="flex flex-col gap-2">
             {channels.map((ch) => (
@@ -149,14 +149,14 @@ export default function IntegrationsPage() {
                   <span className="text-sm font-bold">{ch.type}</span>
                   <button
                     className={`border-none rounded px-2.5 py-0.5 text-[11px] cursor-pointer ${
-                      ch.enabled ? 'bg-green-900 text-gray-50' : 'bg-gray-700 text-gray-400'
+                      ch.enabled ? 'bg-green-900 text-slate-50' : 'bg-slate-700 text-slate-400'
                     }`}
                     onClick={() => handleToggleChannel(ch.id, !ch.enabled)}
                   >
                     {ch.enabled ? 'Enabled' : 'Disabled'}
                   </button>
                 </div>
-                <div className="text-[10px] text-gray-600">ID: {ch.id.slice(0, 8)}</div>
+                <div className="text-[10px] text-slate-600">ID: {ch.id.slice(0, 8)}</div>
               </div>
             ))}
           </div>
@@ -166,11 +166,11 @@ export default function IntegrationsPage() {
       {/* Webhooks */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2.5">
-          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide">
             Webhooks ({webhooks.length})
           </div>
           <button
-            className="cyber-btn-primary !text-[11px] !py-1 !px-3"
+            className="cyber-btn-primary cyber-btn-sm"
             onClick={() => setShowWebhookForm(!showWebhookForm)}
           >
             {showWebhookForm ? 'Cancel' : '+ Add Webhook'}
@@ -230,7 +230,7 @@ export default function IntegrationsPage() {
         )}
 
         {webhooks.length === 0 ? (
-          <div className="text-center text-gray-500 py-5 text-[13px]">No webhooks configured.</div>
+          <div className="text-center text-slate-500 py-5 text-[13px]">No webhooks configured.</div>
         ) : (
           <div className="flex flex-col gap-2">
             {webhooks.map((wh) => (
@@ -239,14 +239,14 @@ export default function IntegrationsPage() {
                   <span className="text-sm font-bold">{wh.source}</span>
                   <button
                     className={`border-none rounded px-2.5 py-0.5 text-[11px] cursor-pointer ${
-                      wh.enabled ? 'bg-green-900 text-gray-50' : 'bg-gray-700 text-gray-400'
+                      wh.enabled ? 'bg-green-900 text-slate-50' : 'bg-slate-700 text-slate-400'
                     }`}
                     onClick={() => handleToggleWebhook(wh.id, !wh.enabled)}
                   >
                     {wh.enabled ? 'Enabled' : 'Disabled'}
                   </button>
                 </div>
-                <div className="text-[11px] font-mono text-gray-500">{wh.url}</div>
+                <div className="text-[11px] font-mono text-slate-500">{wh.url}</div>
               </div>
             ))}
           </div>

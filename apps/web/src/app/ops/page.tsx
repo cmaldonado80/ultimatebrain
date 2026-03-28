@@ -24,7 +24,7 @@ export default function OpsOverviewPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -32,8 +32,8 @@ export default function OpsOverviewPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching ops overview</div>
         </div>
@@ -49,10 +49,10 @@ export default function OpsOverviewPage() {
   const gatewayHealth = gatewayHealthQuery.data as { status: string } | undefined
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <h2 className="m-0 text-[22px] font-bold font-orbitron">Ops Overview</h2>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           System-wide operational dashboard — health, throughput, errors, and SLA compliance.
         </p>
       </div>
@@ -65,7 +65,7 @@ export default function OpsOverviewPage() {
           >
             {health?.status || 'unknown'}
           </div>
-          <div className="text-[11px] text-gray-500 mt-0.5">System Health</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">System Health</div>
         </div>
         <div className="cyber-card p-3.5 text-center">
           <div
@@ -73,11 +73,11 @@ export default function OpsOverviewPage() {
           >
             {gatewayHealth?.status || 'unknown'}
           </div>
-          <div className="text-[11px] text-gray-500 mt-0.5">Gateway</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Gateway</div>
         </div>
         <div className="cyber-card p-3.5 text-center">
           <div className="text-xl font-bold">{traces.length}</div>
-          <div className="text-[11px] text-gray-500 mt-0.5">Recent Traces</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Recent Traces</div>
         </div>
         <div className="cyber-card p-3.5 text-center">
           <div
@@ -85,14 +85,14 @@ export default function OpsOverviewPage() {
           >
             {pendingApprovals.length}
           </div>
-          <div className="text-[11px] text-gray-500 mt-0.5">Pending Approvals</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Pending Approvals</div>
         </div>
       </div>
 
       {/* Cost & Performance */}
       {costQuery.data && (
         <div className="mb-6">
-          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
             Cost & Performance
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
@@ -100,29 +100,29 @@ export default function OpsOverviewPage() {
               <div className="text-xl font-bold text-neon-green">
                 ${costQuery.data.totalCostUsd.toFixed(4)}
               </div>
-              <div className="text-[11px] text-gray-500 mt-0.5">Total Cost</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Total Cost</div>
             </div>
             <div className="cyber-card p-3.5 text-center">
               <div className="text-xl font-bold">
                 {(costQuery.data.totalTokensIn + costQuery.data.totalTokensOut).toLocaleString()}
               </div>
-              <div className="text-[11px] text-gray-500 mt-0.5">Total Tokens</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Total Tokens</div>
             </div>
             <div className="cyber-card p-3.5 text-center">
               <div className="text-xl font-bold">{costQuery.data.avgLatencyMs}ms</div>
-              <div className="text-[11px] text-gray-500 mt-0.5">Avg Latency</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Avg Latency</div>
             </div>
             <div className="cyber-card p-3.5 text-center">
               <div className="text-xl font-bold text-neon-purple">
                 {costQuery.data.cacheHitRate}%
               </div>
-              <div className="text-[11px] text-gray-500 mt-0.5">Cache Hit Rate</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Cache Hit Rate</div>
             </div>
           </div>
 
           {costQuery.data.byProvider.length > 0 && (
             <div className="mb-3">
-              <div className="text-[11px] text-gray-500 mb-1">Cost by Provider</div>
+              <div className="text-[11px] text-slate-500 mb-1">Cost by Provider</div>
               <div className="flex flex-col gap-1">
                 {costQuery.data.byProvider.map((p) => (
                   <div
@@ -131,8 +131,8 @@ export default function OpsOverviewPage() {
                   >
                     <span className="flex-1 font-mono">{p.provider}</span>
                     <span className="text-neon-green">${p.cost.toFixed(4)}</span>
-                    <span className="text-gray-500">{p.tokens.toLocaleString()} tokens</span>
-                    <span className="text-gray-600">{p.count} calls</span>
+                    <span className="text-slate-500">{p.tokens.toLocaleString()} tokens</span>
+                    <span className="text-slate-600">{p.count} calls</span>
                   </div>
                 ))}
               </div>
@@ -141,7 +141,7 @@ export default function OpsOverviewPage() {
 
           {costQuery.data.byModel.length > 0 && (
             <div>
-              <div className="text-[11px] text-gray-500 mb-1">Cost by Model</div>
+              <div className="text-[11px] text-slate-500 mb-1">Cost by Model</div>
               <div className="flex flex-col gap-1">
                 {costQuery.data.byModel.map((m) => (
                   <div
@@ -150,8 +150,8 @@ export default function OpsOverviewPage() {
                   >
                     <span className="flex-1 font-mono">{m.model}</span>
                     <span className="text-neon-green">${m.cost.toFixed(4)}</span>
-                    <span className="text-gray-500">{m.tokens.toLocaleString()} tokens</span>
-                    <span className="text-gray-600">{m.count} calls</span>
+                    <span className="text-slate-500">{m.tokens.toLocaleString()} tokens</span>
+                    <span className="text-slate-600">{m.count} calls</span>
                   </div>
                 ))}
               </div>
@@ -163,7 +163,7 @@ export default function OpsOverviewPage() {
       {/* Health Checks */}
       {health?.checks && (
         <div className="mb-6">
-          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
             Health Checks
           </div>
           <div className="flex flex-col gap-1">
@@ -176,9 +176,9 @@ export default function OpsOverviewPage() {
                   className={`neon-dot ${check.status === 'ok' ? 'neon-dot-green' : 'neon-dot-red'}`}
                 />
                 <span className="flex-1 font-mono">{name}</span>
-                <span className="text-gray-500">{check.status}</span>
+                <span className="text-slate-500">{check.status}</span>
                 {check.message && (
-                  <span className="text-gray-600 max-w-[200px] truncate">{check.message}</span>
+                  <span className="text-slate-600 max-w-[200px] truncate">{check.message}</span>
                 )}
               </div>
             ))}
@@ -189,7 +189,7 @@ export default function OpsOverviewPage() {
       {/* Recent Traces */}
       {traces.length > 0 && (
         <div className="mb-6">
-          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
             Recent Traces
           </div>
           {(
@@ -211,12 +211,12 @@ export default function OpsOverviewPage() {
                     ? 'text-neon-green'
                     : t.status === 'error'
                       ? 'text-neon-red'
-                      : 'text-gray-500'
+                      : 'text-slate-500'
                 }
               >
                 {t.status || '—'}
               </span>
-              <span className="text-gray-500">
+              <span className="text-slate-500">
                 {t.durationMs != null ? `${t.durationMs}ms` : '—'}
               </span>
             </div>

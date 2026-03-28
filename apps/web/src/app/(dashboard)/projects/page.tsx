@@ -53,7 +53,7 @@ export default function ProjectsPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -61,8 +61,8 @@ export default function ProjectsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching projects</div>
         </div>
@@ -76,7 +76,7 @@ export default function ProjectsPage() {
     : allProjects
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron">
@@ -86,7 +86,7 @@ export default function ProjectsPage() {
             {showForm ? 'Cancel' : '+ New Project'}
           </button>
         </div>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Organize agents, tickets, and resources into scoped project groups.
         </p>
       </div>
@@ -132,7 +132,7 @@ export default function ProjectsPage() {
         </div>
       )}
       {projects.length === 0 ? (
-        <div className="text-center text-gray-500 py-10 text-sm">
+        <div className="text-center text-slate-500 py-10 text-sm">
           No projects found. Create one to get started.
         </div>
       ) : (
@@ -149,7 +149,7 @@ export default function ProjectsPage() {
                 </span>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`cyber-badge uppercase ${STATUS_CLASS[p.status] || 'text-gray-500 border-gray-500'}`}
+                    className={`cyber-badge uppercase ${STATUS_CLASS[p.status] || 'text-slate-500 border-gray-500'}`}
                   >
                     {p.status}
                   </span>
@@ -173,16 +173,18 @@ export default function ProjectsPage() {
                   </button>
                 </div>
               </div>
-              {p.goal && <div className="text-xs text-gray-400 mb-2 leading-relaxed">{p.goal}</div>}
-              <div className="flex gap-4 text-[11px] text-gray-500">
+              {p.goal && (
+                <div className="text-xs text-slate-400 mb-2 leading-relaxed">{p.goal}</div>
+              )}
+              <div className="flex gap-4 text-[11px] text-slate-500">
                 {p.deadline && <span>Deadline: {new Date(p.deadline).toLocaleDateString()}</span>}
                 {p.healthScore && <span>Health: {p.healthScore}</span>}
               </div>
               {p.synthesis && (
-                <div className="text-[11px] text-gray-600 mt-2 italic">{p.synthesis}</div>
+                <div className="text-[11px] text-slate-600 mt-2 italic">{p.synthesis}</div>
               )}
               {expandedProject === p.id && (
-                <div className="mt-2 pt-2 border-t border-border-dim text-xs text-gray-400">
+                <div className="mt-2 pt-2 border-t border-border-dim text-xs text-slate-400">
                   <div>
                     <strong>ID:</strong> <span className="font-mono">{p.id}</span>
                   </div>

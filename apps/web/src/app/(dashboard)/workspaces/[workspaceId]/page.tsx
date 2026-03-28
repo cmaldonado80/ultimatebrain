@@ -47,7 +47,7 @@ export default function WorkspaceDetailPage() {
 
   if (wsQuery.error) {
     return (
-      <div className="p-6 text-gray-50 max-w-[900px]">
+      <div className="p-6 text-slate-50 max-w-[900px]">
         <DbErrorBanner error={wsQuery.error} />
       </div>
     )
@@ -55,8 +55,8 @@ export default function WorkspaceDetailPage() {
 
   if (wsQuery.isLoading || !wsQuery.data) {
     return (
-      <div className="p-6 text-gray-50 max-w-[900px] flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">Loading workspace...</div>
+      <div className="p-6 text-slate-50 max-w-[900px] flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">Loading workspace...</div>
       </div>
     )
   }
@@ -89,7 +89,7 @@ export default function WorkspaceDetailPage() {
   const lifecycleColor = LIFECYCLE_COLORS[ws.lifecycleState] ?? '#6b7280'
 
   return (
-    <div className="p-6 text-gray-50 max-w-[900px]">
+    <div className="p-6 text-slate-50 max-w-[900px]">
       <button
         className="bg-transparent border-none text-neon-purple cursor-pointer text-[13px] p-0 mb-4"
         onClick={() => router.push('/workspaces')}
@@ -153,8 +153,8 @@ export default function WorkspaceDetailPage() {
             {activateMut.error?.message || pauseMut.error?.message || retireMut.error?.message}
           </div>
         )}
-        <p className="mt-1 mb-0 text-[13px] text-gray-400">{ws.goal || 'No goal set'}</p>
-        <div className="text-[11px] text-gray-600 mt-1">
+        <p className="mt-1 mb-0 text-[13px] text-slate-400">{ws.goal || 'No goal set'}</p>
+        <div className="text-[11px] text-slate-600 mt-1">
           Autonomy: {ws.autonomyLevel ?? 1}/5 | Agents: {agents.length} | Bindings:{' '}
           {bindings.length}
         </div>
@@ -162,7 +162,7 @@ export default function WorkspaceDetailPage() {
 
       {/* Orchestrator */}
       <div className="cyber-card p-4 mb-4">
-        <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
           Orchestrator
         </div>
         {orchestrator ? (
@@ -185,7 +185,7 @@ export default function WorkspaceDetailPage() {
               >
                 {orchestrator.name}
               </span>
-              <span className="text-[10px] text-gray-500">{orchestrator.status}</span>
+              <span className="text-[10px] text-slate-500">{orchestrator.status}</span>
               {orchestrator.requiredModelType && (
                 <span className="cyber-badge bg-neon-purple/10 text-neon-purple">
                   {orchestrator.requiredModelType}
@@ -193,7 +193,7 @@ export default function WorkspaceDetailPage() {
               )}
             </div>
             {orchestrator.soul && (
-              <div className="text-xs text-gray-400 mt-1.5 leading-snug">
+              <div className="text-xs text-slate-400 mt-1.5 leading-snug">
                 {orchestrator.soul.slice(0, 200)}
                 {orchestrator.soul.length > 200 ? '...' : ''}
               </div>
@@ -206,11 +206,11 @@ export default function WorkspaceDetailPage() {
 
       {/* Agents */}
       <div className="cyber-card p-4 mb-4">
-        <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
           Agents ({regularAgents.length})
         </div>
         {regularAgents.length === 0 ? (
-          <div className="text-gray-600 text-[13px] p-3 text-center">
+          <div className="text-slate-600 text-[13px] p-3 text-center">
             No agents in this workspace yet.
           </div>
         ) : (
@@ -245,7 +245,7 @@ export default function WorkspaceDetailPage() {
                     </span>
                   )}
                 </div>
-                <div className="text-[11px] text-gray-500 mb-1">
+                <div className="text-[11px] text-slate-500 mb-1">
                   {agent.description?.slice(0, 100) || 'No description'}
                 </div>
                 {agent.skills && agent.skills.length > 0 && (
@@ -259,7 +259,7 @@ export default function WorkspaceDetailPage() {
                       </span>
                     ))}
                     {agent.skills.length > 5 && (
-                      <span className="text-[10px] text-gray-600">+{agent.skills.length - 5}</span>
+                      <span className="text-[10px] text-slate-600">+{agent.skills.length - 5}</span>
                     )}
                   </div>
                 )}
@@ -272,7 +272,7 @@ export default function WorkspaceDetailPage() {
       {/* Bindings */}
       {bindings.length > 0 && (
         <div className="cyber-card p-4 mb-4">
-          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
             Bindings ({bindings.length})
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -294,15 +294,15 @@ export default function WorkspaceDetailPage() {
       {/* Goals */}
       {goals.length > 0 && (
         <div className="cyber-card p-4 mb-4">
-          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
             Goals ({goals.length})
           </div>
           {goals.map((g) => (
             <div key={g.id} className="flex justify-between py-1 text-[13px]">
-              <span className="text-gray-300">{g.title}</span>
+              <span className="text-slate-300">{g.title}</span>
               <span
                 className={`text-[11px] ${
-                  g.status === 'active' ? 'text-neon-green' : 'text-gray-500'
+                  g.status === 'active' ? 'text-neon-green' : 'text-slate-500'
                 }`}
               >
                 {g.status}

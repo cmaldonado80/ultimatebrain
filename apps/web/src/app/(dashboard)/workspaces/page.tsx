@@ -84,7 +84,7 @@ export default function WorkspacesPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -92,8 +92,8 @@ export default function WorkspacesPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching workspaces</div>
         </div>
@@ -107,7 +107,7 @@ export default function WorkspacesPage() {
     : allWorkspaces
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron">
@@ -126,7 +126,7 @@ export default function WorkspacesPage() {
             </button>
           </div>
         </div>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Lifecycle-managed organizational units with bindings, goals, and execution boundaries.
         </p>
       </div>
@@ -201,7 +201,7 @@ export default function WorkspacesPage() {
       )}
 
       {workspaces.length === 0 ? (
-        <div className="text-center text-gray-500 py-10 text-sm">
+        <div className="text-center text-slate-500 py-10 text-sm">
           No workspaces found. Click &quot;Initialize Brain&quot; to create 10 category workspaces
           with 30+ agents.
         </div>
@@ -262,9 +262,9 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
         </span>
       </div>
 
-      {ws.goal && <div className="text-xs text-gray-400 mb-2 leading-relaxed">{ws.goal}</div>}
+      {ws.goal && <div className="text-xs text-slate-400 mb-2 leading-relaxed">{ws.goal}</div>}
 
-      <div className="flex gap-4 text-[11px] text-gray-500 mb-2">
+      <div className="flex gap-4 text-[11px] text-slate-500 mb-2">
         {ws.type && <span>{ws.type}</span>}
         <span>{agentCount} agents</span>
         <span>Autonomy: {ws.autonomyLevel ?? 1}/5</span>
@@ -272,7 +272,7 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
 
       {bindings.length > 0 && (
         <div className="mt-2 pt-2 border-t border-border">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
             Bindings
           </div>
           <div className="flex flex-wrap gap-1">
@@ -292,14 +292,14 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
 
       {goals.length > 0 && (
         <div className="mt-2 pt-2 border-t border-border">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
             Goals
           </div>
           {goals.slice(0, 3).map((g) => (
             <div key={g.id} className="flex justify-between items-center text-xs mb-0.5">
-              <span className="text-gray-300">{g.title}</span>
+              <span className="text-slate-300">{g.title}</span>
               {g.targetMetric && g.targetValue != null && (
-                <span className="text-gray-500 text-[11px] font-mono">
+                <span className="text-slate-500 text-[11px] font-mono">
                   {g.currentValue != null ? `${g.currentValue}/${g.targetValue}` : g.targetValue}{' '}
                   {g.targetMetric}
                 </span>

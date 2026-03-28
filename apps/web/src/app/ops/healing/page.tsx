@@ -93,7 +93,7 @@ export default function HealingPage() {
         : 'neon-red'
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron">System Healing</h2>
@@ -178,7 +178,7 @@ export default function HealingPage() {
                 </div>
                 {issue.agentId && (
                   <button
-                    className="cyber-btn-danger !text-[10px] !py-0.5 !px-2"
+                    className="cyber-btn-danger cyber-btn-xs"
                     onClick={() =>
                       restartMut.mutate({
                         agentId: issue.agentId!,
