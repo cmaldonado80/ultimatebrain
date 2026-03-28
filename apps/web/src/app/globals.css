@@ -32,7 +32,8 @@
 
 @layer base {
   body {
-    @apply bg-bg-deep text-slate-200 font-sans antialiased overflow-x-hidden;
+    @apply bg-bg-deep text-slate-200 font-sans antialiased;
+    scroll-behavior: smooth;
     /* Soft cosmic ambient blobs — fixed so they persist behind all content */
     background-image:
       radial-gradient(circle at 50% -20%, rgba(0, 212, 255, 0.05), transparent 40%),
@@ -46,8 +47,12 @@
   }
 
   /* Dark cosmic scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
   ::-webkit-scrollbar       { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { @apply bg-bg-deep; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
   ::-webkit-scrollbar-thumb { @apply bg-white/10 rounded-full; }
   ::-webkit-scrollbar-thumb:hover { @apply bg-white/20; }
 }

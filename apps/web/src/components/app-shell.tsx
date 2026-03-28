@@ -61,7 +61,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Topbar />
           </div>
 
-          <main className="flex-1 overflow-auto relative z-10">{children}</main>
+          <main className="flex-1 overflow-y-auto overflow-x-hidden relative z-10">{children}</main>
         </div>
       </div>
       <LiveCursors currentLocation={pathname} />

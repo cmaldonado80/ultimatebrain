@@ -238,7 +238,7 @@ export default function EvalsPage() {
 
   if (isLoading) {
     return (
-      <div className="bg-bg-deep min-h-screen text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
+      <div className="text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
         <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-xs">Fetching eval datasets</div>
@@ -249,7 +249,7 @@ export default function EvalsPage() {
 
   if (datasetsQuery.error) {
     return (
-      <div className="bg-bg-deep min-h-screen text-slate-50 p-6">
+      <div className="text-slate-50 p-6">
         <DbErrorBanner error={datasetsQuery.error} />
       </div>
     )
@@ -274,7 +274,7 @@ export default function EvalsPage() {
   }))
 
   return (
-    <div className="bg-bg-deep min-h-screen text-slate-50 p-6">
+    <div className="text-slate-50 p-6">
       {/* Header */}
       <div className="flex justify-between items-start mb-6">
         <div>
