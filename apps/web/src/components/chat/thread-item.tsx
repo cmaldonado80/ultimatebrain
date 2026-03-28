@@ -7,6 +7,7 @@
 
 import type { InspectorSelection } from './inspector-panel'
 import { MarkdownMessage } from './markdown-message'
+import { MemoryHint } from './memory-hint'
 import { ToolCallCard } from './tool-call-card'
 
 export type ThreadItemData =
@@ -35,6 +36,7 @@ export type ThreadItemData =
   | { type: 'streaming'; text: string; agentName?: string }
   | { type: 'error'; message: string; onRetry?: () => void }
   | { type: 'system'; text: string }
+  | { type: 'memory_context'; count: number; sources?: string[] }
 
 const AVATAR_COLORS = ['#00d4ff', '#8b5cf6', '#00ff88', '#ffd200', '#ff3a5c', '#f472b6', '#38bdf8']
 
@@ -251,5 +253,8 @@ export function ThreadItem({ item, onInspect }: ThreadItemProps) {
 
     case 'system':
       return <div className="text-center text-[10px] text-slate-600 my-2">{item.text}</div>
+
+    case 'memory_context':
+      return <MemoryHint count={item.count} sources={item.sources} />
   }
 }

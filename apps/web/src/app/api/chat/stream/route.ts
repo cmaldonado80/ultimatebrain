@@ -229,6 +229,19 @@ export async function POST(req: Request) {
     }
   }
 
+  // 3b. Track memory recall count for UI hint
+  const memoryRecallCount = memoryContext
+    ? memoryContext.split('\n').filter((l) => l.startsWith('- [')).length
+    : 0
+  const memoryRecallSources = memoryContext
+    ? [
+        ...new Set(
+          memoryContext.match(/\[(core|recall|archival)\]/g)?.map((m) => m.replace(/[[\]]/g, '')) ??
+            [],
+        ),
+      ]
+    : []
+
   // 4. Load conversation history
   const msgs = await db.query.chatMessages.findMany({
     where: eq(chatMessages.sessionId, body.sessionId),
@@ -244,6 +257,15 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // Emit memory context hint if memories were recalled
+        if (memoryRecallCount > 0) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: 'memory_context', count: memoryRecallCount, sources: memoryRecallSources })}\n\n`,
+            ),
+          )
+        }
+
         for (const agentConfig of agentConfigs) {
           // Signal which agent is responding (for multi-agent UI)
           if (isMultiAgent) {
