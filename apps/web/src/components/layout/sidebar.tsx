@@ -38,27 +38,45 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Ops Center',
+    items: [{ label: 'Overview', href: '/ops', icon: '◎' }],
+  },
+  {
+    title: 'Monitoring',
     items: [
-      { label: 'Overview', href: '/ops', icon: '◎' },
       { label: 'Traces', href: '/ops/traces', icon: '⋯' },
       { label: 'Evals', href: '/ops/evals', icon: '✓' },
-      { label: 'Approvals', href: '/ops/approvals', icon: '⊘' },
       { label: 'Gateway', href: '/ops/gateway', icon: '⇄' },
-      { label: 'DLQ', href: '/ops/dlq', icon: '⚠' },
-      { label: 'Guardrails', href: '/ops/guardrails', icon: '⛊' },
-      { label: 'Checkpoints', href: '/ops/checkpoints', icon: '⟲' },
       { label: 'Live Viewer', href: '/ops/live', icon: '◉' },
-      { label: 'Databases', href: '/ops/databases', icon: '⊟' },
       { label: 'Cron Jobs', href: '/ops/cron', icon: '⏱' },
+    ],
+  },
+  {
+    title: 'Safety',
+    items: [
+      { label: 'Guardrails', href: '/ops/guardrails', icon: '⛊' },
+      { label: 'Approvals', href: '/ops/approvals', icon: '⊘' },
+      { label: 'DLQ', href: '/ops/dlq', icon: '⚠' },
       { label: 'Healing', href: '/ops/healing', icon: '♥' },
+      { label: 'Checkpoints', href: '/ops/checkpoints', icon: '⟲' },
+    ],
+  },
+  {
+    title: 'Tooling',
+    items: [
       { label: 'MCP Tools', href: '/ops/mcp', icon: '⚙' },
-      { label: 'A2A Protocol', href: '/ops/a2a', icon: '⇋' },
       { label: 'Task Runner', href: '/ops/task-runner', icon: '▷' },
       { label: 'Journeys', href: '/ops/journeys', icon: '⟿' },
+      { label: 'Databases', href: '/ops/databases', icon: '⊟' },
+    ],
+  },
+  {
+    title: 'Discovery',
+    items: [
       { label: 'Browser Sessions', href: '/ops/browser-sessions', icon: '⧉' },
       { label: 'Visual QA', href: '/ops/visual-qa', icon: '⊡' },
       { label: 'Instincts', href: '/ops/instincts', icon: '⚡' },
       { label: 'Marketplace', href: '/ops/aitmpl', icon: '⊞' },
+      { label: 'A2A Protocol', href: '/ops/a2a', icon: '⇋' },
     ],
   },
   {
