@@ -7,6 +7,8 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import { nodeTypes } from '../../../components/observatory/custom-nodes'
+import { HealthPanel } from '../../../components/observatory/health-panel'
+import { InsightsPanel } from '../../../components/observatory/insights-panel'
 import { trpc } from '../../../utils/trpc'
 
 // ── Types ───────────────────────────────────────────────────────────────
@@ -185,21 +187,73 @@ function Inspector({ node, onClose }: { node: TopoNode; onClose: () => void }) {
 
 export default function ObservatoryPage() {
   const { data, error, isLoading, refetch } = trpc.topology.getTopology.useQuery()
+  const runtimeQuery = trpc.topology.getRuntimeOverlay.useQuery(undefined, {
+    refetchInterval: 5000,
+  })
+  const insightsQuery = trpc.topology.getInsights.useQuery()
+
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [inspectorOpen, setInspectorOpen] = useState(true)
+  const [healthOpen, setHealthOpen] = useState(false)
+  const [insightsOpen, setInsightsOpen] = useState(false)
+  const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set())
 
-  const { flowNodes, flowEdges } = useMemo(
-    () => (data ? buildGraph(data.nodes, data.edges) : { flowNodes: [], flowEdges: [] }),
-    [data],
-  )
+  const { flowNodes, flowEdges } = useMemo(() => {
+    if (!data) return { flowNodes: [], flowEdges: [] }
+    const { flowNodes: nodes, flowEdges: edges } = buildGraph(data.nodes, data.edges)
+
+    // Apply runtime status overlay
+    if (runtimeQuery.data) {
+      for (const node of nodes) {
+        const rawId = node.id.replace(/^agent-/, '')
+        const runtime = runtimeQuery.data.agentStatuses[rawId]
+        if (runtime) {
+          node.data = { ...node.data, status: runtime.status, currentTicket: runtime.currentTicket }
+        }
+      }
+    }
+
+    // Apply highlight dimming
+    if (highlightedNodes.size > 0) {
+      for (const node of nodes) {
+        node.data = { ...node.data, dimmed: !highlightedNodes.has(node.id) }
+      }
+    }
+
+    return { flowNodes: nodes, flowEdges: edges }
+  }, [data, runtimeQuery.data, highlightedNodes])
+
   const selectedData = useMemo(
     () => (selectedNode && data ? (data.nodes.find((n) => n.id === selectedNode) ?? null) : null),
     [selectedNode, data],
   )
+
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNode(node.id)
     setInspectorOpen(true)
   }, [])
+
+  const handleInsightHighlight = useCallback((nodeIds: string[]) => {
+    setHighlightedNodes(new Set(nodeIds))
+    setTimeout(() => setHighlightedNodes(new Set()), 5000)
+  }, [])
+
+  const runtime = runtimeQuery.data as {
+    statusCounts: { idle: number; executing: number; error: number; offline: number }
+    pendingApprovals: number
+    cronSummary: { active: number; failed: number; total: number }
+    healthScore: string
+    timestamp: Date
+  } | null
+
+  const healthDotColor =
+    runtime?.healthScore === 'healthy'
+      ? 'neon-dot-green'
+      : runtime?.healthScore === 'degraded'
+        ? 'neon-dot-yellow'
+        : runtime
+          ? 'neon-dot-red'
+          : ''
 
   if (error)
     return (
@@ -207,6 +261,14 @@ export default function ObservatoryPage() {
         <DbErrorBanner error={error} onRetry={() => refetch()} />
       </div>
     )
+
+  const insights = (insightsQuery.data ?? []) as Array<{
+    id: string
+    severity: 'info' | 'warning' | 'critical'
+    title: string
+    description: string
+    nodeIds: string[]
+  }>
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
@@ -225,9 +287,28 @@ export default function ObservatoryPage() {
               <span>{data.stats.models} models</span>
             </>
           )}
+          {runtime && (
+            <button
+              onClick={() => setHealthOpen((v) => !v)}
+              className="flex items-center gap-1.5 cyber-btn-secondary cyber-btn-sm"
+            >
+              <span className={`neon-dot ${healthDotColor}`} />
+              {runtime.healthScore}
+            </button>
+          )}
+          {insights.length > 0 && (
+            <button
+              onClick={() => setInsightsOpen((v) => !v)}
+              className="cyber-btn-secondary cyber-btn-sm"
+            >
+              {insights.filter((i) => i.severity === 'critical').length > 0
+                ? `⚠ ${insights.length} insights`
+                : `${insights.length} insights`}
+            </button>
+          )}
           <button
             onClick={() => setInspectorOpen((v) => !v)}
-            className="cyber-btn-secondary cyber-btn-sm ml-2"
+            className="cyber-btn-secondary cyber-btn-sm"
           >
             {inspectorOpen ? 'Hide' : 'Show'} Inspector
           </button>
@@ -235,7 +316,7 @@ export default function ObservatoryPage() {
       </div>
 
       {/* Main area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         <div className="flex-1 relative">
           {isLoading ? (
             <div className="flex items-center justify-center h-full text-slate-500 text-sm">
@@ -247,6 +328,9 @@ export default function ObservatoryPage() {
               edges={flowEdges}
               nodeTypes={nodeTypes}
               onNodeClick={onNodeClick}
+              onPaneClick={() => {
+                setHighlightedNodes(new Set())
+              }}
               fitView
               minZoom={0.2}
               maxZoom={2}
@@ -267,6 +351,16 @@ export default function ObservatoryPage() {
                 className="!bg-bg-deep !border-border"
               />
             </ReactFlow>
+          )}
+
+          {/* Overlay panels */}
+          {healthOpen && <HealthPanel data={runtime} onClose={() => setHealthOpen(false)} />}
+          {insightsOpen && (
+            <InsightsPanel
+              insights={insights}
+              onHighlight={handleInsightHighlight}
+              onClose={() => setInsightsOpen(false)}
+            />
           )}
         </div>
         {inspectorOpen && selectedData && (
