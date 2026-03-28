@@ -5,9 +5,10 @@
  * (agents, skills, commands, hooks, MCPs, settings).
  */
 import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
-import { AitmplInstaller, AitmplDiscoverer, getAllPreInstalledComponents } from '../services/aitmpl'
+
 import type { ComponentCategory, InstallTier } from '../services/aitmpl'
+import { AitmplDiscoverer, AitmplInstaller, getAllPreInstalledComponents } from '../services/aitmpl'
+import { protectedProcedure, router } from '../trpc'
 
 let _installer: AitmplInstaller | null = null
 let _discoverer: AitmplDiscoverer | null = null

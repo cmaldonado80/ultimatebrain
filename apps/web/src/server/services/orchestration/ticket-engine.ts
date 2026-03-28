@@ -10,14 +10,15 @@
 
 import type { Database } from '@solarc/db'
 import {
-  tickets,
-  ticketExecution,
-  ticketDependencies,
-  ticketStatusHistory,
-  ticketComments,
   agents,
+  ticketComments,
+  ticketDependencies,
+  ticketExecution,
+  tickets,
+  ticketStatusHistory,
 } from '@solarc/db'
-import { eq, and, or, inArray, lte, isNull, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm'
+
 import { NotFoundError, ValidationError } from '../../errors'
 import { eventBus } from './event-bus'
 

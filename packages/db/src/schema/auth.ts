@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, primaryKey, uuid } from 'drizzle-orm/pg-core'
+import { integer, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
 /** OAuth account types as defined by Auth.js — inlined to avoid @auth/core dep in db package */
 type AdapterAccountType = 'oauth' | 'oidc' | 'email' | 'webauthn'

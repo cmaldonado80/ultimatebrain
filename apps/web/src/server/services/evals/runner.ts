@@ -6,9 +6,10 @@
 
 import type { Database } from '@solarc/db'
 import { evalCases, evalRuns } from '@solarc/db'
-import { eq, desc } from 'drizzle-orm'
 import type { EvalScores } from '@solarc/engine-contracts'
-import { ALL_SCORERS, type ScorerInput, type Scorer } from './scorers'
+import { desc, eq } from 'drizzle-orm'
+
+import { ALL_SCORERS, type Scorer, type ScorerInput } from './scorers'
 
 export interface EvalCaseResult {
   caseId: string
@@ -142,27 +143,29 @@ export class EvalRunner {
     // Compute averages
     const averageScores = averageEvalScores(caseResults.map((r) => r.scores))
     const overallScore = weightedAverage(averageScores)
-    const passRate = caseResults.length > 0
-      ? caseResults.filter((r) => r.passed).length / caseResults.length
-      : 0
+    const passRate =
+      caseResults.length > 0 ? caseResults.filter((r) => r.passed).length / caseResults.length : 0
 
     // Persist run
-    const [run] = await this.db.insert(evalRuns).values({
-      datasetId,
-      version: options.version,
-      scores: {
-        averageScores,
-        overallScore,
-        passRate,
-        caseCount: caseResults.length,
-        caseResults: caseResults.map((r) => ({
-          caseId: r.caseId,
-          scores: r.scores,
-          passed: r.passed,
-          aggregate: r.aggregate,
-        })),
-      },
-    }).returning()
+    const [run] = await this.db
+      .insert(evalRuns)
+      .values({
+        datasetId,
+        version: options.version,
+        scores: {
+          averageScores,
+          overallScore,
+          passRate,
+          caseCount: caseResults.length,
+          caseResults: caseResults.map((r) => ({
+            caseId: r.caseId,
+            scores: r.scores,
+            passed: r.passed,
+            aggregate: r.aggregate,
+          })),
+        },
+      })
+      .returning()
 
     return {
       runId: run!.id,
@@ -178,7 +181,10 @@ export class EvalRunner {
   /**
    * Compare two runs side-by-side.
    */
-  async compareRuns(runIdA: string, runIdB: string): Promise<{
+  async compareRuns(
+    runIdA: string,
+    runIdB: string,
+  ): Promise<{
     runA: { id: string; scores: EvalScores; overall: number }
     runB: { id: string; scores: EvalScores; overall: number }
     delta: EvalScores
@@ -238,11 +244,11 @@ function clamp(n: number): number {
 /** Weighted average of eval scores (all equal weight for now) */
 function weightedAverage(scores: EvalScores): number {
   const weights = {
-    taskCompletion: 0.30,
+    taskCompletion: 0.3,
     factuality: 0.25,
     toolUseAccuracy: 0.15,
-    safety: 0.20,
-    costEfficiency: 0.10,
+    safety: 0.2,
+    costEfficiency: 0.1,
   }
 
   let sum = 0

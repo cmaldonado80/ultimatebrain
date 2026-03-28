@@ -5,7 +5,7 @@
  * Swiss Ephemeris shows categorized modules with expandable endpoint lists.
  */
 
-import { useState, use } from 'react'
+import { use, useState } from 'react'
 
 // ─── Module definitions for Swiss Ephemeris ──────────────────────────────────
 

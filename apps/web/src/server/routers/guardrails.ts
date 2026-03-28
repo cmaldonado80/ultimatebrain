@@ -4,13 +4,14 @@
  * Runs guardrail checks against agent outputs, logs violations, and provides
  * analytics on guardrail trigger rates and compliance trends.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
-import { guardrailLogs } from '@solarc/db'
 import type { Database } from '@solarc/db'
-import { eq, desc, and, gte, sql } from 'drizzle-orm'
+import { guardrailLogs } from '@solarc/db'
 import { GuardrailCheckInput } from '@solarc/engine-contracts'
+import { and, desc, eq, gte, sql } from 'drizzle-orm'
+import { z } from 'zod'
+
 import { GuardrailEngine } from '../services/guardrails'
+import { protectedProcedure, router } from '../trpc'
 
 let engineInstance: GuardrailEngine | null = null
 
@@ -23,27 +24,25 @@ function getEngine(db: Database): GuardrailEngine {
 
 export const guardrailsRouter = router({
   /** Check content against guardrails (input layer) */
-  checkInput: protectedProcedure
-    .input(GuardrailCheckInput)
-    .mutation(async ({ ctx, input }) => {
-      const engine = getEngine(ctx.db)
-      return engine.checkInput(input.content, { agentId: input.agentId })
-    }),
+  checkInput: protectedProcedure.input(GuardrailCheckInput).mutation(async ({ ctx, input }) => {
+    const engine = getEngine(ctx.db)
+    return engine.checkInput(input.content, { agentId: input.agentId })
+  }),
 
   /** Check content against guardrails (output layer) */
-  checkOutput: protectedProcedure
-    .input(GuardrailCheckInput)
-    .mutation(async ({ ctx, input }) => {
-      const engine = getEngine(ctx.db)
-      return engine.checkOutput(input.content, { agentId: input.agentId })
-    }),
+  checkOutput: protectedProcedure.input(GuardrailCheckInput).mutation(async ({ ctx, input }) => {
+    const engine = getEngine(ctx.db)
+    return engine.checkOutput(input.content, { agentId: input.agentId })
+  }),
 
   /** Check tool call JSON against guardrails */
   checkTool: protectedProcedure
-    .input(z.object({
-      content: z.string(),
-      agentId: z.string().uuid().optional(),
-    }))
+    .input(
+      z.object({
+        content: z.string(),
+        agentId: z.string().uuid().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const engine = getEngine(ctx.db)
       return engine.checkTool(input.content, { agentId: input.agentId })
@@ -51,13 +50,15 @@ export const guardrailsRouter = router({
 
   /** Check content against specific layer with optional policy filter */
   check: protectedProcedure
-    .input(z.object({
-      content: z.string(),
-      layer: z.enum(['input', 'output', 'tool']),
-      agentId: z.string().uuid().optional(),
-      ticketId: z.string().uuid().optional(),
-      policies: z.array(z.string()).optional(),
-    }))
+    .input(
+      z.object({
+        content: z.string(),
+        layer: z.enum(['input', 'output', 'tool']),
+        agentId: z.string().uuid().optional(),
+        ticketId: z.string().uuid().optional(),
+        policies: z.array(z.string()).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const engine = getEngine(ctx.db)
       return engine.check(input.content, input.layer, {
@@ -75,10 +76,14 @@ export const guardrailsRouter = router({
 
   /** Get recent violation logs */
   logs: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid().optional(),
-      limit: z.number().min(1).max(500).optional(),
-    }).optional())
+    .input(
+      z
+        .object({
+          agentId: z.string().uuid().optional(),
+          limit: z.number().min(1).max(500).optional(),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       const conditions = []
       if (input?.agentId) conditions.push(eq(guardrailLogs.agentId, input.agentId))
@@ -93,10 +98,14 @@ export const guardrailsRouter = router({
 
   /** Get violation stats (counts by rule, severity breakdown) */
   stats: protectedProcedure
-    .input(z.object({
-      since: z.date().optional(),
-      agentId: z.string().uuid().optional(),
-    }).optional())
+    .input(
+      z
+        .object({
+          since: z.date().optional(),
+          agentId: z.string().uuid().optional(),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       const since = input?.since ?? new Date(Date.now() - 24 * 60 * 60 * 1000)
       const conditions = [gte(guardrailLogs.createdAt, since)]

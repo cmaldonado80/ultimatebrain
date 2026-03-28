@@ -4,12 +4,13 @@
  * Provides debate engine for multi-perspective reasoning, token ledger for
  * usage accounting, and entity management for platform-wide resources.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
 import { brainEntities, brainEntityAgents } from '@solarc/db'
 import { eq } from 'drizzle-orm'
-import { DebateEngine, TokenLedgerService, EntityManager } from '../services/platform'
+import { z } from 'zod'
+
+import { DebateEngine, EntityManager, TokenLedgerService } from '../services/platform'
+import { protectedProcedure, router } from '../trpc'
 
 let debate: DebateEngine | null = null
 let ledger: TokenLedgerService | null = null

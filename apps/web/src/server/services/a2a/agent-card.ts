@@ -15,7 +15,7 @@
  */
 
 import type { Database } from '@solarc/db'
-import { agents, agentCards } from '@solarc/db'
+import { agentCards, agents } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
 export interface WellKnownAgentCard {
@@ -51,7 +51,7 @@ export class AgentCardGenerator {
    */
   async generateForAgent(
     agentId: string,
-    options: AgentCardGeneratorOptions
+    options: AgentCardGeneratorOptions,
   ): Promise<WellKnownAgentCard> {
     const agent = await this.db.query.agents.findFirst({
       where: eq(agents.id, agentId),
@@ -92,7 +92,7 @@ export class AgentCardGenerator {
    * Generate cards for all active agents.
    */
   async generateAll(
-    options: AgentCardGeneratorOptions
+    options: AgentCardGeneratorOptions,
   ): Promise<Record<string, WellKnownAgentCard>> {
     const allAgents = await this.db.query.agents.findMany({
       where: eq(agents.status, 'idle'),
@@ -149,7 +149,7 @@ export class AgentCardGenerator {
 
   private extractSkills(
     agent: typeof agents.$inferSelect,
-    capabilities: Record<string, unknown>
+    capabilities: Record<string, unknown>,
   ): string[] {
     // Pull from capabilities.skills if set
     if (Array.isArray(capabilities.skills)) {

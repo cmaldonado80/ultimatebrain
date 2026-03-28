@@ -5,13 +5,13 @@
  * calculations for forecasting and timing techniques.
  */
 
-import type { Planet, Position, AspectType, ZodiacSign, NatalChart } from './engine'
+import type { AspectType, NatalChart, Planet, Position, ZodiacSign } from './engine'
 import {
-  julianDay,
-  calcAllPlanets,
-  calcHouses,
   assignHouses,
+  calcAllPlanets,
   calcAspects,
+  calcHouses,
+  julianDay,
   PLANET_LIST,
   SIGN_NAMES,
 } from './engine'

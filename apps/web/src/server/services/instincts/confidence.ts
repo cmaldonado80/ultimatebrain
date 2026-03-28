@@ -25,7 +25,7 @@
  *     "30 days since last TypeScript error → confidence 0.7 → 0.54"
  */
 
-import type { Instinct, ConfidenceUpdate } from './types'
+import type { ConfidenceUpdate, Instinct } from './types'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -48,7 +48,7 @@ const BASE_GAIN = 0.25
  * How much to decrease confidence per user override.
  * Overrides are strong negative signals — penalised at 2× the base gain.
  */
-const OVERRIDE_PENALTY = 0.20
+const OVERRIDE_PENALTY = 0.2
 
 /**
  * Decay half-life in milliseconds (default: 30 days).

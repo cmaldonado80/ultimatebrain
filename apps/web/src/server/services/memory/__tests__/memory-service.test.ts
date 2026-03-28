@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { MemoryService } from '../memory-service'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import type { EmbedFunction } from '../memory-service'
+import { MemoryService } from '../memory-service'
 
 // --- Mock helpers ---
 
@@ -94,12 +95,11 @@ describe('MemoryService', () => {
 
     it('should store without vector if embedding fails', async () => {
       const storedMem = { id: 'mem-3', key: 'k', content: 'data', tier: 'recall' }
-      db.insert
-        .mockReturnValueOnce({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([storedMem]),
-          }),
-        })
+      db.insert.mockReturnValueOnce({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([storedMem]),
+        }),
+      })
 
       const mockEmbed: EmbedFunction = vi.fn().mockRejectedValue(new Error('embedding failed'))
       service.setEmbedFunction(mockEmbed)
@@ -116,9 +116,27 @@ describe('MemoryService', () => {
   describe('search (keyword fallback)', () => {
     it('should return scored results from keyword search when no embed function is set', async () => {
       db.query.memories.findMany.mockResolvedValue([
-        { id: '1', key: 'project-setup', content: 'How to setup the project environment', tier: 'recall', createdAt: new Date() },
-        { id: '2', key: 'deploy-guide', content: 'Guide for deployment to production', tier: 'recall', createdAt: new Date() },
-        { id: '3', key: 'cooking-recipe', content: 'Chocolate cake recipe', tier: 'archival', createdAt: new Date() },
+        {
+          id: '1',
+          key: 'project-setup',
+          content: 'How to setup the project environment',
+          tier: 'recall',
+          createdAt: new Date(),
+        },
+        {
+          id: '2',
+          key: 'deploy-guide',
+          content: 'Guide for deployment to production',
+          tier: 'recall',
+          createdAt: new Date(),
+        },
+        {
+          id: '3',
+          key: 'cooking-recipe',
+          content: 'Chocolate cake recipe',
+          tier: 'archival',
+          createdAt: new Date(),
+        },
       ])
 
       const results = await service.search('project setup')
@@ -131,7 +149,13 @@ describe('MemoryService', () => {
 
     it('should return empty results when no memories match', async () => {
       db.query.memories.findMany.mockResolvedValue([
-        { id: '1', key: 'unrelated', content: 'Totally unrelated content', tier: 'recall', createdAt: new Date() },
+        {
+          id: '1',
+          key: 'unrelated',
+          content: 'Totally unrelated content',
+          tier: 'recall',
+          createdAt: new Date(),
+        },
       ])
 
       const results = await service.search('quantum physics')

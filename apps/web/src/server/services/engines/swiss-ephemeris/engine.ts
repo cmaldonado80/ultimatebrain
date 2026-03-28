@@ -8,8 +8,8 @@
  * Engine Registry ID: swiss-ephemeris
  */
 
-import * as path from 'path'
 import * as fs from 'fs'
+import * as path from 'path'
 
 // ─── Dynamic swisseph import (native addon) ──────────────────────────────────
 
@@ -995,11 +995,11 @@ export async function run(input: SwissEphemerisInput): Promise<EngineResult> {
 
 // ─── Convenience Exports (for tRPC router + modules) ─────────────────────────
 
-export { julianDay, calcAllPlanets, calcHouses, assignHouses, calcAspects, assessAllDignities }
-export { PLANET_LIST, SIGN_NAMES, SIGN_ABBREV, longitudeToSign }
-export { SIGN_ELEMENT, SIGN_MODE, FACE_RULERS }
-export { DOMICILE, EXALTATION, DETRIMENT, FALL, TRIPLICITY_RULERS }
+export { assessAllDignities, assignHouses, calcAllPlanets, calcAspects, calcHouses, julianDay }
+export { longitudeToSign, PLANET_LIST, SIGN_ABBREV, SIGN_NAMES }
+export { FACE_RULERS, SIGN_ELEMENT, SIGN_MODE }
+export { DETRIMENT, DOMICILE, EXALTATION, FALL, TRIPLICITY_RULERS }
 export { ASPECT_CONFIG, PLANET_IDS, SEFLG_SPEED }
-export { getHouseForLongitude, angleBetween, calcPlanet }
+export { angleBetween, calcPlanet, getHouseForLongitude }
 export { swe as _swe } // expose for heliocentric/advanced calcs
 export const isAvailable = () => swe !== null

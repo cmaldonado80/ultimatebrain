@@ -6,7 +6,7 @@
  */
 
 import type { Planet, Position, ZodiacSign } from './engine'
-import { PLANET_LIST, SIGN_NAMES, FACE_RULERS, longitudeToSign } from './engine'
+import { FACE_RULERS, longitudeToSign, PLANET_LIST, SIGN_NAMES } from './engine'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

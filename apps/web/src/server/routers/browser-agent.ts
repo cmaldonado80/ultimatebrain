@@ -2,8 +2,9 @@
  * Browser Agent Router — live browser session streaming.
  */
 import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
+
 import { BrowserAgentStream } from '../services/browser-agent/stream'
+import { protectedProcedure, router } from '../trpc'
 
 let _stream: BrowserAgentStream | null = null
 function getStream() {

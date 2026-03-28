@@ -1,19 +1,20 @@
 /**
  * Mini Brain Factory Router — scaffold and manage Mini Brains and Developments.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
-import { MiniBrainFactory, type MiniBrainTemplate } from '../services/mini-brain-factory/factory'
 import {
-  workspaces,
   agents,
-  workspaceBindings,
-  workspaceLifecycleEvents,
   brainEntities,
   brainEntityAgents,
+  workspaceBindings,
+  workspaceLifecycleEvents,
+  workspaces,
 } from '@solarc/db'
-import { eq, and } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
+import { z } from 'zod'
+
+import { MiniBrainFactory, type MiniBrainTemplate } from '../services/mini-brain-factory/factory'
 import { createNeonBranch, deleteNeonBranch, maskConnectionUri } from '../services/neon/neon-api'
+import { protectedProcedure, router } from '../trpc'
 
 let _factory: MiniBrainFactory | null = null
 function getFactory() {

@@ -11,8 +11,8 @@
  */
 import { env } from '../../../env'
 import { OpenClawClient } from './client'
-import { OpenClawProviders } from './providers'
 import { OpenClawHealthMonitor } from './health'
+import { OpenClawProviders } from './providers'
 
 // ── Types ────────────────────────────────────────────────────────────
 

@@ -5,10 +5,11 @@
  * syntax highlighting, streaming indicators, and multi-agent crew support.
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { trpc } from '../../../utils/trpc'
-import { DbErrorBanner } from '../../../components/db-error-banner'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
 import { MarkdownMessage } from '../../../components/chat/markdown-message'
+import { DbErrorBanner } from '../../../components/db-error-banner'
+import { trpc } from '../../../utils/trpc'
 
 interface ChatSession {
   id: string

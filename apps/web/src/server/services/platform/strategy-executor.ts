@@ -6,6 +6,7 @@
 import type { Database } from '@solarc/db'
 import { strategyRuns, tickets } from '@solarc/db'
 import { eq } from 'drizzle-orm'
+
 import type { GatewayRouter } from '../gateway'
 
 interface DecomposedTicket {

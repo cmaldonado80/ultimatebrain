@@ -9,8 +9,8 @@
  */
 
 import type { Database } from '@solarc/db'
-import { receipts, receiptActions, receiptAnomalies } from '@solarc/db'
-import { eq, and, desc, asc, sql } from 'drizzle-orm'
+import { receiptActions, receiptAnomalies, receipts } from '@solarc/db'
+import { and, asc, desc, eq, sql } from 'drizzle-orm'
 
 export type ReceiptStatus = 'running' | 'completed' | 'failed' | 'rolled_back'
 
@@ -40,15 +40,18 @@ export class ReceiptManager {
    * Start a new execution receipt.
    */
   async start(input: StartReceiptInput) {
-    const [receipt] = await this.db.insert(receipts).values({
-      agentId: input.agentId,
-      ticketId: input.ticketId,
-      projectId: input.projectId,
-      workspaceId: input.workspaceId,
-      trigger: input.trigger,
-      status: 'running',
-      rollbackAvailable: false,
-    }).returning()
+    const [receipt] = await this.db
+      .insert(receipts)
+      .values({
+        agentId: input.agentId,
+        ticketId: input.ticketId,
+        projectId: input.projectId,
+        workspaceId: input.workspaceId,
+        trigger: input.trigger,
+        status: 'running',
+        rollbackAvailable: false,
+      })
+      .returning()
     return receipt!
   }
 
@@ -65,22 +68,27 @@ export class ReceiptManager {
 
     const nextSeq = seqResult?.nextSeq ?? 1
 
-    const [action] = await this.db.insert(receiptActions).values({
-      receiptId: input.receiptId,
-      sequence: nextSeq,
-      type: input.type,
-      target: input.target,
-      summary: input.summary,
-      status: 'completed',
-      preState: input.preState,
-      result: input.result,
-      isRollbackEligible: input.isRollbackEligible ?? false,
-      durationMs: input.durationMs,
-    }).returning()
+    const [action] = await this.db
+      .insert(receiptActions)
+      .values({
+        receiptId: input.receiptId,
+        sequence: nextSeq,
+        type: input.type,
+        target: input.target,
+        summary: input.summary,
+        status: 'completed',
+        preState: input.preState,
+        result: input.result,
+        isRollbackEligible: input.isRollbackEligible ?? false,
+        durationMs: input.durationMs,
+      })
+      .returning()
 
     // Update rollbackAvailable on receipt if this action is rollback-eligible
     if (input.isRollbackEligible) {
-      await this.db.update(receipts).set({ rollbackAvailable: true })
+      await this.db
+        .update(receipts)
+        .set({ rollbackAvailable: true })
         .where(eq(receipts.id, input.receiptId))
     }
 
@@ -95,15 +103,16 @@ export class ReceiptManager {
       where: eq(receipts.id, receiptId),
     })
 
-    const durationMs = startedAt
-      ? Date.now() - startedAt.startedAt.getTime()
-      : undefined
+    const durationMs = startedAt ? Date.now() - startedAt.startedAt.getTime() : undefined
 
-    await this.db.update(receipts).set({
-      status: 'completed',
-      completedAt: new Date(),
-      durationMs,
-    }).where(eq(receipts.id, receiptId))
+    await this.db
+      .update(receipts)
+      .set({
+        status: 'completed',
+        completedAt: new Date(),
+        durationMs,
+      })
+      .where(eq(receipts.id, receiptId))
   }
 
   /**
@@ -114,11 +123,14 @@ export class ReceiptManager {
       where: eq(receipts.id, receiptId),
     })
 
-    await this.db.update(receipts).set({
-      status: 'failed',
-      completedAt: new Date(),
-      durationMs: startedAt ? Date.now() - startedAt.startedAt.getTime() : undefined,
-    }).where(eq(receipts.id, receiptId))
+    await this.db
+      .update(receipts)
+      .set({
+        status: 'failed',
+        completedAt: new Date(),
+        durationMs: startedAt ? Date.now() - startedAt.startedAt.getTime() : undefined,
+      })
+      .where(eq(receipts.id, receiptId))
 
     if (reason) {
       await this.recordAnomaly(receiptId, reason, 'high')
@@ -140,26 +152,30 @@ export class ReceiptManager {
     const actions = await this.db
       .select()
       .from(receiptActions)
-      .where(and(
-        eq(receiptActions.receiptId, receiptId),
-        eq(receiptActions.isRollbackEligible, true),
-      ))
+      .where(
+        and(eq(receiptActions.receiptId, receiptId), eq(receiptActions.isRollbackEligible, true)),
+      )
       .orderBy(desc(receiptActions.sequence))
 
     // Batch mark all eligible actions as rolled back
-    await this.db.update(receiptActions).set({
-      status: 'rolled_back',
-    }).where(and(
-      eq(receiptActions.receiptId, receiptId),
-      eq(receiptActions.isRollbackEligible, true),
-    ))
+    await this.db
+      .update(receiptActions)
+      .set({
+        status: 'rolled_back',
+      })
+      .where(
+        and(eq(receiptActions.receiptId, receiptId), eq(receiptActions.isRollbackEligible, true)),
+      )
 
     // Update receipt status
-    await this.db.update(receipts).set({
-      status: 'rolled_back',
-      completedAt: new Date(),
-      rollbackAvailable: false,
-    }).where(eq(receipts.id, receiptId))
+    await this.db
+      .update(receipts)
+      .set({
+        status: 'rolled_back',
+        completedAt: new Date(),
+        rollbackAvailable: false,
+      })
+      .where(eq(receipts.id, receiptId))
 
     return actions
   }
@@ -172,11 +188,14 @@ export class ReceiptManager {
     description: string,
     severity: 'low' | 'medium' | 'high' | 'critical' = 'medium',
   ) {
-    const [anomaly] = await this.db.insert(receiptAnomalies).values({
-      receiptId,
-      description,
-      severity,
-    }).returning()
+    const [anomaly] = await this.db
+      .insert(receiptAnomalies)
+      .values({
+        receiptId,
+        description,
+        severity,
+      })
+      .returning()
     return anomaly!
   }
 
@@ -190,10 +209,14 @@ export class ReceiptManager {
     if (!receipt) return null
 
     const [actions, anomalies] = await Promise.all([
-      this.db.select().from(receiptActions)
+      this.db
+        .select()
+        .from(receiptActions)
         .where(eq(receiptActions.receiptId, receiptId))
         .orderBy(asc(receiptActions.sequence)),
-      this.db.select().from(receiptAnomalies)
+      this.db
+        .select()
+        .from(receiptAnomalies)
         .where(eq(receiptAnomalies.receiptId, receiptId))
         .orderBy(asc(receiptAnomalies.createdAt)),
     ])
@@ -204,7 +227,12 @@ export class ReceiptManager {
   /**
    * List receipts for a given agent or ticket.
    */
-  async list(filters?: { agentId?: string; ticketId?: string; status?: ReceiptStatus; limit?: number }) {
+  async list(filters?: {
+    agentId?: string
+    ticketId?: string
+    status?: ReceiptStatus
+    limit?: number
+  }) {
     const conditions = []
     if (filters?.agentId) conditions.push(eq(receipts.agentId, filters.agentId))
     if (filters?.ticketId) conditions.push(eq(receipts.ticketId, filters.ticketId))

@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createMockDb } from '../../../../../../../test/helpers/db-mock'
-import { TimeTravelEngine } from '../time-travel'
 import type { Database } from '@solarc/db'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { createMockDb } from '../../../../../../../test/helpers/db-mock'
 import type { CheckpointRecord } from '../checkpoint-manager'
+import { TimeTravelEngine } from '../time-travel'
 
 describe('TimeTravelEngine', () => {
   let db: ReturnType<typeof createMockDb>
@@ -40,7 +41,8 @@ describe('TimeTravelEngine', () => {
     it('detects added, changed, and unchanged fields', async () => {
       // Mock the checkpoint manager's get method (called via db.query)
       db.query.checkpoints = {
-        findFirst: vi.fn()
+        findFirst: vi
+          .fn()
           .mockResolvedValueOnce(cpA) // first call for cpA
           .mockResolvedValueOnce(cpB), // second call for cpB
         findMany: vi.fn(),
@@ -77,9 +79,7 @@ describe('TimeTravelEngine', () => {
       }
 
       db.query.checkpoints = {
-        findFirst: vi.fn()
-          .mockResolvedValueOnce(cpWithExtra)
-          .mockResolvedValueOnce(cpWithout),
+        findFirst: vi.fn().mockResolvedValueOnce(cpWithExtra).mockResolvedValueOnce(cpWithout),
         findMany: vi.fn(),
       }
 
@@ -94,9 +94,7 @@ describe('TimeTravelEngine', () => {
 
     it('generates a summary string', async () => {
       db.query.checkpoints = {
-        findFirst: vi.fn()
-          .mockResolvedValueOnce(cpA)
-          .mockResolvedValueOnce(cpB),
+        findFirst: vi.fn().mockResolvedValueOnce(cpA).mockResolvedValueOnce(cpB),
         findMany: vi.fn(),
       }
 
@@ -107,9 +105,7 @@ describe('TimeTravelEngine', () => {
 
     it('throws for missing checkpoint A', async () => {
       db.query.checkpoints = {
-        findFirst: vi.fn()
-          .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce(cpB),
+        findFirst: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(cpB),
         findMany: vi.fn(),
       }
 
@@ -129,7 +125,7 @@ describe('TimeTravelEngine', () => {
       expect(timeline.firstAt).toEqual(now)
       expect(timeline.lastAt).toEqual(later)
       expect(timeline.checkpoints[0].dotColor).toBe('green') // status_change
-      expect(timeline.checkpoints[1].dotColor).toBe('blue')  // llm_call
+      expect(timeline.checkpoints[1].dotColor).toBe('blue') // llm_call
     })
 
     it('returns null dates for empty timeline', async () => {

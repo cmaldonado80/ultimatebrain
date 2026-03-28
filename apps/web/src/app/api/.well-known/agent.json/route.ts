@@ -7,8 +7,8 @@
  * External brains and tools can discover this brain's agents here.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
 import { createDb, type Database } from '@solarc/db'
+import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 

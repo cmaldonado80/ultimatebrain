@@ -4,13 +4,16 @@
  * Detects failures in agent execution and applies corrective strategies
  * (retry, fallback, prompt repair) to recover without human intervention.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
+import { z } from 'zod'
+
 import { HealingEngine } from '../services/healing'
+import { protectedProcedure, router } from '../trpc'
 
 let engine: HealingEngine | null = null
-function getEngine(db: Database) { return engine ??= new HealingEngine(db) }
+function getEngine(db: Database) {
+  return (engine ??= new HealingEngine(db))
+}
 
 export const healingRouter = router({
   /** Run full system diagnostic */
@@ -30,10 +33,12 @@ export const healingRouter = router({
 
   /** Restart a specific agent */
   restartAgent: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid(),
-      reason: z.string().min(1),
-    }))
+    .input(
+      z.object({
+        agentId: z.string().uuid(),
+        reason: z.string().min(1),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getEngine(ctx.db).restartAgent(input.agentId, input.reason)
     }),
@@ -45,10 +50,12 @@ export const healingRouter = router({
 
   /** Requeue a failed ticket for retry */
   requeueTicket: protectedProcedure
-    .input(z.object({
-      ticketId: z.string().uuid(),
-      reason: z.string().min(1),
-    }))
+    .input(
+      z.object({
+        ticketId: z.string().uuid(),
+        reason: z.string().min(1),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getEngine(ctx.db).requeueTicket(input.ticketId, input.reason)
     }),

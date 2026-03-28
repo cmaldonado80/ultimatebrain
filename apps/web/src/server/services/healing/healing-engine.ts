@@ -9,9 +9,10 @@
  */
 
 import type { Database } from '@solarc/db'
-import { agents, tickets, brainEntities, ticketExecution, healingLogs } from '@solarc/db'
-import { eq, and, lte, sql, desc } from 'drizzle-orm'
+import { agents, brainEntities, healingLogs, ticketExecution, tickets } from '@solarc/db'
 import type { HealthCheckOutput } from '@solarc/engine-contracts'
+import { and, desc, eq, lte, sql } from 'drizzle-orm'
+
 import { eventBus } from '../orchestration/event-bus'
 
 export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy'

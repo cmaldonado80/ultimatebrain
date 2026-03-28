@@ -7,8 +7,9 @@
  * Top 4 always visible, rest collapsed. Pin to override. Reset to clear.
  */
 
-import { useState, useCallback } from 'react'
-import type { RankedPanel, PanelId } from '../../server/services/adaptive/layout-engine'
+import { useCallback, useState } from 'react'
+
+import type { PanelId, RankedPanel } from '../../server/services/adaptive/layout-engine'
 
 // ── Mock ranked panels ────────────────────────────────────────────────────
 

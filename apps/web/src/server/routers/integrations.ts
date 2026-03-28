@@ -4,30 +4,46 @@
  * Manages communication channels, webhooks, artifact storage, and model fallback
  * chains for resilient external system integration.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
-import { ChannelService, WebhookService, ArtifactService, ModelFallbackService } from '../services/integrations'
+import { z } from 'zod'
+
+import {
+  ArtifactService,
+  ChannelService,
+  ModelFallbackService,
+  WebhookService,
+} from '../services/integrations'
+import { protectedProcedure, router } from '../trpc'
 
 let channelSvc: ChannelService | null = null
 let webhookSvc: WebhookService | null = null
 let artifactSvc: ArtifactService | null = null
 let fallbackSvc: ModelFallbackService | null = null
 
-function getChannels(db: Database) { return channelSvc ??= new ChannelService(db) }
-function getWebhooks(db: Database) { return webhookSvc ??= new WebhookService(db) }
-function getArtifacts(db: Database) { return artifactSvc ??= new ArtifactService(db) }
-function getFallbacks(db: Database) { return fallbackSvc ??= new ModelFallbackService(db) }
+function getChannels(db: Database) {
+  return (channelSvc ??= new ChannelService(db))
+}
+function getWebhooks(db: Database) {
+  return (webhookSvc ??= new WebhookService(db))
+}
+function getArtifacts(db: Database) {
+  return (artifactSvc ??= new ArtifactService(db))
+}
+function getFallbacks(db: Database) {
+  return (fallbackSvc ??= new ModelFallbackService(db))
+}
 
 export const integrationsRouter = router({
   // === Channels ===
 
   createChannel: protectedProcedure
-    .input(z.object({
-      type: z.string().min(1),
-      config: z.record(z.unknown()).optional(),
-      enabled: z.boolean().optional(),
-    }))
+    .input(
+      z.object({
+        type: z.string().min(1),
+        config: z.record(z.unknown()).optional(),
+        enabled: z.boolean().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getChannels(ctx.db).create(input)
     }),
@@ -53,12 +69,14 @@ export const integrationsRouter = router({
   // === Webhooks ===
 
   createWebhook: protectedProcedure
-    .input(z.object({
-      source: z.string().optional(),
-      url: z.string().url(),
-      secret: z.string().optional(),
-      enabled: z.boolean().optional(),
-    }))
+    .input(
+      z.object({
+        source: z.string().optional(),
+        url: z.string().url(),
+        secret: z.string().optional(),
+        enabled: z.boolean().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getWebhooks(ctx.db).create(input)
     }),
@@ -82,11 +100,13 @@ export const integrationsRouter = router({
     }),
 
   dispatchWebhook: protectedProcedure
-    .input(z.object({
-      type: z.string().min(1),
-      payload: z.unknown(),
-      source: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        type: z.string().min(1),
+        payload: z.unknown(),
+        source: z.string().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getWebhooks(ctx.db).dispatch(
         { type: input.type, payload: input.payload },
@@ -97,13 +117,15 @@ export const integrationsRouter = router({
   // === Artifacts ===
 
   createArtifact: protectedProcedure
-    .input(z.object({
-      name: z.string().min(1),
-      content: z.string().optional(),
-      type: z.string().optional(),
-      ticketId: z.string().uuid().optional(),
-      agentId: z.string().uuid().optional(),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1),
+        content: z.string().optional(),
+        type: z.string().optional(),
+        ticketId: z.string().uuid().optional(),
+        agentId: z.string().uuid().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getArtifacts(ctx.db).create(input)
     }),
@@ -135,10 +157,12 @@ export const integrationsRouter = router({
   // === Model Fallbacks ===
 
   setFallbackChain: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid(),
-      chain: z.array(z.string()).min(1),
-    }))
+    .input(
+      z.object({
+        agentId: z.string().uuid(),
+        chain: z.array(z.string()).min(1),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return getFallbacks(ctx.db).setChain(input.agentId, input.chain)
     }),
@@ -154,10 +178,12 @@ export const integrationsRouter = router({
   }),
 
   resolveNextModel: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid(),
-      failedModel: z.string(),
-    }))
+    .input(
+      z.object({
+        agentId: z.string().uuid(),
+        failedModel: z.string(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       return getFallbacks(ctx.db).resolveNext(input.agentId, input.failedModel)
     }),

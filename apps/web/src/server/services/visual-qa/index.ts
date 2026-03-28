@@ -1,18 +1,18 @@
-export { VisualQARecorder } from './recorder'
 export type {
+  QARecording,
   QAVerdict,
+  RecorderOptions,
   RecordingAnnotation,
   RecordingFrame,
-  QARecording,
-  RecorderOptions,
 } from './recorder'
-export { VisualQAReviewer } from './reviewer'
+export { VisualQARecorder } from './recorder'
 export type {
-  ReviewCriteria,
-  ReviewCheckpoint,
-  ReviewResult,
   CheckpointResult,
   FailureFrame,
+  ReviewCheckpoint,
+  ReviewCriteria,
+  ReviewResult,
   SuggestedFix,
   TicketProof,
 } from './reviewer'
+export { VisualQAReviewer } from './reviewer'

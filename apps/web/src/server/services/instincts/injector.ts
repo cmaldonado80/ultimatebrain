@@ -23,8 +23,8 @@
  * instincts are listed first; instincts near the floor (< 0.3) are omitted.
  */
 
-import type { Instinct, InjectionContext } from './types'
 import { ConfidenceScorer } from './confidence'
+import type { InjectionContext, Instinct } from './types'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -130,11 +130,7 @@ export class InstinctInjector {
       return `• ${this.formatInstinct(inst, pct)}`
     })
 
-    return [
-      '--- Behavioral Instincts (learned patterns) ---',
-      ...lines,
-      '---',
-    ].join('\n')
+    return ['--- Behavioral Instincts (learned patterns) ---', ...lines, '---'].join('\n')
   }
 
   /**
@@ -153,8 +149,7 @@ export class InstinctInjector {
    *    range first (confidence: 65%)"
    */
   formatInstinct(instinct: Instinct, confidencePct?: number): string {
-    const pct =
-      confidencePct ?? Math.round(this.scorer.getEffectiveConfidence(instinct) * 100)
+    const pct = confidencePct ?? Math.round(this.scorer.getEffectiveConfidence(instinct) * 100)
 
     // Normalize trigger: strip leading "when " if already present to avoid "When when..."
     const rawTrigger = instinct.trigger.replace(/^when\s+/i, '')
@@ -190,9 +185,35 @@ export class InstinctInjector {
    */
   private tokenize(text: string): Set<string> {
     const stopWords = new Set([
-      'a', 'an', 'the', 'is', 'are', 'was', 'were', 'in', 'on', 'at',
-      'to', 'for', 'of', 'and', 'or', 'but', 'with', 'when', 'that',
-      'this', 'it', 'you', 'i', 'we', 'they', 'be', 'has', 'have', 'do',
+      'a',
+      'an',
+      'the',
+      'is',
+      'are',
+      'was',
+      'were',
+      'in',
+      'on',
+      'at',
+      'to',
+      'for',
+      'of',
+      'and',
+      'or',
+      'but',
+      'with',
+      'when',
+      'that',
+      'this',
+      'it',
+      'you',
+      'i',
+      'we',
+      'they',
+      'be',
+      'has',
+      'have',
+      'do',
     ])
 
     return new Set(

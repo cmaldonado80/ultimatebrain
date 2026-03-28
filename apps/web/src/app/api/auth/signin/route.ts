@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+
 import { createSession } from '../../../../server/auth'
 
 const COOKIE_NAME = 'session-token'

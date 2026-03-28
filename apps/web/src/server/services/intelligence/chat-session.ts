@@ -9,8 +9,9 @@
  */
 
 import type { Database } from '@solarc/db'
-import { chatSessions, chatMessages } from '@solarc/db'
-import { eq, and, desc, asc, sql } from 'drizzle-orm'
+import { chatMessages, chatSessions } from '@solarc/db'
+import { and, asc, desc, eq, sql } from 'drizzle-orm'
+
 import { GatewayRouter } from '../gateway'
 
 export interface ChatMessage {

@@ -12,8 +12,9 @@
 import type { Database } from '@solarc/db'
 import { agents, flows } from '@solarc/db'
 import { eq } from 'drizzle-orm'
-import type { MCPRegistry } from './registry'
+
 import { GatewayRouter } from '../gateway'
+import type { MCPRegistry } from './registry'
 
 // ── JSON-RPC 2.0 Types ──────────────────────────────────────────────────
 

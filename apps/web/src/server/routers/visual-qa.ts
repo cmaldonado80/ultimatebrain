@@ -1,11 +1,12 @@
 /**
  * Visual QA Router — recording and LLM-powered review of browser sessions.
  */
+import type { Database } from '@solarc/db'
 import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
+
 import { VisualQARecorder } from '../services/visual-qa/recorder'
 import { VisualQAReviewer } from '../services/visual-qa/reviewer'
-import type { Database } from '@solarc/db'
+import { protectedProcedure, router } from '../trpc'
 
 let _recorder: VisualQARecorder | null = null
 let _reviewer: VisualQAReviewer | null = null

@@ -7,10 +7,10 @@
  * that aren't referenced in any documentation.
  */
 
-import * as fs from 'fs'
-import * as path from 'path'
 import type { Database } from '@solarc/db'
 import { tickets } from '@solarc/db'
+import * as fs from 'fs'
+import * as path from 'path'
 
 export interface FreshnessScanResult {
   scannedAt: Date

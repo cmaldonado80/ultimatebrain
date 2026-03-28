@@ -4,8 +4,8 @@
  * Approvals — view and decide on pending approval gates.
  */
 
-import { trpc } from '../../../utils/trpc'
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { trpc } from '../../../utils/trpc'
 
 interface ApprovalGate {
   id: string

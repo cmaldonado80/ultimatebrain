@@ -9,8 +9,8 @@
  */
 
 import type { Database } from '@solarc/db'
-import { tokenLedger, tokenBudgets, brainEngineUsage } from '@solarc/db'
-import { eq, and, gte, lte, sql } from 'drizzle-orm'
+import { brainEngineUsage, tokenBudgets, tokenLedger } from '@solarc/db'
+import { and, eq, gte, lte, sql } from 'drizzle-orm'
 
 export interface RecordUsageInput {
   entityId?: string
@@ -83,10 +83,12 @@ export class TokenLedgerService {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
     const [dailyResult, monthlyResult] = await Promise.all([
-      this.db.select({ total: sql<number>`coalesce(sum(${tokenLedger.costUsd}), 0)` })
+      this.db
+        .select({ total: sql<number>`coalesce(sum(${tokenLedger.costUsd}), 0)` })
         .from(tokenLedger)
         .where(and(eq(tokenLedger.entityId, entityId), gte(tokenLedger.period, startOfDay))),
-      this.db.select({ total: sql<number>`coalesce(sum(${tokenLedger.costUsd}), 0)` })
+      this.db
+        .select({ total: sql<number>`coalesce(sum(${tokenLedger.costUsd}), 0)` })
         .from(tokenLedger)
         .where(and(eq(tokenLedger.entityId, entityId), gte(tokenLedger.period, startOfMonth))),
     ])
@@ -126,17 +128,25 @@ export class TokenLedgerService {
    */
   async setBudget(
     entityId: string,
-    limits: { dailyLimitUsd?: number; monthlyLimitUsd?: number; alertThreshold?: number; enforce?: boolean },
+    limits: {
+      dailyLimitUsd?: number
+      monthlyLimitUsd?: number
+      alertThreshold?: number
+      enforce?: boolean
+    },
   ): Promise<void> {
     const existing = await this.db.query.tokenBudgets.findFirst({
       where: eq(tokenBudgets.entityId, entityId),
     })
 
     if (existing) {
-      await this.db.update(tokenBudgets).set({
-        ...limits,
-        updatedAt: new Date(),
-      }).where(eq(tokenBudgets.entityId, entityId))
+      await this.db
+        .update(tokenBudgets)
+        .set({
+          ...limits,
+          updatedAt: new Date(),
+        })
+        .where(eq(tokenBudgets.entityId, entityId))
     } else {
       await this.db.insert(tokenBudgets).values({
         entityId,
@@ -151,11 +161,7 @@ export class TokenLedgerService {
   /**
    * Get usage summary for an entity over a time range.
    */
-  async usageSummary(
-    entityId: string,
-    since?: Date,
-    until?: Date,
-  ) {
+  async usageSummary(entityId: string, since?: Date, until?: Date) {
     const conditions = [eq(tokenLedger.entityId, entityId)]
     if (since) conditions.push(gte(tokenLedger.period, since))
     if (until) conditions.push(lte(tokenLedger.period, until))

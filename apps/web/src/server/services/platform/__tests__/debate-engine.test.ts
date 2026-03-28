@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { DebateEngine } from '../debate-engine'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -21,13 +22,15 @@ vi.mock('drizzle-orm', () => ({
 function createMockDb() {
   const whereFn = vi.fn().mockResolvedValue([])
   const setFn = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) })
-  const returningFn = vi.fn().mockResolvedValue([{
-    id: 'session-1',
-    projectId: null,
-    status: 'active',
-    constitutionalRules: [],
-    createdAt: new Date(),
-  }])
+  const returningFn = vi.fn().mockResolvedValue([
+    {
+      id: 'session-1',
+      projectId: null,
+      status: 'active',
+      constitutionalRules: [],
+      createdAt: new Date(),
+    },
+  ])
   const valuesFn = vi.fn().mockReturnValue({ returning: returningFn })
   const fromFn = vi.fn().mockReturnValue({ where: whereFn })
 
@@ -104,12 +107,20 @@ describe('DebateEngine', () => {
         createdAt: new Date(),
       })
       db.query.debateNodes.findMany.mockResolvedValue([
-        { id: 'node-1', agentId: 'agent-1', text: 'Arg 1', validity: 0.5, parentId: null, isAxiom: false, createdAt: new Date() },
+        {
+          id: 'node-1',
+          agentId: 'agent-1',
+          text: 'Arg 1',
+          validity: 0.5,
+          parentId: null,
+          isAxiom: false,
+          createdAt: new Date(),
+        },
       ])
       // edges from select().from().where()
-      const edgeWhereFn = vi.fn().mockResolvedValue([
-        { fromNodeId: 'node-1', toNodeId: 'node-2', type: 'support' },
-      ])
+      const edgeWhereFn = vi
+        .fn()
+        .mockResolvedValue([{ fromNodeId: 'node-1', toNodeId: 'node-2', type: 'support' }])
       const edgeFromFn = vi.fn().mockReturnValue({ where: edgeWhereFn })
       db.select.mockReturnValue({ from: edgeFromFn })
 
@@ -125,15 +136,17 @@ describe('DebateEngine', () => {
 
   describe('submitArgument', () => {
     it('should submit an argument and return it', async () => {
-      db._mock.returningFn.mockResolvedValue([{
-        id: 'node-1',
-        agentId: 'agent-1',
-        text: 'My argument',
-        validity: null,
-        parentId: null,
-        isAxiom: false,
-        createdAt: new Date(),
-      }])
+      db._mock.returningFn.mockResolvedValue([
+        {
+          id: 'node-1',
+          agentId: 'agent-1',
+          text: 'My argument',
+          validity: null,
+          parentId: null,
+          isAxiom: false,
+          createdAt: new Date(),
+        },
+      ])
 
       const arg = await engine.submitArgument('session-1', 'agent-1', 'My argument')
 
@@ -143,15 +156,17 @@ describe('DebateEngine', () => {
     })
 
     it('should set isAxiom from options', async () => {
-      db._mock.returningFn.mockResolvedValue([{
-        id: 'node-2',
-        agentId: 'agent-1',
-        text: 'Axiom',
-        validity: 1.0,
-        parentId: null,
-        isAxiom: true,
-        createdAt: new Date(),
-      }])
+      db._mock.returningFn.mockResolvedValue([
+        {
+          id: 'node-2',
+          agentId: 'agent-1',
+          text: 'Axiom',
+          validity: 1.0,
+          parentId: null,
+          isAxiom: true,
+          createdAt: new Date(),
+        },
+      ])
 
       const arg = await engine.submitArgument('session-1', 'agent-1', 'Axiom', {
         isAxiom: true,
@@ -169,25 +184,19 @@ describe('DebateEngine', () => {
       await engine.support('node-1', 'node-2')
 
       expect(db.insert).toHaveBeenCalled()
-      expect(db._mock.valuesFn).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'support' }),
-      )
+      expect(db._mock.valuesFn).toHaveBeenCalledWith(expect.objectContaining({ type: 'support' }))
     })
 
     it('should add an attack edge', async () => {
       await engine.attack('node-1', 'node-2')
 
-      expect(db._mock.valuesFn).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'attack' }),
-      )
+      expect(db._mock.valuesFn).toHaveBeenCalledWith(expect.objectContaining({ type: 'attack' }))
     })
 
     it('should add a rebuttal edge', async () => {
       await engine.rebut('node-1', 'node-2')
 
-      expect(db._mock.valuesFn).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'rebuttal' }),
-      )
+      expect(db._mock.valuesFn).toHaveBeenCalledWith(expect.objectContaining({ type: 'rebuttal' }))
     })
   })
 
@@ -206,9 +215,9 @@ describe('DebateEngine', () => {
     })
 
     it('should increase score with support edges', async () => {
-      const edgeWhereFn = vi.fn().mockResolvedValue([
-        { fromNodeId: 'node-2', toNodeId: 'node-1', type: 'support' },
-      ])
+      const edgeWhereFn = vi
+        .fn()
+        .mockResolvedValue([{ fromNodeId: 'node-2', toNodeId: 'node-1', type: 'support' }])
       const edgeFromFn = vi.fn().mockReturnValue({ where: edgeWhereFn })
       db.select.mockReturnValue({ from: edgeFromFn })
       db.query.debateNodes.findFirst.mockResolvedValue({ id: 'node-2', validity: 0.8 })

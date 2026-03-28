@@ -4,10 +4,11 @@
  * Manages MCP server instances with lazy initialization, and the tool registry
  * for discovering and invoking MCP-compliant tools from agents.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
-import { MCPServer, MCPRegistry } from '../services/mcp'
+import { z } from 'zod'
+
+import { MCPRegistry, MCPServer } from '../services/mcp'
+import { protectedProcedure, router } from '../trpc'
 
 /** Shared registry + server singleton (created lazily per-request in real app) */
 function createMCPStack(db: Database) {
@@ -61,10 +62,12 @@ export const mcpRouter = router({
 
   /** Call a tool by name */
   callTool: protectedProcedure
-    .input(z.object({
-      name: z.string().min(1),
-      arguments: z.record(z.unknown()).optional(),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1),
+        arguments: z.record(z.unknown()).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { registry, server } = createMCPStack(ctx.db)
       await server.registerPlatformTools()
@@ -76,12 +79,14 @@ export const mcpRouter = router({
 
   /** Handle raw JSON-RPC request (for HTTP transport) */
   jsonRpc: protectedProcedure
-    .input(z.object({
-      jsonrpc: z.literal('2.0'),
-      id: z.union([z.string(), z.number()]),
-      method: z.string(),
-      params: z.record(z.unknown()).optional(),
-    }))
+    .input(
+      z.object({
+        jsonrpc: z.literal('2.0'),
+        id: z.union([z.string(), z.number()]),
+        method: z.string(),
+        params: z.record(z.unknown()).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { registry, server } = createMCPStack(ctx.db)
       await server.registerPlatformTools()
@@ -99,15 +104,17 @@ export const mcpRouter = router({
 
   /** Add an external MCP server */
   addExternalServer: protectedProcedure
-    .input(z.object({
-      name: z.string().min(1),
-      url: z.string().url(),
-      transport: z.enum(['stdio', 'http-sse']),
-      command: z.string().optional(),
-      args: z.array(z.string()).optional(),
-      autoDiscover: z.boolean().default(true),
-      enabled: z.boolean().default(true),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1),
+        url: z.string().url(),
+        transport: z.enum(['stdio', 'http-sse']),
+        command: z.string().optional(),
+        args: z.array(z.string()).optional(),
+        autoDiscover: z.boolean().default(true),
+        enabled: z.boolean().default(true),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { registry } = createMCPStack(ctx.db)
       registry.addExternalServer(input)

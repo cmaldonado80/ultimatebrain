@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import { createDb, waitForSchema, type Database } from '@solarc/db'
+import { createDb, type Database, waitForSchema } from '@solarc/db'
+
 import { auth } from '../../../../server/auth'
 
 /** Singleton DB pool — survives across Vercel hot reloads / Lambda reuse */

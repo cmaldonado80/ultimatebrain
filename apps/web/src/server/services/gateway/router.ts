@@ -12,14 +12,15 @@
  * 8. Cache response if cacheable
  */
 
-import type { LlmChatInput, LlmChatOutput } from '@solarc/engine-contracts'
 import type { Database } from '@solarc/db'
+import type { LlmChatInput, LlmChatOutput } from '@solarc/engine-contracts'
+
+import type { Span, Tracer } from '../tracing/tracer'
+import { SemanticCache, shouldSkipCache } from './cache'
 import { CircuitBreakerRegistry } from './circuit-breaker'
 import { CostTracker } from './cost-tracker'
-import { RateLimiter } from './rate-limiter'
-import { SemanticCache, shouldSkipCache } from './cache'
 import { KeyVault } from './key-vault'
-import type { Tracer, Span } from '../tracing/tracer'
+import { RateLimiter } from './rate-limiter'
 
 // === Provider Resolution ===
 

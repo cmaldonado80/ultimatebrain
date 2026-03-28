@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
+
 import {
   BRAIN_AGENTS,
-  BRAIN_SKILLS,
   BRAIN_COMMANDS,
   BRAIN_HOOKS,
   BRAIN_MCPS,
+  BRAIN_SKILLS,
   getAllPreInstalledComponents,
 } from '../catalog'
 

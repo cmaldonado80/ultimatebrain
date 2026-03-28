@@ -9,9 +9,10 @@
  */
 
 import { createHmac } from 'node:crypto'
+
 import type { Database } from '@solarc/db'
-import { channels, webhooks, artifacts, modelFallbacks } from '@solarc/db'
-import { eq, and, desc } from 'drizzle-orm'
+import { artifacts, channels, modelFallbacks, webhooks } from '@solarc/db'
+import { and, desc, eq } from 'drizzle-orm'
 
 // === Channels ===
 
@@ -25,11 +26,14 @@ export class ChannelService {
   constructor(private db: Database) {}
 
   async create(input: CreateChannelInput) {
-    const [ch] = await this.db.insert(channels).values({
-      type: input.type,
-      config: input.config,
-      enabled: input.enabled ?? true,
-    }).returning()
+    const [ch] = await this.db
+      .insert(channels)
+      .values({
+        type: input.type,
+        config: input.config,
+        enabled: input.enabled ?? true,
+      })
+      .returning()
     return ch!
   }
 
@@ -65,12 +69,15 @@ export class WebhookService {
   constructor(private db: Database) {}
 
   async create(input: CreateWebhookInput) {
-    const [wh] = await this.db.insert(webhooks).values({
-      source: input.source,
-      url: input.url,
-      secret: input.secret,
-      enabled: input.enabled ?? true,
-    }).returning()
+    const [wh] = await this.db
+      .insert(webhooks)
+      .values({
+        source: input.source,
+        url: input.url,
+        secret: input.secret,
+        enabled: input.enabled ?? true,
+      })
+      .returning()
     return wh!
   }
 
@@ -103,7 +110,12 @@ export class WebhookService {
       where: and(...conditions),
     })
 
-    const results: Array<{ webhookId: string; success: boolean; statusCode?: number; error?: string }> = []
+    const results: Array<{
+      webhookId: string
+      success: boolean
+      statusCode?: number
+      error?: string
+    }> = []
 
     for (const wh of targets) {
       try {
@@ -154,13 +166,16 @@ export class ArtifactService {
   constructor(private db: Database) {}
 
   async create(input: CreateArtifactInput) {
-    const [artifact] = await this.db.insert(artifacts).values({
-      name: input.name,
-      content: input.content,
-      type: input.type,
-      ticketId: input.ticketId,
-      agentId: input.agentId,
-    }).returning()
+    const [artifact] = await this.db
+      .insert(artifacts)
+      .values({
+        name: input.name,
+        content: input.content,
+        type: input.type,
+        ticketId: input.ticketId,
+        agentId: input.agentId,
+      })
+      .returning()
     return artifact!
   }
 
@@ -199,15 +214,17 @@ export class ModelFallbackService {
     })
 
     if (existing) {
-      await this.db.update(modelFallbacks).set({ chain })
-        .where(eq(modelFallbacks.id, existing.id))
+      await this.db.update(modelFallbacks).set({ chain }).where(eq(modelFallbacks.id, existing.id))
       return existing
     }
 
-    const [fb] = await this.db.insert(modelFallbacks).values({
-      agentId,
-      chain,
-    }).returning()
+    const [fb] = await this.db
+      .insert(modelFallbacks)
+      .values({
+        agentId,
+        chain,
+      })
+      .returning()
     return fb!
   }
 

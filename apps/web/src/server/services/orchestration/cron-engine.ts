@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { cronJobs } from '@solarc/db'
-import { eq, and, lte, sql } from 'drizzle-orm'
+import { and, eq, lte, sql } from 'drizzle-orm'
 
 export type CronJobStatus = 'active' | 'paused' | 'failed'
 

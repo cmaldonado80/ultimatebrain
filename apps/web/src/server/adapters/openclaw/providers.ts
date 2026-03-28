@@ -1,5 +1,5 @@
-import type { OpenClawClient } from './client'
 import type { ProviderAdapter } from '../../services/gateway'
+import type { OpenClawClient } from './client'
 
 export interface ChatRequest {
   model: string

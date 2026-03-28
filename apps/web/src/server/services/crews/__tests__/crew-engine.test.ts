@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { CrewEngine, type CrewDefinition, type ToolDefinition } from '../crew-engine'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { type CrewDefinition, CrewEngine, type ToolDefinition } from '../crew-engine'
 
 // ── Mock GatewayRouter ─────────────────────────────────────────────────────
 
@@ -224,7 +225,13 @@ describe('CrewEngine', () => {
 
       const crew = makeCrew({
         agents: [
-          { id: 'agent-1', role: 'Lead', goal: 'Coordinate', backstory: 'Manager', allowDelegation: true },
+          {
+            id: 'agent-1',
+            role: 'Lead',
+            goal: 'Coordinate',
+            backstory: 'Manager',
+            allowDelegation: true,
+          },
           { id: 'agent-2', role: 'Specialist', goal: 'Research', backstory: 'Expert' },
         ],
       })
@@ -253,7 +260,13 @@ describe('CrewEngine', () => {
 
       const crew = makeCrew({
         agents: [
-          { id: 'agent-1', role: 'Lead', goal: 'Coordinate', backstory: 'M', allowDelegation: true },
+          {
+            id: 'agent-1',
+            role: 'Lead',
+            goal: 'Coordinate',
+            backstory: 'M',
+            allowDelegation: true,
+          },
         ],
       })
 
@@ -284,7 +297,8 @@ describe('CrewEngine', () => {
     it('should parse Action Input as JSON', async () => {
       chatMock
         .mockResolvedValueOnce({
-          content: 'Thought: Need to search\nAction: search\nAction Input: {"query": "test", "limit": 5}',
+          content:
+            'Thought: Need to search\nAction: search\nAction Input: {"query": "test", "limit": 5}',
         })
         .mockResolvedValueOnce({
           content: reActResponse('Done', 'Result'),

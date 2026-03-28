@@ -1,8 +1,9 @@
 'use client'
 
 import { useParams, useRouter } from 'next/navigation'
-import { trpc } from '../../../../utils/trpc'
+
 import { DbErrorBanner } from '../../../../components/db-error-banner'
+import { trpc } from '../../../../utils/trpc'
 
 const LIFECYCLE_COLORS: Record<string, string> = {
   draft: '#6b7280',

@@ -1,18 +1,19 @@
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-import { createDb, createMiniBrainDb, waitForSchema, type Database } from '@solarc/db'
-import { chatSessions, chatMessages, agents, brainEntityAgents, brainEntities } from '@solarc/db'
-import { eq, desc } from 'drizzle-orm'
-import { GatewayRouter } from '../../../../server/services/gateway'
-import { MemoryService } from '../../../../server/services/memory/memory-service'
-import { createEmbedFn } from '../../../../server/services/memory/embed-helper'
-import { ContextPipeline } from '../../../../server/services/memory/context-pipeline'
-import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
+import { createDb, createMiniBrainDb, type Database, waitForSchema } from '@solarc/db'
+import { agents, brainEntities, brainEntityAgents, chatMessages, chatSessions } from '@solarc/db'
+import { desc, eq } from 'drizzle-orm'
+
 import { auth } from '../../../../server/auth'
+import { buildAtlasContext } from '../../../../server/services/atlas'
+import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
+import { GatewayRouter } from '../../../../server/services/gateway'
+import { ContextPipeline } from '../../../../server/services/memory/context-pipeline'
+import { createEmbedFn } from '../../../../server/services/memory/embed-helper'
+import { MemoryService } from '../../../../server/services/memory/memory-service'
 import { eventBus } from '../../../../server/services/orchestration/event-bus'
 import { TokenLedgerService } from '../../../../server/services/platform/token-ledger'
-import { buildAtlasContext } from '../../../../server/services/atlas'
 
 // ── Rate Limiting ────────────────────────────────────────────────────────
 const RATE_LIMIT_WINDOW_MS = 60_000

@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
-import { createMockDb } from '../../../../../../../test/helpers/db-mock'
 import type { Database } from '@solarc/db'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { createMockDb } from '../../../../../../../test/helpers/db-mock'
 
 // Mock env module before importing ModeRouter (it transitively validates DATABASE_URL)
 vi.mock('../../../../env', () => ({

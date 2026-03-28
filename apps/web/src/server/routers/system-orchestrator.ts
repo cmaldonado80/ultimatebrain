@@ -2,10 +2,11 @@
  * System Orchestrator Router — system workspace governance, orchestrator hierarchy,
  * cross-workspace routing, health monitoring, and agent rebalancing.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
+import { z } from 'zod'
+
 import { SystemOrchestrator } from '../services/orchestration'
+import { protectedProcedure, router } from '../trpc'
 
 // Lazy singleton
 let systemOrchestrator: SystemOrchestrator | null = null

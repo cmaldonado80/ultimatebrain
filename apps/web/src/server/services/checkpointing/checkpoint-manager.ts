@@ -14,7 +14,7 @@
 
 import type { Database } from '@solarc/db'
 import { checkpoints } from '@solarc/db'
-import { eq, and, lt } from 'drizzle-orm'
+import { and, eq, lt } from 'drizzle-orm'
 
 export type CheckpointTrigger =
   | 'status_change'
@@ -95,10 +95,7 @@ export class CheckpointManager {
    */
   async list(entityType: string, entityId: string): Promise<CheckpointRecord[]> {
     const rows = await this.db.query.checkpoints.findMany({
-      where: and(
-        eq(checkpoints.entityType, entityType),
-        eq(checkpoints.entityId, entityId)
-      ),
+      where: and(eq(checkpoints.entityType, entityType), eq(checkpoints.entityId, entityId)),
       orderBy: (cp, { asc }) => [asc(cp.stepIndex), asc(cp.createdAt)],
     })
 
@@ -120,10 +117,7 @@ export class CheckpointManager {
    */
   async getLatest(entityType: string, entityId: string): Promise<CheckpointRecord | null> {
     const row = await this.db.query.checkpoints.findFirst({
-      where: and(
-        eq(checkpoints.entityType, entityType),
-        eq(checkpoints.entityId, entityId)
-      ),
+      where: and(eq(checkpoints.entityType, entityType), eq(checkpoints.entityId, entityId)),
       orderBy: (cp, { desc }) => [desc(cp.stepIndex), desc(cp.createdAt)],
     })
     return row ? this.toRecord(row) : null
@@ -149,10 +143,7 @@ export class CheckpointManager {
    */
   async count(entityType: string, entityId: string): Promise<number> {
     const rows = await this.db.query.checkpoints.findMany({
-      where: and(
-        eq(checkpoints.entityType, entityType),
-        eq(checkpoints.entityId, entityId)
-      ),
+      where: and(eq(checkpoints.entityType, entityType), eq(checkpoints.entityId, entityId)),
       columns: { id: true },
     })
     return rows.length

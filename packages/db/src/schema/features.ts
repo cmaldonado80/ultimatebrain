@@ -1,15 +1,16 @@
 import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
   pgTable,
+  real,
   text,
   timestamp,
-  boolean,
-  jsonb,
   uuid,
-  integer,
-  real,
-  index,
-  pgEnum,
 } from 'drizzle-orm/pg-core'
+
 import { agents, guardrailLayerEnum, instinctScopeEnum } from './core'
 
 // === Enums ===

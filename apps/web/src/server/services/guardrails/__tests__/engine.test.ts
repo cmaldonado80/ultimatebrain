@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { GuardrailEngine } from '../engine'
 import type { GuardrailRule } from '../rules'
 
@@ -23,10 +24,7 @@ describe('GuardrailEngine', () => {
     it('should detect SSN patterns and fail with critical violation', async () => {
       const engine = new GuardrailEngine(db)
 
-      const result = await engine.check(
-        'My SSN is 123-45-6789 and I need help',
-        'input',
-      )
+      const result = await engine.check('My SSN is 123-45-6789 and I need help', 'input')
 
       expect(result.passed).toBe(false)
       const ssnViolation = result.violations.find((v) => v.rule === 'pii.ssn')
@@ -37,10 +35,7 @@ describe('GuardrailEngine', () => {
     it('should detect credit card numbers', async () => {
       const engine = new GuardrailEngine(db)
 
-      const result = await engine.check(
-        'Please charge card 4111-1111-1111-1111',
-        'input',
-      )
+      const result = await engine.check('Please charge card 4111-1111-1111-1111', 'input')
 
       const ccViolation = result.violations.find((v) => v.rule === 'pii.credit_card')
       expect(ccViolation).toBeDefined()
@@ -50,10 +45,7 @@ describe('GuardrailEngine', () => {
     it('should detect email addresses with high severity', async () => {
       const engine = new GuardrailEngine(db)
 
-      const result = await engine.check(
-        'Contact me at user@example.com for details',
-        'output',
-      )
+      const result = await engine.check('Contact me at user@example.com for details', 'output')
 
       const emailViolation = result.violations.find((v) => v.rule === 'pii.email')
       expect(emailViolation).toBeDefined()
@@ -67,10 +59,7 @@ describe('GuardrailEngine', () => {
     it('should pass content with no violations', async () => {
       const engine = new GuardrailEngine(db)
 
-      const result = await engine.check(
-        'Hello, how can I help you today?',
-        'input',
-      )
+      const result = await engine.check('Hello, how can I help you today?', 'input')
 
       expect(result.passed).toBe(true)
       expect(result.violations).toHaveLength(0)
@@ -87,9 +76,7 @@ describe('GuardrailEngine', () => {
       )
 
       expect(result.passed).toBe(false)
-      const injectionViolation = result.violations.find((v) =>
-        v.rule.startsWith('injection.'),
-      )
+      const injectionViolation = result.violations.find((v) => v.rule.startsWith('injection.'))
       expect(injectionViolation).toBeDefined()
       expect(injectionViolation!.severity).toBe('critical')
     })
@@ -99,10 +86,7 @@ describe('GuardrailEngine', () => {
     it('should redact PII when autoSanitize is enabled', async () => {
       const engine = new GuardrailEngine(db, { autoSanitize: true })
 
-      const result = await engine.check(
-        'My SSN is 123-45-6789',
-        'input',
-      )
+      const result = await engine.check('My SSN is 123-45-6789', 'input')
 
       expect(result.modifiedContent).toBeDefined()
       expect(result.modifiedContent).toContain('[REDACTED]')
@@ -116,10 +100,7 @@ describe('GuardrailEngine', () => {
         disabledRules: new Set(['pii_detector']),
       })
 
-      const result = await engine.check(
-        'My SSN is 123-45-6789',
-        'input',
-      )
+      const result = await engine.check('My SSN is 123-45-6789', 'input')
 
       // PII detector is disabled, so no SSN violation
       const ssnViolation = result.violations.find((v) => v.rule === 'pii.ssn')

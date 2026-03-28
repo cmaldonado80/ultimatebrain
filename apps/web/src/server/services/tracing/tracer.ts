@@ -14,6 +14,7 @@
  */
 
 import { randomBytes } from 'node:crypto'
+
 import type { Database } from '@solarc/db'
 import { traces } from '@solarc/db'
 
@@ -179,7 +180,9 @@ export class Tracer {
   start(operation: string, options?: StartSpanOptions): Span {
     const als = getALS()
     const ambient = als.getStore()
-    const parent = options?.parent ?? (ambient ? { traceId: ambient.traceId, parentSpanId: ambient.parentSpanId } : undefined)
+    const parent =
+      options?.parent ??
+      (ambient ? { traceId: ambient.traceId, parentSpanId: ambient.parentSpanId } : undefined)
 
     const traceId = parent?.traceId ?? newTraceId()
     const spanId = newSpanId()

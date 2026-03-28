@@ -5,10 +5,11 @@
  * Shows agents, database, health, children, and management controls.
  */
 
-import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { trpc } from '../../../../../utils/trpc'
+import { useState } from 'react'
+
 import { DbErrorBanner } from '../../../../../components/db-error-banner'
+import { trpc } from '../../../../../utils/trpc'
 
 const TIER_BADGE: Record<string, string> = {
   brain: 'bg-purple-500/20 text-purple-400 border-purple-500/30',

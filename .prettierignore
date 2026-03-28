@@ -1,0 +1,7 @@
+dist/
+.next/
+node_modules/
+pnpm-lock.yaml
+drizzle/
+*.se1
+apps/web/src/server/services/orchestration/agents/**/*.md

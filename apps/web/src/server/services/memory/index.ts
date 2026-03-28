@@ -1,1 +1,7 @@
-export { MemoryService, type MemoryTier, type StoreMemoryInput, type SearchResult, type EmbedFunction } from './memory-service'
+export {
+  type EmbedFunction,
+  MemoryService,
+  type MemoryTier,
+  type SearchResult,
+  type StoreMemoryInput,
+} from './memory-service'

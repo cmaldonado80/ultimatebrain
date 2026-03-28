@@ -8,8 +8,9 @@
 
 import type { Database } from '@solarc/db'
 import { evalDatasets, evalRuns } from '@solarc/db'
-import { eq } from 'drizzle-orm'
 import type { EvalScores } from '@solarc/engine-contracts'
+import { eq } from 'drizzle-orm'
+
 import { WebhookService } from '../integrations/integrations-service'
 
 export interface DriftReport {

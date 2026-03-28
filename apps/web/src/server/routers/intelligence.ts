@@ -4,15 +4,16 @@
  * Manages conversational AI sessions, cognitive processing pipelines,
  * and inter-agent messaging for collaborative reasoning.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
-import {
-  CognitionManager,
-  ChatSessionManager,
-  AgentMessagingService,
-} from '../services/intelligence'
+import { z } from 'zod'
+
 import { GatewayRouter } from '../services/gateway'
+import {
+  AgentMessagingService,
+  ChatSessionManager,
+  CognitionManager,
+} from '../services/intelligence'
+import { protectedProcedure, router } from '../trpc'
 
 let cognition: CognitionManager | null = null
 let chatManager: ChatSessionManager | null = null

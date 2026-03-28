@@ -13,16 +13,17 @@
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
-// pg is dynamically imported in setupDatabase to avoid compile-time module resolution
-import { eq, and } from 'drizzle-orm'
+
 import {
-  createDb,
   agents,
   brainEntities,
   brainEntityAgents,
-  workspaces,
+  createDb,
   orchestratorRoutes,
+  workspaces,
 } from '@solarc/db'
+// pg is dynamically imported in setupDatabase to avoid compile-time module resolution
+import { and, eq } from 'drizzle-orm'
 
 export type MiniBrainTemplate =
   | 'astrology'

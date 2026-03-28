@@ -14,7 +14,8 @@
  * "Replay from here" opens a modal with a parameter editor.
  */
 
-import { useState, memo } from 'react'
+import { memo, useState } from 'react'
+
 import type { CheckpointTimelineEntry } from '../../server/services/checkpointing/time-travel'
 
 interface CheckpointTimelineProps {
@@ -49,7 +50,11 @@ interface ReplayModalProps {
   onClose: () => void
 }
 
-const ReplayModal = memo(function ReplayModal({ checkpoint, onConfirm, onClose }: ReplayModalProps) {
+const ReplayModal = memo(function ReplayModal({
+  checkpoint,
+  onConfirm,
+  onClose,
+}: ReplayModalProps) {
   const [overridesText, setOverridesText] = useState('{}')
   const [parseError, setParseError] = useState<string | null>(null)
 
@@ -72,8 +77,8 @@ const ReplayModal = memo(function ReplayModal({ checkpoint, onConfirm, onClose }
           {checkpoint.label && <> · {checkpoint.label}</>}
         </p>
         <p style={styles.modalHint}>
-          Optionally override state fields before replaying. This creates a new execution branch
-          and never modifies history.
+          Optionally override state fields before replaying. This creates a new execution branch and
+          never modifies history.
         </p>
         <label style={styles.label}>Parameter Overrides (JSON)</label>
         <textarea
@@ -81,7 +86,7 @@ const ReplayModal = memo(function ReplayModal({ checkpoint, onConfirm, onClose }
           value={overridesText}
           onChange={(e) => setOverridesText(e.target.value)}
           rows={6}
-          placeholder='{}'
+          placeholder="{}"
         />
         {parseError && <p style={styles.error}>{parseError}</p>}
         <div style={styles.modalActions}>
@@ -105,7 +110,13 @@ interface CheckpointTooltipProps {
   onReplay: () => void
 }
 
-const CheckpointTooltip = memo(function CheckpointTooltip({ checkpoint, index, total: _total, onViewDiff, onReplay }: CheckpointTooltipProps) {
+const CheckpointTooltip = memo(function CheckpointTooltip({
+  checkpoint,
+  index,
+  total: _total,
+  onViewDiff,
+  onReplay,
+}: CheckpointTooltipProps) {
   return (
     <div style={styles.tooltip}>
       <div style={styles.tooltipHeader}>

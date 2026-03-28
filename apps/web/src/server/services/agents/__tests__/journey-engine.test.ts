@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { JourneyEngine, journey, type JourneyDefinition } from '../journey-engine'
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import { journey, type JourneyDefinition, JourneyEngine } from '../journey-engine'
 
 function buildTestJourney(): JourneyDefinition {
   return journey('test-journey')

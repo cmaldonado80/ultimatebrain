@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { RequestQueue } from '../transport/queue'
 
 describe('RequestQueue', () => {
@@ -77,7 +78,9 @@ describe('RequestQueue', () => {
 
   it('maintains request order during drain', async () => {
     const paths: string[] = []
-    queue.setDrainHandler(async (req) => { paths.push(req.path) })
+    queue.setDrainHandler(async (req) => {
+      paths.push(req.path)
+    })
 
     queue.enqueue('GET', '/first')
     queue.enqueue('GET', '/second')

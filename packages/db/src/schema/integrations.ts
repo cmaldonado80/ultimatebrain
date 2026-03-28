@@ -1,5 +1,6 @@
-import { pgTable, text, timestamp, boolean, jsonb, uuid, integer } from 'drizzle-orm/pg-core'
-import { agents, workspaces, tickets } from './core'
+import { boolean, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+
+import { agents, tickets, workspaces } from './core'
 
 export const channels = pgTable('channels', {
   id: uuid('id').primaryKey().defaultRandom(),

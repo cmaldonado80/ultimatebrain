@@ -1,13 +1,12 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
 import { FlowBuilder, type FlowContext, type StepFn } from '../flow-engine'
 
 // Mock DB for FlowRunner (checkpoint manager)
 const mockDb = {
-  insert: vi
-    .fn()
-    .mockReturnValue({
-      values: vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([{ id: 'cp-1' }]) }),
-    }),
+  insert: vi.fn().mockReturnValue({
+    values: vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([{ id: 'cp-1' }]) }),
+  }),
   query: { checkpoints: { findFirst: vi.fn().mockResolvedValue(null) } },
 }
 

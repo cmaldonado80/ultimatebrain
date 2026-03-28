@@ -9,10 +9,11 @@
  */
 
 import type { Database } from '@solarc/db'
+
 import { GatewayRouter } from '../gateway'
+import type { EmbedFunction } from './memory-service'
 import { MemoryService } from './memory-service'
 import { RecallFlow } from './recall-flow'
-import type { EmbedFunction } from './memory-service'
 
 export interface ContextSource {
   name: string

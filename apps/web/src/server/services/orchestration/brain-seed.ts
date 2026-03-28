@@ -7,8 +7,9 @@
  */
 
 import type { Database } from '@solarc/db'
-import { workspaces, agents, workspaceLifecycleEvents } from '@solarc/db'
-import { eq, and } from 'drizzle-orm'
+import { agents, workspaceLifecycleEvents, workspaces } from '@solarc/db'
+import { and, eq } from 'drizzle-orm'
+
 import { getAgentSoul } from './agents'
 import { eventBus } from './event-bus'
 

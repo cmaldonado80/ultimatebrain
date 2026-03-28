@@ -9,8 +9,8 @@
  */
 
 import type { Database } from '@solarc/db'
-import { evalDatasets, evalCases, traces } from '@solarc/db'
-import { eq, and } from 'drizzle-orm'
+import { evalCases, evalDatasets, traces } from '@solarc/db'
+import { and, eq } from 'drizzle-orm'
 
 export interface TraceSnapshot {
   traceId: string
@@ -161,7 +161,7 @@ export class DatasetBuilder {
    */
   async autoGenerateFromFailedTickets(
     datasetName: DatasetPreset = 'ticket-execution',
-    limit = 50
+    limit = 50,
   ): Promise<number> {
     const failedTraces = await this.db.query.traces.findMany({
       where: eq(traces.status, 'error'),
@@ -171,17 +171,14 @@ export class DatasetBuilder {
 
     const datasetId = await this.getOrCreateDataset(
       datasetName,
-      'Auto-generated from failed ticket traces'
+      'Auto-generated from failed ticket traces',
     )
 
     let added = 0
     for (const trace of failedTraces) {
       // Skip if already in dataset
       const existing = await this.db.query.evalCases.findFirst({
-        where: and(
-          eq(evalCases.datasetId, datasetId),
-          eq(evalCases.traceId, trace.spanId)
-        ),
+        where: and(eq(evalCases.datasetId, datasetId), eq(evalCases.traceId, trace.spanId)),
       })
       if (existing) continue
 
@@ -214,7 +211,7 @@ export class DatasetBuilder {
    */
   async autoGenerateFromSuccessfulTraces(
     datasetName: DatasetPreset = 'chat-quality',
-    limit = 50
+    limit = 50,
   ): Promise<number> {
     const goodTraces = await this.db.query.traces.findMany({
       where: eq(traces.status, 'ok'),
@@ -224,16 +221,13 @@ export class DatasetBuilder {
 
     const datasetId = await this.getOrCreateDataset(
       datasetName,
-      'Auto-generated from successful traces'
+      'Auto-generated from successful traces',
     )
 
     let added = 0
     for (const trace of goodTraces) {
       const existing = await this.db.query.evalCases.findFirst({
-        where: and(
-          eq(evalCases.datasetId, datasetId),
-          eq(evalCases.traceId, trace.spanId)
-        ),
+        where: and(eq(evalCases.datasetId, datasetId), eq(evalCases.traceId, trace.spanId)),
       })
       if (existing) continue
 
@@ -261,7 +255,7 @@ export class DatasetBuilder {
   }
 
   /** Get all cases for a dataset */
-  async getCases(datasetId: string): Promise<typeof evalCases.$inferSelect[]> {
+  async getCases(datasetId: string): Promise<(typeof evalCases.$inferSelect)[]> {
     return this.db.query.evalCases.findMany({
       where: eq(evalCases.datasetId, datasetId),
       orderBy: (c, { asc }) => [asc(c.createdAt)],

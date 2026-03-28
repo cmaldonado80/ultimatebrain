@@ -4,13 +4,16 @@
  * Routes tasks through execution pipelines (instant, standard, deep) based on
  * complexity and resource requirements via the ModeRouter service.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
+import { z } from 'zod'
+
 import { ModeRouter } from '../services/task-runner/mode-router'
+import { protectedProcedure, router } from '../trpc'
 
 let _modeRouter: ModeRouter | null = null
-function getModeRouter(db: Database) { return _modeRouter ??= new ModeRouter(db) }
+function getModeRouter(db: Database) {
+  return (_modeRouter ??= new ModeRouter(db))
+}
 
 const planStepSchema = z.object({
   index: z.number().int().min(0),
@@ -61,7 +64,7 @@ export const taskRunnerRouter = router({
         agentId: z.string().uuid().optional(),
         traceId: z.string().optional(),
         approvedPlan: executionPlanSchema.optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const router = getModeRouter(ctx.db)
@@ -88,7 +91,7 @@ export const taskRunnerRouter = router({
         ticketId: z.string().uuid(),
         prompt: z.string(),
         agentId: z.string().uuid().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const router = getModeRouter(ctx.db)
@@ -102,7 +105,7 @@ export const taskRunnerRouter = router({
         ticketId: z.string().uuid(),
         agentId: z.string().uuid().optional(),
         traceId: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const router = getModeRouter(ctx.db)
@@ -118,7 +121,7 @@ export const taskRunnerRouter = router({
       z.object({
         ticketId: z.string().uuid(),
         agentId: z.string().uuid().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const router = getModeRouter(ctx.db)
@@ -132,7 +135,7 @@ export const taskRunnerRouter = router({
         ticketId: z.string().uuid(),
         plan: executionPlanSchema,
         agentId: z.string().uuid().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const router = getModeRouter(ctx.db)
@@ -143,7 +146,7 @@ export const taskRunnerRouter = router({
           generatedAt: new Date(input.plan.generatedAt),
           approvedAt: input.plan.approvedAt ? new Date(input.plan.approvedAt) : undefined,
         },
-        { agentId: input.agentId }
+        { agentId: input.agentId },
       )
     }),
 })

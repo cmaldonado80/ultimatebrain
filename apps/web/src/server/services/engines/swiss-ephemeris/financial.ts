@@ -6,7 +6,7 @@
  */
 
 import type { Planet } from './engine'
-import { julianDay, calcAllPlanets } from './engine'
+import { calcAllPlanets, julianDay } from './engine'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

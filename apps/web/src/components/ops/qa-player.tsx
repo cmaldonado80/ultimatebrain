@@ -9,15 +9,16 @@
  * - "Approve" / "Reject" buttons for human review
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
 import type {
   QARecording,
-  RecordingAnnotation,
   QAVerdict,
+  RecordingAnnotation,
 } from '../../server/services/visual-qa/recorder'
 import type {
-  ReviewResult,
   CheckpointResult,
+  ReviewResult,
   SuggestedFix,
 } from '../../server/services/visual-qa/reviewer'
 

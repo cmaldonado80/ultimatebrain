@@ -4,10 +4,11 @@
  * Queries trace and span data for debugging, performance analysis, and
  * end-to-end visibility into agent execution pipelines.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
 import { traces } from '@solarc/db'
-import { eq, and, gte, desc, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, sql } from 'drizzle-orm'
+import { z } from 'zod'
+
+import { protectedProcedure, router } from '../trpc'
 
 export const tracesRouter = router({
   /** Get spans for a specific trace */
@@ -23,11 +24,15 @@ export const tracesRouter = router({
 
   /** Get recent traces (root spans only) */
   recent: protectedProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(500).optional(),
-      service: z.string().optional(),
-      status: z.string().optional(),
-    }).optional())
+    .input(
+      z
+        .object({
+          limit: z.number().min(1).max(500).optional(),
+          service: z.string().optional(),
+          status: z.string().optional(),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       const conditions = [sql`${traces.parentSpanId} IS NULL`]
       if (input?.service) conditions.push(eq(traces.service, input.service))
@@ -43,10 +48,12 @@ export const tracesRouter = router({
 
   /** Get traces for an agent */
   byAgent: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid(),
-      limit: z.number().min(1).max(500).optional(),
-    }))
+    .input(
+      z.object({
+        agentId: z.string().uuid(),
+        limit: z.number().min(1).max(500).optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       return ctx.db
         .select()
@@ -58,10 +65,12 @@ export const tracesRouter = router({
 
   /** Get traces for a ticket */
   byTicket: protectedProcedure
-    .input(z.object({
-      ticketId: z.string().uuid(),
-      limit: z.number().min(1).max(500).optional(),
-    }))
+    .input(
+      z.object({
+        ticketId: z.string().uuid(),
+        limit: z.number().min(1).max(500).optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       return ctx.db
         .select()
@@ -73,11 +82,13 @@ export const tracesRouter = router({
 
   /** Get latency percentiles for a service/operation */
   latencyStats: protectedProcedure
-    .input(z.object({
-      service: z.string().optional(),
-      operation: z.string().optional(),
-      since: z.date().optional(),
-    }))
+    .input(
+      z.object({
+        service: z.string().optional(),
+        operation: z.string().optional(),
+        since: z.date().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const since = input?.since ?? new Date(Date.now() - 24 * 60 * 60 * 1000)
       const conditions = [gte(traces.createdAt, since)]

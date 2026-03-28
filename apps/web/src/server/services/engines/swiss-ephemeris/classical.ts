@@ -5,7 +5,7 @@
  * based on Chaldean order and traditional rulership schemes.
  */
 
-import type { Planet, Position, ZodiacSign, HouseCusps } from './engine'
+import type { HouseCusps, Planet, Position, ZodiacSign } from './engine'
 import { longitudeToSign } from './engine'
 
 // ─── Types ───────────────────────────────────────────────────────────────────

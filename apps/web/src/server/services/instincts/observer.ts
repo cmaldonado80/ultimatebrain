@@ -16,6 +16,7 @@
  */
 
 import { randomUUID } from 'crypto'
+
 import type { InstinctObservation, ObservationType } from './types'
 
 // ---------------------------------------------------------------------------

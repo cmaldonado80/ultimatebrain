@@ -4,18 +4,23 @@
  * Creates, restores, and manages execution checkpoints for rollback and replay.
  * Enables deterministic re-execution from any saved state.
  */
-import { z } from 'zod'
-import { TRPCError } from '@trpc/server'
-import { router, protectedProcedure } from '../trpc'
 import type { Database } from '@solarc/db'
+import { TRPCError } from '@trpc/server'
+import { z } from 'zod'
+
 import { CheckpointManager } from '../services/checkpointing/checkpoint-manager'
 import { TimeTravelEngine } from '../services/checkpointing/time-travel'
+import { protectedProcedure, router } from '../trpc'
 
 let _checkpointMgr: CheckpointManager | null = null
 let _timeTravelEngine: TimeTravelEngine | null = null
 
-function getCheckpointManager(db: Database) { return _checkpointMgr ??= new CheckpointManager(db) }
-function getTimeTravelEngine(db: Database) { return _timeTravelEngine ??= new TimeTravelEngine(db) }
+function getCheckpointManager(db: Database) {
+  return (_checkpointMgr ??= new CheckpointManager(db))
+}
+function getTimeTravelEngine(db: Database) {
+  return (_timeTravelEngine ??= new TimeTravelEngine(db))
+}
 
 export const checkpointingRouter = router({
   // ── Checkpoint CRUD ──────────────────────────────────────────────────────
@@ -43,7 +48,7 @@ export const checkpointingRouter = router({
           label: z.string().optional(),
         }),
         granularity: z.enum(['all', 'milestones', 'none']).optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const manager = getCheckpointManager(ctx.db)
@@ -57,7 +62,7 @@ export const checkpointingRouter = router({
       z.object({
         entityType: z.string(),
         entityId: z.string().uuid(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const manager = getCheckpointManager(ctx.db)
@@ -80,7 +85,7 @@ export const checkpointingRouter = router({
       z.object({
         entityType: z.string(),
         entityId: z.string().uuid(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const manager = getCheckpointManager(ctx.db)
@@ -93,7 +98,7 @@ export const checkpointingRouter = router({
       z.object({
         entityType: z.string(),
         entityId: z.string().uuid(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const manager = getCheckpointManager(ctx.db)
@@ -118,7 +123,7 @@ export const checkpointingRouter = router({
       z.object({
         entityType: z.string(),
         entityId: z.string().uuid(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const engine = getTimeTravelEngine(ctx.db)
@@ -131,7 +136,7 @@ export const checkpointingRouter = router({
       z.object({
         checkpointAId: z.string().uuid(),
         checkpointBId: z.string().uuid(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const engine = getTimeTravelEngine(ctx.db)
@@ -144,7 +149,7 @@ export const checkpointingRouter = router({
       z.object({
         entityType: z.string(),
         entityId: z.string().uuid(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const engine = getTimeTravelEngine(ctx.db)
@@ -159,7 +164,7 @@ export const checkpointingRouter = router({
         paramOverrides: z.record(z.unknown()).optional(),
         branchLabel: z.string().optional(),
         agentId: z.string().uuid().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const engine = getTimeTravelEngine(ctx.db)

@@ -19,12 +19,13 @@
  */
 
 import { randomUUID } from 'crypto'
+
 import type {
-  InstinctObservation,
-  Instinct,
-  PatternCandidate,
   DetectedPattern,
+  Instinct,
   InstinctDomain,
+  InstinctObservation,
+  PatternCandidate,
 } from './types'
 
 // ---------------------------------------------------------------------------

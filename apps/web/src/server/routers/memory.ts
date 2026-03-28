@@ -4,13 +4,14 @@
  * Memory tiers: core (high-confidence facts) → recall (working memory) → archival (long-term).
  * Supports confidence scoring, promotion nominations, and bulk compaction.
  */
-import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
-import { memories } from '@solarc/db'
 import type { Database } from '@solarc/db'
-import { eq, and } from 'drizzle-orm'
+import { memories } from '@solarc/db'
+import { and, eq } from 'drizzle-orm'
+import { z } from 'zod'
+
 import { MemoryService } from '../services/memory'
 import { createEmbedFn } from '../services/memory/embed-helper'
+import { protectedProcedure, router } from '../trpc'
 
 let memService: MemoryService | null = null
 function getMemoryService(db: Database) {

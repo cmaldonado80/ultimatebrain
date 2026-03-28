@@ -1,23 +1,24 @@
 import {
+  type AnyPgColumn,
+  boolean,
+  index,
+  integer,
+  jsonb,
   pgTable,
+  primaryKey,
+  real,
   text,
   timestamp,
-  boolean,
-  jsonb,
   uuid,
-  integer,
-  real,
-  primaryKey,
-  index,
-  type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
+
 import {
   agents,
-  entityTierEnum,
-  entityStatusEnum,
-  entityAgentRoleEnum,
-  debateSessionStatusEnum,
   debateEdgeTypeEnum,
+  debateSessionStatusEnum,
+  entityAgentRoleEnum,
+  entityStatusEnum,
+  entityTierEnum,
   projects,
 } from './core'
 

@@ -5,8 +5,9 @@
  */
 
 import { useState } from 'react'
-import { trpc } from '../../../utils/trpc'
+
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { trpc } from '../../../utils/trpc'
 
 export default function DatabasesPage() {
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)

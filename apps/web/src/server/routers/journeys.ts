@@ -2,8 +2,9 @@
  * Journeys Router — expose JourneyEngine for declarative agent state machines.
  */
 import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
+
 import { JourneyEngine } from '../services/agents/journey-engine'
+import { protectedProcedure, router } from '../trpc'
 
 let _engine: JourneyEngine | null = null
 function getEngine() {

@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
-import { AitmplInstaller } from '../installer'
+import { describe, expect, it, vi } from 'vitest'
+
 import type { AitmplComponent } from '../installer'
+import { AitmplInstaller } from '../installer'
 
 describe('AitmplInstaller', () => {
   describe('constructor', () => {

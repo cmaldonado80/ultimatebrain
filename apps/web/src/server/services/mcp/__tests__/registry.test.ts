@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { MCPRegistry, type RegisteredTool, type ExternalMCPServer } from '../registry'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { type ExternalMCPServer, MCPRegistry, type RegisteredTool } from '../registry'
 
 function makeTool(
   name: string,

@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useRef } from 'react'
+
 import type { StreamEvent } from '../../server/services/browser-agent/stream'
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -68,7 +69,12 @@ function eventToNarration(event: StreamEvent): NarrationEntry {
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return date.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────
@@ -82,7 +88,13 @@ function StatusBadge({ status }: { status: string }) {
   const c = colors[status] ?? colors.stopped
   return (
     <span style={{ ...styles.badge, background: c.bg, color: c.text }}>
-      <span style={{ ...styles.dot, background: c.dot, boxShadow: status === 'running' ? `0 0 6px ${c.dot}` : 'none' }} />
+      <span
+        style={{
+          ...styles.dot,
+          background: c.dot,
+          boxShadow: status === 'running' ? `0 0 6px ${c.dot}` : 'none',
+        }}
+      />
       {status}
     </span>
   )
@@ -104,16 +116,36 @@ function ControlBar({
   return (
     <div style={styles.controls}>
       {status === 'running' && onPause && (
-        <button style={styles.ctrlBtn} onClick={onPause} title="Pause agent">⏸ Pause</button>
+        <button style={styles.ctrlBtn} onClick={onPause} title="Pause agent">
+          ⏸ Pause
+        </button>
       )}
       {status === 'paused' && onResume && (
-        <button style={{ ...styles.ctrlBtn, ...styles.ctrlBtnGreen }} onClick={onResume} title="Resume agent">▶ Resume</button>
+        <button
+          style={{ ...styles.ctrlBtn, ...styles.ctrlBtnGreen }}
+          onClick={onResume}
+          title="Resume agent"
+        >
+          ▶ Resume
+        </button>
       )}
       {status !== 'stopped' && onTakeover && (
-        <button style={{ ...styles.ctrlBtn, ...styles.ctrlBtnOrange }} onClick={onTakeover} title="Take control of browser">🖐 Take Over</button>
+        <button
+          style={{ ...styles.ctrlBtn, ...styles.ctrlBtnOrange }}
+          onClick={onTakeover}
+          title="Take control of browser"
+        >
+          🖐 Take Over
+        </button>
       )}
       {status !== 'stopped' && onStop && (
-        <button style={{ ...styles.ctrlBtn, ...styles.ctrlBtnRed }} onClick={onStop} title="Stop session">⏹ Stop</button>
+        <button
+          style={{ ...styles.ctrlBtn, ...styles.ctrlBtnRed }}
+          onClick={onStop}
+          title="Stop session"
+        >
+          ⏹ Stop
+        </button>
       )}
     </div>
   )
@@ -130,11 +162,12 @@ function NarrationSidebar({ entries }: { entries: NarrationEntry[] }) {
     <div style={styles.sidebar}>
       <div style={styles.sidebarHeader}>Narration</div>
       <div style={styles.sidebarScroll}>
-        {entries.length === 0 && (
-          <div style={styles.emptyNarration}>Waiting for events...</div>
-        )}
+        {entries.length === 0 && <div style={styles.emptyNarration}>Waiting for events...</div>}
         {entries.map((entry) => (
-          <div key={`${entry.timestamp.getTime()}-${entry.type}-${entry.message}`} style={{ ...styles.narrationEntry, ...(entry.isError ? styles.narrationError : {}) }}>
+          <div
+            key={`${entry.timestamp.getTime()}-${entry.type}-${entry.message}`}
+            style={{ ...styles.narrationEntry, ...(entry.isError ? styles.narrationError : {}) }}
+          >
             <span style={styles.narrationTime}>{formatTime(entry.timestamp)}</span>
             <span style={styles.narrationBadge}>{entry.type}</span>
             <span style={styles.narrationMsg}>{entry.message}</span>
@@ -182,18 +215,12 @@ export default function LiveViewport({
         {/* Screenshot / Browser view */}
         <div style={styles.viewport}>
           {latestScreenshot ? (
-            <img
-              src={latestScreenshot}
-              alt="Agent browser view"
-              style={styles.screenshotImg}
-            />
+            <img src={latestScreenshot} alt="Agent browser view" style={styles.screenshotImg} />
           ) : (
             <div style={styles.placeholder}>
               <div style={styles.placeholderIcon}>🌐</div>
               <div style={styles.placeholderText}>
-                {status === 'stopped'
-                  ? 'Session ended'
-                  : 'Waiting for browser session...'}
+                {status === 'stopped' ? 'Session ended' : 'Waiting for browser session...'}
               </div>
             </div>
           )}

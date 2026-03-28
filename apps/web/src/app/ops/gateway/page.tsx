@@ -4,8 +4,8 @@
  * Gateway — LLM Gateway metrics, health, and provider status.
  */
 
-import { trpc } from '../../../utils/trpc'
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { trpc } from '../../../utils/trpc'
 
 interface GatewayMetric {
   id: string

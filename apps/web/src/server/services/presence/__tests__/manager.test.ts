@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { PresenceManager, type PresenceEvent } from '../manager'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { type PresenceEvent, PresenceManager } from '../manager'
 
 describe('PresenceManager', () => {
   let manager: PresenceManager

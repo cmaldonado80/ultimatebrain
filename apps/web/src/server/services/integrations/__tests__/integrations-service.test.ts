@@ -1,5 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ChannelService, WebhookService, ArtifactService, ModelFallbackService } from '../integrations-service'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import {
+  ArtifactService,
+  ChannelService,
+  ModelFallbackService,
+  WebhookService,
+} from '../integrations-service'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -122,7 +128,9 @@ describe('WebhookService', () => {
   })
 
   it('should create a webhook and return it', async () => {
-    db._mock.returningFn.mockResolvedValue([{ id: 'wh-1', url: 'https://example.com', enabled: true }])
+    db._mock.returningFn.mockResolvedValue([
+      { id: 'wh-1', url: 'https://example.com', enabled: true },
+    ])
 
     const result = await service.create({ url: 'https://example.com', source: 'github' })
 
@@ -246,7 +254,9 @@ describe('ModelFallbackService', () => {
 
   it('should set a new fallback chain when none exists', async () => {
     db.query.modelFallbacks.findFirst.mockResolvedValue(undefined)
-    db._mock.returningFn.mockResolvedValue([{ id: 'fb-1', agentId: 'a1', chain: ['gpt-4', 'gpt-3.5'] }])
+    db._mock.returningFn.mockResolvedValue([
+      { id: 'fb-1', agentId: 'a1', chain: ['gpt-4', 'gpt-3.5'] },
+    ])
 
     const result = await service.setChain('a1', ['gpt-4', 'gpt-3.5'])
 
@@ -255,7 +265,11 @@ describe('ModelFallbackService', () => {
   })
 
   it('should update an existing fallback chain', async () => {
-    db.query.modelFallbacks.findFirst.mockResolvedValue({ id: 'fb-1', agentId: 'a1', chain: ['gpt-4'] })
+    db.query.modelFallbacks.findFirst.mockResolvedValue({
+      id: 'fb-1',
+      agentId: 'a1',
+      chain: ['gpt-4'],
+    })
 
     await service.setChain('a1', ['gpt-4', 'claude-3'])
 

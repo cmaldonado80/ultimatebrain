@@ -1,17 +1,18 @@
 import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
   pgTable,
+  real,
   text,
   timestamp,
-  boolean,
-  jsonb,
   uuid,
-  real,
   vector,
-  index,
-  pgEnum,
-  integer,
 } from 'drizzle-orm/pg-core'
-import { agents, workspaces, memoryTierEnum } from './core'
+
+import { agents, memoryTierEnum, workspaces } from './core'
 
 // === Enums ===
 export const candidateStatusEnum = pgEnum('candidate_status', ['pending', 'promoted', 'rejected'])

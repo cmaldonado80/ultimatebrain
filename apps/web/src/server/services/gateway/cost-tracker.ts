@@ -3,9 +3,9 @@
  * enforces budgets, and records metrics.
  */
 
-import { eq, and, gte, sql } from 'drizzle-orm'
-import { gatewayMetrics } from '@solarc/db'
 import type { Database } from '@solarc/db'
+import { gatewayMetrics } from '@solarc/db'
+import { and, eq, gte, sql } from 'drizzle-orm'
 
 /** Per-million-token pricing (USD). Updated as providers change rates. */
 const PRICING: Record<string, { input: number; output: number }> = {

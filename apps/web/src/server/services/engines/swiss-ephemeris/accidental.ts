@@ -4,7 +4,7 @@
  * Advanced traditional astrology calculations for planetary condition assessment.
  */
 
-import type { Planet, Position, HouseCusps, Aspect, ZodiacSign, Dignity } from './engine'
+import type { Aspect, Dignity, HouseCusps, Planet, Position, ZodiacSign } from './engine'
 import { PLANET_LIST, SIGN_MODE } from './engine'
 
 // ─── Types ───────────────────────────────────────────────────────────────────

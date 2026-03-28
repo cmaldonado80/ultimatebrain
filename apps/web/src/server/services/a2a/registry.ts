@@ -9,6 +9,7 @@
 import type { Database } from '@solarc/db'
 import { agentCards } from '@solarc/db'
 import { eq } from 'drizzle-orm'
+
 import { A2AClient, type DiscoveredAgent } from './client'
 
 export interface ExternalAgentRecord {
@@ -80,7 +81,11 @@ export class A2ARegistry {
       if (!record.url) continue
 
       const isHealthy = await this.client.healthCheck(record.url)
-      if (isHealthy) { healthy++ } else { unhealthy++ }
+      if (isHealthy) {
+        healthy++
+      } else {
+        unhealthy++
+      }
 
       // Update health status in DB
       const card = await this.db.query.agentCards.findFirst({
@@ -117,16 +122,14 @@ export class A2ARegistry {
    */
   async findBySkill(skill: string): Promise<ExternalAgentRecord[]> {
     const all = await this.list()
-    return all.filter((r) =>
-      r.skills.some((s) => s.toLowerCase().includes(skill.toLowerCase()))
-    )
+    return all.filter((r) => r.skills.some((s) => s.toLowerCase().includes(skill.toLowerCase())))
   }
 
   // ── Internal ──────────────────────────────────────────────────────────
 
   private async persist(
     baseUrl: string,
-    discovered: DiscoveredAgent
+    discovered: DiscoveredAgent,
   ): Promise<ExternalAgentRecord> {
     const card = discovered.card
     // Use a deterministic ID based on the URL

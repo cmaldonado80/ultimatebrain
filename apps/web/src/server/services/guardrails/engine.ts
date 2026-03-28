@@ -6,7 +6,8 @@
 import type { Database } from '@solarc/db'
 import { guardrailLogs } from '@solarc/db'
 import type { GuardrailCheckOutput } from '@solarc/engine-contracts'
-import { BUILTIN_RULES, type GuardrailRule, type GuardrailLayer, type Violation } from './rules'
+
+import { BUILTIN_RULES, type GuardrailLayer, type GuardrailRule, type Violation } from './rules'
 
 export interface GuardrailEngineConfig {
   /** Block request on critical violations (default: true) */

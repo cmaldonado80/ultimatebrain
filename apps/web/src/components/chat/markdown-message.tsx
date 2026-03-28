@@ -1,10 +1,10 @@
 'use client'
 
+import { type ComponentPropsWithoutRef, useCallback, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism'
-import { useState, useCallback, type ComponentPropsWithoutRef } from 'react'
+import remarkGfm from 'remark-gfm'
 
 /** Copy-to-clipboard button for code blocks */
 function CopyButton({ text }: { text: string }) {

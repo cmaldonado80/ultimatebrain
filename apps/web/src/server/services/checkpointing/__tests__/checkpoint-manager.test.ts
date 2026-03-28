@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { Database } from '@solarc/db'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { createMockDb } from '../../../../../../../test/helpers/db-mock'
 import { CheckpointManager, type CreateCheckpointInput } from '../checkpoint-manager'
-import type { Database } from '@solarc/db'
 
 describe('CheckpointManager', () => {
   let db: ReturnType<typeof createMockDb>

@@ -2,96 +2,97 @@
  * Ephemeris Router — 53-section Swiss Ephemeris engine as tRPC endpoints.
  */
 import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
+
 import {
-  run,
-  isAvailable,
-  calcAllPlanets,
-  calcHouses,
-  assignHouses,
-  calcAspects,
-  julianDay,
-  type HouseSystem,
-  type SwissEphemerisInput,
-  type NatalChart,
-} from '../services/engines/swiss-ephemeris/engine'
-import { findAspectPatterns } from '../services/engines/swiss-ephemeris/patterns'
-import {
-  solarReturn,
-  transitCalendar,
-  annualProfections,
-} from '../services/engines/swiss-ephemeris/predictive'
-import { panchanga, vimshottariDasha } from '../services/engines/swiss-ephemeris/vedic'
-import { synastryAspects, compositeChart } from '../services/engines/swiss-ephemeris/composite'
-import {
-  solarCondition,
-  calcArabicParts,
-  planetaryHours,
-} from '../services/engines/swiss-ephemeris/classical'
-import { calcAllMidpoints } from '../services/engines/swiss-ephemeris/midpoints'
-import { bradleySiderograph } from '../services/engines/swiss-ephemeris/financial'
-import {
-  moonPhase,
-  lunarMansion,
-  prenatalLunations,
-} from '../services/engines/swiss-ephemeris/lunar'
-import { calcDeclinations, calcParallels } from '../services/engines/swiss-ephemeris/declinations'
-import { dispositorChain } from '../services/engines/swiss-ephemeris/dispositors'
-import {
-  sectAnalysis,
   accidentalDignities,
   criticalDegrees,
   lillyDignityScore,
+  sectAnalysis,
 } from '../services/engines/swiss-ephemeris/accidental'
-import {
-  calcDwads,
-  calcNavamsa,
-  calcDecanates,
-  ageHarmonicChart,
-  harmonicSpectrum,
-} from '../services/engines/swiss-ephemeris/subdivisions'
 import {
   calcAntiscia,
   draconicChart,
   heliocentricPositions,
 } from '../services/engines/swiss-ephemeris/antiscia'
 import {
+  calcArabicParts,
+  planetaryHours,
+  solarCondition,
+} from '../services/engines/swiss-ephemeris/classical'
+import { compositeChart, synastryAspects } from '../services/engines/swiss-ephemeris/composite'
+import { calcDeclinations, calcParallels } from '../services/engines/swiss-ephemeris/declinations'
+import { dispositorChain } from '../services/engines/swiss-ephemeris/dispositors'
+import {
+  assignHouses,
+  calcAllPlanets,
+  calcAspects,
+  calcHouses,
+  type HouseSystem,
+  isAvailable,
+  julianDay,
+  type NatalChart,
+  run,
+  type SwissEphemerisInput,
+} from '../services/engines/swiss-ephemeris/engine'
+import {
+  agriculturalCalendar,
+  financialCycles,
+  medicalAstrology,
+  mundaneContext,
+  sevenRays,
+} from '../services/engines/swiss-ephemeris/esoteric'
+import { bradleySiderograph } from '../services/engines/swiss-ephemeris/financial'
+import {
   calcFixedStars,
   fixedStarConjunctions,
   sabianSymbol,
 } from '../services/engines/swiss-ephemeris/fixed-stars'
 import {
+  lunarMansion,
+  moonPhase,
+  prenatalLunations,
+} from '../services/engines/swiss-ephemeris/lunar'
+import { calcAllMidpoints } from '../services/engines/swiss-ephemeris/midpoints'
+import { findAspectPatterns } from '../services/engines/swiss-ephemeris/patterns'
+import {
+  annualProfections,
+  solarReturn,
+  transitCalendar,
+} from '../services/engines/swiss-ephemeris/predictive'
+import {
+  primaryDirections,
   secondaryProgressions,
   solarArcDirections,
-  primaryDirections,
 } from '../services/engines/swiss-ephemeris/progressions'
 import {
-  firdaria,
-  zodiacalReleasing,
-  decennials,
-} from '../services/engines/swiss-ephemeris/timelords'
+  almutenFiguris,
+  animodar,
+  huberAgePoint,
+  huberTimeline,
+  trutineOfHermes,
+} from '../services/engines/swiss-ephemeris/rectification'
 import { lunarReturn, nodalReturn } from '../services/engines/swiss-ephemeris/returns'
 import {
+  ageHarmonicChart,
+  calcDecanates,
+  calcDwads,
+  calcNavamsa,
+  harmonicSpectrum,
+} from '../services/engines/swiss-ephemeris/subdivisions'
+import {
+  decennials,
+  firdaria,
+  zodiacalReleasing,
+} from '../services/engines/swiss-ephemeris/timelords'
+import { panchanga, vimshottariDasha } from '../services/engines/swiss-ephemeris/vedic'
+import {
   allVargaCharts,
-  shadbala,
   ashtakavarga,
   charaKarakas,
   muhurtaScore,
+  shadbala,
 } from '../services/engines/swiss-ephemeris/vedic-advanced'
-import {
-  trutineOfHermes,
-  animodar,
-  almutenFiguris,
-  huberAgePoint,
-  huberTimeline,
-} from '../services/engines/swiss-ephemeris/rectification'
-import {
-  sevenRays,
-  medicalAstrology,
-  financialCycles,
-  agriculturalCalendar,
-  mundaneContext,
-} from '../services/engines/swiss-ephemeris/esoteric'
+import { protectedProcedure, router } from '../trpc'
 
 const HS = ['P', 'K', 'O', 'R', 'E', 'W'] as const
 const SIGNS = [

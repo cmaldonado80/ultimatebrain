@@ -49,12 +49,12 @@ export const eventBus = new EventBus()
 // ── Default Handlers ──────────────────────────────────────────────────────────
 
 eventBus.on('ticket.created', async (payload) => {
-  console.log(`[EventBus] ticket.created: ${payload.ticketId}`)
+  console.warn(`[EventBus] ticket.created: ${payload.ticketId}`)
   // Future: auto-route to workspace via SystemOrchestrator
 })
 
 eventBus.on('ticket.completed', async (payload) => {
-  console.log(`[EventBus] ticket.completed: ${payload.ticketId}`)
+  console.warn(`[EventBus] ticket.completed: ${payload.ticketId}`)
 })
 
 eventBus.on('ticket.failed', async (payload) => {
@@ -83,7 +83,7 @@ eventBus.on('health.degraded', async (payload) => {
     const healer = new HealingEngine(db)
     const result = await healer.autoHeal()
     if (result.actions.length > 0) {
-      console.log(
+      console.warn(
         `[EventBus] auto-heal completed: ${result.actions.length} action(s) taken`,
         result.actions.map((a) => `${a.action}:${a.target}:${a.success ? 'ok' : 'fail'}`),
       )
@@ -94,5 +94,5 @@ eventBus.on('health.degraded', async (payload) => {
 })
 
 eventBus.on('brain.seeded', async (payload) => {
-  console.log(`[EventBus] brain.seeded: workspace ${payload.workspaceId}`)
+  console.warn(`[EventBus] brain.seeded: workspace ${payload.workspaceId}`)
 })

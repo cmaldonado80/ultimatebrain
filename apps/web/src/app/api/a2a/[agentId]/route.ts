@@ -12,9 +12,9 @@
  * Returns current task status
  */
 
-import { NextRequest, NextResponse } from 'next/server'
-import { createDb, agents, tickets, type Database } from '@solarc/db'
+import { agents, createDb, type Database, tickets } from '@solarc/db'
 import { eq } from 'drizzle-orm'
+import { NextRequest, NextResponse } from 'next/server'
 
 /** Lazy singleton DB pool — avoids cold-start crash if DATABASE_URL not yet set */
 let _db: Database | undefined

@@ -10,8 +10,8 @@
  */
 
 import type { Database } from '@solarc/db'
-import { debateSessions, debateNodes, debateEdges, debateElo } from '@solarc/db'
-import { eq, desc, sql } from 'drizzle-orm'
+import { debateEdges, debateElo, debateNodes, debateSessions } from '@solarc/db'
+import { desc, eq, sql } from 'drizzle-orm'
 
 export type DebateStatus = 'active' | 'completed' | 'cancelled'
 export type EdgeType = 'support' | 'attack' | 'rebuttal'
@@ -51,15 +51,15 @@ export class DebateEngine {
   /**
    * Create a new debate session with constitutional rules.
    */
-  async createSession(
-    projectId?: string,
-    rules?: ConstitutionalRule[],
-  ) {
-    const [session] = await this.db.insert(debateSessions).values({
-      projectId,
-      status: 'active',
-      constitutionalRules: rules ?? [],
-    }).returning()
+  async createSession(projectId?: string, rules?: ConstitutionalRule[]) {
+    const [session] = await this.db
+      .insert(debateSessions)
+      .values({
+        projectId,
+        status: 'active',
+        constitutionalRules: rules ?? [],
+      })
+      .returning()
     return session!
   }
 
@@ -72,14 +72,17 @@ export class DebateEngine {
     text: string,
     options?: { parentId?: string; isAxiom?: boolean; validity?: number },
   ): Promise<DebateArgument> {
-    const [node] = await this.db.insert(debateNodes).values({
-      sessionId,
-      agentId,
-      text,
-      parentId: options?.parentId,
-      isAxiom: options?.isAxiom ?? false,
-      validity: options?.validity,
-    }).returning()
+    const [node] = await this.db
+      .insert(debateNodes)
+      .values({
+        sessionId,
+        agentId,
+        text,
+        parentId: options?.parentId,
+        isAxiom: options?.isAxiom ?? false,
+        validity: options?.validity,
+      })
+      .returning()
 
     return {
       id: node!.id,
@@ -125,10 +128,7 @@ export class DebateEngine {
    * Support adds to validity, attacks subtract, rebuttals partially counter attacks.
    */
   async scoreArgument(nodeId: string): Promise<number> {
-    const edges = await this.db
-      .select()
-      .from(debateEdges)
-      .where(eq(debateEdges.toNodeId, nodeId))
+    const edges = await this.db.select().from(debateEdges).where(eq(debateEdges.toNodeId, nodeId))
 
     let score = 0.5 // Base validity
 
@@ -155,8 +155,7 @@ export class DebateEngine {
     const clamped = Math.max(0, Math.min(1, score))
 
     // Persist the computed validity
-    await this.db.update(debateNodes).set({ validity: clamped })
-      .where(eq(debateNodes.id, nodeId))
+    await this.db.update(debateNodes).set({ validity: clamped }).where(eq(debateNodes.id, nodeId))
 
     return clamped
   }
@@ -193,9 +192,12 @@ export class DebateEngine {
     const nodeIds = nodes.map((n) => n.id)
     let edges: Array<typeof debateEdges.$inferSelect> = []
     if (nodeIds.length > 0) {
-      edges = await this.db.select().from(debateEdges).where(
-        sql`${debateEdges.fromNodeId} = ANY(${nodeIds}) OR ${debateEdges.toNodeId} = ANY(${nodeIds})`,
-      )
+      edges = await this.db
+        .select()
+        .from(debateEdges)
+        .where(
+          sql`${debateEdges.fromNodeId} = ANY(${nodeIds}) OR ${debateEdges.toNodeId} = ANY(${nodeIds})`,
+        )
     }
 
     return {
@@ -224,12 +226,10 @@ export class DebateEngine {
   /**
    * Complete a debate session and update Elo ratings.
    */
-  async completeSession(
-    sessionId: string,
-    winnerId?: string,
-    loserId?: string,
-  ): Promise<void> {
-    await this.db.update(debateSessions).set({ status: 'completed' })
+  async completeSession(sessionId: string, winnerId?: string, loserId?: string): Promise<void> {
+    await this.db
+      .update(debateSessions)
+      .set({ status: 'completed' })
       .where(eq(debateSessions.id, sessionId))
 
     if (winnerId && loserId) {
@@ -241,7 +241,9 @@ export class DebateEngine {
    * Cancel a debate session.
    */
   async cancelSession(sessionId: string): Promise<void> {
-    await this.db.update(debateSessions).set({ status: 'cancelled' })
+    await this.db
+      .update(debateSessions)
+      .set({ status: 'cancelled' })
       .where(eq(debateSessions.id, sessionId))
   }
 
@@ -264,7 +266,10 @@ export class DebateEngine {
   /**
    * Update Elo ratings after a debate (winner/loser).
    */
-  async updateElo(winnerId: string, loserId: string): Promise<{ winnerElo: number; loserElo: number }> {
+  async updateElo(
+    winnerId: string,
+    loserId: string,
+  ): Promise<{ winnerElo: number; loserElo: number }> {
     const winner = await this.getElo(winnerId)
     const loser = await this.getElo(loserId)
 
@@ -280,18 +285,26 @@ export class DebateEngine {
     return { winnerElo: newWinnerElo, loserElo: newLoserElo }
   }
 
-  private async upsertElo(agentId: string, rating: number, matches: number, wins: number): Promise<void> {
+  private async upsertElo(
+    agentId: string,
+    rating: number,
+    matches: number,
+    wins: number,
+  ): Promise<void> {
     const existing = await this.db.query.debateElo.findFirst({
       where: eq(debateElo.agentId, agentId),
     })
 
     if (existing) {
-      await this.db.update(debateElo).set({
-        eloRating: rating,
-        matches,
-        wins,
-        updatedAt: new Date(),
-      }).where(eq(debateElo.agentId, agentId))
+      await this.db
+        .update(debateElo)
+        .set({
+          eloRating: rating,
+          matches,
+          wins,
+          updatedAt: new Date(),
+        })
+        .where(eq(debateElo.agentId, agentId))
     } else {
       await this.db.insert(debateElo).values({
         agentId,

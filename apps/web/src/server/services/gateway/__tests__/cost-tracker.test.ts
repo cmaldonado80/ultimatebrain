@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
-import { CostTracker } from '../cost-tracker'
-import { createMockDb } from '../../../../../../../test/helpers/db-mock'
 import type { Database } from '@solarc/db'
+import { describe, expect, it } from 'vitest'
+
+import { createMockDb } from '../../../../../../../test/helpers/db-mock'
+import { CostTracker } from '../cost-tracker'
 
 describe('CostTracker', () => {
   describe('calculateCost', () => {

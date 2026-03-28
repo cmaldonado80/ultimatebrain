@@ -4,8 +4,8 @@
  * Ops Overview — system-wide operational dashboard.
  */
 
-import { trpc } from '../../utils/trpc'
 import { DbErrorBanner } from '../../components/db-error-banner'
+import { trpc } from '../../utils/trpc'
 
 export default function OpsOverviewPage() {
   const healthQuery = trpc.healing.healthCheck.useQuery()

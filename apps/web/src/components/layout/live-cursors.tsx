@@ -7,7 +7,8 @@
  * Agents show as moving highlights on tickets they're working on.
  */
 
-import { useState, useEffect, useCallback, useRef, memo } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
+
 import type { CursorPosition, PresenceEntry } from '../../server/services/presence/manager'
 import { PRESENCE_CONFIG } from '../../server/services/presence/manager'
 import { trpc } from '../../utils/trpc'

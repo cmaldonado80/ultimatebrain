@@ -4,9 +4,11 @@
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto'
-import { eq } from 'drizzle-orm'
-import { apiKeys } from '@solarc/db'
+
 import type { Database } from '@solarc/db'
+import { apiKeys } from '@solarc/db'
+import { eq } from 'drizzle-orm'
+
 import { env } from '../../../env'
 
 const ALGORITHM = 'aes-256-gcm'

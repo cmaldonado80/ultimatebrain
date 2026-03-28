@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { TokenLedgerService } from '../token-ledger'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -149,9 +150,10 @@ describe('TokenLedgerService', () => {
         alertThreshold: 0.8,
         enforce: true,
       })
-      const selectFromWhereFn = vi.fn()
-        .mockResolvedValueOnce([{ total: 15.0 }])  // daily > 10
-        .mockResolvedValueOnce([{ total: 50.0 }])   // monthly < 300
+      const selectFromWhereFn = vi
+        .fn()
+        .mockResolvedValueOnce([{ total: 15.0 }]) // daily > 10
+        .mockResolvedValueOnce([{ total: 50.0 }]) // monthly < 300
       db.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: selectFromWhereFn,
@@ -172,8 +174,9 @@ describe('TokenLedgerService', () => {
         alertThreshold: 0.8,
         enforce: false,
       })
-      const selectFromWhereFn = vi.fn()
-        .mockResolvedValueOnce([{ total: 9.0 }])  // daily: 9/10 = 90%
+      const selectFromWhereFn = vi
+        .fn()
+        .mockResolvedValueOnce([{ total: 9.0 }]) // daily: 9/10 = 90%
         .mockResolvedValueOnce([{ total: 0 }])
       db.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
@@ -213,7 +216,14 @@ describe('TokenLedgerService', () => {
   describe('usageSummary', () => {
     it('should return usage summary with totals', async () => {
       const byModelResult = [
-        { model: 'gpt-4', provider: 'openai', totalTokensIn: 500, totalTokensOut: 200, totalCost: 0.05, requests: 3 },
+        {
+          model: 'gpt-4',
+          provider: 'openai',
+          totalTokensIn: 500,
+          totalTokensOut: 200,
+          totalCost: 0.05,
+          requests: 3,
+        },
       ]
       const totalsResult = [
         { totalTokensIn: 500, totalTokensOut: 200, totalCost: 0.05, requests: 3 },
@@ -247,7 +257,9 @@ describe('TokenLedgerService', () => {
 
   describe('agentUsage', () => {
     it('should return usage grouped by model for an agent', async () => {
-      const mockResult = [{ model: 'gpt-4', totalTokensIn: 100, totalTokensOut: 50, totalCost: 0.01, requests: 1 }]
+      const mockResult = [
+        { model: 'gpt-4', totalTokensIn: 100, totalTokensOut: 50, totalCost: 0.01, requests: 1 },
+      ]
       const groupByFn = vi.fn().mockResolvedValue(mockResult)
       db.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
