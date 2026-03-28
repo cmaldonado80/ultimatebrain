@@ -65,11 +65,11 @@ const MODEL_TO_PROVIDER: Record<string, ProviderName> = {
 
 /** Default fallback chains when a provider is down */
 const DEFAULT_FALLBACKS: Record<ProviderName, ProviderName[]> = {
-  anthropic: ['openai', 'google', 'ollama'],
-  openai: ['anthropic', 'google', 'ollama'],
-  google: ['anthropic', 'openai', 'ollama'],
+  anthropic: ['ollama', 'openai', 'google'],
+  openai: ['ollama', 'anthropic', 'google'],
+  google: ['ollama', 'anthropic', 'openai'],
   ollama: ['google', 'openai', 'anthropic'],
-  openclaw: ['anthropic', 'openai', 'google'],
+  openclaw: ['ollama', 'anthropic', 'openai', 'google'],
 }
 
 /** Map to equivalent model on fallback provider */
@@ -574,8 +574,7 @@ class OllamaAdapter implements ProviderAdapter {
     const keyPreview = apiKey
       ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)} (len=${apiKey.length})`
       : 'none'
-    // eslint-disable-next-line no-console
-    console.log(`[Ollama] pull → ${url} (model=${model}, key=${keyPreview})`)
+    console.warn(`[Ollama] pull → ${url} (model=${model}, key=${keyPreview})`)
     try {
       const res = await fetch(url, {
         method: 'POST',

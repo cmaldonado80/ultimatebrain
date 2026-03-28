@@ -4,6 +4,7 @@
  * App Dashboard — list all connected agents / apps from the database
  */
 
+import Link from 'next/link'
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
@@ -33,7 +34,7 @@ function StatusDot({ status }: { status: string }) {
 
 function AppCard({ app }: { app: DisplayApp }) {
   return (
-    <a href={`/apps/${app.id}`} className="cyber-card block no-underline text-inherit p-4">
+    <Link href={`/apps/${app.id}`} className="cyber-card block no-underline text-inherit p-4">
       <div className="flex justify-between items-center mb-1.5">
         <div className="flex items-center gap-1.5">
           <StatusDot status={app.status} />
@@ -68,7 +69,7 @@ function AppCard({ app }: { app: DisplayApp }) {
           ))}
         </div>
       )}
-    </a>
+    </Link>
   )
 }
 
