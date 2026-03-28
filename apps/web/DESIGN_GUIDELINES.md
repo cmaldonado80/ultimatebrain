@@ -146,7 +146,7 @@ Inline metadata label. Combine with semantic color classes:
 ```tsx
 <span className="cyber-badge text-neon-green">active</span>
 <span className="cyber-badge bg-violet-500/20 text-violet-300">agent</span>
-<span className="cyber-badge cyber-status-error">error</span>
+<span className="cyber-badge text-neon-red border-neon-red/20">error</span>
 ```
 
 ### Form Controls
@@ -195,14 +195,14 @@ Add `animate-pulse` or `neon-dot-pulse` for live/active states.
 
 ### Status Badges
 
-Semantic status styling for badges:
+Combine `cyber-badge` with semantic color classes:
 
 ```tsx
-<span className="cyber-badge cyber-status-idle">idle</span>
-<span className="cyber-badge cyber-status-executing">running</span>
-<span className="cyber-badge cyber-status-error">error</span>
-<span className="cyber-badge cyber-status-offline">offline</span>
-<span className="cyber-badge cyber-status-warning">degraded</span>
+<span className="cyber-badge text-neon-green border-neon-green/20">idle</span>
+<span className="cyber-badge text-neon-blue border-neon-blue/20">running</span>
+<span className="cyber-badge text-neon-red border-neon-red/20">error</span>
+<span className="cyber-badge text-slate-500 border-slate-500/20">offline</span>
+<span className="cyber-badge text-neon-yellow border-neon-yellow/20">degraded</span>
 ```
 
 ### Grids
@@ -242,7 +242,7 @@ Semantic status styling for badges:
       <tr className="border-b border-border-dim/30 hover:bg-bg-elevated/50">
         <td className="py-2.5 pr-4 text-slate-200">Item</td>
         <td className="py-2.5 pr-4">
-          <span className="cyber-badge cyber-status-idle">idle</span>
+          <span className="cyber-badge text-neon-green border-neon-green/20">idle</span>
         </td>
       </tr>
     </tbody>
@@ -375,13 +375,13 @@ export default function MyPage() {
 
 ### Agent State Mapping
 
-| State     | Dot                           | Badge                    | Color  |
-| --------- | ----------------------------- | ------------------------ | ------ |
-| Idle      | `neon-dot-green`              | `cyber-status-idle`      | Green  |
-| Executing | `neon-dot-blue animate-pulse` | `cyber-status-executing` | Blue   |
-| Error     | `neon-dot-red`                | `cyber-status-error`     | Red    |
-| Offline   | (no glow)                     | `cyber-status-offline`   | Slate  |
-| Warning   | `neon-dot-yellow`             | `cyber-status-warning`   | Yellow |
+| State     | Dot                           | Badge              | Color  |
+| --------- | ----------------------------- | ------------------ | ------ |
+| Idle      | `neon-dot-green`              | `text-neon-green`  | Green  |
+| Executing | `neon-dot-blue animate-pulse` | `text-neon-blue`   | Blue   |
+| Error     | `neon-dot-red`                | `text-neon-red`    | Red    |
+| Offline   | (no glow)                     | `text-slate-500`   | Slate  |
+| Warning   | `neon-dot-yellow`             | `text-neon-yellow` | Yellow |
 
 ### Priority Mapping
 
@@ -432,7 +432,6 @@ All neon colors on `bg-deep` (#06090f) exceed WCAG AA contrast ratios for normal
 | Cursor blink  | `chat-cursor`        | 1s       | Streaming text cursor    |
 | Thinking dots | `chat-thinking-dot`  | 1.2s     | Agent "typing" indicator |
 | Avatar pulse  | `avatar-pulse`       | 2s       | Agent executing avatar   |
-| Neon shimmer  | `neon-shimmer`       | 2s       | Loading skeleton         |
 | Agent cursor  | `agent-cursor-pulse` | 2s       | Live cursor presence     |
 
 All animations use `ease-in-out` or `step-end` timing. Keep animations subtle — they support UX, they don't distract.

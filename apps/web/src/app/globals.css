@@ -136,13 +136,6 @@
            p-6 w-[400px] max-w-[90vw] shadow-[0_20px_60px_rgba(0,0,0,0.6)];
   }
 
-  /* ── Semantic Status Badges ──────────────────────────────────────────── */
-  .cyber-status-idle      { @apply text-neon-green  border-neon-green/20; }
-  .cyber-status-executing { @apply text-neon-blue   border-neon-blue/20; }
-  .cyber-status-error     { @apply text-neon-red    border-neon-red/20; }
-  .cyber-status-offline   { @apply text-slate-500   border-slate-500/20; }
-  .cyber-status-warning   { @apply text-neon-yellow border-neon-yellow/20; }
-
   /* ── Card Grid ───────────────────────────────────────────────────────── */
   .cyber-grid {
     @apply grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3;
@@ -271,13 +264,3 @@
   50%      { transform: scale(1.1); opacity: 1; }
 }
 
-@keyframes neon-shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.neon-shimmer {
-  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.06), transparent);
-  background-size: 200% 100%;
-  animation: neon-shimmer 2s ease-in-out infinite;
-}
