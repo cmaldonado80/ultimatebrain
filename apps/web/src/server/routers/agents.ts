@@ -200,6 +200,7 @@ export const agentsRouter = router({
   /** Sync agent souls from .md files into the database */
   syncSouls: protectedProcedure.mutation(async ({ ctx }) => {
     const allAgents = await ctx.db.query.agents.findMany()
+    const orchestratorSoul = AGENT_SOULS.get('workflow-orchestrator')
     let synced = 0
     let skipped = 0
     for (const agent of allAgents) {
@@ -208,7 +209,17 @@ export const agentsRouter = router({
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
-      const soulDef = AGENT_SOULS.get(slug) ?? AGENT_SOULS.get(agent.name)
+      let soulDef = AGENT_SOULS.get(slug) ?? AGENT_SOULS.get(agent.name)
+
+      // Orchestrators get the workflow-orchestrator soul if no specific match
+      if (
+        !soulDef &&
+        (agent.type === 'orchestrator' || agent.isWsOrchestrator) &&
+        orchestratorSoul
+      ) {
+        soulDef = orchestratorSoul
+      }
+
       if (!soulDef) {
         skipped++
         continue
