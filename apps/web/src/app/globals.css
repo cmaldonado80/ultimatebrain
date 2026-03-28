@@ -158,6 +158,15 @@
     @apply overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0;
   }
 
+  /* ── Inspector Panel ────────────────────────────────────────────── */
+  .chat-inspector {
+    @apply w-80 border-l border-border bg-bg-surface flex flex-col overflow-hidden;
+    transition: width 200ms ease, opacity 200ms ease;
+  }
+  .chat-inspector-collapsed {
+    @apply w-0 opacity-0 overflow-hidden border-0;
+  }
+
   /* ── Chat System ─────────────────────────────────────────────────── */
 
   .chat-sidebar {
