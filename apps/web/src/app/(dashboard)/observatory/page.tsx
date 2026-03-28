@@ -3,7 +3,7 @@
 import '@xyflow/react/dist/style.css'
 
 import { Background, Controls, MiniMap, type Node, ReactFlow } from '@xyflow/react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import { NODE_COLORS } from '../../../components/observatory/constants'
@@ -112,31 +112,31 @@ export default function ObservatoryPage() {
   const [insightsOpen, setInsightsOpen] = useState(false)
   const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set())
 
-  // Project topology into React Flow via extracted layout function
-  const { flowNodes, flowEdges } = useMemo(() => {
-    if (!data) return { flowNodes: [], flowEdges: [] }
-    const result = layoutTopology(data.nodes, data.edges)
+  // Layout only recalculates when topology changes (not on overlay polls)
+  const { flowNodes: staticNodes, flowEdges } = useMemo(
+    () => (data ? layoutTopology(data.nodes, data.edges) : { flowNodes: [], flowEdges: [] }),
+    [data],
+  )
 
-    // Merge runtime overlay into node data
+  // Merge runtime overlay + highlighting WITHOUT re-layout (prevents jitter)
+  const flowNodes = useMemo(() => {
+    let nodes = staticNodes
     if (runtimeQuery.data) {
-      for (const node of result.flowNodes) {
+      nodes = nodes.map((node) => {
         const rawId = node.id.replace(/^agent-/, '')
-        const runtime = runtimeQuery.data.agentStatuses[rawId]
-        if (runtime) {
-          node.data = { ...node.data, status: runtime.status, currentTicket: runtime.currentTicket }
-        }
-      }
+        const runtime = runtimeQuery.data!.agentStatuses[rawId]
+        if (!runtime) return node
+        return { ...node, data: { ...node.data, status: runtime.status } }
+      })
     }
-
-    // Apply insight highlighting
     if (highlightedNodes.size > 0) {
-      for (const node of result.flowNodes) {
-        node.data = { ...node.data, dimmed: !highlightedNodes.has(node.id) }
-      }
+      nodes = nodes.map((node) => ({
+        ...node,
+        data: { ...node.data, dimmed: !highlightedNodes.has(node.id) },
+      }))
     }
-
-    return result
-  }, [data, runtimeQuery.data, highlightedNodes])
+    return nodes
+  }, [staticNodes, runtimeQuery.data, highlightedNodes])
 
   const selectedData = useMemo(
     () =>
@@ -145,6 +145,13 @@ export default function ObservatoryPage() {
         : null,
     [selectedNode, data],
   )
+
+  // Clear selection if selected node disappears after topology refresh
+  useEffect(() => {
+    if (selectedNode && data && !data.nodes.some((n) => n.id === selectedNode)) {
+      setSelectedNode(null)
+    }
+  }, [data, selectedNode])
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNode(node.id)

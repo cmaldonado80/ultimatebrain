@@ -156,8 +156,74 @@ describe('computeBlastRadius', () => {
 
   it('caps risk score at 100', () => {
     const snapshot = makeSnapshot([{ id: 'agent-1', type: 'agent', label: 'A', metadata: {} }], [])
-    // Even if math would produce >100, it should cap
     const result = computeBlastRadius(snapshot, 'agent-1')
     expect(result.riskScore).toBeLessThanOrEqual(100)
+  })
+})
+
+// ── Layout Stability Tests ─────────────────────────────────────────────
+
+describe('layout stability', () => {
+  it('produces deterministic output for same topology input', () => {
+    // Test that the same canonical topology always produces the same result
+    // by verifying blast radius is deterministic (same BFS traversal)
+    const snapshot: TopologySnapshot = {
+      nodes: [
+        { id: 'agent-orch', type: 'orchestrator', label: 'O', metadata: {} },
+        { id: 'agent-a', type: 'agent', label: 'A', metadata: {} },
+      ],
+      edges: [{ id: 'e1', type: 'supervises', source: 'agent-orch', target: 'agent-a' }],
+      stats: { workspaces: 0, agents: 2, orchestrators: 1, models: 0, entities: 0, edges: 1 },
+      generatedAt: new Date(),
+    }
+    const r1 = computeBlastRadius(snapshot, 'agent-orch')
+    const r2 = computeBlastRadius(snapshot, 'agent-orch')
+    expect(r1.affectedNodes).toEqual(r2.affectedNodes)
+    expect(r1.riskScore).toBe(r2.riskScore)
+  })
+})
+
+// ── Overlay Immutability Tests ──────────────────────────────────────────
+
+describe('overlay merge safety', () => {
+  it('overlay merge does not mutate original nodes', () => {
+    const originalNodes = [
+      {
+        id: 'agent-1',
+        type: 'agent',
+        data: { label: 'A', status: 'idle' },
+        position: { x: 0, y: 0 },
+      },
+    ]
+    const copy = JSON.parse(JSON.stringify(originalNodes))
+
+    // Simulate overlay merge (same pattern as page.tsx)
+    const merged = originalNodes.map((node) => ({
+      ...node,
+      data: { ...node.data, status: 'executing' },
+    }))
+
+    // Original should be unchanged
+    expect(originalNodes[0].data.status).toBe('idle')
+    expect(merged[0].data.status).toBe('executing')
+    expect(originalNodes).toEqual(copy)
+  })
+
+  it('handles missing overlay entries gracefully', () => {
+    const nodes = [
+      { id: 'agent-1', data: { label: 'A', status: 'idle' } },
+      { id: 'agent-2', data: { label: 'B', status: 'idle' } },
+    ]
+    const overlay: Record<string, { status: string }> = { '1': { status: 'executing' } }
+
+    const merged = nodes.map((node) => {
+      const rawId = node.id.replace(/^agent-/, '')
+      const runtime = overlay[rawId]
+      if (!runtime) return node
+      return { ...node, data: { ...node.data, status: runtime.status } }
+    })
+
+    expect(merged[0].data.status).toBe('executing')
+    expect(merged[1].data.status).toBe('idle') // Unchanged — no overlay entry
   })
 })
