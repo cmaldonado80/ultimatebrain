@@ -125,11 +125,21 @@ export function ExecutionGroup({ group, onInspect }: ExecutionGroupProps) {
     (i) => i.type === 'tool_use' || i.type === 'tool_result' || i.type === 'agent',
   ).length
 
+  // Get agent response text for copy
+  const agentResponse = group.items.find((i) => i.type === 'agent' || i.type === 'streaming')
+  const responseText =
+    agentResponse && 'text' in agentResponse ? (agentResponse as { text: string }).text : ''
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (responseText) navigator.clipboard.writeText(responseText)
+  }
+
   return (
-    <div className="mb-3">
+    <div className="mb-3 group/exec">
       {/* Group header */}
-      <button
-        className="w-full flex items-center gap-2 px-3 py-1.5 rounded-t-lg text-left transition-colors hover:bg-bg-elevated/50"
+      <div
+        className="w-full flex items-center gap-2 px-3 py-1.5 rounded-t-lg text-left transition-colors hover:bg-bg-elevated/50 cursor-pointer"
         style={{ borderLeft: `2px solid ${color}` }}
         onClick={() => setCollapsed(!collapsed)}
       >
@@ -151,7 +161,29 @@ export function ExecutionGroup({ group, onInspect }: ExecutionGroupProps) {
         {stepCount > 0 && (
           <span className="text-[10px] text-slate-600 ml-auto">{stepCount} steps</span>
         )}
-      </button>
+        {/* Hover controls — appear on group hover */}
+        <div className="flex items-center gap-1 opacity-0 group-hover/exec:opacity-100 transition-opacity ml-2">
+          {responseText && (
+            <button
+              className="text-[9px] text-slate-600 hover:text-slate-300 px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors"
+              onClick={handleCopy}
+              title="Copy response"
+            >
+              Copy
+            </button>
+          )}
+          <button
+            className="text-[9px] text-slate-600 hover:text-neon-blue px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation()
+              onInspect?.({ type: 'agent', id: group.agentId, name: group.agentName })
+            }}
+            title="Inspect agent"
+          >
+            Inspect
+          </button>
+        </div>
+      </div>
 
       {/* Group body */}
       {!collapsed && (
