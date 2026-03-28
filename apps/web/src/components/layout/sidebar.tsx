@@ -25,6 +25,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { label: 'Mission Control', href: '/', icon: '⊞' },
+      { label: 'Observatory', href: '/observatory', icon: '⬡' },
       { label: 'Workshop', href: '/workshop', icon: '◈' },
       { label: 'Intelligence', href: '/intelligence', icon: '◇' },
       { label: 'Chat', href: '/chat', icon: '◉' },

@@ -31,6 +31,7 @@ import { skillsRouter } from './skills'
 import { systemOrchestratorRouter } from './system-orchestrator'
 import { taskRunnerRouter } from './task-runner'
 import { ticketsRouter } from './tickets'
+import { topologyRouter } from './topology'
 import { tracesRouter } from './traces'
 import { visualQaRouter } from './visual-qa'
 import { workspacesRouter } from './workspaces'
@@ -45,6 +46,7 @@ export const appRouter = router({
   gateway: gatewayRouter,
   evals: evalsRouter,
   entities: entitiesRouter,
+  topology: topologyRouter,
   traces: tracesRouter,
   guardrails: guardrailsRouter,
   orchestration: orchestrationRouter,
