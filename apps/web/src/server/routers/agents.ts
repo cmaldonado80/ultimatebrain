@@ -9,6 +9,7 @@ import { TRPCError } from '@trpc/server'
 import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
+import { AGENT_SOULS } from '../services/orchestration/agents'
 import { protectedProcedure, router } from '../trpc'
 
 export const agentsRouter = router({
@@ -194,6 +195,40 @@ export const agentsRouter = router({
       updated++
     }
     return { updated, total: allAgents.length }
+  }),
+
+  /** Sync agent souls from .md files into the database */
+  syncSouls: protectedProcedure.mutation(async ({ ctx }) => {
+    const allAgents = await ctx.db.query.agents.findMany()
+    let synced = 0
+    let skipped = 0
+    for (const agent of allAgents) {
+      // Match by agent name (kebab-case slug)
+      const slug = agent.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+      const soulDef = AGENT_SOULS.get(slug) ?? AGENT_SOULS.get(agent.name)
+      if (!soulDef) {
+        skipped++
+        continue
+      }
+      // Only update if soul content differs
+      if (agent.soul === soulDef.soul) {
+        skipped++
+        continue
+      }
+      await ctx.db
+        .update(agents)
+        .set({
+          soul: soulDef.soul,
+          model: soulDef.model !== 'sonnet' ? soulDef.model : agent.model,
+          updatedAt: new Date(),
+        })
+        .where(eq(agents.id, agent.id))
+      synced++
+    }
+    return { synced, skipped, totalAgents: allAgents.length, totalSouls: AGENT_SOULS.size }
   }),
 
   /** Export an agent as a portable manifest JSON */

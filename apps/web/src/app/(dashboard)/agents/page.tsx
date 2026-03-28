@@ -129,6 +129,19 @@ export default function AgentsPage() {
       setTimeout(() => setBulkResult(null), 4000)
     },
   })
+  const syncSoulsMut = trpc.agents.syncSouls.useMutation({
+    onSuccess: (data) => {
+      utils.agents.list.invalidate()
+      setBulkResult(
+        `Synced ${data.synced} souls (${data.skipped} unchanged, ${data.totalSouls} soul files loaded)`,
+      )
+      setTimeout(() => setBulkResult(null), 6000)
+    },
+    onError: (err) => {
+      setBulkResult(`Sync failed: ${err.message}`)
+      setTimeout(() => setBulkResult(null), 6000)
+    },
+  })
 
   const handleExport = async (agentId: string, agentName: string) => {
     const manifest = utils.agents.exportAgent.fetch({ id: agentId })
@@ -208,6 +221,14 @@ export default function AgentsPage() {
               title="Assign Ollama cloud models to all agents without an explicit model"
             >
               {bulkModelsMut.isPending ? 'Assigning...' : 'Assign Models'}
+            </button>
+            <button
+              className="cyber-btn-secondary"
+              onClick={() => syncSoulsMut.mutate()}
+              disabled={syncSoulsMut.isPending}
+              title="Update all agent souls from .md files"
+            >
+              {syncSoulsMut.isPending ? 'Syncing...' : 'Sync Souls'}
             </button>
             {bulkResult && (
               <span className="text-neon-green text-[11px] font-medium">{bulkResult}</span>
