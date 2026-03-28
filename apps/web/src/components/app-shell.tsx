@@ -39,18 +39,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Mobile top bar with hamburger */}
-          <div className="flex items-center md:hidden px-3 py-2 border-b border-border bg-bg-surface">
+          <div className="flex items-center md:hidden px-4 h-14 border-b border-border bg-bg-surface">
             <button
-              className="text-slate-400 hover:text-white p-1 mr-2"
+              className="text-slate-400 hover:text-white p-2 -ml-1 mr-2 rounded-lg hover:bg-white/5 transition-colors"
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open menu"
             >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <svg width="22" height="22" viewBox="0 0 20 20" fill="currentColor">
                 <rect y="3" width="20" height="2" rx="1" />
                 <rect y="9" width="20" height="2" rx="1" />
                 <rect y="15" width="20" height="2" rx="1" />
               </svg>
             </button>
-            <span className="font-orbitron text-xs font-bold text-white tracking-widest">
+            <span className="font-orbitron text-sm font-bold text-white tracking-widest">
               SOLARC<span className="text-neon-blue">.</span>BRAIN
             </span>
           </div>
