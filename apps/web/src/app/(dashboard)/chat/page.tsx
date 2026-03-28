@@ -7,6 +7,7 @@ import { CommandPalette } from '../../../components/chat/command-palette'
 import { buildExecutionGroups, ExecutionGroup } from '../../../components/chat/execution-group'
 import { InspectorPanel, type InspectorSelection } from '../../../components/chat/inspector-panel'
 import { MentionPicker } from '../../../components/chat/mention-picker'
+import { SuggestionBar } from '../../../components/chat/suggestion-bar'
 import { ThreadItem, type ThreadItemData } from '../../../components/chat/thread-item'
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import { trpc } from '../../../utils/trpc'
@@ -503,6 +504,41 @@ export default function ChatPage() {
                         />
                       ),
                     )}
+                    {/* Suggestion bar — appears after final answer when not streaming */}
+                    {!streaming &&
+                      (() => {
+                        const lastItem = allItems[allItems.length - 1]
+                        if (
+                          !lastItem ||
+                          (lastItem.type !== 'final_answer' && lastItem.type !== 'agent')
+                        )
+                          return null
+                        const hadError = allItems.some((i) => i.type === 'error')
+                        const hadTools = allItems.some(
+                          (i) => i.type === 'tool_use' || i.type === 'tool_result',
+                        )
+                        const finalText =
+                          'text' in lastItem ? (lastItem as { text: string }).text : ''
+                        const lastAgent =
+                          'agentName' in lastItem
+                            ? (lastItem as { agentName: string }).agentName
+                            : 'Assistant'
+                        return (
+                          <SuggestionBar
+                            hadError={hadError}
+                            hadTools={hadTools}
+                            agentCount={selectedAgents.length || 1}
+                            agentName={lastAgent}
+                            finalAnswerText={finalText}
+                            onAction={(action) => {
+                              if (action === 'retry' || action === 'retry_different') handleSend()
+                              else if (action === 'copy') navigator.clipboard.writeText(finalText)
+                              else if (action === 'follow_up') textareaRef.current?.focus()
+                              else if (action === 'second_opinion') setShowMentions(true)
+                            }}
+                          />
+                        )
+                      })()}
                     <div ref={messagesEndRef} />
                   </div>
                 )}
