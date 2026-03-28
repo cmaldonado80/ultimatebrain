@@ -67,7 +67,7 @@ export default function A2APage() {
     : cards
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron">Agent-to-Agent Protocol</h2>
@@ -114,7 +114,7 @@ export default function A2APage() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-orbitron text-white">External Agent Registry</h3>
             <button
-              className="cyber-btn-secondary !text-[10px] !py-1"
+              className="cyber-btn-secondary cyber-btn-xs"
               onClick={() => healthCheckMut.mutate()}
               disabled={healthCheckMut.isPending}
             >

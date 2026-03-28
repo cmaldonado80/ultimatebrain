@@ -93,13 +93,13 @@ function ScoreBar({ score, color }: { score: number; color: string }) {
         className="h-full rounded-sm transition-[width] duration-300"
         style={{ width: `${pct}%`, background: color }}
       />
-      <span className="absolute right-0 text-[10px] text-gray-400 top-2">{pct}%</span>
+      <span className="absolute right-0 text-[10px] text-slate-400 top-2">{pct}%</span>
     </div>
   )
 }
 
 function ScoreTrend({ history, dimension }: { history: RunHistory[]; dimension: ScoreDimension }) {
-  if (history.length < 2) return <span className="text-xs text-gray-500">Not enough runs</span>
+  if (history.length < 2) return <span className="text-xs text-slate-500">Not enough runs</span>
 
   const values = history.map((h) => (h.scores as Record<string, number>)?.[dimension.key] ?? 0)
   const max = Math.max(...values, 1)
@@ -140,17 +140,17 @@ function CaseCompare({ evalCase }: { evalCase: EvalCase }) {
   return (
     <div className="flex gap-3 items-start">
       <div className="flex-1">
-        <div className="text-[11px] font-semibold text-gray-400 mb-1.5 uppercase">Input</div>
-        <pre className="bg-bg-deep rounded-md p-3 text-[11px] font-mono text-gray-300 overflow-auto max-h-60 m-0">
+        <div className="text-[11px] font-semibold text-slate-400 mb-1.5 uppercase">Input</div>
+        <pre className="bg-bg-deep rounded-md p-3 text-[11px] font-mono text-slate-300 overflow-auto max-h-60 m-0">
           {JSON.stringify(evalCase.input, null, 2)}
         </pre>
       </div>
       <div className="text-lg text-border-dim pt-8">{'\u2192'}</div>
       <div className="flex-1">
-        <div className="text-[11px] font-semibold text-gray-400 mb-1.5 uppercase">
+        <div className="text-[11px] font-semibold text-slate-400 mb-1.5 uppercase">
           Expected Output
         </div>
-        <pre className="bg-bg-deep rounded-md p-3 text-[11px] font-mono text-gray-300 overflow-auto max-h-60 m-0">
+        <pre className="bg-bg-deep rounded-md p-3 text-[11px] font-mono text-slate-300 overflow-auto max-h-60 m-0">
           {evalCase.expectedOutput
             ? JSON.stringify(evalCase.expectedOutput, null, 2)
             : '(no expected output)'}
@@ -179,12 +179,12 @@ function DatasetRow({
       <div className="text-[13px] font-semibold mb-0.5">{dataset.name}</div>
       <div className="flex gap-2 items-center flex-wrap">
         {dataset.description && (
-          <span className="text-[11px] text-gray-500">{dataset.description}</span>
+          <span className="text-[11px] text-slate-500">{dataset.description}</span>
         )}
-        <span className="text-[11px] bg-bg-elevated rounded-full px-1.5 py-px text-gray-400">
+        <span className="text-[11px] bg-bg-elevated rounded-full px-1.5 py-px text-slate-400">
           {dataset.caseCount} cases
         </span>
-        <span className="text-[11px] text-gray-600">
+        <span className="text-[11px] text-slate-600">
           {new Date(dataset.createdAt).toLocaleDateString()}
         </span>
       </div>
@@ -218,8 +218,8 @@ export default function EvalsPage() {
 
   if (isLoading) {
     return (
-      <div className="bg-bg-deep min-h-screen text-gray-50 p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="bg-bg-deep min-h-screen text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-xs">Fetching eval datasets</div>
         </div>
@@ -248,7 +248,7 @@ export default function EvalsPage() {
 
   if (datasetsQuery.error) {
     return (
-      <div className="bg-bg-deep min-h-screen text-gray-50 p-6">
+      <div className="bg-bg-deep min-h-screen text-slate-50 p-6">
         <DbErrorBanner error={datasetsQuery.error} />
       </div>
     )
@@ -273,12 +273,12 @@ export default function EvalsPage() {
   }))
 
   return (
-    <div className="bg-bg-deep min-h-screen text-gray-50 p-6">
+    <div className="bg-bg-deep min-h-screen text-slate-50 p-6">
       {/* Header */}
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="m-0 text-[22px] font-bold font-orbitron">Eval Dashboard</h1>
-          <p className="mt-1 mb-0 text-xs text-gray-500">
+          <p className="mt-1 mb-0 text-xs text-slate-500">
             Production-to-eval pipeline &middot; automated regression detection
           </p>
         </div>
@@ -286,11 +286,11 @@ export default function EvalsPage() {
       <div className="flex gap-5">
         {/* Sidebar — Dataset List */}
         <div className="w-[220px] shrink-0">
-          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-2">
+          <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">
             Datasets
           </div>
           {datasets.length === 0 ? (
-            <div className="text-xs text-gray-500 p-3">No datasets found</div>
+            <div className="text-xs text-slate-500 p-3">No datasets found</div>
           ) : (
             datasets.map((d) => (
               <DatasetRow
@@ -312,7 +312,7 @@ export default function EvalsPage() {
             <>
               <div className="flex items-center gap-2.5 mb-4">
                 <span className="text-base font-bold">{selectedDataset.name}</span>
-                <span className="text-xs text-gray-400">{selectedDataset.caseCount} cases</span>
+                <span className="text-xs text-slate-400">{selectedDataset.caseCount} cases</span>
               </div>
 
               {/* Tabs */}
@@ -323,7 +323,7 @@ export default function EvalsPage() {
                     className={`bg-transparent border-none text-[13px] px-3 py-1 cursor-pointer rounded ${
                       activeTab === tab
                         ? 'text-neon-blue bg-[#1e3a5f]'
-                        : 'text-gray-500 hover:text-gray-300'
+                        : 'text-slate-500 hover:text-slate-300'
                     }`}
                     onClick={() => setActiveTab(tab)}
                   >
@@ -337,7 +337,7 @@ export default function EvalsPage() {
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
                   {SCORE_DIMENSIONS.map((dim) => (
                     <div key={dim.key} className="cyber-card p-3.5">
-                      <div className="text-[11px] text-gray-400 mb-1">{dim.label}</div>
+                      <div className="text-[11px] text-slate-400 mb-1">{dim.label}</div>
                       <div className="text-2xl font-bold mb-2">
                         {Math.round(
                           ((latestRun.scores as Record<string, number>)?.[dim.key] ?? 0) * 100,
@@ -354,13 +354,13 @@ export default function EvalsPage() {
               )}
 
               {activeTab === 'overview' && !latestRun && !runsQuery.isLoading && (
-                <div className="text-gray-500 text-[13px] text-center py-10">
+                <div className="text-slate-500 text-[13px] text-center py-10">
                   No eval runs yet for this dataset.
                 </div>
               )}
 
               {activeTab === 'overview' && runsQuery.isLoading && (
-                <div className="text-gray-500 text-[13px] text-center py-10">
+                <div className="text-slate-500 text-[13px] text-center py-10">
                   Loading run data...
                 </div>
               )}
@@ -369,11 +369,11 @@ export default function EvalsPage() {
               {activeTab === 'trends' && (
                 <div>
                   {runsQuery.isLoading ? (
-                    <div className="text-gray-500 text-[13px] text-center py-10">
+                    <div className="text-slate-500 text-[13px] text-center py-10">
                       Loading trends...
                     </div>
                   ) : history.length === 0 ? (
-                    <div className="text-gray-500 text-[13px] text-center py-10">
+                    <div className="text-slate-500 text-[13px] text-center py-10">
                       No run history available.
                     </div>
                   ) : (
@@ -383,7 +383,7 @@ export default function EvalsPage() {
                           <div className="text-xs font-semibold mb-2">{dim.label}</div>
                           <ScoreTrend history={history} dimension={dim} />
                           {history.length >= 2 && (
-                            <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+                            <div className="flex justify-between text-[10px] text-slate-500 mt-1">
                               <span>{new Date(history[0]?.createdAt).toLocaleDateString()}</span>
                               <span>
                                 {new Date(
@@ -403,11 +403,11 @@ export default function EvalsPage() {
               {activeTab === 'cases' && (
                 <div>
                   {casesQuery.isLoading ? (
-                    <div className="text-gray-500 text-[13px] text-center py-10">
+                    <div className="text-slate-500 text-[13px] text-center py-10">
                       Loading cases...
                     </div>
                   ) : evalCases.length === 0 ? (
-                    <div className="text-gray-500 text-[13px] text-center py-10">
+                    <div className="text-slate-500 text-[13px] text-center py-10">
                       No cases in this dataset.
                     </div>
                   ) : (
@@ -423,17 +423,17 @@ export default function EvalsPage() {
                             }`}
                             onClick={() => setSelectedCase(selectedCase?.id === c.id ? null : c)}
                           >
-                            <span className="text-[11px] text-gray-500 font-mono min-w-[30px]">
+                            <span className="text-[11px] text-slate-500 font-mono min-w-[30px]">
                               {c.id.slice(0, 8)}
                             </span>
-                            <span className="flex-1 text-xs text-gray-300">
+                            <span className="flex-1 text-xs text-slate-300">
                               {String(
                                 (c.input as Record<string, unknown>).prompt ??
                                   JSON.stringify(c.input).slice(0, 80),
                               )}
                             </span>
                             {c.traceId && (
-                              <span className="text-[11px] text-gray-500 font-mono">
+                              <span className="text-[11px] text-slate-500 font-mono">
                                 trace: {c.traceId.slice(0, 10)}
                               </span>
                             )}
@@ -457,7 +457,7 @@ export default function EvalsPage() {
           )}
 
           {!selectedDataset && (
-            <div className="text-gray-500 text-[13px] text-center py-10">
+            <div className="text-slate-500 text-[13px] text-center py-10">
               Select a dataset from the sidebar to view eval results.
             </div>
           )}

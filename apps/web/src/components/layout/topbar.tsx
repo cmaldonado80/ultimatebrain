@@ -30,7 +30,11 @@ function HealthBadge() {
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-bg-elevated border border-border text-xs">
-      <span className={`neon-dot ${dotClass}`} />
+      <span
+        className={`neon-dot ${dotClass}`}
+        role="status"
+        aria-label={`System health: ${label}`}
+      />
       <span className={`font-medium ${labelClass}`}>{label}</span>
       <span className="font-mono text-slate-500">{score}%</span>
     </div>

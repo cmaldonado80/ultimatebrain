@@ -48,7 +48,7 @@ export default function EnginesPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -58,8 +58,8 @@ export default function EnginesPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2 font-orbitron">Loading...</div>
           <div className="text-[13px]">Fetching engine data</div>
         </div>
@@ -73,7 +73,7 @@ export default function EnginesPage() {
     | undefined
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron">Engines</h2>
@@ -84,7 +84,7 @@ export default function EnginesPage() {
             Manage Brain
           </a>
         </div>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Monitor the brain&apos;s core engines — LLM Gateway, Memory, Orchestration, Guardrails,
           and more.
         </p>
@@ -95,25 +95,27 @@ export default function EnginesPage() {
             <div className="text-[22px] font-bold font-orbitron text-neon-purple">
               {topo.brain.length}
             </div>
-            <div className="text-[11px] text-gray-500 mt-0.5">Brain Entities</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Brain Entities</div>
           </div>
           <div className="cyber-card text-center p-3.5">
             <div className="text-[22px] font-bold font-orbitron text-neon-green">
               {topo.miniBrains.length}
             </div>
-            <div className="text-[11px] text-gray-500 mt-0.5">Mini Brains</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Mini Brains</div>
           </div>
           <div className="cyber-card text-center p-3.5">
             <div className="text-[22px] font-bold font-orbitron text-neon-yellow">
               {topo.developments.length}
             </div>
-            <div className="text-[11px] text-gray-500 mt-0.5">Development</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Development</div>
           </div>
         </div>
       )}
 
       {entities.length === 0 ? (
-        <div className="text-center text-gray-500 py-10 text-sm">No brain entities registered.</div>
+        <div className="text-center text-slate-500 py-10 text-sm">
+          No brain entities registered.
+        </div>
       ) : (
         <div className="cyber-grid">
           {entities.map((e) => (
@@ -121,14 +123,14 @@ export default function EnginesPage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[15px] font-bold">{e.name}</span>
                 <span
-                  className={`cyber-badge uppercase ${TIER_BADGE_CLASS[e.tier] || 'text-gray-500'}`}
+                  className={`cyber-badge uppercase ${TIER_BADGE_CLASS[e.tier] || 'text-slate-500'}`}
                 >
                   {e.tier}
                 </span>
               </div>
-              <div className="flex gap-4 text-[11px] text-gray-500 mb-1.5">
+              <div className="flex gap-4 text-[11px] text-slate-500 mb-1.5">
                 <span
-                  className={`flex items-center gap-1.5 ${STATUS_TEXT_CLASS[e.status] || 'text-gray-500'}`}
+                  className={`flex items-center gap-1.5 ${STATUS_TEXT_CLASS[e.status] || 'text-slate-500'}`}
                 >
                   <span className={STATUS_DOT_CLASS[e.status] || 'neon-dot'} />
                   {e.status}

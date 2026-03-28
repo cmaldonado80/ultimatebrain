@@ -68,7 +68,7 @@ export default function EngineRegistryPage() {
   if (enginesQuery.isLoading) {
     return (
       <div className="p-6 font-sans text-neon-text flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">Loading engines...</div>
+        <div className="text-center text-slate-500">Loading engines...</div>
       </div>
     )
   }
@@ -103,7 +103,7 @@ export default function EngineRegistryPage() {
             {showRegister ? 'Cancel' : '+ Register Engine'}
           </button>
         </div>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Browse and manage brain engines — system, domain, and custom.
         </p>
       </div>
@@ -115,28 +115,28 @@ export default function EngineRegistryPage() {
           onClick={() => setFilter('all')}
         >
           <div className="text-xl font-bold">{allEngines.length}</div>
-          <div className="text-[11px] text-gray-500 mt-0.5">All Engines</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">All Engines</div>
         </div>
         <div
           className={`cyber-card text-center cursor-pointer ${filter === 'system' ? 'border-2 border-indigo-400' : 'border border-border-dim'}`}
           onClick={() => setFilter('system')}
         >
           <div className="text-xl font-bold text-neon-indigo">{systemCount}</div>
-          <div className="text-[11px] text-gray-500 mt-0.5">System</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">System</div>
         </div>
         <div
           className={`cyber-card text-center cursor-pointer ${filter === 'domain' ? 'border-2 border-green-500' : 'border border-border-dim'}`}
           onClick={() => setFilter('domain')}
         >
           <div className="text-xl font-bold text-neon-green">{domainCount}</div>
-          <div className="text-[11px] text-gray-500 mt-0.5">Domain</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Domain</div>
         </div>
         <div
           className={`cyber-card text-center cursor-pointer ${filter === 'custom' ? 'border-2 border-yellow-500' : 'border border-border-dim'}`}
           onClick={() => setFilter('custom')}
         >
           <div className="text-xl font-bold text-neon-yellow">{customCount}</div>
-          <div className="text-[11px] text-gray-500 mt-0.5">Custom</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Custom</div>
         </div>
       </div>
 
@@ -219,17 +219,17 @@ export default function EngineRegistryPage() {
                   {engine.category}
                 </span>
               </div>
-              <div className="text-[11px] text-gray-400 mb-1.5 leading-snug">
+              <div className="text-[11px] text-slate-400 mb-1.5 leading-snug">
                 {engine.description}
               </div>
-              <div className="flex gap-3 text-[10px] text-gray-600">
+              <div className="flex gap-3 text-[10px] text-slate-600">
                 {engine.domain && <span>Domain: {engine.domain}</span>}
                 <span>Status: {engine.status}</span>
                 {engine.totalRequests > 0 && <span>{engine.totalRequests} reqs</span>}
                 {engine.avgResponseMs > 0 && <span>{Math.round(engine.avgResponseMs)}ms avg</span>}
               </div>
               {engine.connectedApps.length > 0 && (
-                <div className="text-[10px] text-gray-500 mt-1">
+                <div className="text-[10px] text-slate-500 mt-1">
                   Connected: {engine.connectedApps.length} apps
                 </div>
               )}
@@ -239,7 +239,7 @@ export default function EngineRegistryPage() {
       </div>
 
       {engines.length === 0 && (
-        <div className="text-center text-gray-500 p-10 text-sm">
+        <div className="text-center text-slate-500 p-10 text-sm">
           No engines found for this filter.
         </div>
       )}

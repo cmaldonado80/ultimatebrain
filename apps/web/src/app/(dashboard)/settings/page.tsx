@@ -67,7 +67,7 @@ export default function SettingsPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -75,8 +75,8 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching settings</div>
         </div>
@@ -92,16 +92,16 @@ export default function SettingsPage() {
   const providers = providersQuery.data as Array<{ provider: string; createdAt: Date }> | undefined
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <h2 className="m-0 text-[22px] font-bold font-orbitron">Settings</h2>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Configure brain identity, API keys, LLM providers, and system preferences.
         </p>
       </div>
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2.5">
-          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide font-orbitron">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron">
             LLM Providers
           </div>
           <button
@@ -174,11 +174,11 @@ export default function SettingsPage() {
                 >
                   <span className="w-2 h-2 rounded-full bg-neon-green shrink-0" />
                   <span className="text-[13px] font-mono flex-1">{p.provider}</span>
-                  <span className="text-[10px] text-gray-600">
+                  <span className="text-[10px] text-slate-600">
                     {new Date(p.createdAt).toLocaleDateString()}
                   </span>
                   <button
-                    className="cyber-btn-danger bg-transparent border-none text-gray-500 cursor-pointer text-sm px-1"
+                    className="cyber-btn-danger bg-transparent border-none text-slate-500 cursor-pointer text-sm px-1"
                     onClick={() => deleteKeyMut.mutate({ provider: p.provider })}
                     title="Remove key"
                   >
@@ -188,7 +188,7 @@ export default function SettingsPage() {
               ))}
           </div>
         ) : (
-          <div className="text-center text-gray-500 p-5 text-[13px]">
+          <div className="text-center text-slate-500 p-5 text-[13px]">
             No providers configured. Click &quot;+ Add API Key&quot; above to get started.
           </div>
         )}
@@ -196,7 +196,7 @@ export default function SettingsPage() {
 
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2.5">
-          <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide font-orbitron">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron">
             Ollama Cloud Models
           </div>
         </div>
@@ -244,7 +244,7 @@ export default function SettingsPage() {
             | undefined
           if (!models?.length) {
             return (
-              <div className="text-center text-gray-500 p-5 text-[13px]">
+              <div className="text-center text-slate-500 p-5 text-[13px]">
                 No Ollama models configured. Enter a model name above and click &quot;Pull &amp; Add
                 Model&quot;.
               </div>
@@ -287,7 +287,7 @@ export default function SettingsPage() {
                       </button>
                     )}
                     <button
-                      className="bg-transparent border-none text-gray-500 cursor-pointer text-sm"
+                      className="bg-transparent border-none text-slate-500 cursor-pointer text-sm"
                       onClick={() => removeOllamaModelMut.mutate({ id: m.id })}
                       title="Remove model"
                     >
@@ -302,7 +302,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="mb-6">
-        <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide font-orbitron">
+        <div className="text-[13px] font-bold text-slate-400 mb-2.5 uppercase tracking-wide font-orbitron">
           Feature Flags ({features ? Object.keys(features).length : 0})
         </div>
         {features && Object.keys(features).length > 0 ? (
@@ -322,14 +322,14 @@ export default function SettingsPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center text-gray-500 p-5 text-[13px]">
+          <div className="text-center text-slate-500 p-5 text-[13px]">
             No feature flags configured.
           </div>
         )}
       </div>
 
       <div className="mb-6">
-        <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide font-orbitron">
+        <div className="text-[13px] font-bold text-slate-400 mb-2.5 uppercase tracking-wide font-orbitron">
           System Policies ({policies ? Object.keys(policies).length : 0})
         </div>
         {policies && Object.keys(policies).length > 0 ? (
@@ -340,24 +340,24 @@ export default function SettingsPage() {
                 className="flex justify-between items-center px-3 py-2 bg-bg-surface rounded-md border border-border-dim"
               >
                 <span className="text-[12px] font-mono">{key}</span>
-                <span className="text-[11px] font-mono text-gray-500 max-w-[50%] overflow-hidden text-ellipsis">
+                <span className="text-[11px] font-mono text-slate-500 max-w-[50%] overflow-hidden text-ellipsis">
                   {JSON.stringify(val)}
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center text-gray-500 p-5 text-[13px]">No policies defined.</div>
+          <div className="text-center text-slate-500 p-5 text-[13px]">No policies defined.</div>
         )}
       </div>
 
       {cognition && (
         <div className="mb-6">
-          <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide font-orbitron">
+          <div className="text-[13px] font-bold text-slate-400 mb-2.5 uppercase tracking-wide font-orbitron">
             Cognition State
           </div>
           <div className="cyber-card bg-bg-surface rounded-lg p-3.5 border border-border-dim">
-            <div className="text-[12px] text-gray-500">
+            <div className="text-[12px] text-slate-500">
               Last updated:{' '}
               {cognition.updatedAt ? new Date(cognition.updatedAt).toLocaleString() : 'unknown'}
             </div>

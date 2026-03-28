@@ -73,7 +73,7 @@ export default function JourneysPage() {
   const executions = (data ?? []) as JourneyExecution[]
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <h2 className="m-0 text-[22px] font-bold font-orbitron">Journeys</h2>
         <p className="mt-1 mb-0 text-xs text-slate-500">
@@ -131,7 +131,7 @@ export default function JourneysPage() {
                 <div className="flex gap-1.5">
                   {exec.status === 'active' && (
                     <button
-                      className="cyber-btn-secondary !text-[10px] !py-0.5 !px-2"
+                      className="cyber-btn-secondary cyber-btn-xs"
                       onClick={() => pauseMut.mutate({ executionId: exec.id })}
                       disabled={pauseMut.isPending}
                     >
@@ -140,7 +140,7 @@ export default function JourneysPage() {
                   )}
                   {exec.status === 'paused' && (
                     <button
-                      className="cyber-btn-primary !text-[10px] !py-0.5 !px-2"
+                      className="cyber-btn-primary cyber-btn-xs"
                       onClick={() => resumeMut.mutate({ executionId: exec.id })}
                       disabled={resumeMut.isPending}
                     >
@@ -149,7 +149,7 @@ export default function JourneysPage() {
                   )}
                   {(exec.status === 'active' || exec.status === 'paused') && (
                     <button
-                      className="cyber-btn-danger !text-[10px] !py-0.5 !px-2"
+                      className="cyber-btn-danger cyber-btn-xs"
                       onClick={() => failMut.mutate({ executionId: exec.id })}
                       disabled={failMut.isPending}
                     >

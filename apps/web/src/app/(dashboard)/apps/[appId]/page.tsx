@@ -37,7 +37,7 @@ export default function AppDetailPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-bg-deep text-gray-50 p-6">
+      <div className="min-h-screen bg-bg-deep text-slate-50 p-6">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -45,8 +45,8 @@ export default function AppDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-bg-deep text-gray-50 p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="min-h-screen bg-bg-deep text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching app details</div>
         </div>
@@ -56,10 +56,10 @@ export default function AppDetailPage() {
 
   if (!app && !error) {
     return (
-      <div className="min-h-screen bg-bg-deep text-gray-50 p-6 flex items-center justify-center min-h-[60vh]">
+      <div className="min-h-screen bg-bg-deep text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
         <div className="text-center text-red-400">
           <div className="text-lg font-bold mb-2">App not found</div>
-          <div className="text-[13px] text-gray-400">No agent with ID {appId}</div>
+          <div className="text-[13px] text-slate-400">No agent with ID {appId}</div>
         </div>
       </div>
     )
@@ -74,10 +74,10 @@ export default function AppDetailPage() {
   const agentTags: string[] = agent.tags ?? []
 
   return (
-    <div className="min-h-screen bg-bg-deep text-gray-50 p-6">
+    <div className="min-h-screen bg-bg-deep text-slate-50 p-6">
       {/* Header */}
       <div className="mb-5">
-        <a href="/apps" className="text-xs text-gray-500 no-underline block mb-2">
+        <a href="/apps" className="text-xs text-slate-500 no-underline block mb-2">
           ← Apps
         </a>
         <div className="flex justify-between items-start">
@@ -88,7 +88,7 @@ export default function AppDetailPage() {
                 {agentType}
               </span>
               {agentDescription && (
-                <span className="text-xs text-gray-500">{agentDescription}</span>
+                <span className="text-xs text-slate-500">{agentDescription}</span>
               )}
             </div>
           </div>
@@ -99,19 +99,19 @@ export default function AppDetailPage() {
       <div className="grid grid-cols-4 gap-2.5 mb-5">
         <div className="cyber-card p-3 text-center">
           <div className="text-[22px] font-bold">{agentModel}</div>
-          <div className="text-[10px] text-gray-500 mt-0.5">Model</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Model</div>
         </div>
         <div className="cyber-card p-3 text-center">
           <div className="text-[22px] font-bold">{agentSkills.length}</div>
-          <div className="text-[10px] text-gray-500 mt-0.5">Skills</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Skills</div>
         </div>
         <div className="cyber-card p-3 text-center">
           <div className="text-[22px] font-bold">{agentTags.length}</div>
-          <div className="text-[10px] text-gray-500 mt-0.5">Tags</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Tags</div>
         </div>
         <div className="cyber-card p-3 text-center">
           <div className="text-[22px] font-bold">{agentType}</div>
-          <div className="text-[10px] text-gray-500 mt-0.5">Type</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Type</div>
         </div>
       </div>
 
@@ -119,11 +119,11 @@ export default function AppDetailPage() {
         {/* Left: Skills */}
         <div>
           <div className="cyber-card p-4 mb-3">
-            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2.5">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">
               Skills
             </div>
             {agentSkills.length === 0 ? (
-              <div className="text-xs text-gray-600 text-center p-4">No skills assigned</div>
+              <div className="text-xs text-slate-600 text-center p-4">No skills assigned</div>
             ) : (
               agentSkills.map((skill) => (
                 <div
@@ -141,15 +141,15 @@ export default function AppDetailPage() {
         {/* Right: Tags & Details */}
         <div>
           <div className="cyber-card p-4 mb-3">
-            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2.5">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">
               Tags
             </div>
             {agentTags.length === 0 ? (
-              <div className="text-xs text-gray-600 text-center p-4">No tags</div>
+              <div className="text-xs text-slate-600 text-center p-4">No tags</div>
             ) : (
               <div className="flex gap-1.5 flex-wrap">
                 {agentTags.map((tag) => (
-                  <span key={tag} className="cyber-badge bg-gray-700 text-gray-400">
+                  <span key={tag} className="cyber-badge bg-slate-700 text-slate-400">
                     {tag}
                   </span>
                 ))}
@@ -158,25 +158,25 @@ export default function AppDetailPage() {
           </div>
 
           <div className="cyber-card p-4 mb-3">
-            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2.5">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">
               Details
             </div>
             <div className="flex gap-2 py-1 text-xs border-b border-gray-900">
-              <span className="text-gray-500 min-w-[80px]">ID:</span>
-              <span className="text-gray-300 font-mono text-[11px] break-all">{appId}</span>
+              <span className="text-slate-500 min-w-[80px]">ID:</span>
+              <span className="text-slate-300 font-mono text-[11px] break-all">{appId}</span>
             </div>
             {agent.workspaceId && (
               <div className="flex gap-2 py-1 text-xs border-b border-gray-900">
-                <span className="text-gray-500 min-w-[80px]">Workspace:</span>
-                <span className="text-gray-300 font-mono text-[11px] break-all">
+                <span className="text-slate-500 min-w-[80px]">Workspace:</span>
+                <span className="text-slate-300 font-mono text-[11px] break-all">
                   {agent.workspaceId}
                 </span>
               </div>
             )}
             {agent.createdAt && (
               <div className="flex gap-2 py-1 text-xs border-b border-gray-900">
-                <span className="text-gray-500 min-w-[80px]">Created:</span>
-                <span className="text-gray-300 font-mono text-[11px] break-all">
+                <span className="text-slate-500 min-w-[80px]">Created:</span>
+                <span className="text-slate-300 font-mono text-[11px] break-all">
                   {new Date(agent.createdAt).toLocaleDateString()}
                 </span>
               </div>

@@ -303,10 +303,7 @@ export default function ChatPage() {
               <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                 Chats
               </span>
-              <button
-                onClick={handleNewSession}
-                className="cyber-btn-primary !py-1 !px-2.5 !text-xs"
-              >
+              <button onClick={handleNewSession} className="cyber-btn-primary cyber-btn-sm">
                 + New
               </button>
             </>
@@ -322,7 +319,7 @@ export default function ChatPage() {
                 setWsFilter(e.target.value)
                 setSelectedAgents([])
               }}
-              className="cyber-select w-full !text-xs !py-1.5 mb-2"
+              className="cyber-select cyber-select-sm w-full mb-2"
             >
               <option value="">All workspaces</option>
               {(workspacesQuery.data ?? []).map((ws: { id: string; name: string }) => (
@@ -528,7 +525,7 @@ export default function ChatPage() {
                 <div className="flex-1 relative">
                   <textarea
                     ref={textareaRef}
-                    className="cyber-input !rounded-xl !py-2.5 !pr-4 resize-none"
+                    className="cyber-input rounded-xl py-2.5 pr-4 resize-none"
                     placeholder={
                       selectedAgents.length > 1
                         ? `Message ${selectedAgents.length} agents...`
@@ -551,14 +548,14 @@ export default function ChatPage() {
                 </div>
                 {streaming ? (
                   <button
-                    className="cyber-btn-danger !rounded-xl !py-2.5 flex-shrink-0"
+                    className="cyber-btn-danger rounded-xl py-2.5 flex-shrink-0"
                     onClick={() => abortRef.current?.abort()}
                   >
                     Stop
                   </button>
                 ) : (
                   <button
-                    className="cyber-btn-primary !rounded-xl !py-2.5 flex-shrink-0 disabled:opacity-30"
+                    className="cyber-btn-primary rounded-xl py-2.5 flex-shrink-0 disabled:opacity-30"
                     onClick={handleSend}
                     disabled={!newMessage.trim()}
                   >

@@ -161,7 +161,7 @@ export default function BrainManagerPage() {
   const error = entitiesQuery.error || miniBrainsQuery.error
   if (error) {
     return (
-      <div className="p-6 font-sans text-gray-50">
+      <div className="p-6 font-sans text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -170,8 +170,8 @@ export default function BrainManagerPage() {
   const isLoading = entitiesQuery.isLoading || miniBrainsQuery.isLoading
   if (isLoading) {
     return (
-      <div className="p-6 font-sans text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">Loading brain hierarchy...</div>
+      <div className="p-6 font-sans text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">Loading brain hierarchy...</div>
       </div>
     )
   }
@@ -226,7 +226,7 @@ export default function BrainManagerPage() {
           >
             {entity.tier.replace('_', ' ')}
           </span>
-          {entity.domain && <span className="text-[10px] text-gray-500">{entity.domain}</span>}
+          {entity.domain && <span className="text-[10px] text-slate-500">{entity.domain}</span>}
           <span className="text-[10px] font-semibold" style={{ color: statusColor }}>
             {entity.status}
           </span>
@@ -265,10 +265,10 @@ export default function BrainManagerPage() {
             style={{ paddingLeft: 16 + depth * 24 }}
           >
             <div className="flex gap-4 mb-1.5">
-              <span className="text-gray-500">
+              <span className="text-slate-500">
                 Engines: {entity.enginesEnabled?.join(', ') || 'None'}
               </span>
-              <span className="text-gray-500">
+              <span className="text-slate-500">
                 Health:{' '}
                 {entity.lastHealthCheck
                   ? new Date(entity.lastHealthCheck).toLocaleString()
@@ -276,7 +276,7 @@ export default function BrainManagerPage() {
               </span>
             </div>
             {entity.tier === 'mini_brain' && entity.domain && (
-              <div className="text-gray-400 mb-1">Domain: {entity.domain}</div>
+              <div className="text-slate-400 mb-1">Domain: {entity.domain}</div>
             )}
           </div>
         )}
@@ -328,7 +328,7 @@ export default function BrainManagerPage() {
   const rootEntities = allEntities.filter((e) => !e.parentId)
 
   return (
-    <div className="p-6 font-sans text-gray-50">
+    <div className="p-6 font-sans text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron">Brain Manager</h2>
@@ -336,7 +336,7 @@ export default function BrainManagerPage() {
             {showCreateForm ? 'Cancel' : '+ Create Entity'}
           </button>
         </div>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Manage the brain hierarchy — Brain → Mini-Brain → Development.
         </p>
       </div>
@@ -347,19 +347,19 @@ export default function BrainManagerPage() {
           <div className="text-2xl font-bold" style={{ color: TIER_COLORS.brain }}>
             {brains.length}
           </div>
-          <div className="text-[11px] text-gray-500 mt-0.5">Brains</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Brains</div>
         </div>
         <div className="cyber-card text-center">
           <div className="text-2xl font-bold" style={{ color: TIER_COLORS.mini_brain }}>
             {miniBrains.length}
           </div>
-          <div className="text-[11px] text-gray-500 mt-0.5">Mini-Brains</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Mini-Brains</div>
         </div>
         <div className="cyber-card text-center">
           <div className="text-2xl font-bold" style={{ color: TIER_COLORS.development }}>
             {developments.length}
           </div>
-          <div className="text-[11px] text-gray-500 mt-0.5">Developments</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Developments</div>
         </div>
       </div>
 
@@ -412,10 +412,10 @@ export default function BrainManagerPage() {
                     <div className="text-[11px] text-neon-purple font-bold mb-1.5">
                       Template Preview: {tpl.domain}
                     </div>
-                    <div className="text-[11px] text-gray-500 mb-1">
+                    <div className="text-[11px] text-slate-500 mb-1">
                       Engines: {tpl.engines.join(' · ')}
                     </div>
-                    <div className="text-[11px] text-gray-500 mb-1.5">
+                    <div className="text-[11px] text-slate-500 mb-1.5">
                       Agents ({tpl.agents.length}):
                     </div>
                     <div className="flex flex-wrap gap-1">
@@ -430,7 +430,7 @@ export default function BrainManagerPage() {
                       ))}
                     </div>
                     {tpl.developmentTemplates.length > 0 && (
-                      <div className="text-[10px] text-gray-600 mt-1.5">
+                      <div className="text-[10px] text-slate-600 mt-1.5">
                         Development variants: {tpl.developmentTemplates.join(', ')}
                       </div>
                     )}
@@ -468,11 +468,11 @@ export default function BrainManagerPage() {
 
       {/* Hierarchy Tree */}
       <div className="mb-6">
-        <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide">
+        <div className="text-[13px] font-bold text-slate-400 mb-2.5 uppercase tracking-wide">
           Entity Hierarchy ({allEntities.length})
         </div>
         {allEntities.length === 0 ? (
-          <div className="text-gray-600 text-[13px] text-center p-5">
+          <div className="text-slate-600 text-[13px] text-center p-5">
             No brain entities yet. Create one to get started.
           </div>
         ) : (
@@ -485,7 +485,7 @@ export default function BrainManagerPage() {
       {/* Templates */}
       {templates.length > 0 && (
         <div className="mb-6">
-          <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide">
+          <div className="text-[13px] font-bold text-slate-400 mb-2.5 uppercase tracking-wide">
             Available Templates ({templates.length})
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2">
@@ -494,8 +494,8 @@ export default function BrainManagerPage() {
                 <div className="font-bold text-[13px] mb-1">
                   {t.id.charAt(0).toUpperCase() + t.id.slice(1)}
                 </div>
-                <div className="text-[11px] text-gray-500 mb-1">{t.domain} domain</div>
-                <div className="flex gap-2 text-[10px] text-gray-600">
+                <div className="text-[11px] text-slate-500 mb-1">{t.domain} domain</div>
+                <div className="flex gap-2 text-[10px] text-slate-600">
                   <span>Engines: {t.engines.length}</span>
                   <span>Agents: {t.agents.length}</span>
                   <span>Dev templates: {t.developmentTemplates.length}</span>
@@ -545,7 +545,7 @@ function HealthSection() {
   return (
     <div className="mb-6">
       <div className="flex justify-between items-center mb-2.5">
-        <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide">
+        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide">
           Health & Healing
         </div>
         <div className="flex gap-1.5">
@@ -583,7 +583,7 @@ function HealthSection() {
                 style={{ background: h.errorAgents > 0 ? '#ef4444' : '#22c55e' }}
               />
               <span className="flex-1">{h.workspaceName}</span>
-              <span className="text-gray-500">{h.agentCount} agents</span>
+              <span className="text-slate-500">{h.agentCount} agents</span>
               <span className="text-neon-green">{h.idleAgents} idle</span>
               {h.errorAgents > 0 && <span className="text-neon-red">{h.errorAgents} error</span>}
               {!h.hasOrchestrator && <span className="text-orange-500">no orchestrator!</span>}
@@ -593,7 +593,7 @@ function HealthSection() {
       )}
       {healingLog.length > 0 && (
         <>
-          <div className="text-[11px] text-gray-500 mb-1">Recent Healing Actions</div>
+          <div className="text-[11px] text-slate-500 mb-1">Recent Healing Actions</div>
           <div className="flex flex-col gap-[3px]">
             {healingLog.map((log) => (
               <div
@@ -605,7 +605,7 @@ function HealthSection() {
                   style={{ background: log.success ? '#22c55e' : '#ef4444' }}
                 />
                 <span className="flex-1 font-mono">{log.action}</span>
-                <span className="text-gray-500">{log.target}</span>
+                <span className="text-slate-500">{log.target}</span>
               </div>
             ))}
           </div>
@@ -647,7 +647,7 @@ function RoutesSection() {
   return (
     <div className="mb-6">
       <div className="flex justify-between items-center mb-2.5">
-        <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide">
+        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide">
           Cross-Workspace Routes ({routes.length})
         </div>
         <button
@@ -715,7 +715,7 @@ function RoutesSection() {
         </div>
       )}
       {routes.length === 0 ? (
-        <div className="text-gray-600 text-xs text-center p-3">No routes configured.</div>
+        <div className="text-slate-600 text-xs text-center p-3">No routes configured.</div>
       ) : (
         <div className="flex flex-col gap-1">
           {routes.map((r) => (
@@ -729,8 +729,8 @@ function RoutesSection() {
                 {' → '}
                 {workspaces.find((w) => w.id === r.toWorkspace)?.name ?? r.toWorkspace?.slice(0, 8)}
               </span>
-              {r.rule && <span className="text-gray-500 font-mono">{r.rule}</span>}
-              <span className="text-gray-600">P{r.priority}</span>
+              {r.rule && <span className="text-slate-500 font-mono">{r.rule}</span>}
+              <span className="text-slate-600">P{r.priority}</span>
               <button
                 className="cyber-btn-danger text-[10px] py-px px-1.5"
                 onClick={() => deleteRouteMut.mutate({ id: r.id })}
@@ -758,21 +758,21 @@ function BudgetSection() {
 
   return (
     <div className="mb-6">
-      <div className="text-[13px] font-bold text-gray-400 mb-2.5 uppercase tracking-wide">
+      <div className="text-[13px] font-bold text-slate-400 mb-2.5 uppercase tracking-wide">
         System Budget
       </div>
       {!budget ? (
-        <div className="text-gray-600 text-xs">Loading budget data...</div>
+        <div className="text-slate-600 text-xs">Loading budget data...</div>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2 mb-3">
             <div className="bg-bg-deep rounded-md p-2.5 text-center">
               <div className="text-lg font-bold text-neon-green">{budget.activeWorkspaces}</div>
-              <div className="text-[10px] text-gray-500">Active</div>
+              <div className="text-[10px] text-slate-500">Active</div>
             </div>
             <div className="bg-bg-deep rounded-md p-2.5 text-center">
               <div className="text-lg font-bold">{budget.totalWorkspaces}</div>
-              <div className="text-[10px] text-gray-500">Total</div>
+              <div className="text-[10px] text-slate-500">Total</div>
             </div>
             <div className="bg-bg-deep rounded-md p-2.5 text-center">
               <div
@@ -781,7 +781,7 @@ function BudgetSection() {
               >
                 {budget.workspacesOverBudget}
               </div>
-              <div className="text-[10px] text-gray-500">Over Budget</div>
+              <div className="text-[10px] text-slate-500">Over Budget</div>
             </div>
           </div>
           {budget.budgetDetails.length > 0 && (
@@ -795,7 +795,7 @@ function BudgetSection() {
                   <span style={{ color: d.spent > d.limit ? '#ef4444' : '#22c55e' }}>
                     ${d.spent.toFixed(4)}
                   </span>
-                  <span className="text-gray-500">/ ${d.limit.toFixed(2)}</span>
+                  <span className="text-slate-500">/ ${d.limit.toFixed(2)}</span>
                 </div>
               ))}
             </div>

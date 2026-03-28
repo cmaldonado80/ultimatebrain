@@ -122,7 +122,7 @@ export default function EntityDetailPage() {
 
   if (!entity) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <div className="text-center py-10 text-slate-500">Entity not found.</div>
       </div>
     )
@@ -157,7 +157,7 @@ export default function EntityDetailPage() {
   } | null
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       {/* Header */}
       <div className="mb-6">
         <button
@@ -179,7 +179,7 @@ export default function EntityDetailPage() {
         <div className="flex gap-2">
           {entity.status !== 'active' && (
             <button
-              className="cyber-btn-primary !text-xs"
+              className="cyber-btn-primary cyber-btn-sm"
               onClick={() => activateMut.mutate({ id: entityId })}
               disabled={activateMut.isPending}
             >
@@ -188,7 +188,7 @@ export default function EntityDetailPage() {
           )}
           {entity.status === 'active' && (
             <button
-              className="cyber-btn-secondary !text-xs"
+              className="cyber-btn-secondary cyber-btn-sm"
               onClick={() => suspendMut.mutate({ id: entityId })}
               disabled={suspendMut.isPending}
             >
@@ -196,14 +196,14 @@ export default function EntityDetailPage() {
             </button>
           )}
           <button
-            className="cyber-btn-secondary !text-xs"
+            className="cyber-btn-secondary cyber-btn-sm"
             onClick={() => reprovisionMut.mutate({ entityId })}
             disabled={reprovisionMut.isPending}
           >
             {reprovisionMut.isPending ? 'Reprovisioning...' : 'Reprovision Agents'}
           </button>
           <button
-            className={`!text-xs ${deleteConfirm ? 'cyber-btn-danger' : 'cyber-btn-secondary text-slate-600'}`}
+            className={`cyber-btn-sm ${deleteConfirm ? 'cyber-btn-danger' : 'cyber-btn-secondary text-slate-600'}`}
             onClick={() => {
               if (deleteConfirm) deleteMut.mutate({ id: entityId })
               else setDeleteConfirm(true)
@@ -286,7 +286,7 @@ export default function EntityDetailPage() {
                 <div className="text-[10px] text-slate-500 font-mono truncate">{dbStatus.host}</div>
               )}
               <button
-                className="cyber-btn-danger !text-[10px]"
+                className="cyber-btn-danger cyber-btn-xs"
                 onClick={() => deprovisionDbMut.mutate({ entityId })}
                 disabled={deprovisionDbMut.isPending}
               >
@@ -301,7 +301,7 @@ export default function EntityDetailPage() {
               </div>
               {dbStatus?.neonAvailable && (
                 <button
-                  className="cyber-btn-primary !text-[10px]"
+                  className="cyber-btn-primary cyber-btn-xs"
                   onClick={() => provisionDbMut.mutate({ entityId })}
                   disabled={provisionDbMut.isPending}
                 >
@@ -356,13 +356,13 @@ export default function EntityDetailPage() {
         {/* Assign form */}
         <div className="flex gap-2 mb-3">
           <input
-            className="cyber-input flex-1 !text-xs"
+            className="cyber-input cyber-input-sm flex-1"
             placeholder="Agent ID (UUID) to assign..."
             value={assignAgentId}
             onChange={(e) => setAssignAgentId(e.target.value)}
           />
           <select
-            className="cyber-select !text-xs"
+            className="cyber-select cyber-select-sm"
             value={assignRole}
             onChange={(e) => setAssignRole(e.target.value)}
           >
@@ -372,7 +372,7 @@ export default function EntityDetailPage() {
             <option value="specialist">Specialist</option>
           </select>
           <button
-            className="cyber-btn-primary !text-xs flex-shrink-0"
+            className="cyber-btn-primary cyber-btn-sm flex-shrink-0"
             onClick={() =>
               assignAgentId.trim() &&
               assignMut.mutate({

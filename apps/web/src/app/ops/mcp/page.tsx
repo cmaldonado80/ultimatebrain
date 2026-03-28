@@ -90,7 +90,7 @@ export default function McpPage() {
   const stats = statsQuery.data as { totalTools?: number; servers?: number } | null
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron">MCP Tools</h2>

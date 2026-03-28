@@ -123,15 +123,12 @@ export default function AgentDetailPage() {
             Soul (System Prompt)
           </div>
           <div className="flex gap-2">
-            <button
-              className="cyber-btn-secondary !px-2.5 !py-1 !text-[11px]"
-              onClick={handleExport}
-            >
+            <button className="cyber-btn-secondary cyber-btn-xs" onClick={handleExport}>
               Export
             </button>
             {!editingSoul ? (
               <button
-                className="cyber-btn-secondary !px-2.5 !py-1 !text-[11px]"
+                className="cyber-btn-secondary cyber-btn-xs"
                 onClick={() => {
                   setEditingSoul(true)
                   setSoulDraft(agent.soul ?? '')
@@ -142,14 +139,14 @@ export default function AgentDetailPage() {
             ) : (
               <>
                 <button
-                  className="cyber-btn-primary !px-2.5 !py-1 !text-[11px] !bg-neon-green/20 !text-neon-green !border-neon-green/30"
+                  className="cyber-btn-primary cyber-btn-xs bg-neon-green/20 text-neon-green border-neon-green/30"
                   onClick={() => updateMut.mutate({ id: agentId, soul: soulDraft })}
                   disabled={updateMut.isPending}
                 >
                   {updateMut.isPending ? 'Saving...' : 'Save'}
                 </button>
                 <button
-                  className="cyber-btn-secondary !px-2.5 !py-1 !text-[11px]"
+                  className="cyber-btn-secondary cyber-btn-xs"
                   onClick={() => setEditingSoul(false)}
                 >
                   Cancel
@@ -185,14 +182,14 @@ export default function AgentDetailPage() {
           </div>
           {!editingConfig ? (
             <button
-              className="cyber-btn-secondary !px-2.5 !py-1 !text-[11px]"
+              className="cyber-btn-secondary cyber-btn-xs"
               onClick={() => setEditingConfig(true)}
             >
               Edit
             </button>
           ) : (
             <button
-              className="cyber-btn-primary !px-2.5 !py-1 !text-[11px] !bg-neon-green/20 !text-neon-green !border-neon-green/30"
+              className="cyber-btn-primary cyber-btn-xs bg-neon-green/20 text-neon-green border-neon-green/30"
               onClick={() => setEditingConfig(false)}
             >
               Done
@@ -204,7 +201,7 @@ export default function AgentDetailPage() {
             <label className="text-[11px] text-slate-500">Model</label>
             {editingConfig ? (
               <select
-                className="cyber-select !py-1 !px-2 !text-xs"
+                className="cyber-select cyber-select-sm"
                 value={agent.model ?? ''}
                 onChange={(e) =>
                   updateMut.mutate({ id: agentId, model: e.target.value || undefined })
@@ -230,7 +227,7 @@ export default function AgentDetailPage() {
             {editingConfig ? (
               <input
                 type="number"
-                className="cyber-input !py-1 !px-2 !text-xs !w-[100px]"
+                className="cyber-input cyber-input-sm w-[100px]"
                 value={agent.temperature ?? 1.0}
                 min={0}
                 max={2}
@@ -250,7 +247,7 @@ export default function AgentDetailPage() {
             {editingConfig ? (
               <input
                 type="number"
-                className="cyber-input !py-1 !px-2 !text-xs !w-[100px]"
+                className="cyber-input cyber-input-sm w-[100px]"
                 value={agent.maxTokens ?? 4096}
                 min={1}
                 max={200000}
@@ -331,7 +328,7 @@ export default function AgentDetailPage() {
                 className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-elevated rounded"
               >
                 <span
-                  className={`neon-dot !w-1.5 !h-1.5 ${
+                  className={`neon-dot w-1.5 h-1.5 ${
                     trace.status === 'ok'
                       ? 'neon-dot-green'
                       : trace.status === 'error'

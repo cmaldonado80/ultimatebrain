@@ -120,7 +120,7 @@ export default function DashboardPage() {
   const activeCrons = cronJobs.filter((j) => j.status === 'active').length
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-6">
         <h2 className="m-0 text-2xl font-bold font-orbitron">Dashboard</h2>
         <p className="mt-1 mb-0 text-xs text-slate-500">System overview and quick actions</p>
@@ -220,16 +220,16 @@ export default function DashboardPage() {
 
           <h3 className="text-sm font-orbitron text-white mb-3 mt-4">Quick Actions</h3>
           <div className="flex flex-wrap gap-2">
-            <a href="/chat" className="cyber-btn-primary !text-xs !py-1.5">
+            <a href="/chat" className="cyber-btn-primary cyber-btn-sm">
               New Chat
             </a>
-            <a href="/tickets" className="cyber-btn-secondary !text-xs !py-1.5">
+            <a href="/tickets" className="cyber-btn-secondary cyber-btn-sm">
               View Tickets
             </a>
-            <a href="/agents" className="cyber-btn-secondary !text-xs !py-1.5">
+            <a href="/agents" className="cyber-btn-secondary cyber-btn-sm">
               Manage Agents
             </a>
-            <a href="/ops/cron" className="cyber-btn-secondary !text-xs !py-1.5">
+            <a href="/ops/cron" className="cyber-btn-secondary cyber-btn-sm">
               Cron Jobs
             </a>
           </div>

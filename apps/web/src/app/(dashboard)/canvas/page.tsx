@@ -17,7 +17,7 @@ export default function CanvasPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -32,8 +32,8 @@ export default function CanvasPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-[13px]">Fetching canvas data</div>
         </div>
@@ -45,16 +45,16 @@ export default function CanvasPage() {
   const policies = policiesQuery.data as Record<string, unknown> | undefined
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <h2 className="m-0 text-[22px] font-bold font-orbitron">Canvas</h2>
-        <p className="mt-1 mb-0 text-[13px] text-gray-500">
+        <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Visual workspace for orchestrating agent workflows and viewing execution graphs.
         </p>
       </div>
 
       <div className="mb-6">
-        <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
           Feature Flags
         </div>
         {features && Object.keys(features).length > 0 ? (
@@ -67,7 +67,7 @@ export default function CanvasPage() {
                 <span className="text-[13px] font-mono">{name}</span>
                 <button
                   className={`border-none rounded px-3 py-0.5 text-[11px] font-bold cursor-pointer min-w-[40px] ${
-                    enabled ? 'bg-green-900 text-gray-50' : 'bg-gray-700 text-gray-400'
+                    enabled ? 'bg-green-900 text-slate-50' : 'bg-slate-700 text-slate-400'
                   }`}
                   onClick={() => handleToggleFeature(name, !enabled)}
                 >
@@ -77,14 +77,14 @@ export default function CanvasPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-5 text-[13px]">
+          <div className="text-center text-slate-500 py-5 text-[13px]">
             No feature flags configured.
           </div>
         )}
       </div>
 
       <div className="mb-6">
-        <div className="text-[13px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
           System Policies
         </div>
         {policies && Object.keys(policies).length > 0 ? (
@@ -95,12 +95,14 @@ export default function CanvasPage() {
                 className="flex items-center justify-between bg-bg-elevated rounded-md px-3.5 py-2.5 border border-border"
               >
                 <span className="text-[13px] font-mono font-semibold">{name}</span>
-                <span className="text-[11px] font-mono text-gray-500">{JSON.stringify(value)}</span>
+                <span className="text-[11px] font-mono text-slate-500">
+                  {JSON.stringify(value)}
+                </span>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-5 text-[13px]">
+          <div className="text-center text-slate-500 py-5 text-[13px]">
             No system policies defined.
           </div>
         )}

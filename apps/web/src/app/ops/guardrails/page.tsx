@@ -26,7 +26,7 @@ export default function GuardrailsPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-gray-50">
+      <div className="p-6 text-slate-50">
         <DbErrorBanner error={error} />
       </div>
     )
@@ -36,8 +36,8 @@ export default function GuardrailsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-gray-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-gray-500">
+      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">Loading...</div>
           <div className="text-xs">Fetching guardrail data</div>
         </div>
@@ -56,10 +56,10 @@ export default function GuardrailsPage() {
     | undefined
 
   return (
-    <div className="p-6 text-gray-50">
+    <div className="p-6 text-slate-50">
       <div className="mb-5">
         <h2 className="m-0 text-[22px] font-bold font-orbitron">Guardrails</h2>
-        <p className="mt-1 mb-0 text-xs text-gray-500">
+        <p className="mt-1 mb-0 text-xs text-slate-500">
           Safety rules, PII detection logs, and content policy enforcement across all agents.
         </p>
       </div>
@@ -67,37 +67,37 @@ export default function GuardrailsPage() {
         <div className="cyber-grid grid-cols-3 gap-2.5 mb-5">
           <div className="cyber-card p-3.5 text-center">
             <div className="text-[22px] font-bold">{stats.total}</div>
-            <div className="text-[11px] text-gray-500 mt-0.5">Total Checks</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Total Checks</div>
           </div>
           <div className="cyber-card p-3.5 text-center">
             <div className="text-[22px] font-bold text-neon-green">{stats.passed}</div>
-            <div className="text-[11px] text-gray-500 mt-0.5">Passed</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Passed</div>
           </div>
           <div className="cyber-card p-3.5 text-center">
             <div className="text-[22px] font-bold text-neon-red">{stats.failed}</div>
-            <div className="text-[11px] text-gray-500 mt-0.5">Violations</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Violations</div>
           </div>
         </div>
       )}
 
       {logs.length === 0 ? (
-        <div className="text-center text-gray-500 py-10 text-sm">No guardrail logs yet.</div>
+        <div className="text-center text-slate-500 py-10 text-sm">No guardrail logs yet.</div>
       ) : (
         <div className="cyber-card overflow-hidden">
           <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border">
-            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Layer
             </span>
-            <span className="flex-[2] text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+            <span className="flex-[2] text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Rule
             </span>
-            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Result
             </span>
-            <span className="flex-[2] text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+            <span className="flex-[2] text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Detail
             </span>
-            <span className="flex-1 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+            <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Agent
             </span>
           </div>
@@ -112,10 +112,10 @@ export default function GuardrailsPage() {
                   {l.passed ? 'PASS' : 'FAIL'}
                 </span>
               </span>
-              <span className="flex-[2] text-[11px] text-gray-400">
+              <span className="flex-[2] text-[11px] text-slate-400">
                 {l.violationDetail || '\u2014'}
               </span>
-              <span className="flex-1 font-mono text-[10px] text-gray-500">
+              <span className="flex-1 font-mono text-[10px] text-slate-500">
                 {l.agentId?.slice(0, 8) || '\u2014'}
               </span>
             </div>
