@@ -213,4 +213,216 @@ export const topologyRouter = router({
 
       return { type: 'unknown' as const, data: null }
     }),
+
+  /** Runtime overlay — live agent statuses, executions, health */
+  getRuntimeOverlay: protectedProcedure.query(async ({ ctx }) => {
+    const [allAgents, executions, pendingApprovals, jobs] = await Promise.all([
+      ctx.db.query.agents.findMany(),
+      ctx.db.query.ticketExecution.findMany(),
+      ctx.db.query.approvalGates.findMany(),
+      ctx.db.query.cronJobs.findMany(),
+    ])
+
+    const agentStatuses: Record<string, { status: string; currentTicket?: string }> = {}
+    for (const a of allAgents) {
+      const exec = executions.find((e) => e.lockOwner === a.id)
+      agentStatuses[a.id] = {
+        status: a.status ?? 'idle',
+        currentTicket: exec?.ticketId ?? undefined,
+      }
+    }
+
+    const statusCounts = {
+      idle: allAgents.filter((a) => a.status === 'idle').length,
+      executing: allAgents.filter((a) => a.status === 'executing' || a.status === 'planning')
+        .length,
+      error: allAgents.filter((a) => a.status === 'error').length,
+      offline: allAgents.filter((a) => a.status === 'offline').length,
+    }
+
+    const pending = pendingApprovals.filter((a) => a.status === 'pending').length
+    const activeCrons = jobs.filter((j) => j.status === 'active').length
+    const failedCrons = jobs.filter((j) => j.status === 'failed').length
+
+    const healthScore =
+      statusCounts.error === 0 && failedCrons === 0
+        ? 'healthy'
+        : statusCounts.error > 3 || failedCrons > 2
+          ? 'unhealthy'
+          : 'degraded'
+
+    return {
+      agentStatuses,
+      statusCounts,
+      pendingApprovals: pending,
+      cronSummary: { active: activeCrons, failed: failedCrons, total: jobs.length },
+      healthScore,
+      timestamp: new Date(),
+    }
+  }),
+
+  /** Blast radius analysis — what's affected if a node fails */
+  getBlastRadius: protectedProcedure
+    .input(z.object({ nodeId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const allAgents = await ctx.db.query.agents.findMany()
+      const entityLinks = await ctx.db.query.brainEntityAgents.findMany()
+      const entities = await ctx.db.query.brainEntities.findMany()
+
+      const rawId = input.nodeId.replace(/^(agent|ws|model|entity)-/, '')
+      const affected = new Set<string>()
+      const queue: string[] = [rawId]
+      let depth = 0
+
+      // BFS to find affected nodes (max depth 3)
+      while (queue.length > 0 && depth < 3) {
+        const nextQueue: string[] = []
+        for (const id of queue) {
+          // Agents supervised by this agent
+          for (const a of allAgents) {
+            if (a.parentOrchestratorId === id && !affected.has(a.id)) {
+              affected.add(a.id)
+              nextQueue.push(a.id)
+            }
+          }
+          // Agents in same workspace
+          const agent = allAgents.find((a) => a.id === id)
+          if (agent?.workspaceId) {
+            for (const a of allAgents) {
+              if (a.workspaceId === agent.workspaceId && a.id !== id && !affected.has(a.id)) {
+                affected.add(a.id)
+              }
+            }
+          }
+          // Entity children
+          for (const e of entities) {
+            if (e.parentId === id && !affected.has(e.id)) {
+              affected.add(e.id)
+              nextQueue.push(e.id)
+            }
+          }
+          // Agents linked to entity
+          for (const link of entityLinks) {
+            if (link.entityId === id && !affected.has(link.agentId)) {
+              affected.add(link.agentId)
+            }
+          }
+        }
+        queue.length = 0
+        queue.push(...nextQueue)
+        depth++
+      }
+
+      const riskScore = Math.min(
+        100,
+        Math.round((affected.size / Math.max(allAgents.length, 1)) * 100),
+      )
+
+      return {
+        nodeId: input.nodeId,
+        affectedNodes: [...affected],
+        affectedCount: affected.size,
+        totalNodes: allAgents.length + entities.length,
+        riskScore,
+        depth,
+      }
+    }),
+
+  /** Smart insights — detect topology issues */
+  getInsights: protectedProcedure.query(async ({ ctx }) => {
+    const allAgents = await ctx.db.query.agents.findMany()
+    const entityLinks = await ctx.db.query.brainEntityAgents.findMany()
+
+    type Insight = {
+      id: string
+      severity: 'info' | 'warning' | 'critical'
+      title: string
+      description: string
+      nodeIds: string[]
+    }
+
+    const insights: Insight[] = []
+
+    // 1. Single points of failure — orchestrators supervising many agents
+    const orchAgentCounts = new Map<string, number>()
+    for (const a of allAgents) {
+      if (a.parentOrchestratorId) {
+        orchAgentCounts.set(
+          a.parentOrchestratorId,
+          (orchAgentCounts.get(a.parentOrchestratorId) ?? 0) + 1,
+        )
+      }
+    }
+    for (const [orchId, count] of orchAgentCounts) {
+      if (count >= 10) {
+        const orch = allAgents.find((a) => a.id === orchId)
+        insights.push({
+          id: `spof-${orchId}`,
+          severity: 'critical',
+          title: `Single point of failure: ${orch?.name ?? orchId}`,
+          description: `This orchestrator supervises ${count} agents. If it fails, all ${count} agents are affected.`,
+          nodeIds: [`agent-${orchId}`],
+        })
+      }
+    }
+
+    // 2. Isolated agents — no workspace, no parent orchestrator
+    const isolated = allAgents.filter((a) => !a.workspaceId && !a.parentOrchestratorId)
+    if (isolated.length > 0) {
+      insights.push({
+        id: 'isolated-agents',
+        severity: 'warning',
+        title: `${isolated.length} isolated agent(s)`,
+        description:
+          'These agents have no workspace and no parent orchestrator. They may be unused.',
+        nodeIds: isolated.map((a) => `agent-${a.id}`),
+      })
+    }
+
+    // 3. Model concentration — too many agents on one model
+    const modelCounts = new Map<string, number>()
+    for (const a of allAgents) {
+      if (a.model) modelCounts.set(a.model, (modelCounts.get(a.model) ?? 0) + 1)
+    }
+    for (const [model, count] of modelCounts) {
+      const pct = Math.round((count / allAgents.length) * 100)
+      if (pct > 70) {
+        insights.push({
+          id: `model-concentration-${model}`,
+          severity: 'warning',
+          title: `${pct}% of agents use ${model}`,
+          description: `${count} of ${allAgents.length} agents depend on this model. If the provider goes down, most of the swarm is affected.`,
+          nodeIds: [`model-${model.replace(/[^a-z0-9]/gi, '-')}`],
+        })
+      }
+    }
+
+    // 4. Agents in error state
+    const errorAgents = allAgents.filter((a) => a.status === 'error')
+    if (errorAgents.length > 0) {
+      insights.push({
+        id: 'error-agents',
+        severity: errorAgents.length > 3 ? 'critical' : 'warning',
+        title: `${errorAgents.length} agent(s) in error state`,
+        description: 'These agents need attention — they may be blocking work.',
+        nodeIds: errorAgents.map((a) => `agent-${a.id}`),
+      })
+    }
+
+    // 5. Unassigned entities — entities with no agents
+    const assignedEntityIds = new Set(entityLinks.map((l) => l.entityId))
+    const entities = await ctx.db.query.brainEntities.findMany()
+    const unassigned = entities.filter((e) => !assignedEntityIds.has(e.id))
+    if (unassigned.length > 0) {
+      insights.push({
+        id: 'unassigned-entities',
+        severity: 'info',
+        title: `${unassigned.length} entity/entities without agents`,
+        description: 'These brain entities have no agents assigned. They may need provisioning.',
+        nodeIds: unassigned.map((e) => `entity-${e.id}`),
+      })
+    }
+
+    return insights
+  }),
 })
