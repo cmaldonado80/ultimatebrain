@@ -7,6 +7,14 @@
 import { trpc } from '../../utils/trpc'
 import { DbErrorBanner } from '../../components/db-error-banner'
 
+const STAT_COLORS: Record<string, string> = {
+  'neon-blue': 'text-neon-blue',
+  'neon-green': 'text-neon-green',
+  'neon-red': 'text-neon-red',
+  'neon-purple': 'text-neon-purple',
+  'slate-600': 'text-slate-600',
+}
+
 function StatCard({
   label,
   value,
@@ -20,7 +28,9 @@ function StatCard({
 }) {
   return (
     <div className="cyber-card p-4">
-      <div className={`text-2xl font-bold font-orbitron text-${color}`}>{value}</div>
+      <div className={`text-2xl font-bold font-orbitron ${STAT_COLORS[color] ?? 'text-neon-blue'}`}>
+        {value}
+      </div>
       <div className="text-xs text-slate-400 mt-1">{label}</div>
       {sub && <div className="text-[10px] text-slate-600 mt-0.5">{sub}</div>}
     </div>
