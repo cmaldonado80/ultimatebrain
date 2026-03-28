@@ -162,7 +162,9 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
   }, [])
 
   const isActive = (href: string) =>
-    href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/')
+    href === '/' || href === '/ops'
+      ? pathname === href
+      : pathname === href || pathname.startsWith(href + '/')
 
   return (
     <>

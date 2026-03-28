@@ -48,8 +48,6 @@ export default function DashboardPage() {
   const agentsQuery = trpc.agents.list.useQuery({ limit: 500, offset: 0 })
   const ticketsQuery = trpc.tickets.list.useQuery({ limit: 10, offset: 0 })
   const cronQuery = trpc.orchestration.cronJobs.useQuery()
-  // Memory query available for future dashboard stats
-  trpc.memory.list.useQuery({ limit: 1, offset: 0 })
   const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
   const sessionsQuery = trpc.intelligence.chatSessions.useQuery()
   const rankedPanelsQuery = trpc.adaptive.defaultRank.useQuery({
