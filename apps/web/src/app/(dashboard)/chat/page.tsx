@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { CommandPalette } from '../../../components/chat/command-palette'
 import { InspectorPanel, type InspectorSelection } from '../../../components/chat/inspector-panel'
+import { MentionPicker } from '../../../components/chat/mention-picker'
 import { ThreadItem, type ThreadItemData } from '../../../components/chat/thread-item'
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import { trpc } from '../../../utils/trpc'
@@ -58,6 +60,10 @@ export default function ChatPage() {
   const [streaming, setStreaming] = useState(false)
   const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([])
   const [optimisticText, setOptimisticText] = useState<string | null>(null)
+  const [showCommands, setShowCommands] = useState(false)
+  const [showMentions, setShowMentions] = useState(false)
+  const [commandQuery, setCommandQuery] = useState('')
+  const [mentionQuery, setMentionQuery] = useState('')
 
   const abortRef = useRef<AbortController | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -219,6 +225,87 @@ export default function ChatPage() {
       setStreamEvents([])
     }
   }, [selectedSession, selectedAgents, newMessage, streaming, utils])
+
+  // ── Slash commands ───────────────────────────────────────────────────
+  const handleCommand = useCallback(
+    (command: string) => {
+      setShowCommands(false)
+      setNewMessage('')
+      switch (command) {
+        case 'crew':
+          // Select all agents
+          if (agents.length > 0) {
+            setSelectedAgents(agents.map((a) => a.id).slice(0, 10))
+          }
+          break
+        case 'clear':
+          createSession.mutateAsync({})
+          break
+        case 'retry':
+          // Retry last message — resend
+          handleSend()
+          break
+        case 'stop':
+          abortRef.current?.abort()
+          break
+        case 'export': {
+          const data = sessionQuery.data as
+            | { messages?: Array<{ role: string; text: string }> }
+            | undefined
+          if (data?.messages) {
+            const blob = new Blob([JSON.stringify(data.messages, null, 2)], {
+              type: 'application/json',
+            })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `chat-${selectedSession?.slice(0, 8)}.json`
+            a.click()
+            URL.revokeObjectURL(url)
+          }
+          break
+        }
+      }
+    },
+    [agents, createSession, handleSend, selectedSession, sessionQuery.data],
+  )
+
+  // ── @mention handler ─────────────────────────────────────────────────
+  const handleMention = useCallback(
+    (agent: { id: string; name: string }) => {
+      setShowMentions(false)
+      setNewMessage((prev) => prev.replace(/@\S*$/, ''))
+      if (!selectedAgents.includes(agent.id)) {
+        setSelectedAgents((prev) => [...prev, agent.id])
+      }
+    },
+    [selectedAgents],
+  )
+
+  // ── Keyboard shortcuts ───────────────────────────────────────────────
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Cmd+N → new conversation
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault()
+        createSession.mutateAsync({})
+      }
+      // Cmd+Shift+I → toggle inspector
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'I') {
+        e.preventDefault()
+        setInspectorOpen((v) => !v)
+      }
+      // Escape → stop generation or close inspector
+      if (e.key === 'Escape') {
+        if (streaming) abortRef.current?.abort()
+        else if (inspectorOpen) setInspectorOpen(false)
+        else if (showCommands) setShowCommands(false)
+        else if (showMentions) setShowMentions(false)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [streaming, inspectorOpen, showCommands, showMentions, createSession])
 
   const handleInspect = useCallback((sel: InspectorSelection) => {
     setInspectorSelection(sel)
@@ -438,21 +525,66 @@ export default function ChatPage() {
                       </span>
                     )}
                   </div>
-                  <div className="flex gap-2 items-end">
+                  <div className="flex gap-2 items-end relative">
+                    {/* Slash command palette */}
+                    {showCommands && (
+                      <CommandPalette
+                        query={commandQuery}
+                        onSelect={handleCommand}
+                        onClose={() => setShowCommands(false)}
+                      />
+                    )}
+                    {/* @mention picker */}
+                    {showMentions && (
+                      <MentionPicker
+                        query={mentionQuery}
+                        agents={
+                          agents as Array<{
+                            id: string
+                            name: string
+                            type: string | null
+                            model: string | null
+                          }>
+                        }
+                        onSelect={handleMention}
+                        onClose={() => setShowMentions(false)}
+                      />
+                    )}
                     <textarea
                       ref={textareaRef}
                       className="cyber-input flex-1 rounded-xl py-2.5 pr-4 resize-none"
                       placeholder={
                         selectedAgents.length > 1
-                          ? `Message ${selectedAgents.length} agents...`
-                          : 'Type a message...'
+                          ? `Message ${selectedAgents.length} agents... (/ for commands, @ for agents)`
+                          : 'Type a message... (/ for commands, @ for agents)'
                       }
                       value={newMessage}
                       onChange={(e) => {
-                        setNewMessage(e.target.value)
+                        const val = e.target.value
+                        setNewMessage(val)
                         autoResize()
+
+                        // Detect slash command
+                        if (val.startsWith('/')) {
+                          setShowCommands(true)
+                          setShowMentions(false)
+                          setCommandQuery(val.slice(1))
+                        } else {
+                          setShowCommands(false)
+                        }
+
+                        // Detect @mention
+                        const mentionMatch = val.match(/@(\S*)$/)
+                        if (mentionMatch) {
+                          setShowMentions(true)
+                          setShowCommands(false)
+                          setMentionQuery(mentionMatch[1])
+                        } else {
+                          setShowMentions(false)
+                        }
                       }}
                       onKeyDown={(e) => {
+                        if (showCommands || showMentions) return // Let palette handle keys
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault()
                           handleSend()
@@ -478,8 +610,14 @@ export default function ChatPage() {
                       </button>
                     )}
                   </div>
-                  <div className="mt-1 text-[10px] text-slate-600 text-center">
-                    Shift+Enter for new line
+                  <div className="mt-1 text-[10px] text-slate-600 text-center flex items-center justify-center gap-3">
+                    <span>Shift+Enter new line</span>
+                    <span className="text-slate-700">|</span>
+                    <span>/ commands</span>
+                    <span className="text-slate-700">|</span>
+                    <span>@agent</span>
+                    <span className="text-slate-700">|</span>
+                    <span>Cmd+N new chat</span>
                   </div>
                 </div>
               </div>
