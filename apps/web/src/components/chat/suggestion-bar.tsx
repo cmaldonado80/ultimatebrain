@@ -5,7 +5,7 @@
  * V9: Includes autonomy level toggle (Manual/Assist/Auto).
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -142,15 +142,24 @@ export function SuggestionBar(props: SuggestionBarProps) {
       })
     }, 1000)
 
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      setAutoCountdown(null)
+      setAutoAction(null)
+    }
   }, [level, suggestions.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Assist mode: auto-execute low-risk actions immediately
+  // Assist mode: auto-execute low-risk actions once (not on every render)
+  const assistExecutedRef = useRef(false)
   useEffect(() => {
-    if (level !== 'assist') return
+    if (level !== 'assist') {
+      assistExecutedRef.current = false
+      return
+    }
+    if (assistExecutedRef.current) return
     const lowRisk = suggestions.filter((s) => s.lowRisk)
     if (lowRisk.length > 0 && lowRisk[0].action === 'copy') {
-      // Auto-copy in assist mode
+      assistExecutedRef.current = true
       props.onAction('copy')
     }
   }, [level]) // eslint-disable-line react-hooks/exhaustive-deps

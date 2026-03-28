@@ -33,6 +33,7 @@ function deriveActivity(events: StreamEvent[]): ActivityItem[] {
   const agentStates = new Map<string, ActivityItem>()
   let lastAgentName = 'Assistant'
   let activeToolName: string | null = null
+  let toolCounter = 0
 
   for (const event of events) {
     switch (event.type) {
@@ -49,24 +50,33 @@ function deriveActivity(events: StreamEvent[]): ActivityItem[] {
         })
         break
 
-      case 'tool_use':
+      case 'tool_use': {
+        toolCounter++
         activeToolName = event.name
-        agentStates.set(`tool-${event.name}`, {
-          id: `tool-${event.name}`,
+        const toolKey = `tool-${event.name}-${toolCounter}`
+        agentStates.set(toolKey, {
+          id: toolKey,
           label: event.name,
           state: 'running',
           detail: 'Tool',
         })
         break
+      }
 
       case 'tool_result':
         if (activeToolName) {
-          agentStates.set(`tool-${event.name}`, {
-            id: `tool-${event.name}`,
-            label: event.name,
-            state: 'completed',
-            detail: 'Tool',
-          })
+          // Update the most recent tool with this name
+          const resultKey = [...agentStates.keys()]
+            .reverse()
+            .find((k) => k.startsWith(`tool-${event.name}`))
+          if (resultKey) {
+            agentStates.set(resultKey, {
+              id: resultKey,
+              label: event.name,
+              state: 'completed',
+              detail: 'Tool',
+            })
+          }
           activeToolName = null
         }
         break
