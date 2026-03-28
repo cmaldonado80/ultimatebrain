@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { ActivityRail } from '../../../components/chat/activity-rail'
 import { CommandPalette } from '../../../components/chat/command-palette'
 import { InspectorPanel, type InspectorSelection } from '../../../components/chat/inspector-panel'
 import { MentionPicker } from '../../../components/chat/mention-picker'
@@ -453,6 +454,13 @@ export default function ChatPage() {
 
         {/* Center panel -- thread + composer */}
         <div className="flex-1 flex flex-col min-w-0">
+          {/* Activity Rail — shows during streaming */}
+          {streaming && streamEvents.length > 0 && (
+            <ActivityRail
+              events={streamEvents as Parameters<typeof ActivityRail>[0]['events']}
+              onInspect={(name) => handleInspect({ type: 'agent', id: '', name })}
+            />
+          )}
           {!selectedSession ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center max-w-md">
