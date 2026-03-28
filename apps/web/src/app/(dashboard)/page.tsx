@@ -1,8 +1,11 @@
 'use client'
 
 /**
- * Dashboard — system overview with key metrics, recent activity, and quick actions.
+ * Mission Control — real-time system overview with live activity,
+ * agent status, and adaptive recommendations.
  */
+
+import Link from 'next/link'
 
 import { DbErrorBanner } from '../../components/db-error-banner'
 import { trpc } from '../../utils/trpc'
@@ -37,6 +40,15 @@ function StatCard({
   )
 }
 
+function timeAgo(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  const diff = Date.now() - d.getTime()
+  if (diff < 60_000) return `${Math.round(diff / 1000)}s ago`
+  if (diff < 3_600_000) return `${Math.round(diff / 60_000)}m ago`
+  if (diff < 86_400_000) return `${Math.round(diff / 3_600_000)}h ago`
+  return d.toLocaleDateString()
+}
+
 const PANEL_ROUTES: Record<string, string> = {
   standup_summary: '/tickets',
   ticket_board: '/tickets',
@@ -54,9 +66,12 @@ const PANEL_ROUTES: Record<string, string> = {
   presence: '/ops/live',
 }
 
-export default function DashboardPage() {
+export default function MissionControlPage() {
   const agentsQuery = trpc.agents.list.useQuery({ limit: 500, offset: 0 })
-  const ticketsQuery = trpc.tickets.list.useQuery({ limit: 10, offset: 0 })
+  const ticketsQuery = trpc.tickets.list.useQuery(
+    { limit: 20, offset: 0 },
+    { refetchInterval: 5000 },
+  )
   const cronQuery = trpc.orchestration.cronJobs.useQuery()
   const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
   const sessionsQuery = trpc.intelligence.chatSessions.useQuery()
@@ -81,7 +96,7 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center text-slate-500">
-          <div className="text-lg font-orbitron">Loading Dashboard...</div>
+          <div className="text-lg font-orbitron">Loading Mission Control...</div>
         </div>
       </div>
     )
@@ -92,13 +107,16 @@ export default function DashboardPage() {
     name: string
     status: string | null
     type: string | null
+    model: string | null
   }>
   const tickets = (ticketsQuery.data ?? []) as Array<{
     id: string
     title: string
     status: string
     priority: string | null
+    assignedAgentId: string | null
     createdAt: Date
+    updatedAt: Date
   }>
   const cronJobs = (cronQuery.data ?? []) as Array<{ id: string; status: string }>
   const workspaces = (workspacesQuery.data ?? []) as Array<{ id: string }>
@@ -108,22 +126,30 @@ export default function DashboardPage() {
     idle: agents.filter((a) => a.status === 'idle').length,
     executing: agents.filter((a) => a.status === 'executing' || a.status === 'planning').length,
     error: agents.filter((a) => a.status === 'error').length,
-    offline: agents.filter((a) => a.status === 'offline').length,
   }
 
-  const ticketsByStatus = {
-    open: tickets.filter((t) => ['backlog', 'queued', 'in_progress'].includes(t.status)).length,
-    review: tickets.filter((t) => t.status === 'review').length,
-    done: tickets.filter((t) => t.status === 'done').length,
-  }
-
+  const inProgress = tickets.filter((t) => t.status === 'in_progress')
+  const recentlyDone = tickets.filter((t) => t.status === 'done').slice(0, 5)
+  const activeAgents = agents.filter((a) => a.status === 'executing' || a.status === 'planning')
   const activeCrons = cronJobs.filter((j) => j.status === 'active').length
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-6">
-        <h2 className="m-0 text-2xl font-bold font-orbitron">Dashboard</h2>
-        <p className="mt-1 mb-0 text-xs text-slate-500">System overview and quick actions</p>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="m-0 text-2xl font-bold font-orbitron">Mission Control</h2>
+          <p className="mt-1 mb-0 text-xs text-slate-500">Real-time overview of all systems</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="neon-dot neon-dot-green animate-pulse" />
+          <span className="text-xs text-slate-500">Live</span>
+          {timeOfDayQuery.data && (
+            <span className="cyber-badge text-[9px] bg-neon-teal/10 text-neon-teal border-neon-teal/20 ml-2">
+              {timeOfDayQuery.data.timeOfDay}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -146,24 +172,66 @@ export default function DashboardPage() {
         <StatCard label="Chat Sessions" value={sessions.length} color="neon-blue" />
       </div>
 
-      {/* Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Recent Tickets */}
+      {/* Agents at Work */}
+      {activeAgents.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-orbitron text-white mb-3">Agents at Work</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {activeAgents.map((agent) => {
+              const agentTicket = tickets.find(
+                (t) => t.assignedAgentId === agent.id && t.status === 'in_progress',
+              )
+              return (
+                <div key={agent.id} className="cyber-card p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="neon-dot neon-dot-green animate-pulse" />
+                    <span className="text-sm font-medium text-slate-200">{agent.name}</span>
+                    <span className="cyber-badge text-[9px] text-neon-blue border-neon-blue/20">
+                      {agent.status}
+                    </span>
+                  </div>
+                  {agentTicket && (
+                    <div className="text-xs text-slate-400 truncate">{agentTicket.title}</div>
+                  )}
+                  <div className="text-[10px] text-slate-600 mt-1">
+                    {agent.model ?? 'no model'} &middot; {agent.type ?? 'agent'}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Live Activity + Recent Completed */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        {/* Live Activity */}
         <div className="cyber-card p-4">
-          <h3 className="text-sm font-orbitron text-white mb-3">Recent Tickets</h3>
-          {tickets.length === 0 ? (
-            <div className="text-xs text-slate-600 py-4 text-center">No tickets yet</div>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="neon-dot neon-dot-blue animate-pulse" />
+            <h3 className="text-sm font-orbitron text-white">Live Activity</h3>
+          </div>
+          {inProgress.length === 0 ? (
+            <div className="text-xs text-slate-600 py-4 text-center">
+              No tasks in progress. Agents are waiting for work.
+            </div>
           ) : (
             <div className="space-y-2">
-              {tickets.slice(0, 8).map((t) => (
-                <div
-                  key={t.id}
-                  className="flex items-center justify-between py-1.5 border-b border-border-dim last:border-0"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs text-slate-200 truncate">{t.title}</div>
-                  </div>
-                  <div className="flex items-center gap-2 ml-3">
+              {inProgress.map((t) => {
+                const assignedAgent = agents.find((a) => a.id === t.assignedAgentId)
+                return (
+                  <div
+                    key={t.id}
+                    className="flex items-center gap-2 py-1.5 border-b border-border-dim last:border-0"
+                  >
+                    <div className="neon-dot neon-dot-green animate-pulse" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-slate-200 truncate">{t.title}</div>
+                      <div className="text-[10px] text-slate-500">
+                        {assignedAgent ? assignedAgent.name : 'Unassigned'} &middot;{' '}
+                        {timeAgo(t.updatedAt)}
+                      </div>
+                    </div>
                     {t.priority && (
                       <span
                         className={`text-[9px] font-mono uppercase ${
@@ -177,76 +245,77 @@ export default function DashboardPage() {
                         {t.priority}
                       </span>
                     )}
-                    <span
-                      className={`cyber-badge text-[9px] ${
-                        t.status === 'done'
-                          ? 'text-neon-green border-neon-green/20'
-                          : t.status === 'in_progress'
-                            ? 'text-neon-blue border-neon-blue/20'
-                            : 'text-slate-500 border-slate-500/20'
-                      }`}
-                    >
-                      {t.status}
-                    </span>
                   </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Recently Completed */}
+        <div className="cyber-card p-4">
+          <h3 className="text-sm font-orbitron text-white mb-3">Recently Completed</h3>
+          {recentlyDone.length === 0 ? (
+            <div className="text-xs text-slate-600 py-4 text-center">No completed tasks yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {recentlyDone.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center gap-2 py-1.5 border-b border-border-dim last:border-0"
+                >
+                  <span className="text-neon-green text-xs">&#10003;</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-slate-200 truncate">{t.title}</div>
+                  </div>
+                  <span className="text-[10px] text-slate-500">{timeAgo(t.updatedAt)}</span>
                 </div>
               ))}
             </div>
           )}
           <div className="mt-3 text-center">
-            <a href="/tickets" className="text-[10px] text-neon-blue hover:text-neon-blue/80">
+            <Link
+              href="/tickets"
+              className="text-[10px] text-neon-blue hover:text-neon-blue/80 no-underline"
+            >
               View all tickets →
-            </a>
+            </Link>
           </div>
         </div>
+      </div>
 
-        {/* Ticket Stats */}
-        <div className="cyber-card p-4">
-          <h3 className="text-sm font-orbitron text-white mb-3">Ticket Summary</h3>
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div className="text-center">
-              <div className="text-xl font-bold text-neon-yellow">{ticketsByStatus.open}</div>
-              <div className="text-[10px] text-slate-500">Open</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-neon-blue">{ticketsByStatus.review}</div>
-              <div className="text-[10px] text-slate-500">In Review</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-neon-green">{ticketsByStatus.done}</div>
-              <div className="text-[10px] text-slate-500">Done</div>
-            </div>
-          </div>
-
-          <h3 className="text-sm font-orbitron text-white mb-3 mt-4">Quick Actions</h3>
-          <div className="flex flex-wrap gap-2">
-            <a href="/chat" className="cyber-btn-primary cyber-btn-sm">
-              New Chat
-            </a>
-            <a href="/tickets" className="cyber-btn-secondary cyber-btn-sm">
-              View Tickets
-            </a>
-            <a href="/agents" className="cyber-btn-secondary cyber-btn-sm">
-              Manage Agents
-            </a>
-            <a href="/ops/cron" className="cyber-btn-secondary cyber-btn-sm">
-              Cron Jobs
-            </a>
-          </div>
+      {/* Quick Actions */}
+      <div className="cyber-card p-4 mb-6">
+        <h3 className="text-sm font-orbitron text-white mb-3">Quick Actions</h3>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/chat" className="cyber-btn-primary cyber-btn-sm no-underline">
+            New Chat
+          </Link>
+          <Link href="/tickets" className="cyber-btn-secondary cyber-btn-sm no-underline">
+            Tickets
+          </Link>
+          <Link href="/agents" className="cyber-btn-secondary cyber-btn-sm no-underline">
+            Agents
+          </Link>
+          <Link href="/workshop" className="cyber-btn-secondary cyber-btn-sm no-underline">
+            Workshop
+          </Link>
+          <Link href="/intelligence" className="cyber-btn-secondary cyber-btn-sm no-underline">
+            Intelligence
+          </Link>
+          <Link href="/ops/cron" className="cyber-btn-secondary cyber-btn-sm no-underline">
+            Cron Jobs
+          </Link>
+          <Link href="/ops/gateway" className="cyber-btn-secondary cyber-btn-sm no-underline">
+            API Costs
+          </Link>
         </div>
       </div>
 
       {/* Adaptive Recommended Panels */}
       {rankedPanelsQuery.data && (
-        <div className="mt-6">
-          <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-sm font-orbitron text-white">Recommended for You</h3>
-            {timeOfDayQuery.data && (
-              <span className="cyber-badge text-[9px] bg-neon-teal/10 text-neon-teal border-neon-teal/20">
-                {timeOfDayQuery.data.timeOfDay}
-              </span>
-            )}
-          </div>
+        <div>
+          <h3 className="text-sm font-orbitron text-white mb-3">Recommended for You</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {(
               rankedPanelsQuery.data as Array<{
@@ -260,10 +329,10 @@ export default function DashboardPage() {
             )
               .filter((p) => p.isVisible)
               .map((panel) => (
-                <a
+                <Link
                   key={panel.id}
                   href={PANEL_ROUTES[panel.id] ?? '/'}
-                  className="cyber-card p-3 hover:border-neon-teal/40 transition-colors group"
+                  className="cyber-card p-3 hover:border-neon-teal/40 transition-colors group no-underline"
                 >
                   <div className="text-xs font-medium text-slate-200 group-hover:text-neon-teal transition-colors">
                     {panel.label}
@@ -271,11 +340,7 @@ export default function DashboardPage() {
                   <div className="text-[10px] text-slate-500 mt-1 line-clamp-2">
                     {panel.description}
                   </div>
-                  <div className="text-[9px] text-slate-600 mt-1.5">
-                    score: {panel.score.toFixed(1)}
-                    {panel.isPinned && ' · pinned'}
-                  </div>
-                </a>
+                </Link>
               ))}
           </div>
         </div>

@@ -24,12 +24,14 @@ interface NavSection {
 const NAV_SECTIONS: NavSection[] = [
   {
     items: [
-      { label: 'Dashboard', href: '/', icon: '⊞' },
-      { label: 'Workspaces', href: '/workspaces', icon: '▦' },
+      { label: 'Mission Control', href: '/', icon: '⊞' },
+      { label: 'Workshop', href: '/workshop', icon: '◈' },
+      { label: 'Intelligence', href: '/intelligence', icon: '◇' },
+      { label: 'Chat', href: '/chat', icon: '◉' },
       { label: 'Agents', href: '/agents', icon: '⬡' },
       { label: 'Tickets', href: '/tickets', icon: '▤' },
+      { label: 'Workspaces', href: '/workspaces', icon: '▦' },
       { label: 'Projects', href: '/projects', icon: '◈' },
-      { label: 'Chat', href: '/chat', icon: '◉' },
       { label: 'Feature Flags', href: '/canvas', icon: '◧' },
     ],
   },
