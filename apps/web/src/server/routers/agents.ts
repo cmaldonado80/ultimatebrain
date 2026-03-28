@@ -173,11 +173,14 @@ export const agentsRouter = router({
   /** Bulk-assign Ollama cloud models to all agents that don't have an explicit model set */
   bulkAssignModels: protectedProcedure.mutation(async ({ ctx }) => {
     const MODEL_MAP: Record<string, string> = {
-      orchestrator: 'gemini-3-flash-preview:cloud',
-      reviewer: 'gemini-3-flash-preview:cloud',
+      orchestrator: 'deepseek-v3.2:cloud',
+      reviewer: 'deepseek-v3.2:cloud',
       planner: 'deepseek-v3.2:cloud',
       specialist: 'qwen3.5:cloud',
       executor: 'qwen3.5:cloud',
+      coder: 'qwen3.5:cloud',
+      vision: 'llama-3.2-11b-vision:cloud',
+      guard: 'llama-guard-3:cloud',
     }
     const allAgents = await ctx.db.query.agents.findMany()
     let updated = 0
