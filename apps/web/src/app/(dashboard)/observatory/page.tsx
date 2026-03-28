@@ -11,6 +11,7 @@ import { nodeTypes } from '../../../components/observatory/custom-nodes'
 import { HealthPanel } from '../../../components/observatory/health-panel'
 import { InsightsPanel } from '../../../components/observatory/insights-panel'
 import { layoutTopology } from '../../../components/observatory/layout'
+import { mergeOverlayIntoFlowNodes } from '../../../components/observatory/merge'
 import { trpc } from '../../../utils/trpc'
 
 // ── Inspector ───────────────────────────────────────────────────────────
@@ -39,13 +40,26 @@ function TagList({ items, teal }: { items: string[]; teal?: boolean }) {
   )
 }
 
-function Inspector({ node, onClose }: { node: TopoNode; onClose: () => void }) {
-  const m = node.metadata as Record<string, string | number | string[] | null | undefined>
+function Inspector({
+  node,
+  edge,
+  onClose,
+}: {
+  node: TopoNode | null
+  edge: { id: string; type: string; source: string; target: string; label?: string } | null
+  onClose: () => void
+}) {
+  const inspecting = node ?? edge
+  if (!inspecting) return null
+  const isEdge = !node && !!edge
+  const m = node
+    ? (node.metadata as Record<string, string | number | string[] | null | undefined>)
+    : {}
   return (
     <div className="w-80 border-l border-border bg-bg-deep overflow-y-auto p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-orbitron text-xs text-neon-teal tracking-wide uppercase">
-          {node.type}
+          {isEdge ? 'Edge' : node!.type}
         </h2>
         <button onClick={onClose} className="text-slate-600 hover:text-slate-400 text-xs">
           &#x2715;
@@ -53,10 +67,12 @@ function Inspector({ node, onClose }: { node: TopoNode; onClose: () => void }) {
       </div>
       <div className="space-y-2 text-xs">
         <div className="cyber-card p-3">
-          <div className="text-slate-200 font-semibold mb-1">{node.label}</div>
-          {node.status && <div className="text-slate-500">Status: {node.status}</div>}
+          <div className="text-slate-200 font-semibold mb-1">
+            {node?.label ?? edge?.label ?? edge?.type}
+          </div>
+          {node?.status && <div className="text-slate-500">Status: {node.status}</div>}
         </div>
-        {(node.type === 'agent' || node.type === 'orchestrator') && (
+        {(node?.type === 'agent' || node?.type === 'orchestrator') && (
           <div className="cyber-card p-3 space-y-1">
             {m.model && (
               <div className="text-slate-400">
@@ -64,7 +80,7 @@ function Inspector({ node, onClose }: { node: TopoNode; onClose: () => void }) {
               </div>
             )}
             {m.agentType && <div className="text-slate-400">Type: {String(m.agentType)}</div>}
-            {node.workspaceId && (
+            {node?.workspaceId && (
               <div className="text-slate-400">Workspace: {node.workspaceId}</div>
             )}
             {Array.isArray(m.skills) && m.skills.length > 0 && (
@@ -81,15 +97,27 @@ function Inspector({ node, onClose }: { node: TopoNode; onClose: () => void }) {
             )}
           </div>
         )}
-        {node.type === 'workspace' && (
+        {node?.type === 'workspace' && (
           <div className="cyber-card p-3 space-y-1">
             {m.type && <div className="text-slate-400">Type: {String(m.type)}</div>}
             <div className="text-slate-400">Agents: {Number(m.agentCount ?? 0)}</div>
           </div>
         )}
-        {node.type === 'model' && (
+        {node?.type === 'model' && (
           <div className="cyber-card p-3 space-y-1">
             <div className="text-slate-400 font-mono">{node.label}</div>
+          </div>
+        )}
+        {isEdge && edge && (
+          <div className="cyber-card p-3 space-y-1">
+            <div className="text-slate-400">Type: {edge.type}</div>
+            <div className="text-slate-400">
+              Source: <span className="font-mono text-slate-300">{edge.source}</span>
+            </div>
+            <div className="text-slate-400">
+              Target: <span className="font-mono text-slate-300">{edge.target}</span>
+            </div>
+            {edge.label && <div className="text-slate-400">Label: {edge.label}</div>}
           </div>
         )}
       </div>
@@ -106,7 +134,8 @@ export default function ObservatoryPage() {
   })
   const insightsQuery = trpc.topology.getInsights.useQuery()
 
-  const [selectedNode, setSelectedNode] = useState<string | null>(null)
+  type Selection = { kind: 'node'; id: string } | { kind: 'edge'; id: string } | null
+  const [selection, setSelection] = useState<Selection>(null)
   const [inspectorOpen, setInspectorOpen] = useState(true)
   const [healthOpen, setHealthOpen] = useState(false)
   const [insightsOpen, setInsightsOpen] = useState(false)
@@ -119,42 +148,47 @@ export default function ObservatoryPage() {
   )
 
   // Merge runtime overlay + highlighting WITHOUT re-layout (prevents jitter)
-  const flowNodes = useMemo(() => {
-    let nodes = staticNodes
-    if (runtimeQuery.data) {
-      nodes = nodes.map((node) => {
-        const rawId = node.id.replace(/^agent-/, '')
-        const runtime = runtimeQuery.data!.agentStatuses[rawId]
-        if (!runtime) return node
-        return { ...node, data: { ...node.data, status: runtime.status } }
-      })
-    }
-    if (highlightedNodes.size > 0) {
-      nodes = nodes.map((node) => ({
-        ...node,
-        data: { ...node.data, dimmed: !highlightedNodes.has(node.id) },
-      }))
-    }
-    return nodes
-  }, [staticNodes, runtimeQuery.data, highlightedNodes])
-
-  const selectedData = useMemo(
+  const flowNodes = useMemo(
     () =>
-      selectedNode && data
-        ? (data.nodes.find((n: TopoNode) => n.id === selectedNode) ?? null)
-        : null,
-    [selectedNode, data],
+      mergeOverlayIntoFlowNodes(
+        staticNodes,
+        (runtimeQuery.data as typeof runtimeQuery.data) ?? null,
+        highlightedNodes,
+      ),
+    [staticNodes, runtimeQuery.data, highlightedNodes],
   )
 
-  // Clear selection if selected node disappears after topology refresh
-  useEffect(() => {
-    if (selectedNode && data && !data.nodes.some((n) => n.id === selectedNode)) {
-      setSelectedNode(null)
+  const selectedData = useMemo(() => {
+    if (!selection || !data) return null
+    if (selection.kind === 'node') {
+      return data.nodes.find((n: TopoNode) => n.id === selection.id) ?? null
     }
-  }, [data, selectedNode])
+    return null
+  }, [selection, data])
+
+  const selectedEdge = useMemo(() => {
+    if (!selection || selection.kind !== 'edge' || !data) return null
+    return data.edges.find((e) => e.id === selection.id) ?? null
+  }, [selection, data])
+
+  // Clear selection if selected entity disappears after topology refresh
+  useEffect(() => {
+    if (!selection || !data) return
+    if (selection.kind === 'node' && !data.nodes.some((n) => n.id === selection.id)) {
+      setSelection(null)
+    }
+    if (selection.kind === 'edge' && !data.edges.some((e) => e.id === selection.id)) {
+      setSelection(null)
+    }
+  }, [data, selection])
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    setSelectedNode(node.id)
+    setSelection({ kind: 'node', id: node.id })
+    setInspectorOpen(true)
+  }, [])
+
+  const onEdgeClick = useCallback((_: React.MouseEvent, edge: { id: string }) => {
+    setSelection({ kind: 'edge', id: edge.id })
     setInspectorOpen(true)
   }, [])
 
@@ -253,6 +287,7 @@ export default function ObservatoryPage() {
               edges={flowEdges}
               nodeTypes={nodeTypes}
               onNodeClick={onNodeClick}
+              onEdgeClick={onEdgeClick}
               onPaneClick={() => setHighlightedNodes(new Set())}
               fitView
               minZoom={0.2}
@@ -279,8 +314,12 @@ export default function ObservatoryPage() {
             />
           )}
         </div>
-        {inspectorOpen && selectedData && (
-          <Inspector node={selectedData as TopoNode} onClose={() => setSelectedNode(null)} />
+        {inspectorOpen && (selectedData || selectedEdge) && (
+          <Inspector
+            node={selectedData as TopoNode | null}
+            edge={selectedEdge}
+            onClose={() => setSelection(null)}
+          />
         )}
       </div>
     </div>
