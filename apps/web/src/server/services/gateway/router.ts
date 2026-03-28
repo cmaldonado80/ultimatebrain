@@ -15,7 +15,19 @@
 import type { Database } from '@solarc/db'
 import type { LlmChatInput, LlmChatOutput } from '@solarc/engine-contracts'
 
-import type { Span, Tracer } from '../tracing/tracer'
+// Tracer types — inline stubs (tracing service removed as dead code)
+interface Span {
+  traceId: string
+  spanId: string
+  setAttribute(key: string, value: unknown): void
+  setStatus(status: string): void
+  recordError(err: unknown): void
+  end(): Promise<void>
+}
+
+interface Tracer {
+  start(name: string, options?: Record<string, unknown>): Span | undefined
+}
 import { SemanticCache, shouldSkipCache } from './cache'
 import { CircuitBreakerRegistry } from './circuit-breaker'
 import { CostTracker } from './cost-tracker'
