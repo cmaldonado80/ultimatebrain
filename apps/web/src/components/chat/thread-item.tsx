@@ -20,11 +20,20 @@ export type ThreadItemData =
       model?: string
       createdAt: Date
     }
+  | {
+      type: 'final_answer'
+      id: string
+      text: string
+      agentName: string
+      agentId?: string
+      model?: string
+      createdAt: Date
+    }
   | { type: 'agent_start'; agentName: string; agentId: string }
   | { type: 'tool_use'; name: string; input: unknown }
   | { type: 'tool_result'; name: string; result: string }
   | { type: 'streaming'; text: string; agentName?: string }
-  | { type: 'error'; message: string }
+  | { type: 'error'; message: string; onRetry?: () => void }
   | { type: 'system'; text: string }
 
 const AVATAR_COLORS = ['#00d4ff', '#8b5cf6', '#00ff88', '#ffd200', '#ff3a5c', '#f472b6', '#38bdf8']
@@ -85,6 +94,52 @@ export function ThreadItem({ item, onInspect }: ThreadItemProps) {
             </div>
             <div
               className="chat-bubble-agent cursor-pointer"
+              onClick={() =>
+                onInspect?.({
+                  type: 'message',
+                  id: item.id,
+                  role: 'assistant',
+                  text: item.text,
+                  agentName: item.agentName,
+                  model: item.model,
+                  timestamp: item.createdAt,
+                })
+              }
+            >
+              <MarkdownMessage content={item.text} />
+            </div>
+          </div>
+        </div>
+      )
+
+    case 'final_answer':
+      return (
+        <div className="flex gap-2.5 mb-4 items-start">
+          <button
+            className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white border-none cursor-pointer"
+            style={{ background: agentColor(item.agentName) }}
+            onClick={() =>
+              onInspect?.({
+                type: 'agent',
+                id: item.agentId ?? '',
+                name: item.agentName,
+                model: item.model,
+              })
+            }
+          >
+            {item.agentName.slice(0, 2).toUpperCase()}
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="chat-agent-label" style={{ color: agentColor(item.agentName) }}>
+                {item.agentName}
+              </div>
+              <span className="cyber-badge text-[9px] bg-neon-teal/10 text-neon-teal border-neon-teal/20">
+                Final Answer
+              </span>
+            </div>
+            <div
+              className="chat-bubble-agent cursor-pointer border-neon-teal/20 shadow-[0_0_12px_rgba(0,212,255,0.05)]"
               onClick={() =>
                 onInspect?.({
                   type: 'message',
@@ -181,8 +236,16 @@ export function ThreadItem({ item, onInspect }: ThreadItemProps) {
 
     case 'error':
       return (
-        <div className="cyber-card border-neon-red/30 bg-neon-red/5 p-2.5 my-2 text-xs text-neon-red">
-          {item.message}
+        <div className="cyber-card border-neon-red/30 bg-neon-red/5 p-2.5 my-2 text-xs text-neon-red flex items-center justify-between">
+          <span>{item.message}</span>
+          {item.onRetry && (
+            <button
+              className="cyber-btn-danger cyber-btn-xs ml-2 flex-shrink-0"
+              onClick={item.onRetry}
+            >
+              Retry
+            </button>
+          )}
         </div>
       )
 

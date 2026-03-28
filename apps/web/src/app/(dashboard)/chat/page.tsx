@@ -463,10 +463,10 @@ export default function ChatPage() {
                     />
                     {streaming ? (
                       <button
-                        className="cyber-btn-secondary rounded-xl py-2.5 flex-shrink-0"
+                        className="cyber-btn-danger rounded-xl py-2.5 flex-shrink-0"
                         onClick={() => abortRef.current?.abort()}
                       >
-                        Stop
+                        &#9632; Stop
                       </button>
                     ) : (
                       <button
