@@ -230,7 +230,18 @@ export default function ChatPage() {
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        setStreamEvents((p) => [...p, { type: 'error', message: (err as Error).message }])
+        // Auto-retry once if autonomy level is 'auto'
+        const autonomyLevel = localStorage.getItem('autonomy-level')
+        const alreadyRetried = (err as Error & { retried?: boolean }).retried
+        if (autonomyLevel === 'auto' && !alreadyRetried) {
+          setStreamEvents((p) => [
+            ...p,
+            { type: 'error', message: `${(err as Error).message} — auto-retrying in 2s...` },
+          ])
+          setTimeout(() => handleSend(), 2000)
+        } else {
+          setStreamEvents((p) => [...p, { type: 'error', message: (err as Error).message }])
+        }
       }
     } finally {
       setStreaming(false)
