@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function NotFound() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-deep font-sans">
@@ -7,9 +9,12 @@ export default function NotFound() {
         <p className="text-sm text-slate-500 m-0 mb-6">
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
-        <a href="/" className="text-sm text-neon-purple no-underline font-semibold hover:underline">
+        <Link
+          href="/"
+          className="text-sm text-neon-purple no-underline font-semibold hover:underline"
+        >
           Back to Dashboard
-        </a>
+        </Link>
       </div>
     </div>
   )

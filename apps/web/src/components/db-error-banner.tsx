@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 /**
  * Shared error banner for database/query errors.
  * Differentiates between missing tables, connection errors, and runtime errors.
@@ -43,9 +45,9 @@ export function DbErrorBanner({
         {title}
       </span>
       {isAuthError ? (
-        <a href="/auth/signin" className="text-neon-purple text-xs underline">
+        <Link href="/auth/signin" className="text-neon-purple text-xs underline">
           Please sign in again.
-        </a>
+        </Link>
       ) : (
         <span className="text-slate-500 text-xs">{detail}</span>
       )}

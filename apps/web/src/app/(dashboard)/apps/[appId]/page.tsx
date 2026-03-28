@@ -6,6 +6,7 @@
  * Shows: agent info, model, skills, tags, etc.
  */
 
+import Link from 'next/link'
 import { useParams } from 'next/navigation'
 
 import { DbErrorBanner } from '../../../../components/db-error-banner'
@@ -78,9 +79,9 @@ export default function AppDetailPage() {
     <div className="min-h-screen bg-bg-deep text-slate-50 p-6">
       {/* Header */}
       <div className="mb-5">
-        <a href="/apps" className="text-xs text-slate-500 no-underline block mb-2">
+        <Link href="/apps" className="text-xs text-slate-500 no-underline block mb-2">
           ← Apps
-        </a>
+        </Link>
         <div className="flex justify-between items-start">
           <div>
             <h1 className="m-0 mb-1.5 text-[22px] font-bold">{agentName}</h1>

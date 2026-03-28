@@ -5,6 +5,7 @@
  * Swiss Ephemeris shows categorized modules with expandable endpoint lists.
  */
 
+import Link from 'next/link'
 import { use, useState } from 'react'
 
 // ─── Module definitions for Swiss Ephemeris ──────────────────────────────────
@@ -291,9 +292,9 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center gap-3">
-          <a href="/engines/registry" className="text-slate-500 text-[13px] no-underline">
+          <Link href="/engines/registry" className="text-slate-500 text-[13px] no-underline">
             ← Engine Registry
-          </a>
+          </Link>
           <span className="text-slate-700">/</span>
           <h2 className="m-0 text-xl font-bold inline">{doc?.title ?? engineId}</h2>
           {engineId === 'swiss-ephemeris' && (

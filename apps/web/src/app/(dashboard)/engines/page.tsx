@@ -4,6 +4,8 @@
  * Engines — brain entity hierarchy and engine status.
  */
 
+import Link from 'next/link'
+
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import { trpc } from '../../../utils/trpc'
 
@@ -77,12 +79,12 @@ export default function EnginesPage() {
       <div className="mb-5">
         <div className="flex justify-between items-center">
           <h2 className="m-0 text-[22px] font-bold font-orbitron">Engines</h2>
-          <a
+          <Link
             href="/engines/manage"
             className="cyber-btn-primary text-xs font-semibold no-underline"
           >
             Manage Brain
-          </a>
+          </Link>
         </div>
         <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Monitor the brain&apos;s core engines — LLM Gateway, Memory, Orchestration, Guardrails,
