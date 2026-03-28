@@ -165,6 +165,7 @@ export async function POST(req: Request) {
       id: '',
       name: 'Assistant',
       soul: 'You are a helpful AI assistant. Be concise and direct.',
+      model: 'qwen3.5:cloud',
     })
   }
 
