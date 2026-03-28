@@ -2,18 +2,20 @@
 
 import '@xyflow/react/dist/style.css'
 
-import { Background, Controls, type Edge, MiniMap, type Node, ReactFlow } from '@xyflow/react'
+import { Background, Controls, MiniMap, type Node, ReactFlow } from '@xyflow/react'
 import { useCallback, useMemo, useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { NODE_COLORS } from '../../../components/observatory/constants'
 import { nodeTypes } from '../../../components/observatory/custom-nodes'
 import { HealthPanel } from '../../../components/observatory/health-panel'
 import { InsightsPanel } from '../../../components/observatory/insights-panel'
+import { layoutTopology } from '../../../components/observatory/layout'
 import { trpc } from '../../../utils/trpc'
 
-// ── Types ───────────────────────────────────────────────────────────────
+// ── Inspector ───────────────────────────────────────────────────────────
 
-type TopoNode = {
+interface TopoNode {
   id: string
   type: string
   label: string
@@ -21,93 +23,6 @@ type TopoNode = {
   workspaceId?: string | null
   metadata: Record<string, unknown>
 }
-type TopoEdge = { id: string; type: string; source: string; target: string }
-
-// ── Layout helper ───────────────────────────────────────────────────────
-
-function buildGraph(nodes: TopoNode[], edges: TopoEdge[]) {
-  const COL_W = 300,
-    ROW_H = 80,
-    WS_Y = 40
-  const wsAgents = new Map<string, TopoNode[]>()
-  const wsNodes = nodes.filter((n) => n.type === 'workspace')
-  const modelNodes = nodes.filter((n) => n.type === 'model')
-
-  for (const n of nodes) {
-    if (n.type === 'agent' || n.type === 'orchestrator') {
-      const key = n.workspaceId ? `ws-${n.workspaceId}` : '__unassigned'
-      if (!wsAgents.has(key)) wsAgents.set(key, [])
-      wsAgents.get(key)!.push(n)
-    }
-  }
-
-  const out: Node[] = []
-  let col = 0
-
-  const placeColumn = (
-    wsId: string,
-    label: string,
-    agentCount: number,
-    wsType: string,
-    children: TopoNode[],
-  ) => {
-    const x = col * COL_W + 40
-    out.push({
-      id: wsId,
-      type: 'workspace',
-      position: { x, y: WS_Y },
-      data: { label, agentCount, wsType },
-    })
-    children.sort(
-      (a, b) => (a.type === 'orchestrator' ? -1 : 1) - (b.type === 'orchestrator' ? -1 : 1),
-    )
-    children.forEach((ag, i) => {
-      out.push({
-        id: ag.id,
-        type: ag.type as 'agent' | 'orchestrator',
-        position: { x: x + 20, y: WS_Y + 80 + i * ROW_H },
-        data: { label: ag.label, status: ag.status, model: ag.metadata.model, ...ag.metadata },
-      })
-    })
-    col++
-  }
-
-  for (const ws of wsNodes) {
-    placeColumn(
-      ws.id,
-      ws.label,
-      (ws.metadata.agentCount as number) ?? 0,
-      ws.metadata.type as string,
-      wsAgents.get(ws.id) ?? [],
-    )
-  }
-  const unassigned = wsAgents.get('__unassigned') ?? []
-  if (unassigned.length)
-    placeColumn('__unassigned', 'Unassigned', unassigned.length, 'virtual', unassigned)
-
-  const maxAgents = Math.max(...[...wsAgents.values()].map((a) => a.length), 1)
-  modelNodes.forEach((m, i) => {
-    out.push({
-      id: m.id,
-      type: 'model',
-      position: { x: i * 200 + 60, y: WS_Y + 80 + maxAgents * ROW_H + 60 },
-      data: { label: m.label, ...m.metadata },
-    })
-  })
-
-  const flowEdges: Edge[] = edges.map((e) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    type: 'default',
-    style: { stroke: e.type === 'supervises' ? '#00d4ff' : '#1e293b', strokeWidth: 1 },
-    animated: e.type === 'supervises',
-  }))
-
-  return { flowNodes: out, flowEdges }
-}
-
-// ── Inspector ───────────────────────────────────────────────────────────
 
 function TagList({ items, teal }: { items: string[]; teal?: boolean }) {
   const cls = teal
@@ -174,8 +89,7 @@ function Inspector({ node, onClose }: { node: TopoNode; onClose: () => void }) {
         )}
         {node.type === 'model' && (
           <div className="cyber-card p-3 space-y-1">
-            {m.provider && <div className="text-slate-400">Provider: {String(m.provider)}</div>}
-            {m.modelType && <div className="text-slate-400">Type: {String(m.modelType)}</div>}
+            <div className="text-slate-400 font-mono">{node.label}</div>
           </div>
         )}
       </div>
@@ -198,13 +112,14 @@ export default function ObservatoryPage() {
   const [insightsOpen, setInsightsOpen] = useState(false)
   const [highlightedNodes, setHighlightedNodes] = useState<Set<string>>(new Set())
 
+  // Project topology into React Flow via extracted layout function
   const { flowNodes, flowEdges } = useMemo(() => {
     if (!data) return { flowNodes: [], flowEdges: [] }
-    const { flowNodes: nodes, flowEdges: edges } = buildGraph(data.nodes, data.edges)
+    const result = layoutTopology(data.nodes, data.edges)
 
-    // Apply runtime status overlay
+    // Merge runtime overlay into node data
     if (runtimeQuery.data) {
-      for (const node of nodes) {
+      for (const node of result.flowNodes) {
         const rawId = node.id.replace(/^agent-/, '')
         const runtime = runtimeQuery.data.agentStatuses[rawId]
         if (runtime) {
@@ -213,18 +128,21 @@ export default function ObservatoryPage() {
       }
     }
 
-    // Apply highlight dimming
+    // Apply insight highlighting
     if (highlightedNodes.size > 0) {
-      for (const node of nodes) {
+      for (const node of result.flowNodes) {
         node.data = { ...node.data, dimmed: !highlightedNodes.has(node.id) }
       }
     }
 
-    return { flowNodes: nodes, flowEdges: edges }
+    return result
   }, [data, runtimeQuery.data, highlightedNodes])
 
   const selectedData = useMemo(
-    () => (selectedNode && data ? (data.nodes.find((n) => n.id === selectedNode) ?? null) : null),
+    () =>
+      selectedNode && data
+        ? (data.nodes.find((n: TopoNode) => n.id === selectedNode) ?? null)
+        : null,
     [selectedNode, data],
   )
 
@@ -328,9 +246,7 @@ export default function ObservatoryPage() {
               edges={flowEdges}
               nodeTypes={nodeTypes}
               onNodeClick={onNodeClick}
-              onPaneClick={() => {
-                setHighlightedNodes(new Set())
-              }}
+              onPaneClick={() => setHighlightedNodes(new Set())}
               fitView
               minZoom={0.2}
               maxZoom={2}
@@ -340,20 +256,13 @@ export default function ObservatoryPage() {
               <Background color="#1e293b" gap={24} size={1} />
               <Controls className="!bg-bg-card !border-border !shadow-lg" />
               <MiniMap
-                nodeColor={(n) =>
-                  n.type === 'workspace'
-                    ? '#00d4ff'
-                    : n.type === 'orchestrator'
-                      ? '#a855f7'
-                      : '#475569'
-                }
+                nodeColor={(n) => NODE_COLORS[n.type ?? ''] ?? '#475569'}
                 maskColor="rgba(6,9,15,0.8)"
                 className="!bg-bg-deep !border-border"
               />
             </ReactFlow>
           )}
 
-          {/* Overlay panels */}
           {healthOpen && <HealthPanel data={runtime} onClose={() => setHealthOpen(false)} />}
           {insightsOpen && (
             <InsightsPanel
@@ -364,7 +273,7 @@ export default function ObservatoryPage() {
           )}
         </div>
         {inspectorOpen && selectedData && (
-          <Inspector node={selectedData} onClose={() => setSelectedNode(null)} />
+          <Inspector node={selectedData as TopoNode} onClose={() => setSelectedNode(null)} />
         )}
       </div>
     </div>
