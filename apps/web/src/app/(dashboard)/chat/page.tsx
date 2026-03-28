@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ActivityRail } from '../../../components/chat/activity-rail'
 import { CommandPalette } from '../../../components/chat/command-palette'
+import { buildExecutionGroups, ExecutionGroup } from '../../../components/chat/execution-group'
 import { InspectorPanel, type InspectorSelection } from '../../../components/chat/inspector-panel'
 import { MentionPicker } from '../../../components/chat/mention-picker'
 import { ThreadItem, type ThreadItemData } from '../../../components/chat/thread-item'
@@ -355,6 +356,7 @@ export default function ChatPage() {
     streamItems.push({ type: 'streaming', text: '', agentName: undefined })
   }
   const allItems = [...threadItems, ...streamItems]
+  const groupedItems = useMemo(() => buildExecutionGroups(allItems), [allItems])
 
   const headerTitle = selectedSession
     ? sessionTitle(messages, currentSession?.createdAt ?? new Date())
@@ -486,9 +488,21 @@ export default function ChatPage() {
                   </div>
                 ) : (
                   <div className="max-w-3xl mx-auto">
-                    {allItems.map((item, i) => (
-                      <ThreadItem key={i} item={item} onInspect={handleInspect} />
-                    ))}
+                    {groupedItems.map((item, i) =>
+                      'kind' in item && (item as { kind: string }).kind === 'group' ? (
+                        <ExecutionGroup
+                          key={i}
+                          group={item as Parameters<typeof ExecutionGroup>[0]['group']}
+                          onInspect={handleInspect}
+                        />
+                      ) : (
+                        <ThreadItem
+                          key={i}
+                          item={item as Parameters<typeof ThreadItem>[0]['item']}
+                          onInspect={handleInspect}
+                        />
+                      ),
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
                 )}
