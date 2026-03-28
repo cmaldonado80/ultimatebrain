@@ -121,6 +121,13 @@
            transition-all duration-150 cursor-pointer;
   }
 
+  /* ── Disabled States ──────────────────────────────────────────────── */
+  .cyber-btn-primary:disabled,
+  .cyber-btn-secondary:disabled,
+  .cyber-btn-danger:disabled {
+    @apply opacity-40 cursor-not-allowed;
+  }
+
   /* ── Size Variants (use instead of !important overrides) ───────────── */
   .cyber-btn-sm { @apply text-xs px-2.5 py-1; }
   .cyber-btn-xs { @apply text-[10px] px-2 py-0.5; }
