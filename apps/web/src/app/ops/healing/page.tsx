@@ -27,16 +27,28 @@ export default function HealingPage() {
       )
       setTimeout(() => setAutoHealResult(null), 6000)
     },
+    onError: (err) => {
+      setAutoHealResult(`Auto-heal failed: ${err.message}`)
+      setTimeout(() => setAutoHealResult(null), 6000)
+    },
   })
 
   const restartMut = trpc.healing.restartAgent.useMutation({
     onSuccess: () => {
       utils.healing.diagnose.invalidate()
     },
+    onError: (err) => {
+      setAutoHealResult(`Restart failed: ${err.message}`)
+      setTimeout(() => setAutoHealResult(null), 6000)
+    },
   })
 
   const clearLeasesMut = trpc.healing.clearExpiredLeases.useMutation({
     onSuccess: () => utils.healing.diagnose.invalidate(),
+    onError: (err) => {
+      setAutoHealResult(`Clear leases failed: ${err.message}`)
+      setTimeout(() => setAutoHealResult(null), 6000)
+    },
   })
 
   const error = diagnoseQuery.error || logQuery.error
