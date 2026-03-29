@@ -11,7 +11,7 @@
  */
 
 import type { BrainClient } from '@solarc/brain-sdk'
-import { isAvailable, run as ephemerisRun } from '@solarc/ephemeris'
+import { isAvailable, run as ephemerisRun, SIGN_NAMES } from '@solarc/ephemeris'
 
 interface NatalSummaryInput {
   name?: string
@@ -71,27 +71,38 @@ export const natalSummaryRoute = {
         timezone: input.timezone,
       })
 
-      // Extract key placements for a concise summary
+      // Extract key placements (planets is Record<Planet, Position>)
       const chart = result.data
-      const sunSign = chart.planets.find((p) => p.name === 'Sun')?.sign
-      const moonSign = chart.planets.find((p) => p.name === 'Moon')?.sign
-      const ascendant = chart.houseCusps?.ascendant
+      const sunSign = chart.planets['Sun']?.sign ?? null
+      const moonSign = chart.planets['Moon']?.sign ?? null
+      const ascendantDegree = chart.houses?.ascendant ?? null
+      const ascendantSign =
+        ascendantDegree != null ? (SIGN_NAMES[Math.floor(ascendantDegree / 30)] ?? null) : null
 
+      // Normalize response for Development apps (stable contract)
       return c.json({
         name: input.name ?? 'Chart',
-        chart: {
-          planets: chart.planets,
-          aspects: chart.aspects,
-          houseCusps: chart.houseCusps,
-          dignities: chart.dignities,
-        },
         highlights: {
           sunSign,
           moonSign,
-          ascendantDegree: ascendant,
+          ascendantSign,
+          ascendantDegree,
         },
+        planets: Object.entries(chart.planets).map(([name, pos]) => ({
+          name,
+          sign: (pos as { sign: string }).sign,
+          degree: (pos as { degree: number }).degree,
+          minutes: (pos as { minutes: number }).minutes,
+          retrograde: (pos as { retrograde: boolean }).retrograde,
+          house: (pos as { house: number }).house,
+        })),
+        aspects: chart.aspects.slice(0, 12).map((a) => ({
+          planet1: a.planet1,
+          planet2: a.planet2,
+          type: a.type,
+          orb: Math.round(a.orb * 100) / 100,
+        })),
         summary: result.summary,
-        engine: 'swiss-ephemeris',
         computedAt: new Date().toISOString(),
       })
     } catch (err) {
