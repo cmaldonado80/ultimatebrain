@@ -300,6 +300,57 @@ export async function POST(req: Request) {
   }
   let stepSeq = 0
 
+  // 5b. Step-retry context extraction (when retryScope === 'step')
+  let stepRetryContext: {
+    targetStep: {
+      id: string
+      type: string
+      agentId: string | null
+      agentName: string | null
+      toolName: string | null
+      toolInput: unknown
+      toolResult: string | null
+      groupId: string | null
+      status: string
+      sequence: number
+      completedAt: Date | null
+      durationMs: number | null
+    }
+    priorSteps: Array<{
+      type: string
+      agentId: string | null
+      agentName: string | null
+      toolName: string | null
+      toolInput: unknown
+      toolResult: string | null
+      groupId: string | null
+      status: string
+      completedAt: Date | null
+      durationMs: number | null
+    }>
+    targetAgentConfig: (typeof agentConfigs)[0]
+  } | null = null
+
+  if (body.retryScope === 'step' && body.retryTargetId && body.retryOfRunId) {
+    const origSteps = await db.query.chatRunSteps.findMany({
+      where: eq(chatRunSteps.runId, body.retryOfRunId),
+    })
+    const sorted = origSteps.sort((a, b) => a.sequence - b.sequence)
+    const targetIdx = sorted.findIndex((s) => s.id === body.retryTargetId)
+    if (targetIdx !== -1) {
+      const target = sorted[targetIdx]!
+      if (target.type === 'tool' || target.type === 'agent') {
+        const prior = sorted.slice(0, targetIdx)
+        const matchedAgent = agentConfigs.find((a) => a.id === target.agentId) ?? agentConfigs[0]!
+        stepRetryContext = {
+          targetStep: target,
+          priorSteps: prior,
+          targetAgentConfig: matchedAgent,
+        }
+      }
+    }
+  }
+
   // 6. Stream responses — iterate agents sequentially
   const encoder = new TextEncoder()
   const isMultiAgent = agentConfigs.length > 1
@@ -325,81 +376,163 @@ export async function POST(req: Request) {
           )
         }
 
-        for (const agentConfig of agentConfigs) {
-          // Signal which agent is responding (for multi-agent UI)
-          if (isMultiAgent) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({ agentStart: agentConfig.name, agentId: agentConfig.id, groupId: `group-${agentConfig.id || 'default'}-${stepSeq}` })}\n\n`,
-              ),
-            )
-          }
+        if (stepRetryContext && runRecord) {
+          // ═══ STEP RETRY MODE ═══════════════════════════════════════════
+          const { targetStep, priorSteps, targetAgentConfig } = stepRetryContext
+          const currentGroupId = `group-${targetAgentConfig.id || 'default'}-${stepSeq}`
 
-          let fullContent = ''
-          const currentGroupId = runRecord
-            ? `group-${agentConfig.id || 'default'}-${stepSeq}`
-            : undefined
-
-          // Create agent step record
-          if (runRecord) {
+          // 1. Persist replayed prior steps (context, not re-executed)
+          for (const ps of priorSteps) {
             try {
               await db.insert(chatRunSteps).values({
                 runId: runRecord.id,
                 sequence: stepSeq++,
-                type: 'agent',
-                agentId: agentConfig.id || null,
-                agentName: agentConfig.name,
-                groupId: currentGroupId,
+                type: ps.type as 'agent' | 'tool' | 'synthesis',
+                agentId: ps.agentId,
+                agentName: ps.agentName,
+                toolName: ps.toolName,
+                toolInput: ps.toolInput as Record<string, unknown> | null,
+                toolResult: ps.toolResult,
+                groupId: ps.groupId,
+                status: ps.status as 'running' | 'completed' | 'failed',
+                completedAt: ps.completedAt,
+                durationMs: ps.durationMs,
               })
             } catch {
               // Non-blocking
             }
           }
 
-          // Build the base messages for this agent
-          const atlasContext = buildAtlasContext({
-            agentType: agentConfig.agentType,
-            capability: agentConfig.capability,
-            skills: agentConfig.skills,
+          // 2. Build message context from prior tool results
+          const priorToolMessages: Array<{ role: string; content: string }> = []
+          for (const ps of priorSteps) {
+            if (ps.type === 'tool' && ps.toolName && ps.toolResult) {
+              priorToolMessages.push(
+                { role: 'assistant', content: `[Tool call: ${ps.toolName}]` },
+                { role: 'user', content: `Tool result for ${ps.toolName}: ${ps.toolResult}` },
+              )
+            }
+          }
+
+          // 3. Signal agent start
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ agentStart: targetAgentConfig.name, agentId: targetAgentConfig.id, groupId: currentGroupId })}\n\n`,
+            ),
+          )
+
+          // 4. Create agent step record
+          try {
+            await db.insert(chatRunSteps).values({
+              runId: runRecord.id,
+              sequence: stepSeq++,
+              type: 'agent',
+              agentId: targetAgentConfig.id || null,
+              agentName: targetAgentConfig.name,
+              groupId: currentGroupId,
+            })
+          } catch {
+            // Non-blocking
+          }
+
+          // 5. Build messages with prior context injected
+          const atlasCtx = buildAtlasContext({
+            agentType: targetAgentConfig.agentType,
+            capability: targetAgentConfig.capability,
+            skills: targetAgentConfig.skills,
           })
-          const baseMessages = [
-            { role: 'system', content: agentConfig.soul + atlasContext + memoryContext },
+          const stepBaseMessages = [
+            { role: 'system', content: targetAgentConfig.soul + atlasCtx + memoryContext },
             ...history,
+            ...priorToolMessages,
           ]
 
-          // Tool use loop (non-streaming, max 5 iterations)
-          let toolMessages = [...baseMessages]
+          // 6. Re-execute the target step (tool or agent) + downstream recomputation
+          let toolMessages = [...stepBaseMessages]
+
+          if (targetStep.type === 'tool' && targetStep.toolName) {
+            // Re-execute the target tool
+            const toolExecStart = Date.now()
+            const toolOutput = await executeTool(
+              targetStep.toolName,
+              targetStep.toolInput as Record<string, unknown>,
+              db,
+              targetAgentConfig.workspaceId,
+            )
+            const toolDurationMs = Date.now() - toolExecStart
+
+            let retryStepId: string | undefined
+            try {
+              const [rec] = await db
+                .insert(chatRunSteps)
+                .values({
+                  runId: runRecord.id,
+                  sequence: stepSeq++,
+                  type: 'tool',
+                  toolName: targetStep.toolName,
+                  toolInput: targetStep.toolInput as Record<string, unknown> | null,
+                  toolResult: toolOutput,
+                  groupId: currentGroupId,
+                  status: 'completed',
+                  completedAt: new Date(),
+                  durationMs: toolDurationMs,
+                })
+                .returning({ id: chatRunSteps.id })
+              retryStepId = rec?.id
+            } catch {
+              // Non-blocking
+            }
+
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: 'tool_use', name: targetStep.toolName, input: targetStep.toolInput, stepId: retryStepId })}\n\n`,
+              ),
+            )
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: 'tool_result', name: targetStep.toolName, result: toolOutput.slice(0, 500), stepId: retryStepId })}\n\n`,
+              ),
+            )
+
+            toolMessages = [
+              ...toolMessages,
+              { role: 'assistant', content: `[Tool call: ${targetStep.toolName}]` },
+              { role: 'user', content: `Tool result for ${targetStep.toolName}: ${toolOutput}` },
+            ]
+          }
+
+          // 7. Downstream recomputation — agent continues with tool loop
+          let fullContent = ''
           let usedTools = false
           for (let toolIter = 0; toolIter < 5; toolIter++) {
             const toolResult = await gateway.chat({
-              model: agentConfig.model,
+              model: targetAgentConfig.model,
               messages: toolMessages,
               tools: AGENT_TOOLS,
-              temperature: agentConfig.temperature,
-              maxTokens: agentConfig.maxTokens,
+              temperature: targetAgentConfig.temperature,
+              maxTokens: targetAgentConfig.maxTokens,
             })
 
             if (!toolResult.toolUse) {
-              // No tool call — use this as the final content
               fullContent = toolResult.content
               usedTools = true
               break
             }
 
-            // Execute the tool
             const toolExecStart = Date.now()
             const toolOutput = await executeTool(
               toolResult.toolUse.name,
               toolResult.toolUse.input,
               db,
-              agentConfig.workspaceId,
+              targetAgentConfig.workspaceId,
             )
             const toolDurationMs = Date.now() - toolExecStart
 
-            // Persist tool step with FULL result (not truncated)
-            if (runRecord) {
-              try {
-                await db.insert(chatRunSteps).values({
+            let downstreamStepId: string | undefined
+            try {
+              const [rec] = await db
+                .insert(chatRunSteps)
+                .values({
                   runId: runRecord.id,
                   sequence: stepSeq++,
                   type: 'tool',
@@ -411,24 +544,23 @@ export async function POST(req: Request) {
                   completedAt: new Date(),
                   durationMs: toolDurationMs,
                 })
-              } catch {
-                // Non-blocking
-              }
+                .returning({ id: chatRunSteps.id })
+              downstreamStepId = rec?.id
+            } catch {
+              // Non-blocking
             }
 
-            // Send SSE events to client showing tool use (preview only — 500 char max)
             controller.enqueue(
               encoder.encode(
-                `data: ${JSON.stringify({ type: 'tool_use', name: toolResult.toolUse.name, input: toolResult.toolUse.input })}\n\n`,
+                `data: ${JSON.stringify({ type: 'tool_use', name: toolResult.toolUse.name, input: toolResult.toolUse.input, stepId: downstreamStepId })}\n\n`,
               ),
             )
             controller.enqueue(
               encoder.encode(
-                `data: ${JSON.stringify({ type: 'tool_result', name: toolResult.toolUse.name, result: toolOutput.slice(0, 500) })}\n\n`,
+                `data: ${JSON.stringify({ type: 'tool_result', name: toolResult.toolUse.name, result: toolOutput.slice(0, 500), stepId: downstreamStepId })}\n\n`,
               ),
             )
 
-            // Add tool call and result to messages for next iteration
             toolMessages = [
               ...toolMessages,
               {
@@ -442,51 +574,210 @@ export async function POST(req: Request) {
             ]
           }
 
-          // If tool loop produced final content, stream it as a single chunk
+          // 8. Stream final text
           if (usedTools && fullContent) {
             controller.enqueue(
               encoder.encode(
-                `data: ${JSON.stringify({
-                  text: fullContent,
-                  ...(isMultiAgent ? { agentName: agentConfig.name, agentId: agentConfig.id } : {}),
-                })}\n\n`,
+                `data: ${JSON.stringify({ text: fullContent, agentName: targetAgentConfig.name, agentId: targetAgentConfig.id })}\n\n`,
               ),
             )
           } else if (!usedTools) {
-            // No tools were invoked — fall back to streaming
             const gen = gateway.chatStream({
-              model: agentConfig.model,
-              messages: baseMessages,
-              temperature: agentConfig.temperature,
-              maxTokens: agentConfig.maxTokens,
+              model: targetAgentConfig.model,
+              messages: toolMessages,
+              temperature: targetAgentConfig.temperature,
+              maxTokens: targetAgentConfig.maxTokens,
             })
-
             for await (const chunk of gen) {
               fullContent += chunk
               controller.enqueue(
                 encoder.encode(
+                  `data: ${JSON.stringify({ text: chunk, agentName: targetAgentConfig.name, agentId: targetAgentConfig.id })}\n\n`,
+                ),
+              )
+            }
+          }
+
+          // Store response
+          await db.insert(chatMessages).values({
+            sessionId: body.sessionId,
+            role: 'assistant',
+            text: fullContent,
+            sourceAgentId: targetAgentConfig.id || null,
+          })
+        } else {
+          // ═══ NORMAL EXECUTION ══════════════════════════════════════════
+
+          for (const agentConfig of agentConfigs) {
+            // Signal which agent is responding (for multi-agent UI)
+            if (isMultiAgent) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ agentStart: agentConfig.name, agentId: agentConfig.id, groupId: `group-${agentConfig.id || 'default'}-${stepSeq}` })}\n\n`,
+                ),
+              )
+            }
+
+            let fullContent = ''
+            const currentGroupId = runRecord
+              ? `group-${agentConfig.id || 'default'}-${stepSeq}`
+              : undefined
+
+            // Create agent step record
+            if (runRecord) {
+              try {
+                await db.insert(chatRunSteps).values({
+                  runId: runRecord.id,
+                  sequence: stepSeq++,
+                  type: 'agent',
+                  agentId: agentConfig.id || null,
+                  agentName: agentConfig.name,
+                  groupId: currentGroupId,
+                })
+              } catch {
+                // Non-blocking
+              }
+            }
+
+            // Build the base messages for this agent
+            const atlasContext = buildAtlasContext({
+              agentType: agentConfig.agentType,
+              capability: agentConfig.capability,
+              skills: agentConfig.skills,
+            })
+            const baseMessages = [
+              { role: 'system', content: agentConfig.soul + atlasContext + memoryContext },
+              ...history,
+            ]
+
+            // Tool use loop (non-streaming, max 5 iterations)
+            let toolMessages = [...baseMessages]
+            let usedTools = false
+            for (let toolIter = 0; toolIter < 5; toolIter++) {
+              const toolResult = await gateway.chat({
+                model: agentConfig.model,
+                messages: toolMessages,
+                tools: AGENT_TOOLS,
+                temperature: agentConfig.temperature,
+                maxTokens: agentConfig.maxTokens,
+              })
+
+              if (!toolResult.toolUse) {
+                // No tool call — use this as the final content
+                fullContent = toolResult.content
+                usedTools = true
+                break
+              }
+
+              // Execute the tool
+              const toolExecStart = Date.now()
+              const toolOutput = await executeTool(
+                toolResult.toolUse.name,
+                toolResult.toolUse.input,
+                db,
+                agentConfig.workspaceId,
+              )
+              const toolDurationMs = Date.now() - toolExecStart
+
+              // Persist tool step with FULL result (not truncated)
+              let toolStepId: string | undefined
+              if (runRecord) {
+                try {
+                  const [rec] = await db
+                    .insert(chatRunSteps)
+                    .values({
+                      runId: runRecord.id,
+                      sequence: stepSeq++,
+                      type: 'tool',
+                      toolName: toolResult.toolUse.name,
+                      toolInput: toolResult.toolUse.input as Record<string, unknown>,
+                      toolResult: toolOutput,
+                      groupId: currentGroupId,
+                      status: 'completed',
+                      completedAt: new Date(),
+                      durationMs: toolDurationMs,
+                    })
+                    .returning({ id: chatRunSteps.id })
+                  toolStepId = rec?.id
+                } catch {
+                  // Non-blocking
+                }
+              }
+
+              // Send SSE events to client showing tool use (preview only — 500 char max)
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: 'tool_use', name: toolResult.toolUse.name, input: toolResult.toolUse.input, stepId: toolStepId })}\n\n`,
+                ),
+              )
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: 'tool_result', name: toolResult.toolUse.name, result: toolOutput.slice(0, 500), stepId: toolStepId })}\n\n`,
+                ),
+              )
+
+              // Add tool call and result to messages for next iteration
+              toolMessages = [
+                ...toolMessages,
+                {
+                  role: 'assistant',
+                  content: toolResult.content || `[Tool call: ${toolResult.toolUse.name}]`,
+                },
+                {
+                  role: 'user',
+                  content: `Tool result for ${toolResult.toolUse.name}: ${toolOutput}`,
+                },
+              ]
+            }
+
+            // If tool loop produced final content, stream it as a single chunk
+            if (usedTools && fullContent) {
+              controller.enqueue(
+                encoder.encode(
                   `data: ${JSON.stringify({
-                    text: chunk,
+                    text: fullContent,
                     ...(isMultiAgent
                       ? { agentName: agentConfig.name, agentId: agentConfig.id }
                       : {}),
                   })}\n\n`,
                 ),
               )
+            } else if (!usedTools) {
+              // No tools were invoked — fall back to streaming
+              const gen = gateway.chatStream({
+                model: agentConfig.model,
+                messages: baseMessages,
+                temperature: agentConfig.temperature,
+                maxTokens: agentConfig.maxTokens,
+              })
+
+              for await (const chunk of gen) {
+                fullContent += chunk
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      text: chunk,
+                      ...(isMultiAgent
+                        ? { agentName: agentConfig.name, agentId: agentConfig.id }
+                        : {}),
+                    })}\n\n`,
+                  ),
+                )
+              }
             }
+
+            // Store this agent's response
+            await db.insert(chatMessages).values({
+              sessionId: body.sessionId,
+              role: 'assistant',
+              text: fullContent,
+              sourceAgentId: agentConfig.id || null,
+            })
+
+            // Add this agent's response to history for the next agent
+            history.push({ role: 'assistant', content: fullContent })
           }
-
-          // Store this agent's response
-          await db.insert(chatMessages).values({
-            sessionId: body.sessionId,
-            role: 'assistant',
-            text: fullContent,
-            sourceAgentId: agentConfig.id || null,
-          })
-
-          // Add this agent's response to history for the next agent
-          history.push({ role: 'assistant', content: fullContent })
-        }
+        } // end normal execution
 
         await db
           .update(chatSessions)

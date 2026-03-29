@@ -157,6 +157,25 @@ export default function ChatPage() {
     [messages, sendStream],
   )
 
+  /** Targeted retry: step-level */
+  const handleStepRetry = useCallback(
+    (runId: string, stepId: string) => {
+      const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
+      if (!lastUserMsg) return
+      const autonomy =
+        (localStorage.getItem('autonomy-level') as 'manual' | 'assist' | 'auto') ?? 'manual'
+      sendStream(lastUserMsg.text, textareaRef, {
+        retryOfRunId: runId,
+        retryType: 'manual',
+        retryScope: 'step',
+        retryTargetId: stepId,
+        retryReason: `Retry step ${stepId.slice(0, 8)}`,
+        autonomyLevel: autonomy,
+      })
+    },
+    [messages, sendStream],
+  )
+
   // ── Session delete ──────────────────────────────────────────────────
   const handleDelete = useCallback(
     async (id: string) => {
@@ -426,12 +445,18 @@ export default function ChatPage() {
                               ? (groupId) => handleGroupRetry(lastRunId, groupId)
                               : undefined
                           }
+                          onRetryStep={
+                            lastRunId ? (stepId) => handleStepRetry(lastRunId, stepId) : undefined
+                          }
                         />
                       ) : (
                         <ThreadItem
                           key={i}
                           item={item as Parameters<typeof ThreadItem>[0]['item']}
                           onInspect={handleInspect}
+                          onRetryStep={
+                            lastRunId ? (stepId) => handleStepRetry(lastRunId, stepId) : undefined
+                          }
                         />
                       ),
                     )}
@@ -637,6 +662,7 @@ export default function ChatPage() {
                 memoryCount: 0,
               })
             }}
+            onRetryStep={lastRunId ? (stepId) => handleStepRetry(lastRunId, stepId) : undefined}
           />
         )}
         {runHistoryOpen && selectedSession && (

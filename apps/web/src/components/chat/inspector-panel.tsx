@@ -21,7 +21,7 @@ export type InspectorSelection =
       model?: string
       timestamp?: Date
     }
-  | { type: 'tool'; name: string; input: unknown; result?: string; status: string }
+  | { type: 'tool'; name: string; input: unknown; result?: string; status: string; stepId?: string }
   | { type: 'agent'; id: string; name: string; model?: string; agentType?: string; soul?: string }
   | {
       type: 'run'
@@ -62,6 +62,7 @@ interface InspectorPanelProps {
   onClose: () => void
   onCompareWithParent?: () => void
   onNavigateToRun?: (runId: string) => void
+  onRetryStep?: (stepId: string) => void
 }
 
 export function InspectorPanel({
@@ -69,6 +70,7 @@ export function InspectorPanel({
   onClose,
   onCompareWithParent,
   onNavigateToRun,
+  onRetryStep,
 }: InspectorPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
@@ -131,7 +133,11 @@ export function InspectorPanel({
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
         {activeTab === 'overview' && (
-          <OverviewTab selection={selection} onNavigateToRun={onNavigateToRun} />
+          <OverviewTab
+            selection={selection}
+            onNavigateToRun={onNavigateToRun}
+            onRetryStep={onRetryStep}
+          />
         )}
         {activeTab === 'details' && <DetailsTab selection={selection} />}
         {activeTab === 'metadata' && <MetadataTab selection={selection} />}
@@ -146,9 +152,11 @@ export function InspectorPanel({
 function OverviewTab({
   selection,
   onNavigateToRun,
+  onRetryStep,
 }: {
   selection: NonNullable<InspectorSelection>
   onNavigateToRun?: (runId: string) => void
+  onRetryStep?: (stepId: string) => void
 }) {
   return (
     <>
@@ -167,8 +175,19 @@ function OverviewTab({
         <div className="space-y-2">
           <InfoRow label="Tool" value={selection.name} />
           <InfoRow label="Status" value={selection.status} />
+          {selection.stepId && (
+            <InfoRow label="Step ID" value={selection.stepId.slice(0, 12) + '...'} mono />
+          )}
           {selection.result && (
             <InfoRow label="Result" value={`${selection.result.length} chars`} />
+          )}
+          {onRetryStep && selection.stepId && selection.status !== 'running' && (
+            <button
+              className="w-full mt-2 text-[10px] text-slate-500 hover:text-neon-yellow border border-border-dim hover:border-neon-yellow/30 px-3 py-1.5 rounded transition-colors"
+              onClick={() => onRetryStep(selection.stepId!)}
+            >
+              ↻ Retry This Step
+            </button>
           )}
         </div>
       )}
@@ -405,6 +424,7 @@ function MetadataTab({ selection }: { selection: NonNullable<InspectorSelection>
         <>
           <InfoRow label="Tool Name" value={selection.name} mono />
           <InfoRow label="Status" value={selection.status} />
+          {selection.stepId && <InfoRow label="Step ID" value={selection.stepId} mono />}
         </>
       )}
       {selection.type === 'agent' && (

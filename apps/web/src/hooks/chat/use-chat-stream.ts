@@ -12,8 +12,8 @@ export type StreamEvent =
   // Existing events (backward compatible)
   | { type: 'agent_start'; agentName: string; agentId: string; groupId?: string }
   | { type: 'text'; content: string; agentId?: string; agentName?: string }
-  | { type: 'tool_use'; name: string; input: unknown }
-  | { type: 'tool_result'; name: string; result: string }
+  | { type: 'tool_use'; name: string; input: unknown; stepId?: string }
+  | { type: 'tool_result'; name: string; result: string; stepId?: string }
   | { type: 'memory_context'; count: number; sources?: string[] }
   | { type: 'error'; message: string }
 
@@ -24,9 +24,9 @@ export function streamEventToItem(ev: StreamEvent): ThreadItemData {
     case 'text':
       return { type: 'streaming', text: ev.content, agentName: ev.agentName }
     case 'tool_use':
-      return { type: 'tool_use', name: ev.name, input: ev.input }
+      return { type: 'tool_use', name: ev.name, input: ev.input, stepId: ev.stepId }
     case 'tool_result':
-      return { type: 'tool_result', name: ev.name, result: ev.result }
+      return { type: 'tool_result', name: ev.name, result: ev.result, stepId: ev.stepId }
     case 'memory_context':
       return { type: 'memory_context', count: ev.count, sources: ev.sources }
     case 'error':
@@ -154,12 +154,22 @@ export function useChatStream(
               } else if (ev.type === 'tool_use') {
                 setStreamEvents((p) => [
                   ...p,
-                  { type: 'tool_use', name: ev.name as string, input: ev.input },
+                  {
+                    type: 'tool_use',
+                    name: ev.name as string,
+                    input: ev.input,
+                    stepId: ev.stepId as string | undefined,
+                  },
                 ])
               } else if (ev.type === 'tool_result') {
                 setStreamEvents((p) => [
                   ...p,
-                  { type: 'tool_result', name: ev.name as string, result: ev.result as string },
+                  {
+                    type: 'tool_result',
+                    name: ev.name as string,
+                    result: ev.result as string,
+                    stepId: ev.stepId as string | undefined,
+                  },
                 ])
               } else if (ev.type === 'memory_context') {
                 setStreamEvents((p) => [

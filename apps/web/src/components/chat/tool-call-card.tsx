@@ -15,6 +15,7 @@ interface ToolCallCardProps {
   error?: string
   durationMs?: number
   onInspect?: () => void
+  onRetryStep?: () => void
 }
 
 export function ToolCallCard({
@@ -25,6 +26,7 @@ export function ToolCallCard({
   error,
   durationMs,
   onInspect,
+  onRetryStep,
 }: ToolCallCardProps) {
   const [expanded, setExpanded] = useState(false)
 
@@ -87,6 +89,18 @@ export function ToolCallCard({
             }}
           >
             Inspect
+          </button>
+        )}
+        {onRetryStep && status !== 'running' && (
+          <button
+            className="text-[9px] text-slate-600 hover:text-neon-yellow ml-1 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation()
+              onRetryStep()
+            }}
+            title="Retry this step"
+          >
+            ↻ Retry
           </button>
         )}
       </div>

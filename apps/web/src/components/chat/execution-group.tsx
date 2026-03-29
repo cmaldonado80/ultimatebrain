@@ -117,9 +117,15 @@ interface ExecutionGroupProps {
   group: ExecutionGroupData
   onInspect?: (selection: InspectorSelection) => void
   onRetryGroup?: (groupId: string) => void
+  onRetryStep?: (stepId: string) => void
 }
 
-export function ExecutionGroup({ group, onInspect, onRetryGroup }: ExecutionGroupProps) {
+export function ExecutionGroup({
+  group,
+  onInspect,
+  onRetryGroup,
+  onRetryStep,
+}: ExecutionGroupProps) {
   const [collapsed, setCollapsed] = useState(!group.isActive)
   const color = agentColor(group.agentName)
   const stepCount = group.items.filter(
@@ -229,7 +235,7 @@ export function ExecutionGroup({ group, onInspect, onRetryGroup }: ExecutionGrou
       {!collapsed && (
         <div className="pl-4 border-l-2 border-border-dim ml-[11px]">
           {group.items.map((item, i) => (
-            <ThreadItem key={i} item={item} onInspect={onInspect} />
+            <ThreadItem key={i} item={item} onInspect={onInspect} onRetryStep={onRetryStep} />
           ))}
         </div>
       )}

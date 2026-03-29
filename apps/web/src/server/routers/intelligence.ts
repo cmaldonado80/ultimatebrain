@@ -523,6 +523,12 @@ export const intelligenceRouter = router({
                 b: b.run.retryScope ?? 'none',
                 changed: a.run.retryScope !== b.run.retryScope,
               },
+              {
+                key: 'Retry Target',
+                a: a.run.retryTargetId ?? 'none',
+                b: b.run.retryTargetId ?? 'none',
+                changed: a.run.retryTargetId !== b.run.retryTargetId,
+              },
             ],
           },
           {
@@ -553,6 +559,53 @@ export const intelligenceRouter = router({
               },
             ],
           },
+          // Step Changes section — only for step-level retries
+          ...(b.run.retryScope === 'step' && b.run.retryTargetId && b.run.retryOfRunId === a.run.id
+            ? [
+                (() => {
+                  const targetStepA = a.steps.find((s) => s.id === b.run.retryTargetId)
+                  // In B, find the retried tool step (same tool name, not a replayed prior)
+                  const priorCount = targetStepA ? targetStepA.sequence : 0
+                  const targetStepB = targetStepA
+                    ? b.steps.find(
+                        (s) =>
+                          s.toolName === targetStepA.toolName &&
+                          s.type === 'tool' &&
+                          s.sequence >= priorCount,
+                      )
+                    : null
+                  const downstreamA = targetStepA
+                    ? a.steps.filter((s) => s.sequence > targetStepA.sequence).length
+                    : 0
+                  const downstreamB = targetStepB
+                    ? b.steps.filter((s) => s.sequence > targetStepB.sequence).length
+                    : 0
+                  return {
+                    label: 'Step Changes',
+                    items: [
+                      {
+                        key: 'Retried Step',
+                        a: targetStepA?.toolName ?? 'unknown',
+                        b: targetStepA?.toolName ?? 'unknown',
+                        changed: false,
+                      },
+                      {
+                        key: 'Tool Output Changed',
+                        a: (targetStepA?.toolResult ?? 'none').slice(0, 60),
+                        b: (targetStepB?.toolResult ?? 'none').slice(0, 60),
+                        changed: targetStepA?.toolResult !== targetStepB?.toolResult,
+                      },
+                      {
+                        key: 'Downstream Steps',
+                        a: downstreamA,
+                        b: downstreamB,
+                        changed: downstreamA !== downstreamB,
+                      },
+                    ],
+                  }
+                })(),
+              ]
+            : []),
         ],
       }
     }),
