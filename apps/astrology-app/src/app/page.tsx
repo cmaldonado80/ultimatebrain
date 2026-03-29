@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
-import { AstrologyBrainError, fetchNatalSummary } from '@/lib/astrology-client'
+import { AstrologyBrainError, fetchNatalSummary, saveChart } from '@/lib/astrology-client'
 import type { BirthData, NatalSummaryResponse } from '@/lib/types'
 
 // ── Sign Symbols ──────────────────────────────────────────────────────
@@ -29,6 +29,14 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<NatalSummaryResponse | null>(null)
+  const [lastBirthData, setLastBirthData] = useState<{
+    date: string
+    time: string
+    lat: number
+    lng: number
+  } | null>(null)
+  const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -73,6 +81,8 @@ export default function Home() {
       }
       const data = await fetchNatalSummary(birthData)
       setResult(data)
+      setLastBirthData({ date, time, lat, lng })
+      setSaved(false)
       // Save profile for other pages
       localStorage.setItem('astro_profile', JSON.stringify(birthData))
     } catch (err) {
@@ -92,12 +102,50 @@ export default function Home() {
     return (
       <main className="min-h-screen bg-[#06090f] text-slate-200 p-6">
         <div className="max-w-2xl mx-auto">
-          <button
-            onClick={() => setResult(null)}
-            className="text-sm text-purple-400 hover:text-purple-300 mb-6"
-          >
-            &larr; New Chart
-          </button>
+          <div className="flex items-center gap-4 mb-6">
+            <button
+              onClick={() => setResult(null)}
+              className="text-sm text-purple-400 hover:text-purple-300 bg-transparent border-none cursor-pointer"
+            >
+              &larr; New Chart
+            </button>
+            {!saved && lastBirthData && (
+              <button
+                className="text-sm px-3 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50 border-none cursor-pointer"
+                disabled={saving}
+                onClick={async () => {
+                  setSaving(true)
+                  try {
+                    await saveChart({
+                      name: result.name,
+                      birthDate: lastBirthData.date,
+                      birthTime: lastBirthData.time,
+                      latitude: lastBirthData.lat,
+                      longitude: lastBirthData.lng,
+                      chartData: { planets: result.planets, aspects: result.aspects },
+                      highlights: result.highlights as Record<string, unknown>,
+                      summary: result.summary,
+                    })
+                    setSaved(true)
+                  } catch {
+                    // silent failure — save is optional
+                  } finally {
+                    setSaving(false)
+                  }
+                }}
+              >
+                {saving ? 'Saving...' : 'Save Chart'}
+              </button>
+            )}
+            {saved && (
+              <span className="text-xs text-green-400">
+                Saved!{' '}
+                <Link href="/charts" className="text-purple-400 no-underline">
+                  View charts
+                </Link>
+              </span>
+            )}
+          </div>
 
           <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
             {result.name}

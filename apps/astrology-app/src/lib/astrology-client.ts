@@ -78,3 +78,100 @@ export function fetchSynastry(
 ): Promise<SynastryResponse> {
   return post('/api/synastry', { personA, personB, narrative })
 }
+
+// ── Persistence ─────────────────────────────────────────────────────
+
+export interface SavedChart {
+  id: string
+  name: string
+  birthDate: string
+  birthTime: string
+  latitude: number
+  longitude: number
+  chartData: Record<string, unknown>
+  highlights: Record<string, unknown> | null
+  summary: string | null
+  createdAt: string
+}
+
+export interface SavedReport {
+  id: string
+  chartId: string
+  reportType: string
+  sections: unknown[]
+  summary: string | null
+  createdAt: string
+}
+
+export interface SavedRelationship {
+  id: string
+  personAName: string
+  personBName: string
+  compatibilityScore: number | null
+  narrative: string | null
+  createdAt: string
+}
+
+export async function saveChart(input: {
+  name: string
+  birthDate: string
+  birthTime: string
+  latitude: number
+  longitude: number
+  timezone?: number
+  chartData: Record<string, unknown>
+  highlights?: Record<string, unknown>
+  summary?: string
+}): Promise<SavedChart> {
+  return post('/api/charts', input)
+}
+
+export async function listCharts(): Promise<SavedChart[]> {
+  const res = await fetch('/api/charts')
+  if (!res.ok) return []
+  return res.json()
+}
+
+export async function getChart(id: string): Promise<SavedChart> {
+  const res = await fetch(`/api/charts/${id}`)
+  if (!res.ok) throw new AstrologyBrainError('Chart not found', 404)
+  return res.json()
+}
+
+export async function deleteChart(id: string): Promise<void> {
+  await fetch(`/api/charts/${id}`, { method: 'DELETE' })
+}
+
+export async function saveReport(input: {
+  chartId: string
+  reportType: string
+  sections: unknown[]
+  summary?: string
+}): Promise<SavedReport> {
+  return post('/api/reports', input)
+}
+
+export async function listReports(chartId?: string): Promise<SavedReport[]> {
+  const url = chartId ? `/api/reports?chartId=${chartId}` : '/api/reports'
+  const res = await fetch(url)
+  if (!res.ok) return []
+  return res.json()
+}
+
+export async function saveRelationship(input: {
+  personAName: string
+  personAData: Record<string, unknown>
+  personBName: string
+  personBData: Record<string, unknown>
+  compatibilityScore?: number
+  synastryData?: Record<string, unknown>
+  narrative?: string
+}): Promise<SavedRelationship> {
+  return post('/api/relationships', input)
+}
+
+export async function listRelationships(): Promise<SavedRelationship[]> {
+  const res = await fetch('/api/relationships')
+  if (!res.ok) return []
+  return res.json()
+}

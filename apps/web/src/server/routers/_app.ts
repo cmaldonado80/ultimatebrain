@@ -5,6 +5,7 @@ import { agentsRouter } from './agents'
 import { aitmplRouter } from './aitmpl'
 import { alertingRouter } from './alerting'
 import { approvalsRouter } from './approvals'
+import { astrologyRouter } from './astrology'
 import { browserAgentRouter } from './browser-agent'
 import { checkpointingRouter } from './checkpointing'
 import { deploymentsRouter } from './deployments'
@@ -87,6 +88,7 @@ export const appRouter = router({
   deployments: deploymentsRouter,
   secrets: secretsRouter,
   organizations: organizationsRouter,
+  astrology: astrologyRouter,
 })
 
 export type AppRouter = typeof appRouter

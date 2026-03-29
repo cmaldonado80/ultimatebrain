@@ -914,6 +914,48 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `CREATE INDEX IF NOT EXISTS brain_entities_org_idx ON brain_entities(organization_id)`,
       `CREATE INDEX IF NOT EXISTS deployment_workflows_org_idx ON deployment_workflows(organization_id)`,
       `CREATE INDEX IF NOT EXISTS incidents_org_idx ON incidents(organization_id)`,
+      // Astrology domain tables
+      `CREATE TABLE IF NOT EXISTS astrology_charts (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid,
+        created_by_user_id uuid,
+        name text NOT NULL,
+        birth_date text NOT NULL,
+        birth_time text NOT NULL,
+        latitude real NOT NULL,
+        longitude real NOT NULL,
+        timezone real,
+        chart_data jsonb NOT NULL,
+        highlights jsonb,
+        summary text,
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS astrology_charts_org_idx ON astrology_charts(organization_id)`,
+      `CREATE TABLE IF NOT EXISTS astrology_reports (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid,
+        chart_id uuid NOT NULL REFERENCES astrology_charts(id) ON DELETE CASCADE,
+        report_type text NOT NULL DEFAULT 'natal',
+        sections jsonb NOT NULL,
+        summary text,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS astrology_reports_chart_idx ON astrology_reports(chart_id)`,
+      `CREATE TABLE IF NOT EXISTS astrology_relationships (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid,
+        created_by_user_id uuid,
+        person_a_name text NOT NULL,
+        person_a_data jsonb NOT NULL,
+        person_b_name text NOT NULL,
+        person_b_data jsonb NOT NULL,
+        compatibility_score real,
+        synastry_data jsonb,
+        narrative text,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS astrology_relationships_org_idx ON astrology_relationships(organization_id)`,
     ]
     for (const stmt of alterStatements) {
       await client.query(stmt).catch(() => {})
