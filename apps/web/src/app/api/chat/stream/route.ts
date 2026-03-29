@@ -10,6 +10,7 @@ import {
   chatRuns,
   chatRunSteps,
   chatSessions,
+  instincts,
 } from '@solarc/db'
 import { desc, eq } from 'drizzle-orm'
 
@@ -17,7 +18,9 @@ import { auth } from '../../../../server/auth'
 import { buildAtlasContext } from '../../../../server/services/atlas'
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
 import { GatewayRouter } from '../../../../server/services/gateway'
+import { InstinctInjector } from '../../../../server/services/instincts/injector'
 import { observeRunCompletion } from '../../../../server/services/instincts/run-observer'
+import type { Instinct } from '../../../../server/services/instincts/types'
 import {
   computeRunQualityScore,
   refreshInsights,
@@ -105,6 +108,36 @@ async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: st
     skills: agent.skills ?? undefined,
     entityDatabaseUrl,
   }
+}
+
+/** Load promoted instincts and build injection text for agent prompts */
+async function getInstinctInjection(
+  db: Database,
+  domain: string,
+  userText: string,
+): Promise<string> {
+  const promoted = await db.query.instincts.findMany({
+    where: eq(instincts.status, 'promoted'),
+    limit: 50,
+  })
+  if (promoted.length === 0) return ''
+
+  const injector = new InstinctInjector()
+  const instinctList: Instinct[] = promoted.map((i) => ({
+    ...i,
+    domain: i.domain ?? 'universal',
+    entityId: i.entityId ?? '',
+    evidenceCount: i.evidenceCount ?? 1,
+    lastObservedAt: i.lastObservedAt ?? new Date(),
+    createdAt: i.createdAt,
+    updatedAt: i.updatedAt,
+  }))
+
+  return injector.inject(instinctList, {
+    domain,
+    trigger: userText.slice(0, 200),
+    minConfidence: 0.5,
+  })
 }
 
 export async function POST(req: Request) {
@@ -446,8 +479,16 @@ export async function POST(req: Request) {
             capability: targetAgentConfig.capability,
             skills: targetAgentConfig.skills,
           })
+          const stepInstinctCtx = await getInstinctInjection(
+            db,
+            targetAgentConfig.workspaceId ?? 'universal',
+            body.text,
+          ).catch(() => '')
           const stepBaseMessages = [
-            { role: 'system', content: targetAgentConfig.soul + atlasCtx + memoryContext },
+            {
+              role: 'system',
+              content: targetAgentConfig.soul + atlasCtx + memoryContext + stepInstinctCtx,
+            },
             ...history,
             ...priorToolMessages,
           ]
@@ -650,8 +691,17 @@ export async function POST(req: Request) {
               capability: agentConfig.capability,
               skills: agentConfig.skills,
             })
+            // Inject promoted instincts as behavioral guidance (fire-and-forget safe)
+            const instinctContext = await getInstinctInjection(
+              db,
+              agentConfig.workspaceId ?? 'universal',
+              body.text,
+            ).catch(() => '')
             const baseMessages = [
-              { role: 'system', content: agentConfig.soul + atlasContext + memoryContext },
+              {
+                role: 'system',
+                content: agentConfig.soul + atlasContext + memoryContext + instinctContext,
+              },
               ...history,
             ]
 

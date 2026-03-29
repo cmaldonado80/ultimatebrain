@@ -36,6 +36,7 @@ import {
   extractBestKnownPaths,
   findSimilarRuns,
   getEffectivenessStats,
+  getInstinctBoost,
   refreshInsights,
   summarizeTradeoffs,
 } from '../services/intelligence/recommendation-engine'
@@ -765,10 +766,23 @@ export const intelligenceRouter = router({
             recRunQualityScores.length > 0
               ? recRunQualityScores.reduce((a, b) => a + b, 0) / recRunQualityScores.length
               : null
+          // Instinct boost from promoted behavioral patterns
+          const instinctBoost = await getInstinctBoost(
+            ctx.db,
+            rec.type as Parameters<typeof getInstinctBoost>[1],
+          )
+          const blendedConfidence = computeBlendedScore(
+            rec.confidence,
+            stats,
+            avgQuality,
+            input.decisionMode,
+          )
           return {
             ...rec,
-            confidence: computeBlendedScore(rec.confidence, stats, avgQuality, input.decisionMode),
+            confidence: Math.min(Math.round((blendedConfidence + instinctBoost) * 100) / 100, 1),
             qualityScore: avgQuality !== null ? Math.round(avgQuality * 100) / 100 : null,
+            instinctInfluence:
+              instinctBoost > 0 ? { boost: instinctBoost, source: 'promoted_instinct' } : null,
             modeImpact: input.decisionMode
               ? computeModeImpact(rec.confidence, stats, avgQuality, input.decisionMode)
               : null,

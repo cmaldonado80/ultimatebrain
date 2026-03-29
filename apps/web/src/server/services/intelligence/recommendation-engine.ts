@@ -11,6 +11,7 @@ import {
   chatMessages,
   chatRuns,
   chatRunSteps,
+  instincts,
   recommendationEvents,
   recommendationOutcomes,
   runQuality,
@@ -727,6 +728,47 @@ export function computeBlendedScore(
         100,
     ) / 100
   )
+}
+
+// ── Instinct Boost ────────────────────────────────────────────────────
+
+/**
+ * Compute a small confidence boost from promoted instincts that align
+ * with a recommendation type. Max 0.1 (10%) boost.
+ *
+ * Matches instinct triggers to recommendation categories:
+ * - 'workflow' ← triggers containing "workflow"
+ * - 'retry_strategy' ← triggers containing "retry" or "error"
+ * - 'autonomy' ← triggers containing "autonomy" or "auto"
+ * - 'memory' ← triggers containing "memory"
+ */
+export async function getInstinctBoost(db: Database, recType: RecommendationType): Promise<number> {
+  const promoted = await db.query.instincts.findMany({
+    where: eq(instincts.status, 'promoted'),
+    limit: 20,
+  })
+  if (promoted.length === 0) return 0
+
+  const relevant = promoted.filter((i) => {
+    const trigger = (i.trigger ?? '').toLowerCase()
+    switch (recType) {
+      case 'workflow':
+        return trigger.includes('workflow')
+      case 'retry_strategy':
+        return trigger.includes('retry') || trigger.includes('error')
+      case 'autonomy':
+        return trigger.includes('autonomy') || trigger.includes('auto')
+      case 'memory':
+        return trigger.includes('memory')
+      default:
+        return false
+    }
+  })
+
+  if (relevant.length === 0) return 0
+
+  const avgConf = relevant.reduce((s, i) => s + i.confidence, 0) / relevant.length
+  return Math.round(Math.min(avgConf * 0.12, 0.1) * 100) / 100
 }
 
 // ── Evidence Payload ──────────────────────────────────────────────────
