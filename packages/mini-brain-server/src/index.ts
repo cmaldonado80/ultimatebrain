@@ -54,6 +54,13 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
   app.use('*', cors())
   app.use('*', logger())
 
+  // Request correlation IDs (propagated across tiers for tracing)
+  app.use('*', async (c, next) => {
+    const requestId = c.req.header('x-request-id') ?? crypto.randomUUID()
+    c.header('x-request-id', requestId)
+    return next()
+  })
+
   // Brain SDK client
   const brain = createBrainClient({
     endpoint: config.brainUrl,
@@ -148,10 +155,21 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
     app,
     brain,
     config,
-    start: (port?: number) => {
+    start: async (port?: number) => {
       const p = port ?? config.port ?? 3100
       console.warn(`[MiniBrain:${config.domain}] entity=${config.entityId}`)
       console.warn(`[MiniBrain:${config.domain}] brain=${config.brainUrl}`)
+
+      // Startup validation: check Brain connectivity (warn, don't crash)
+      try {
+        const h = await brain.health()
+        console.warn(`[MiniBrain:${config.domain}] Brain health: ${h.status}`)
+      } catch {
+        console.error(
+          `[MiniBrain:${config.domain}] WARNING: Brain unreachable at ${config.brainUrl} — domain-local requests will still work`,
+        )
+      }
+
       console.warn(`[MiniBrain:${config.domain}] Starting on port ${p}`)
       return serve({ fetch: app.fetch, port: p })
     },

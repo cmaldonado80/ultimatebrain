@@ -1,0 +1,24 @@
+app = "solarc-astrology-brain"
+primary_region = "iad"
+
+[build]
+  dockerfile = "../../docker/Dockerfile.mini-brain"
+  [build.args]
+    BRAIN_APP = "astrology-brain"
+
+[env]
+  PORT = "3100"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3100
+  force_https = true
+  auto_stop_machines = false
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"

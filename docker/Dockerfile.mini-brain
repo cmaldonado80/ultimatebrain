@@ -1,0 +1,61 @@
+# Generic Mini Brain Dockerfile
+#
+# Builds any Mini Brain service by accepting BRAIN_APP as a build arg.
+#
+# Usage:
+#   docker build -f docker/Dockerfile.mini-brain \
+#     --build-arg BRAIN_APP=astrology-brain \
+#     -t solarc/astrology-brain .
+#
+#   docker build -f docker/Dockerfile.mini-brain \
+#     --build-arg BRAIN_APP=legal-brain \
+#     -t solarc/legal-brain .
+
+FROM node:22-alpine AS base
+RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
+
+# ── Install dependencies ──────────────────────────────────────────────
+FROM base AS deps
+WORKDIR /app
+
+# Copy workspace root files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Copy package.json for all packages needed by Mini Brains
+COPY packages/brain-sdk/package.json ./packages/brain-sdk/
+COPY packages/mini-brain-server/package.json ./packages/mini-brain-server/
+COPY packages/engine-contracts/package.json ./packages/engine-contracts/
+COPY packages/ephemeris/package.json ./packages/ephemeris/
+COPY packages/types/package.json ./packages/types/
+
+# Copy the target Mini Brain's package.json
+ARG BRAIN_APP=astrology-brain
+COPY apps/${BRAIN_APP}/package.json ./apps/${BRAIN_APP}/
+
+RUN pnpm install --frozen-lockfile --prod
+
+# ── Build runtime ─────────────────────────────────────────────────────
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy installed dependencies
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages/brain-sdk ./packages/brain-sdk
+COPY --from=deps /app/packages/mini-brain-server ./packages/mini-brain-server
+COPY --from=deps /app/packages/engine-contracts ./packages/engine-contracts
+COPY --from=deps /app/packages/ephemeris ./packages/ephemeris
+COPY --from=deps /app/packages/types ./packages/types
+
+# Copy the target Mini Brain app
+ARG BRAIN_APP=astrology-brain
+COPY apps/${BRAIN_APP} ./apps/${BRAIN_APP}
+
+# Copy ephemeris data files if they exist (for Swiss Ephemeris)
+COPY --from=deps /app/apps/web/ephe ./ephe 2>/dev/null || true
+
+EXPOSE 3100
+
+# Run via tsx for ESM + TypeScript support
+CMD ["node", "--import", "tsx/esm", "apps/${BRAIN_APP}/src/index.ts"]
