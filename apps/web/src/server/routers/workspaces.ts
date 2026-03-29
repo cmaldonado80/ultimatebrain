@@ -3,15 +3,20 @@
  */
 import {
   agents,
+  chatRuns,
+  chatSessions,
+  runQuality,
   workspaceBindings,
   workspaceGoals,
   workspaceLifecycleEvents,
+  workspaceMembers,
   workspaces,
 } from '@solarc/db'
 import { TRPCError } from '@trpc/server'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
+import { auditEvent } from '../services/platform/audit'
 import { protectedProcedure, router } from '../trpc'
 
 // Valid lifecycle transitions
@@ -478,5 +483,154 @@ export const workspacesRouter = router({
         .set({ autonomyLevel: dbLevel, updatedAt: new Date() })
         .where(eq(workspaces.id, input.workspaceId))
       return { level: input.level }
+    }),
+
+  // === Workspace Intelligence ===
+
+  /** Get workspace-level performance summary */
+  getWorkspaceSummary: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      // Get sessions in this workspace
+      const sessions = await ctx.db.query.chatSessions.findMany({
+        where: eq(chatSessions.workspaceId, input.workspaceId),
+        limit: 200,
+      })
+      const sessionIds = sessions.map((s) => s.id)
+
+      // Get runs from those sessions
+      const runs =
+        sessionIds.length > 0
+          ? await ctx.db.query.chatRuns.findMany({
+              where: sql`${chatRuns.sessionId} = ANY(${sessionIds})`,
+              orderBy: desc(chatRuns.startedAt),
+              limit: 100,
+            })
+          : []
+
+      const nonRunning = runs.filter((r) => r.status !== 'running')
+      const completed = nonRunning.filter((r) => r.status === 'completed')
+      const failed = nonRunning.filter((r) => r.status === 'failed')
+      const totalRuns = nonRunning.length
+      const successRate = totalRuns > 0 ? Math.round((completed.length / totalRuns) * 100) / 100 : 0
+
+      // Get quality scores
+      const runIds = nonRunning.map((r) => r.id)
+      const qualities =
+        runIds.length > 0
+          ? await ctx.db.query.runQuality.findMany({
+              where: sql`${runQuality.runId} = ANY(${runIds})`,
+            })
+          : []
+      const qualityScores = qualities.map((q) => q.score)
+      const avgQualityScore =
+        qualityScores.length > 0
+          ? Math.round((qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length) * 100) /
+            100
+          : null
+
+      // Duration
+      const durations = nonRunning.map((r) => r.durationMs).filter((d): d is number => d != null)
+      const avgDurationMs =
+        durations.length > 0
+          ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+          : null
+
+      // Trend
+      let trend: 'improving' | 'declining' | 'stable' | null = null
+      if (qualityScores.length >= 6) {
+        const recent = qualityScores.slice(0, 3).reduce((a, b) => a + b, 0) / 3
+        const earlier = qualityScores.slice(-3).reduce((a, b) => a + b, 0) / 3
+        const delta = recent - earlier
+        trend = delta > 0.1 ? 'improving' : delta < -0.1 ? 'declining' : 'stable'
+      }
+
+      // Members + agents count
+      const members = await ctx.db.query.workspaceMembers.findMany({
+        where: eq(workspaceMembers.workspaceId, input.workspaceId),
+      })
+      const wsAgents = await ctx.db.query.agents.findMany({
+        where: eq(agents.workspaceId, input.workspaceId),
+      })
+      const goals = await ctx.db.query.workspaceGoals.findMany({
+        where: and(
+          eq(workspaceGoals.workspaceId, input.workspaceId),
+          eq(workspaceGoals.status, 'active'),
+        ),
+      })
+
+      return {
+        totalRuns,
+        completedRuns: completed.length,
+        failedRuns: failed.length,
+        successRate,
+        avgQualityScore,
+        avgDurationMs,
+        trend,
+        memberCount: members.length,
+        agentCount: wsAgents.length,
+        activeGoals: goals.length,
+      }
+    }),
+
+  /** Get typed workspace policy from settings JSONB */
+  getWorkspacePolicy: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const ws = await ctx.db.query.workspaces.findFirst({
+        where: eq(workspaces.id, input.workspaceId),
+      })
+      if (!ws) throw new TRPCError({ code: 'NOT_FOUND', message: 'Workspace not found' })
+
+      const settings = (ws.settings ?? {}) as Record<string, unknown>
+      return {
+        decisionMode: (settings.decisionMode as string) ?? 'balanced',
+        autonomyMode:
+          ws.autonomyLevel === 5 ? 'auto' : ws.autonomyLevel === 3 ? 'assist' : 'manual',
+        escalationOnFailure: (settings.escalationOnFailure as string) ?? 'manual',
+        preferredWorkflows: (settings.preferredWorkflows as string[]) ?? [],
+        guardrailLevel: (settings.guardrailLevel as string) ?? 'standard',
+      }
+    }),
+
+  /** Update typed workspace policy */
+  updateWorkspacePolicy: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        policy: z.object({
+          decisionMode: z
+            .enum(['balanced', 'quality', 'speed', 'stability', 'simplicity'])
+            .optional(),
+          escalationOnFailure: z.enum(['retry', 'escalate', 'manual']).optional(),
+          preferredWorkflows: z.array(z.string()).optional(),
+          guardrailLevel: z.enum(['standard', 'strict', 'permissive']).optional(),
+        }),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const ws = await ctx.db.query.workspaces.findFirst({
+        where: eq(workspaces.id, input.workspaceId),
+      })
+      if (!ws) throw new TRPCError({ code: 'NOT_FOUND', message: 'Workspace not found' })
+
+      const currentSettings = (ws.settings ?? {}) as Record<string, unknown>
+      const updatedSettings = { ...currentSettings, ...input.policy }
+
+      await ctx.db
+        .update(workspaces)
+        .set({ settings: updatedSettings, updatedAt: new Date() })
+        .where(eq(workspaces.id, input.workspaceId))
+
+      await auditEvent(
+        ctx.db,
+        ctx.session.userId,
+        'update_workspace_policy',
+        'workspace',
+        input.workspaceId,
+        input.policy,
+      )
+
+      return { ok: true }
     }),
 })

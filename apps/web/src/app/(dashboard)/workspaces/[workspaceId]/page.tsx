@@ -34,6 +34,8 @@ export default function WorkspaceDetailPage() {
   const agentsQuery = trpc.agents.byWorkspace.useQuery({ workspaceId })
   const bindingsQuery = trpc.workspaces.listBindings.useQuery({ workspaceId })
   const goalsQuery = trpc.workspaces.listGoals.useQuery({ workspaceId })
+  const summaryQuery = trpc.workspaces.getWorkspaceSummary.useQuery({ workspaceId })
+  const policyQuery = trpc.workspaces.getWorkspacePolicy.useQuery({ workspaceId })
   const utils = trpc.useUtils()
 
   const activateMut = trpc.workspaces.activate.useMutation({
@@ -160,6 +162,74 @@ export default function WorkspaceDetailPage() {
           {bindings.length}
         </div>
       </div>
+
+      {/* Performance Summary */}
+      {summaryQuery.data && (
+        <div className="cyber-card p-4 mb-4">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
+            Performance
+          </div>
+          <div className="grid grid-cols-4 gap-4 text-center">
+            <div>
+              <div className="text-lg font-mono text-slate-200">{summaryQuery.data.totalRuns}</div>
+              <div className="text-[10px] text-slate-500">Runs</div>
+            </div>
+            <div>
+              <div className="text-lg font-mono text-neon-green">
+                {Math.round(summaryQuery.data.successRate * 100)}%
+              </div>
+              <div className="text-[10px] text-slate-500">Success</div>
+            </div>
+            <div>
+              <div className="text-lg font-mono text-neon-teal">
+                {summaryQuery.data.avgQualityScore != null
+                  ? `${Math.round(summaryQuery.data.avgQualityScore * 100)}%`
+                  : '--'}
+              </div>
+              <div className="text-[10px] text-slate-500">Quality</div>
+            </div>
+            <div>
+              <div
+                className={`text-lg font-mono ${
+                  summaryQuery.data.trend === 'improving'
+                    ? 'text-neon-green'
+                    : summaryQuery.data.trend === 'declining'
+                      ? 'text-neon-red'
+                      : 'text-slate-400'
+                }`}
+              >
+                {summaryQuery.data.trend === 'improving'
+                  ? '↑'
+                  : summaryQuery.data.trend === 'declining'
+                    ? '↓'
+                    : summaryQuery.data.trend === 'stable'
+                      ? '→'
+                      : '--'}
+              </div>
+              <div className="text-[10px] text-slate-500">Trend</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Workspace Policy */}
+      {policyQuery.data && (
+        <div className="cyber-card p-4 mb-4">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
+            Policy
+          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-[12px]">
+            <div className="text-slate-500">Decision Mode</div>
+            <div className="text-slate-300 capitalize">{policyQuery.data.decisionMode}</div>
+            <div className="text-slate-500">Autonomy</div>
+            <div className="text-slate-300 capitalize">{policyQuery.data.autonomyMode}</div>
+            <div className="text-slate-500">On Failure</div>
+            <div className="text-slate-300 capitalize">{policyQuery.data.escalationOnFailure}</div>
+            <div className="text-slate-500">Guardrails</div>
+            <div className="text-slate-300 capitalize">{policyQuery.data.guardrailLevel}</div>
+          </div>
+        </div>
+      )}
 
       {/* Orchestrator */}
       <div className="cyber-card p-4 mb-4">
