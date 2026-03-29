@@ -153,6 +153,7 @@ export const workspaces = pgTable('workspaces', {
   autonomyLevel: integer('autonomy_level').default(1),
   lifecycleState: workspaceLifecycleEnum('lifecycle_state').default('draft').notNull(),
   isSystemProtected: boolean('is_system_protected').default(false),
+  organizationId: uuid('organization_id'),
   createdBy: uuid('created_by'),
   settings: jsonb('settings'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

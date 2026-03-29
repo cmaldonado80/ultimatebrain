@@ -55,6 +55,7 @@ export const brainEntities = pgTable(
     version: text('version'),
     lastDeployedAt: timestamp('last_deployed_at'),
     ownerUserId: uuid('owner_user_id'),
+    organizationId: uuid('organization_id'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -62,6 +63,7 @@ export const brainEntities = pgTable(
     index('brain_entities_status_idx').on(t.status),
     index('brain_entities_parent_id_idx').on(t.parentId),
     index('brain_entities_tier_idx').on(t.tier),
+    index('brain_entities_org_idx').on(t.organizationId),
   ],
 )
 
@@ -218,6 +220,7 @@ export const incidents = pgTable(
     severity: anomalySeverityEnum('severity').default('medium').notNull(),
     status: text('status').default('triggered').notNull(),
     message: text('message'),
+    organizationId: uuid('organization_id'),
     triggeredAt: timestamp('triggered_at').defaultNow().notNull(),
     acknowledgedAt: timestamp('acknowledged_at'),
     acknowledgedBy: uuid('acknowledged_by'),
@@ -229,6 +232,7 @@ export const incidents = pgTable(
   (t) => [
     index('incidents_status_idx').on(t.status),
     index('incidents_triggered_idx').on(t.triggeredAt),
+    index('incidents_org_idx').on(t.organizationId),
   ],
 )
 
@@ -249,6 +253,7 @@ export const deploymentWorkflows = pgTable(
     steps: jsonb('steps').default([]).notNull(),
     config: jsonb('config'),
     triggeredBy: uuid('triggered_by').references(() => users.id),
+    organizationId: uuid('organization_id'),
     error: text('error'),
     startedAt: timestamp('started_at'),
     completedAt: timestamp('completed_at'),
@@ -257,6 +262,7 @@ export const deploymentWorkflows = pgTable(
   (t) => [
     index('deployment_workflows_entity_idx').on(t.entityId),
     index('deployment_workflows_status_idx').on(t.status),
+    index('deployment_workflows_org_idx').on(t.organizationId),
   ],
 )
 
@@ -277,6 +283,7 @@ export const entitySecrets = pgTable(
     previousKeyHash: text('previous_key_hash'),
     rotationStartedAt: timestamp('rotation_started_at'),
     expiresAt: timestamp('expires_at'),
+    organizationId: uuid('organization_id'),
     createdBy: uuid('created_by').references(() => users.id),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

@@ -10,7 +10,7 @@
  */
 
 import { brainEntities } from '@solarc/db'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { auditEvent } from '../services/platform/audit'
@@ -30,10 +30,11 @@ export const runtimesRouter = router({
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      const conditions = []
+      const orgId = ctx.session.organizationId
+      const conditions = [eq(brainEntities.organizationId, orgId)]
       if (input?.tier) conditions.push(eq(brainEntities.tier, input.tier))
       return ctx.db.query.brainEntities.findMany({
-        where: conditions.length > 0 ? conditions[0] : undefined,
+        where: conditions.length > 1 ? and(...conditions) : conditions[0],
         orderBy: desc(brainEntities.updatedAt),
         limit: input?.limit ?? 50,
       })

@@ -102,6 +102,7 @@ export const miniBrainFactoryRouter = router({
             status: 'provisioning',
             apiKeyHash,
             ownerUserId: ctx.session.userId,
+            organizationId: ctx.session.organizationId,
           })
           .returning()
         if (!entity) throw new Error('Failed to create entity')
@@ -114,6 +115,7 @@ export const miniBrainFactoryRouter = router({
             type: 'general',
             goal: `${template.domain} domain — ${template.engines.join(', ')}`,
             icon: template.id,
+            organizationId: ctx.session.organizationId,
           })
           .returning()
         if (!ws) throw new Error('Failed to create workspace')

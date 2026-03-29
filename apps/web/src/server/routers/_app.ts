@@ -26,6 +26,7 @@ import { memoryRouter } from './memory'
 import { miniBrainFactoryRouter } from './mini-brain-factory'
 import { modelRegistryRouter } from './model-registry'
 import { orchestrationRouter } from './orchestration'
+import { organizationsRouter } from './organizations'
 import { platformRouter } from './platform'
 import { playbooksRouter } from './playbooks'
 import { presenceRouter } from './presence'
@@ -85,6 +86,7 @@ export const appRouter = router({
   journeys: journeysRouter,
   deployments: deploymentsRouter,
   secrets: secretsRouter,
+  organizations: organizationsRouter,
 })
 
 export type AppRouter = typeof appRouter

@@ -6,7 +6,7 @@ import { can } from './services/platform/permissions'
 
 export interface TRPCContext {
   db: Database
-  session: { userId: string } | null
+  session: { userId: string; organizationId: string } | null
   req?: Request
 }
 

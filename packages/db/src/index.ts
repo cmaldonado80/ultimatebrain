@@ -883,6 +883,37 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       )`,
       `CREATE INDEX IF NOT EXISTS entity_secrets_entity_idx ON entity_secrets(entity_id)`,
       `CREATE INDEX IF NOT EXISTS entity_secrets_type_status_idx ON entity_secrets(type, status)`,
+      // Organizations
+      `CREATE TABLE IF NOT EXISTS organizations (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        name text NOT NULL,
+        slug text UNIQUE NOT NULL,
+        status text NOT NULL DEFAULT 'active',
+        owner_user_id uuid NOT NULL REFERENCES users(id),
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS organizations_slug_idx ON organizations(slug)`,
+      `CREATE INDEX IF NOT EXISTS organizations_owner_idx ON organizations(owner_user_id)`,
+      `CREATE TABLE IF NOT EXISTS organization_members (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role text NOT NULL,
+        joined_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS org_members_org_idx ON organization_members(organization_id)`,
+      `CREATE INDEX IF NOT EXISTS org_members_user_idx ON organization_members(user_id)`,
+      // Org-scoping columns on existing tables
+      `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `ALTER TABLE deployment_workflows ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `ALTER TABLE entity_secrets ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `ALTER TABLE audit_events ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `CREATE INDEX IF NOT EXISTS brain_entities_org_idx ON brain_entities(organization_id)`,
+      `CREATE INDEX IF NOT EXISTS deployment_workflows_org_idx ON deployment_workflows(organization_id)`,
+      `CREATE INDEX IF NOT EXISTS incidents_org_idx ON incidents(organization_id)`,
     ]
     for (const stmt of alterStatements) {
       await client.query(stmt).catch(() => {})

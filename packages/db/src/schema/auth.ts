@@ -115,3 +115,43 @@ export const auditEvents = pgTable(
     index('audit_events_created_idx').on(t.createdAt),
   ],
 )
+
+// === Organizations ===
+
+export const organizations = pgTable(
+  'organizations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    slug: text('slug').unique().notNull(),
+    status: text('status').default('active').notNull(),
+    ownerUserId: uuid('owner_user_id')
+      .references(() => users.id)
+      .notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('organizations_slug_idx').on(t.slug),
+    index('organizations_owner_idx').on(t.ownerUserId),
+  ],
+)
+
+export const organizationMembers = pgTable(
+  'organization_members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .references(() => organizations.id, { onDelete: 'cascade' })
+      .notNull(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    role: text('role').notNull(),
+    joinedAt: timestamp('joined_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('org_members_org_idx').on(t.organizationId),
+    index('org_members_user_idx').on(t.userId),
+  ],
+)

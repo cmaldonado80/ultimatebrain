@@ -5,7 +5,7 @@
  */
 import { deploymentWorkflows } from '@solarc/db'
 import { TRPCError } from '@trpc/server'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import {
@@ -28,10 +28,12 @@ export const deploymentsRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const where = input.status ? eq(deploymentWorkflows.status, input.status) : undefined
+      const orgId = ctx.session.organizationId
+      const conditions = [eq(deploymentWorkflows.organizationId, orgId)]
+      if (input.status) conditions.push(eq(deploymentWorkflows.status, input.status))
 
       const workflows = await ctx.db.query.deploymentWorkflows.findMany({
-        where,
+        where: conditions.length > 1 ? and(...conditions) : conditions[0],
         orderBy: desc(deploymentWorkflows.createdAt),
         limit: input.limit,
       })

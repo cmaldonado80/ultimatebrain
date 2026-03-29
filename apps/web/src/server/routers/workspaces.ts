@@ -39,6 +39,7 @@ export const workspacesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       return ctx.db.query.workspaces.findMany({
+        where: eq(workspaces.organizationId, ctx.session.organizationId),
         limit: input.limit,
         offset: input.offset,
       })
@@ -64,7 +65,10 @@ export const workspacesRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [ws] = await ctx.db.insert(workspaces).values(input).returning()
+      const [ws] = await ctx.db
+        .insert(workspaces)
+        .values({ ...input, organizationId: ctx.session.organizationId })
+        .returning()
       if (!ws)
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
