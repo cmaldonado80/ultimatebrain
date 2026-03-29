@@ -16,6 +16,7 @@ import { LlmChatInput } from '@solarc/engine-contracts'
 import { GatewayRouter } from '../../../../../server/services/gateway'
 import { authenticateEntity } from '../../../../../server/services/platform/entity-auth'
 import { TokenLedgerService } from '../../../../../server/services/platform/token-ledger'
+import { createDbTracer, type Tracer } from '../../../../../server/services/platform/tracer'
 
 let _db: Database | undefined
 function getDb(): Database {
@@ -29,7 +30,16 @@ function getDb(): Database {
 
 let _gateway: GatewayRouter | undefined
 function getGateway(): GatewayRouter {
-  return (_gateway ??= new GatewayRouter(getDb()))
+  if (!_gateway) {
+    _gateway = new GatewayRouter(getDb())
+    _gateway.setTracer(getTracer())
+  }
+  return _gateway
+}
+
+let _tracer: Tracer | undefined
+function getTracer(): Tracer {
+  return (_tracer ??= createDbTracer(getDb(), 'brain'))
 }
 
 export async function POST(req: Request) {

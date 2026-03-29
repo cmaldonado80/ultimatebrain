@@ -7,6 +7,8 @@
  * - connects to Brain via Brain SDK for shared services
  * - exposes domain-specific endpoints via route injection
  * - proxies LLM/memory requests to Brain for Developments
+ * - produces structured JSON logs
+ * - reports degraded health when Brain is unreachable
  */
 
 import { serve } from '@hono/node-server'
@@ -14,7 +16,8 @@ import type { BrainClient } from '@solarc/brain-sdk'
 import { createBrainClient } from '@solarc/brain-sdk'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { logger } from 'hono/logger'
+
+import { createLogger } from './logger.js'
 
 // ── Config ────────────────────────────────────────────────────────────
 
@@ -48,17 +51,28 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
   if (!config.brainApiKey) throw new Error('[MiniBrain] brainApiKey is required')
   if (!config.domain) throw new Error('[MiniBrain] domain is required')
 
+  const log = createLogger(`mini-brain:${config.domain}`)
   const app = new Hono()
 
-  // Middleware
+  // Middleware: CORS
   app.use('*', cors())
-  app.use('*', logger())
 
-  // Request correlation IDs (propagated across tiers for tracing)
+  // Middleware: Request timing + structured logging + correlation IDs
   app.use('*', async (c, next) => {
+    const start = Date.now()
     const requestId = c.req.header('x-request-id') ?? crypto.randomUUID()
     c.header('x-request-id', requestId)
-    return next()
+
+    await next()
+
+    const durationMs = Date.now() - start
+    log.info('request', {
+      requestId,
+      method: c.req.method,
+      path: c.req.path,
+      status: c.res.status,
+      durationMs,
+    })
   })
 
   // Brain SDK client
@@ -68,21 +82,30 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
     domain: config.domain,
   })
 
-  // ── Health ──────────────────────────────────────────────────────────
+  // ── Health (with degraded state detection) ──────────────────────────
 
   app.get('/health', async (c) => {
     let brainStatus = 'unknown'
+    let brainLatencyMs: number | null = null
     try {
+      const start = Date.now()
       const h = await brain.health()
+      brainLatencyMs = Date.now() - start
       brainStatus = h.status
     } catch {
       brainStatus = 'unreachable'
     }
+
+    const overall = brainStatus === 'unreachable' ? 'degraded' : 'ok'
+
     return c.json({
-      status: 'ok',
+      status: overall,
       domain: config.domain,
       entityId: config.entityId,
-      brain: brainStatus,
+      dependencies: {
+        brain: { status: brainStatus, latencyMs: brainLatencyMs },
+      },
+      uptime: Math.round(process.uptime()),
     })
   })
 
@@ -102,6 +125,7 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
     if (!config.appSecret) return next() // no secret = open (dev mode)
     const auth = c.req.header('authorization')
     if (!auth || auth !== `Bearer ${config.appSecret}`) {
+      log.warn('auth_rejected', { path: c.req.path })
       return c.json({ error: 'Unauthorized — invalid or missing app secret' }, 401)
     }
     return next()
@@ -125,6 +149,7 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
       const result = await brain.llm.chat(body)
       return c.json(result)
     } catch (err) {
+      log.error('proxy_llm_failed', { error: err instanceof Error ? err.message : String(err) })
       return c.json({ error: err instanceof Error ? err.message : 'LLM proxy failed' }, 502)
     }
   })
@@ -135,6 +160,9 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
       const result = await brain.memory.search(body)
       return c.json({ results: result })
     } catch (err) {
+      log.error('proxy_memory_search_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
       return c.json({ error: err instanceof Error ? err.message : 'Memory search failed' }, 502)
     }
   })
@@ -145,6 +173,9 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
       const result = await brain.memory.store(body)
       return c.json(result)
     } catch (err) {
+      log.error('proxy_memory_store_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
       return c.json({ error: err instanceof Error ? err.message : 'Memory store failed' }, 502)
     }
   })
@@ -157,20 +188,20 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
     config,
     start: async (port?: number) => {
       const p = port ?? config.port ?? 3100
-      console.warn(`[MiniBrain:${config.domain}] entity=${config.entityId}`)
-      console.warn(`[MiniBrain:${config.domain}] brain=${config.brainUrl}`)
+      log.info('starting', { entityId: config.entityId, brainUrl: config.brainUrl, port: p })
 
       // Startup validation: check Brain connectivity (warn, don't crash)
       try {
         const h = await brain.health()
-        console.warn(`[MiniBrain:${config.domain}] Brain health: ${h.status}`)
+        log.info('brain_connected', { status: h.status })
       } catch {
-        console.error(
-          `[MiniBrain:${config.domain}] WARNING: Brain unreachable at ${config.brainUrl} — domain-local requests will still work`,
-        )
+        log.error('brain_unreachable', {
+          url: config.brainUrl,
+          note: 'domain-local requests will still work',
+        })
       }
 
-      console.warn(`[MiniBrain:${config.domain}] Starting on port ${p}`)
+      log.info('ready', { port: p, domain: config.domain })
       return serve({ fetch: app.fetch, port: p })
     },
   }
