@@ -32,6 +32,7 @@ import { presenceRouter } from './presence'
 import { projectsRouter } from './projects'
 import { runtimeStatusRouter } from './runtime-status'
 import { runtimesRouter } from './runtimes'
+import { secretsRouter } from './secrets'
 import { skillsRouter } from './skills'
 import { systemOrchestratorRouter } from './system-orchestrator'
 import { taskRunnerRouter } from './task-runner'
@@ -83,6 +84,7 @@ export const appRouter = router({
   ephemeris: ephemerisRouter,
   journeys: journeysRouter,
   deployments: deploymentsRouter,
+  secrets: secretsRouter,
 })
 
 export type AppRouter = typeof appRouter

@@ -22,6 +22,8 @@ import {
   entityStatusEnum,
   entityTierEnum,
   projects,
+  secretStatusEnum,
+  secretTypeEnum,
 } from './core'
 import { anomalySeverityEnum } from './execution'
 
@@ -255,5 +257,32 @@ export const deploymentWorkflows = pgTable(
   (t) => [
     index('deployment_workflows_entity_idx').on(t.entityId),
     index('deployment_workflows_status_idx').on(t.status),
+  ],
+)
+
+// ── Entity Secrets ───────────────────────────────────────────────────
+
+export const entitySecrets = pgTable(
+  'entity_secrets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    entityId: uuid('entity_id')
+      .references(() => brainEntities.id, { onDelete: 'cascade' })
+      .notNull(),
+    type: secretTypeEnum('type').notNull(),
+    status: secretStatusEnum('status').default('active').notNull(),
+    version: integer('version').default(1).notNull(),
+    keyHash: text('key_hash'),
+    keyPrefix: text('key_prefix'),
+    previousKeyHash: text('previous_key_hash'),
+    rotationStartedAt: timestamp('rotation_started_at'),
+    expiresAt: timestamp('expires_at'),
+    createdBy: uuid('created_by').references(() => users.id),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('entity_secrets_entity_idx').on(t.entityId),
+    index('entity_secrets_type_status_idx').on(t.type, t.status),
   ],
 )

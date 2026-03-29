@@ -864,6 +864,25 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       )`,
       `CREATE INDEX IF NOT EXISTS deployment_workflows_entity_idx ON deployment_workflows(entity_id)`,
       `CREATE INDEX IF NOT EXISTS deployment_workflows_status_idx ON deployment_workflows(status)`,
+      `DO $$ BEGIN CREATE TYPE secret_type AS ENUM ('brain_api_key','mini_brain_secret','app_secret','database_url'); EXCEPTION WHEN duplicate_object THEN null; END $$`,
+      `DO $$ BEGIN CREATE TYPE secret_status AS ENUM ('active','rotating','pending_activation','revoked'); EXCEPTION WHEN duplicate_object THEN null; END $$`,
+      `CREATE TABLE IF NOT EXISTS entity_secrets (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        entity_id uuid NOT NULL REFERENCES brain_entities(id) ON DELETE CASCADE,
+        type secret_type NOT NULL,
+        status secret_status NOT NULL DEFAULT 'active',
+        version integer NOT NULL DEFAULT 1,
+        key_hash text,
+        key_prefix text,
+        previous_key_hash text,
+        rotation_started_at timestamp,
+        expires_at timestamp,
+        created_by uuid REFERENCES users(id),
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS entity_secrets_entity_idx ON entity_secrets(entity_id)`,
+      `CREATE INDEX IF NOT EXISTS entity_secrets_type_status_idx ON entity_secrets(type, status)`,
     ]
     for (const stmt of alterStatements) {
       await client.query(stmt).catch(() => {})

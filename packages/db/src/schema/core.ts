@@ -113,6 +113,20 @@ export const workspaceBindingTypeEnum = pgEnum('workspace_binding_type', [
   'engine',
   'skill',
 ])
+export const secretTypeEnum = pgEnum('secret_type', [
+  'brain_api_key',
+  'mini_brain_secret',
+  'app_secret',
+  'database_url',
+])
+
+export const secretStatusEnum = pgEnum('secret_status', [
+  'active',
+  'rotating',
+  'pending_activation',
+  'revoked',
+])
+
 export const deploymentWorkflowStatusEnum = pgEnum('deployment_workflow_status', [
   'pending',
   'running',

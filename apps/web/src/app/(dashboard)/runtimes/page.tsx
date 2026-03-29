@@ -30,6 +30,130 @@ const TIER_LABEL: Record<string, string> = {
 
 type Filter = 'all' | 'mini_brain' | 'development'
 
+const SECRET_STATUS_STYLE: Record<string, { label: string; color: string }> = {
+  active: { label: 'Active', color: 'text-neon-green' },
+  rotating: { label: 'Rotating', color: 'text-neon-yellow' },
+  pending_activation: { label: 'Pending', color: 'text-neon-blue' },
+  revoked: { label: 'Revoked', color: 'text-slate-600' },
+}
+
+function SecretsPanel({ entityId }: { entityId: string }) {
+  const [newKey, setNewKey] = useState<string | null>(null)
+  const utils = trpc.useUtils()
+  const secretsQuery = trpc.secrets.list.useQuery({ entityId })
+  const rotateMut = trpc.secrets.rotate.useMutation({
+    onSuccess: (data) => {
+      setNewKey(data.plaintextKey)
+      utils.secrets.list.invalidate({ entityId })
+    },
+  })
+  const activateMut = trpc.secrets.activate.useMutation({
+    onSuccess: () => {
+      setNewKey(null)
+      utils.secrets.list.invalidate({ entityId })
+    },
+  })
+  const revokeMut = trpc.secrets.revoke.useMutation({
+    onSuccess: () => utils.secrets.list.invalidate({ entityId }),
+  })
+  const rollbackMut = trpc.secrets.rollback.useMutation({
+    onSuccess: () => {
+      setNewKey(null)
+      utils.secrets.list.invalidate({ entityId })
+    },
+  })
+
+  const secrets = (secretsQuery.data ?? []).filter((s) => s.status !== 'revoked')
+  if (secrets.length === 0 && !secretsQuery.isLoading) return null
+
+  return (
+    <div className="mt-2">
+      <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Secrets</div>
+      {newKey && (
+        <div className="bg-neon-green/5 border border-neon-green/20 rounded px-2.5 py-1.5 mb-1.5 text-[10px]">
+          <span className="text-neon-green font-medium">New key: </span>
+          <code className="text-slate-300 font-mono select-all">{newKey}</code>
+          <span className="text-neon-yellow ml-2">(copy now — shown once)</span>
+        </div>
+      )}
+      <div className="space-y-1">
+        {secrets.map((s) => {
+          const style = SECRET_STATUS_STYLE[s.status] ?? SECRET_STATUS_STYLE.active
+          return (
+            <div
+              key={s.id}
+              className="flex items-center gap-2 bg-bg-elevated rounded px-2 py-1 text-[10px]"
+            >
+              <span className="text-slate-400 font-medium w-[100px] truncate">{s.type}</span>
+              <span className="font-mono text-slate-500">{s.keyPrefix}</span>
+              <span className="text-slate-600">v{s.version}</span>
+              <span className={`${style!.color}`}>{style!.label}</span>
+              <span className="flex-1" />
+              {s.status === 'active' && (
+                <button
+                  className="text-neon-yellow hover:text-neon-yellow/80"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    rotateMut.mutate({ secretId: s.id })
+                  }}
+                  disabled={rotateMut.isPending}
+                >
+                  Rotate
+                </button>
+              )}
+              {s.status === 'pending_activation' && (
+                <>
+                  <button
+                    className="text-neon-green hover:text-neon-green/80"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      activateMut.mutate({ secretId: s.id })
+                    }}
+                    disabled={activateMut.isPending}
+                  >
+                    Activate
+                  </button>
+                  <button
+                    className="text-neon-red hover:text-neon-red/80"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      rollbackMut.mutate({ secretId: s.id })
+                    }}
+                    disabled={rollbackMut.isPending}
+                  >
+                    Rollback
+                  </button>
+                </>
+              )}
+              {s.status === 'active' && (
+                <button
+                  className="text-neon-red/50 hover:text-neon-red"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (confirm('Revoke this secret? This may break running services.')) {
+                      revokeMut.mutate({ secretId: s.id })
+                    }
+                  }}
+                >
+                  Revoke
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {(rotateMut.error || activateMut.error || revokeMut.error || rollbackMut.error) && (
+        <div className="text-[10px] text-neon-red mt-1">
+          {rotateMut.error?.message ??
+            activateMut.error?.message ??
+            revokeMut.error?.message ??
+            rollbackMut.error?.message}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function RuntimesPage() {
   const [filter, setFilter] = useState<Filter>('all')
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -196,6 +320,9 @@ export default function RuntimesPage() {
                         {new Date(rt.createdAt).toLocaleString()}
                       </div>
                     </div>
+
+                    {/* Secrets */}
+                    <SecretsPanel entityId={rt.id} />
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 mt-2">

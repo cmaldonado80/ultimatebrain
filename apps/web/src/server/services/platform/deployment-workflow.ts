@@ -9,11 +9,11 @@
 
 import type { Database } from '@solarc/db'
 import { brainEntities, deploymentWorkflows, incidents } from '@solarc/db'
-import { randomUUID } from 'crypto'
 import { eq } from 'drizzle-orm'
 
 import { createNeonBranch } from '../neon/neon-api'
 import { auditEvent } from './audit'
+import { createSecret } from './secret-manager'
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -485,7 +485,9 @@ async function executeConfigure(
   })
   if (!entity) throw new Error('Entity not found')
 
-  const appSecret = `sk_${randomUUID().replace(/-/g, '')}`
+  // Create tracked secrets via secret-manager
+  const triggeredBy = entity.ownerUserId ?? '00000000-0000-0000-0000-000000000000'
+  const appSecretResult = await createSecret(db, entityId, 'mini_brain_secret', triggeredBy)
 
   const mbConfig = {
     ENTITY_ID: entity.id,
@@ -496,16 +498,16 @@ async function executeConfigure(
     DATABASE_URL: entity.databaseUrl ? '(provisioned)' : '(not provisioned)',
     DOMAIN_NAME: entity.domain ?? 'unknown',
     PORT: '3100',
-    APP_SECRET: appSecret,
+    APP_SECRET: appSecretResult.plaintextKey,
   }
 
   const configUpdate: Record<string, unknown> = { miniBrain: mbConfig }
 
   if (devEntityId) {
-    const authSecret = `sk_${randomUUID().replace(/-/g, '')}`
+    const authSecretResult = await createSecret(db, devEntityId, 'app_secret', triggeredBy)
     configUpdate.development = {
       MINI_BRAIN_URL: '(set after mini brain registered)',
-      AUTH_SECRET: authSecret,
+      AUTH_SECRET: authSecretResult.plaintextKey,
       COOKIE_NAME: `solarc_${entity.domain ?? 'app'}_session`,
     }
   }
