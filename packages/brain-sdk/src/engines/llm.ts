@@ -1,5 +1,7 @@
 /**
  * LLM Engine — chat, streaming, embeddings
+ *
+ * Calls Brain REST API at /llm/chat, /llm/embed
  */
 
 import type { RetryPolicy } from '../transport/retry'
@@ -10,18 +12,17 @@ export interface ChatMessage {
 }
 
 export interface ChatOptions {
-  model: string
+  model?: string
   messages: ChatMessage[]
   maxTokens?: number
   temperature?: number
-  stream?: boolean
+  tools?: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }>
 }
 
 export interface ChatResponse {
-  id: string
   content: string
   model: string
-  usage: { inputTokens: number; outputTokens: number }
+  toolUse?: { id: string; name: string; input: Record<string, unknown> } | null
 }
 
 export interface EmbedOptions {
@@ -38,7 +39,7 @@ export interface EmbedResult {
 export class LLMEngine {
   constructor(
     private fetch: (path: string, body: unknown) => Promise<unknown>,
-    private retry: RetryPolicy
+    private retry: RetryPolicy,
   ) {}
 
   /** Send a chat completion request */

@@ -1,148 +1,147 @@
-// @solarc/mini-brain-server — Mini Brain exposes DOWN to Developments
+/**
+ * @solarc/mini-brain-server — Real Mini Brain runtime
+ *
+ * A Hono-based HTTP server that:
+ * - starts as an independent service
+ * - knows its entity identity and domain
+ * - connects to Brain via Brain SDK for shared services
+ * - exposes domain-specific endpoints via route injection
+ * - proxies LLM/memory requests to Brain for Developments
+ */
 
-export interface MiniBrainServerConfig {
-  engines: Record<string, unknown>
-  agents: unknown[]
-  guardrails: unknown[]
-  proxy: Record<string, unknown>
-  /** Connection to the parent Brain (for proxying OpenClaw requests). */
-  brainUrl?: string
-  brainApiKey?: string
-  entityId?: string
+import { serve } from '@hono/node-server'
+import type { BrainClient } from '@solarc/brain-sdk'
+import { createBrainClient } from '@solarc/brain-sdk'
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+import { logger } from 'hono/logger'
+
+// ── Config ────────────────────────────────────────────────────────────
+
+export interface MiniBrainConfig {
+  entityId: string
+  domain: string
+  brainUrl: string
+  brainApiKey: string
+  databaseUrl?: string
+  port?: number
 }
 
-export function createMiniBrainServer(config: MiniBrainServerConfig) {
-  const server = {
-    config,
-    started: false,
+// ── Domain Route ──────────────────────────────────────────────────────
 
-    async start(port = 3100) {
-      this.started = true
-      console.warn(
-        `[MiniBrain] Server ready on port ${port} with ${Object.keys(config.engines).length} engines`,
-      )
-      return this
-    },
+export interface DomainRoute {
+  method: 'get' | 'post'
+  path: string
+  handler: (c: HonoContext, brain: BrainClient) => Promise<Response>
+}
 
-    async stop() {
-      this.started = false
-      console.warn('[MiniBrain] Server stopped')
-    },
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type HonoContext = any
 
-    async health() {
-      return {
-        status: this.started ? 'healthy' : 'stopped',
-        engines: Object.keys(config.engines).length,
-        agents: config.agents.length,
-        guardrails: config.guardrails.length,
-      }
-    },
+// ── Server Factory ────────────────────────────────────────────────────
 
-    // ── OpenClaw Proxy (Development → Mini Brain → Brain → OpenClaw) ──
+export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRoute[] = []) {
+  // Validate config (fail fast)
+  if (!config.entityId) throw new Error('[MiniBrain] entityId is required')
+  if (!config.brainUrl) throw new Error('[MiniBrain] brainUrl is required')
+  if (!config.brainApiKey) throw new Error('[MiniBrain] brainApiKey is required')
+  if (!config.domain) throw new Error('[MiniBrain] domain is required')
 
-    /**
-     * Proxy an LLM chat request from a Development up to the Brain.
-     * The Brain applies budget enforcement and routes through OpenClaw.
-     */
-    async proxyChat(params: {
-      model: string
-      messages: Array<{ role: string; content: string }>
-      tools?: unknown[]
-    }) {
-      if (!config.brainUrl || !config.entityId) {
-        throw new Error('Mini Brain not connected to parent Brain — proxyChat unavailable')
-      }
+  const app = new Hono()
 
-      const response = await fetch(`${config.brainUrl}/api/trpc/intelligence.entityChat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(config.brainApiKey && { Authorization: `Bearer ${config.brainApiKey}` }),
-        },
-        body: JSON.stringify({
-          json: {
-            entityId: config.entityId,
-            model: params.model,
-            messages: params.messages,
-            tools: params.tools,
-          },
-        }),
-      })
+  // Middleware
+  app.use('*', cors())
+  app.use('*', logger())
 
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Brain proxy chat failed: ${response.status} ${text}`)
-      }
+  // Brain SDK client
+  const brain = createBrainClient({
+    endpoint: config.brainUrl,
+    apiKey: config.brainApiKey,
+    domain: config.domain,
+  })
 
-      const result = (await response.json()) as Record<string, unknown>
-      return (result as { result?: { data?: { json?: unknown } } }).result?.data?.json ?? result
-    },
+  // ── Health ──────────────────────────────────────────────────────────
 
-    /**
-     * Proxy a skill invocation from a Development up to the Brain.
-     */
-    async proxySkillInvoke(params: { skill: string; params: Record<string, unknown> }) {
-      if (!config.brainUrl || !config.entityId) {
-        throw new Error('Mini Brain not connected to parent Brain — proxySkillInvoke unavailable')
-      }
+  app.get('/health', async (c) => {
+    let brainStatus = 'unknown'
+    try {
+      const h = await brain.health()
+      brainStatus = h.status
+    } catch {
+      brainStatus = 'unreachable'
+    }
+    return c.json({
+      status: 'ok',
+      domain: config.domain,
+      entityId: config.entityId,
+      brain: brainStatus,
+    })
+  })
 
-      const response = await fetch(`${config.brainUrl}/api/trpc/intelligence.entitySkillInvoke`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(config.brainApiKey && { Authorization: `Bearer ${config.brainApiKey}` }),
-        },
-        body: JSON.stringify({
-          json: {
-            entityId: config.entityId,
-            skill: params.skill,
-            params: params.params,
-          },
-        }),
-      })
+  // ── Info ─────────────────────────────────────────────────────────────
 
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Brain proxy skill invoke failed: ${response.status} ${text}`)
-      }
+  app.get('/info', (c) =>
+    c.json({
+      entityId: config.entityId,
+      domain: config.domain,
+      hasDatabase: !!config.databaseUrl,
+    }),
+  )
 
-      const result = (await response.json()) as Record<string, unknown>
-      return (result as { result?: { data?: { json?: unknown } } }).result?.data?.json ?? result
-    },
+  // ── Domain Routes (injected) ────────────────────────────────────────
 
-    /**
-     * Proxy a channel message send from a Development up to the Brain.
-     */
-    async proxyChannelSend(params: { channel: string; to: string; content: string }) {
-      if (!config.brainUrl || !config.entityId) {
-        throw new Error('Mini Brain not connected to parent Brain — proxyChannelSend unavailable')
-      }
-
-      const response = await fetch(`${config.brainUrl}/api/trpc/intelligence.entityChannelSend`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(config.brainApiKey && { Authorization: `Bearer ${config.brainApiKey}` }),
-        },
-        body: JSON.stringify({
-          json: {
-            entityId: config.entityId,
-            channel: params.channel,
-            to: params.to,
-            content: params.content,
-          },
-        }),
-      })
-
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Brain proxy channel send failed: ${response.status} ${text}`)
-      }
-
-      const result = (await response.json()) as Record<string, unknown>
-      return (result as { result?: { data?: { json?: unknown } } }).result?.data?.json ?? result
-    },
+  for (const route of routes) {
+    if (route.method === 'get') {
+      app.get(route.path, (c) => route.handler(c, brain))
+    } else {
+      app.post(route.path, (c) => route.handler(c, brain))
+    }
   }
 
-  return server
+  // ── Proxy Routes (Development → Mini Brain → Brain) ─────────────────
+
+  app.post('/api/llm/chat', async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.llm.chat(body)
+      return c.json(result)
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'LLM proxy failed' }, 502)
+    }
+  })
+
+  app.post('/api/memory/search', async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.memory.search(body)
+      return c.json({ results: result })
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Memory search failed' }, 502)
+    }
+  })
+
+  app.post('/api/memory/store', async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.memory.store(body)
+      return c.json(result)
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Memory store failed' }, 502)
+    }
+  })
+
+  // ── Start ───────────────────────────────────────────────────────────
+
+  return {
+    app,
+    brain,
+    config,
+    start: (port?: number) => {
+      const p = port ?? config.port ?? 3100
+      console.warn(`[MiniBrain:${config.domain}] entity=${config.entityId}`)
+      console.warn(`[MiniBrain:${config.domain}] brain=${config.brainUrl}`)
+      console.warn(`[MiniBrain:${config.domain}] Starting on port ${p}`)
+      return serve({ fetch: app.fetch, port: p })
+    },
+  }
 }

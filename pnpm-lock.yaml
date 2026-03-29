@@ -39,6 +39,28 @@ importers:
         specifier: ^3.0.0
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
 
+  apps/astrology-brain:
+    dependencies:
+      '@solarc/brain-sdk':
+        specifier: workspace:*
+        version: link:../../packages/brain-sdk
+      '@solarc/ephemeris':
+        specifier: workspace:*
+        version: link:../../packages/ephemeris
+      '@solarc/mini-brain-server':
+        specifier: workspace:*
+        version: link:../../packages/mini-brain-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
+      tsx:
+        specifier: ^4.19.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   apps/web:
     dependencies:
       '@solarc/db':
@@ -47,6 +69,9 @@ importers:
       '@solarc/engine-contracts':
         specifier: workspace:*
         version: link:../../packages/engine-contracts
+      '@solarc/ephemeris':
+        specifier: workspace:*
+        version: link:../../packages/ephemeris
       '@tanstack/react-query':
         specifier: ^5.62.0
         version: 5.95.0(react@19.2.4)
@@ -198,6 +223,19 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  packages/ephemeris:
+    dependencies:
+      swisseph:
+        specifier: ^0.5.17
+        version: 0.5.17
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/eslint-config:
     dependencies:
       '@next/eslint-plugin-next':
@@ -246,12 +284,18 @@ importers:
 
   packages/mini-brain-server:
     dependencies:
+      '@hono/node-server':
+        specifier: ^1.19.11
+        version: 1.19.11(hono@4.12.9)
       '@solarc/brain-sdk':
         specifier: workspace:*
         version: link:../brain-sdk
       '@solarc/engine-contracts':
         specifier: workspace:*
         version: link:../engine-contracts
+      hono:
+        specifier: ^4.12.9
+        version: 4.12.9
       zod:
         specifier: ^3.24.0
         version: 3.25.76
@@ -756,6 +800,12 @@ packages:
 
   '@gar/promisify@1.1.3':
     resolution: {integrity: sha512-k2Ty1JcVojjJFwrg/ThKi2ujJ7XNLYaFGNB/bWT9wGR+oSMJHMa5w+CUq6p/pVrKeNNgA7pCqEcjSnHVoqJQFw==}
+
+  '@hono/node-server@1.19.11':
+    resolution: {integrity: sha512-dr8/3zEaB+p0D2n/IUrlPF1HZm586qgJNXK1a9fhg/PzdtkK7Ksd5l312tJX2yBuALqDYBlG20QEbayqPyxn+g==}
+    engines: {node: '>=18.14.1'}
+    peerDependencies:
+      hono: ^4
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -2302,6 +2352,10 @@ packages:
 
   highlightjs-vue@1.0.0:
     resolution: {integrity: sha512-PDEfEF102G23vHmPhLyPboFCD+BkMGu+GuJe2d9/eH4FsCwvgBpnc9n0pGE+ffKdph38s6foEZiEjdgHdzp+IA==}
+
+  hono@4.12.9:
+    resolution: {integrity: sha512-wy3T8Zm2bsEvxKZM5w21VdHDDcwVS1yUFFY6i8UobSsKfFceT7TOwhbhfKsDyx7tYQlmRM5FLpIuYvNFyjctiA==}
+    engines: {node: '>=16.9.0'}
 
   html-url-attributes@3.0.1:
     resolution: {integrity: sha512-ol6UPyBWqsrO6EJySPz2O7ZSr856WDrEzM5zMqp+FJJLGMW35cLYmmZnl0vztAZxRUoNZJFTCohfjuIJ8I4QBQ==}
@@ -4098,8 +4152,11 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
-  '@gar/promisify@1.1.3':
-    optional: true
+  '@gar/promisify@1.1.3': {}
+
+  '@hono/node-server@1.19.11(hono@4.12.9)':
+    dependencies:
+      hono: 4.12.9
 
   '@humanfs/core@0.19.1': {}
 
@@ -4274,13 +4331,11 @@ snapshots:
     dependencies:
       '@gar/promisify': 1.1.3
       semver: 7.7.4
-    optional: true
 
   '@npmcli/move-file@1.1.2':
     dependencies:
       mkdirp: 1.0.4
       rimraf: 3.0.2
-    optional: true
 
   '@petamoriken/float16@3.9.3': {}
 
@@ -4439,8 +4494,7 @@ snapshots:
       '@tanstack/query-core': 5.95.0
       react: 19.2.4
 
-  '@tootallnate/once@1.1.2':
-    optional: true
+  '@tootallnate/once@1.1.2': {}
 
   '@trpc/client@11.14.1(@trpc/server@11.14.1(typescript@5.9.3))(typescript@5.9.3)':
     dependencies:
@@ -4713,8 +4767,7 @@ snapshots:
       d3-selection: 3.0.0
       d3-zoom: 3.0.0
 
-  abbrev@1.1.1:
-    optional: true
+  abbrev@1.1.1: {}
 
   acorn-jsx@5.3.2(acorn@8.16.0):
     dependencies:
@@ -4727,18 +4780,15 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   agentkeepalive@4.6.0:
     dependencies:
       humanize-ms: 1.2.1
-    optional: true
 
   aggregate-error@3.1.0:
     dependencies:
       clean-stack: 2.2.0
       indent-string: 4.0.0
-    optional: true
 
   ajv@6.14.0:
     dependencies:
@@ -4751,8 +4801,7 @@ snapshots:
     dependencies:
       environment: 1.1.0
 
-  ansi-regex@5.0.1:
-    optional: true
+  ansi-regex@5.0.1: {}
 
   ansi-regex@6.2.2: {}
 
@@ -4762,14 +4811,12 @@ snapshots:
 
   ansi-styles@6.2.3: {}
 
-  aproba@2.1.0:
-    optional: true
+  aproba@2.1.0: {}
 
   are-we-there-yet@3.0.1:
     dependencies:
       delegates: 1.0.0
       readable-stream: 3.6.2
-    optional: true
 
   argparse@2.0.1: {}
 
@@ -4883,7 +4930,6 @@ snapshots:
       unique-filename: 1.1.1
     transitivePeerDependencies:
       - bluebird
-    optional: true
 
   call-bind-apply-helpers@1.0.2:
     dependencies:
@@ -4933,13 +4979,11 @@ snapshots:
 
   check-error@2.1.3: {}
 
-  chownr@2.0.0:
-    optional: true
+  chownr@2.0.0: {}
 
   classcat@5.0.5: {}
 
-  clean-stack@2.2.0:
-    optional: true
+  clean-stack@2.2.0: {}
 
   cli-cursor@5.0.0:
     dependencies:
@@ -4958,8 +5002,7 @@ snapshots:
 
   color-name@1.1.4: {}
 
-  color-support@1.1.3:
-    optional: true
+  color-support@1.1.3: {}
 
   colorette@2.0.20: {}
 
@@ -4969,8 +5012,7 @@ snapshots:
 
   concat-map@0.0.1: {}
 
-  console-control-strings@1.1.0:
-    optional: true
+  console-control-strings@1.1.0: {}
 
   copy-anything@4.0.5:
     dependencies:
@@ -5066,8 +5108,7 @@ snapshots:
       has-property-descriptors: 1.0.2
       object-keys: 1.1.1
 
-  delegates@1.0.0:
-    optional: true
+  delegates@1.0.0: {}
 
   dequal@2.0.3: {}
 
@@ -5108,8 +5149,7 @@ snapshots:
 
   emoji-regex@10.6.0: {}
 
-  emoji-regex@8.0.0:
-    optional: true
+  emoji-regex@8.0.0: {}
 
   encoding@0.1.13:
     dependencies:
@@ -5121,15 +5161,13 @@ snapshots:
       graceful-fs: 4.2.11
       tapable: 2.3.2
 
-  env-paths@2.2.1:
-    optional: true
+  env-paths@2.2.1: {}
 
   env-paths@3.0.0: {}
 
   environment@1.1.0: {}
 
-  err-code@2.0.3:
-    optional: true
+  err-code@2.0.3: {}
 
   es-abstract@1.24.1:
     dependencies:
@@ -5509,10 +5547,8 @@ snapshots:
   fs-minipass@2.1.0:
     dependencies:
       minipass: 3.3.6
-    optional: true
 
-  fs.realpath@1.0.0:
-    optional: true
+  fs.realpath@1.0.0: {}
 
   fsevents@2.3.3:
     optional: true
@@ -5540,7 +5576,6 @@ snapshots:
       string-width: 4.2.3
       strip-ansi: 6.0.1
       wide-align: 1.1.5
-    optional: true
 
   gel@2.2.0:
     dependencies:
@@ -5603,7 +5638,6 @@ snapshots:
       minimatch: 3.1.5
       once: 1.4.0
       path-is-absolute: 1.0.1
-    optional: true
 
   globals@14.0.0: {}
 
@@ -5634,8 +5668,7 @@ snapshots:
     dependencies:
       has-symbols: 1.1.0
 
-  has-unicode@2.0.1:
-    optional: true
+  has-unicode@2.0.1: {}
 
   hasown@2.0.2:
     dependencies:
@@ -5681,10 +5714,11 @@ snapshots:
 
   highlightjs-vue@1.0.0: {}
 
+  hono@4.12.9: {}
+
   html-url-attributes@3.0.1: {}
 
-  http-cache-semantics@4.2.0:
-    optional: true
+  http-cache-semantics@4.2.0: {}
 
   http-proxy-agent@4.0.1:
     dependencies:
@@ -5693,7 +5727,6 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   https-proxy-agent@5.0.1:
     dependencies:
@@ -5701,14 +5734,12 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   human-signals@5.0.0: {}
 
   humanize-ms@1.2.1:
     dependencies:
       ms: 2.1.3
-    optional: true
 
   husky@9.1.7: {}
 
@@ -5728,20 +5759,16 @@ snapshots:
 
   imurmurhash@0.1.4: {}
 
-  indent-string@4.0.0:
-    optional: true
+  indent-string@4.0.0: {}
 
-  infer-owner@1.0.4:
-    optional: true
+  infer-owner@1.0.4: {}
 
   inflight@1.0.6:
     dependencies:
       once: 1.4.0
       wrappy: 1.0.2
-    optional: true
 
-  inherits@2.0.4:
-    optional: true
+  inherits@2.0.4: {}
 
   inline-style-parser@0.2.7: {}
 
@@ -5751,8 +5778,7 @@ snapshots:
       hasown: 2.0.2
       side-channel: 1.1.0
 
-  ip-address@10.1.0:
-    optional: true
+  ip-address@10.1.0: {}
 
   is-alphabetical@2.0.1: {}
 
@@ -5809,8 +5835,7 @@ snapshots:
     dependencies:
       call-bound: 1.0.4
 
-  is-fullwidth-code-point@3.0.0:
-    optional: true
+  is-fullwidth-code-point@3.0.0: {}
 
   is-fullwidth-code-point@4.0.0: {}
 
@@ -5832,8 +5857,7 @@ snapshots:
 
   is-hexadecimal@2.0.1: {}
 
-  is-lambda@1.0.1:
-    optional: true
+  is-lambda@1.0.1: {}
 
   is-map@2.0.3: {}
 
@@ -6045,7 +6069,6 @@ snapshots:
   lru-cache@6.0.0:
     dependencies:
       yallist: 4.0.0
-    optional: true
 
   lucide-react@1.7.0(react@19.2.4):
     dependencies:
@@ -6078,7 +6101,6 @@ snapshots:
     transitivePeerDependencies:
       - bluebird
       - supports-color
-    optional: true
 
   markdown-table@3.0.4: {}
 
@@ -6241,8 +6263,7 @@ snapshots:
 
   merge2@1.4.1: {}
 
-  merge@2.1.1:
-    optional: true
+  merge@2.1.1: {}
 
   micromark-core-commonmark@2.0.3:
     dependencies:
@@ -6455,7 +6476,6 @@ snapshots:
   minipass-collect@1.0.2:
     dependencies:
       minipass: 3.3.6
-    optional: true
 
   minipass-fetch@1.4.1:
     dependencies:
@@ -6464,54 +6484,43 @@ snapshots:
       minizlib: 2.1.2
     optionalDependencies:
       encoding: 0.1.13
-    optional: true
 
   minipass-flush@1.0.6:
     dependencies:
       minipass: 7.1.3
-    optional: true
 
   minipass-pipeline@1.2.4:
     dependencies:
       minipass: 3.3.6
-    optional: true
 
   minipass-sized@1.0.3:
     dependencies:
       minipass: 3.3.6
-    optional: true
 
   minipass@3.3.6:
     dependencies:
       yallist: 4.0.0
-    optional: true
 
-  minipass@5.0.0:
-    optional: true
+  minipass@5.0.0: {}
 
-  minipass@7.1.3:
-    optional: true
+  minipass@7.1.3: {}
 
   minizlib@2.1.2:
     dependencies:
       minipass: 3.3.6
       yallist: 4.0.0
-    optional: true
 
-  mkdirp@1.0.4:
-    optional: true
+  mkdirp@1.0.4: {}
 
   ms@2.1.3: {}
 
-  nan@2.26.2:
-    optional: true
+  nan@2.26.2: {}
 
   nanoid@3.3.11: {}
 
   natural-compare@1.4.0: {}
 
-  negotiator@0.6.4:
-    optional: true
+  negotiator@0.6.4: {}
 
   next@15.5.14(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
@@ -6558,12 +6567,10 @@ snapshots:
     transitivePeerDependencies:
       - bluebird
       - supports-color
-    optional: true
 
   nopt@5.0.0:
     dependencies:
       abbrev: 1.1.1
-    optional: true
 
   npm-run-path@5.3.0:
     dependencies:
@@ -6575,7 +6582,6 @@ snapshots:
       console-control-strings: 1.1.0
       gauge: 4.0.4
       set-blocking: 2.0.0
-    optional: true
 
   object-assign@4.1.1: {}
 
@@ -6616,7 +6622,6 @@ snapshots:
   once@1.4.0:
     dependencies:
       wrappy: 1.0.2
-    optional: true
 
   onetime@6.0.0:
     dependencies:
@@ -6652,7 +6657,6 @@ snapshots:
   p-map@4.0.0:
     dependencies:
       aggregate-error: 3.1.0
-    optional: true
 
   parent-module@1.0.1:
     dependencies:
@@ -6670,8 +6674,7 @@ snapshots:
 
   path-exists@4.0.0: {}
 
-  path-is-absolute@1.0.1:
-    optional: true
+  path-is-absolute@1.0.1: {}
 
   path-key@3.1.1: {}
 
@@ -6766,14 +6769,12 @@ snapshots:
 
   prismjs@1.30.0: {}
 
-  promise-inflight@1.0.1:
-    optional: true
+  promise-inflight@1.0.1: {}
 
   promise-retry@2.0.1:
     dependencies:
       err-code: 2.0.3
       retry: 0.12.0
-    optional: true
 
   prop-types@15.8.1:
     dependencies:
@@ -6829,7 +6830,6 @@ snapshots:
       inherits: 2.0.4
       string_decoder: 1.3.0
       util-deprecate: 1.0.2
-    optional: true
 
   reflect.getprototypeof@1.0.10:
     dependencies:
@@ -6910,8 +6910,7 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  retry@0.12.0:
-    optional: true
+  retry@0.12.0: {}
 
   reusify@1.1.0: {}
 
@@ -6920,7 +6919,6 @@ snapshots:
   rimraf@3.0.2:
     dependencies:
       glob: 7.2.3
-    optional: true
 
   rollup@4.60.0:
     dependencies:
@@ -6965,8 +6963,7 @@ snapshots:
       has-symbols: 1.1.0
       isarray: 2.0.5
 
-  safe-buffer@5.2.1:
-    optional: true
+  safe-buffer@5.2.1: {}
 
   safe-push-apply@1.0.0:
     dependencies:
@@ -6992,8 +6989,7 @@ snapshots:
     dependencies:
       type-fest: 0.20.2
 
-  set-blocking@2.0.0:
-    optional: true
+  set-blocking@2.0.0: {}
 
   set-function-length@1.2.2:
     dependencies:
@@ -7087,8 +7083,7 @@ snapshots:
 
   siginfo@2.0.0: {}
 
-  signal-exit@3.0.7:
-    optional: true
+  signal-exit@3.0.7: {}
 
   signal-exit@4.1.0: {}
 
@@ -7102,8 +7097,7 @@ snapshots:
       ansi-styles: 6.2.3
       is-fullwidth-code-point: 5.1.0
 
-  smart-buffer@4.2.0:
-    optional: true
+  smart-buffer@4.2.0: {}
 
   socks-proxy-agent@6.2.1:
     dependencies:
@@ -7112,13 +7106,11 @@ snapshots:
       socks: 2.8.7
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   socks@2.8.7:
     dependencies:
       ip-address: 10.1.0
       smart-buffer: 4.2.0
-    optional: true
 
   source-map-js@1.2.1: {}
 
@@ -7136,7 +7128,6 @@ snapshots:
   ssri@8.0.1:
     dependencies:
       minipass: 3.3.6
-    optional: true
 
   stackback@0.0.2: {}
 
@@ -7154,7 +7145,6 @@ snapshots:
       emoji-regex: 8.0.0
       is-fullwidth-code-point: 3.0.0
       strip-ansi: 6.0.1
-    optional: true
 
   string-width@7.2.0:
     dependencies:
@@ -7209,7 +7199,6 @@ snapshots:
   string_decoder@1.3.0:
     dependencies:
       safe-buffer: 5.2.1
-    optional: true
 
   stringify-entities@4.0.4:
     dependencies:
@@ -7219,7 +7208,6 @@ snapshots:
   strip-ansi@6.0.1:
     dependencies:
       ansi-regex: 5.0.1
-    optional: true
 
   strip-ansi@7.2.0:
     dependencies:
@@ -7264,7 +7252,6 @@ snapshots:
     transitivePeerDependencies:
       - bluebird
       - supports-color
-    optional: true
 
   tailwindcss@4.2.2: {}
 
@@ -7278,7 +7265,6 @@ snapshots:
       minizlib: 2.1.2
       mkdirp: 1.0.4
       yallist: 4.0.0
-    optional: true
 
   tinybench@2.9.0: {}
 
@@ -7388,12 +7374,10 @@ snapshots:
   unique-filename@1.1.1:
     dependencies:
       unique-slug: 2.0.2
-    optional: true
 
   unique-slug@2.0.2:
     dependencies:
       imurmurhash: 0.1.4
-    optional: true
 
   unist-util-is@6.0.1:
     dependencies:
@@ -7426,8 +7410,7 @@ snapshots:
     dependencies:
       react: 19.2.4
 
-  util-deprecate@1.0.2:
-    optional: true
+  util-deprecate@1.0.2: {}
 
   vfile-message@4.0.3:
     dependencies:
@@ -7575,7 +7558,6 @@ snapshots:
   wide-align@1.1.5:
     dependencies:
       string-width: 4.2.3
-    optional: true
 
   word-wrap@1.2.5: {}
 
@@ -7585,13 +7567,11 @@ snapshots:
       string-width: 7.2.0
       strip-ansi: 7.2.0
 
-  wrappy@1.0.2:
-    optional: true
+  wrappy@1.0.2: {}
 
   xtend@4.0.2: {}
 
-  yallist@4.0.0:
-    optional: true
+  yallist@4.0.0: {}
 
   yaml@2.8.3: {}
 

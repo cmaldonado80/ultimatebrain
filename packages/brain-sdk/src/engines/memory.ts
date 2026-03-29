@@ -1,22 +1,24 @@
 /**
  * Memory Engine — store, search, retrieve
+ *
+ * Tiers match Brain's memory system: core / recall / archival
  */
 
 import type { RetryPolicy } from '../transport/retry'
 
+export type MemoryTier = 'core' | 'recall' | 'archival'
+
 export interface StoreOptions {
   key: string
   content: string
-  tier: 'working' | 'episodic' | 'archival'
-  metadata?: Record<string, unknown>
-  ttl?: number
+  tier?: MemoryTier
+  workspaceId?: string
 }
 
 export interface SearchOptions {
   query: string
   limit?: number
-  tier?: 'working' | 'episodic' | 'archival'
-  filters?: Record<string, unknown>
+  tier?: MemoryTier
 }
 
 export interface MemoryResult {
@@ -24,37 +26,27 @@ export interface MemoryResult {
   content: string
   tier: string
   score: number
-  metadata?: Record<string, unknown>
   createdAt: string
 }
 
 export class MemoryEngine {
   constructor(
     private fetch: (path: string, body: unknown) => Promise<unknown>,
-    private retry: RetryPolicy
+    private retry: RetryPolicy,
   ) {}
 
-  async store(options: StoreOptions): Promise<{ key: string; stored: boolean }> {
+  async store(options: StoreOptions): Promise<{ stored: boolean; id?: string }> {
     return this.retry.execute(async () => {
-      return this.fetch('/memory/store', options) as Promise<{ key: string; stored: boolean }>
+      return this.fetch('/memory/store', options) as Promise<{ stored: boolean; id?: string }>
     })
   }
 
   async search(options: SearchOptions): Promise<MemoryResult[]> {
     return this.retry.execute(async () => {
-      return this.fetch('/memory/search', options) as Promise<MemoryResult[]>
-    })
-  }
-
-  async get(key: string): Promise<MemoryResult | null> {
-    return this.retry.execute(async () => {
-      return this.fetch('/memory/get', { key }) as Promise<MemoryResult | null>
-    })
-  }
-
-  async delete(key: string): Promise<void> {
-    await this.retry.execute(async () => {
-      await this.fetch('/memory/delete', { key })
+      const response = (await this.fetch('/memory/search', options)) as {
+        results: MemoryResult[]
+      }
+      return response.results ?? []
     })
   }
 }

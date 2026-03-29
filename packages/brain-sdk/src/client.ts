@@ -2,6 +2,7 @@
  * Brain Client — main entry point
  *
  * Creates engine instances connected to the Brain platform.
+ * Mini Brains use this to access shared Brain services.
  */
 
 import { A2AEngine } from './engines/a2a'
@@ -17,12 +18,18 @@ import { RetryPolicy } from './transport/retry'
 export interface BrainClientConfig {
   apiKey: string
   endpoint: string
-  engines: string[]
+  engines?: string[]
   domain?: string
-  /** Retry options */
   maxRetries?: number
-  /** Enable offline queue */
   offlineQueue?: boolean
+}
+
+export interface HealthResponse {
+  status: string
+  service?: string
+  engines?: string[]
+  latencyMs?: number
+  version?: string
 }
 
 export interface BrainClient {
@@ -33,24 +40,24 @@ export interface BrainClient {
   healing: HealingEngine
   eval: EvalEngine
   guardrails: GuardrailsEngine
-  /** Offline request queue */
   queue: RequestQueue
-  /** Disconnect all real-time connections */
+  health: () => Promise<HealthResponse>
   disconnect: () => void
 }
 
 export function createBrainClient(config: BrainClientConfig): BrainClient {
   const retry = new RetryPolicy({ maxRetries: config.maxRetries ?? 3 })
   const queue = new RequestQueue()
+  const baseUrl = config.endpoint.replace(/\/$/, '')
 
-  // HTTP fetch helper with auth
+  // HTTP fetch helper with auth (POST)
   const apiFetch = async (path: string, body: unknown): Promise<unknown> => {
     if (!queue.isOnline && config.offlineQueue) {
       queue.enqueue('POST', path, body)
       return { queued: true }
     }
 
-    const url = `${config.endpoint.replace(/\/$/, '')}${path}`
+    const url = `${baseUrl}${path}`
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -75,9 +82,9 @@ export function createBrainClient(config: BrainClientConfig): BrainClient {
   })
 
   // WebSocket URL for healing
-  const wsUrl = config.endpoint.replace(/^http/, 'ws') + '/ws/healing'
+  const wsUrl = baseUrl.replace(/^http/, 'ws') + '/ws/healing'
 
-  // Build engines (only instantiate requested ones, but always expose all)
+  // Build engines
   const llm = new LLMEngine(apiFetch, retry)
   const memory = new MemoryEngine(apiFetch, retry)
   const orch = new OrchEngine(apiFetch, retry)
@@ -85,6 +92,15 @@ export function createBrainClient(config: BrainClientConfig): BrainClient {
   const healing = new HealingEngine(wsUrl)
   const evalEngine = new EvalEngine(apiFetch, retry)
   const guardrails = new GuardrailsEngine(apiFetch, retry)
+
+  // Health check (GET, no auth required)
+  const health = async (): Promise<HealthResponse> => {
+    const response = await fetch(`${baseUrl}/health`)
+    if (!response.ok) {
+      throw new Error(`Brain health check failed: ${response.status}`)
+    }
+    return response.json() as Promise<HealthResponse>
+  }
 
   return {
     llm,
@@ -95,6 +111,7 @@ export function createBrainClient(config: BrainClientConfig): BrainClient {
     eval: evalEngine,
     guardrails,
     queue,
+    health,
     disconnect: () => {
       healing.disconnect()
     },

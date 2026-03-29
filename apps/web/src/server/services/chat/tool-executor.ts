@@ -4,23 +4,14 @@
  */
 
 import type { Database } from '@solarc/db'
+import type { ZodiacSign } from '@solarc/ephemeris'
+import { synastryAspects } from '@solarc/ephemeris'
+import { run as ephemerisRun } from '@solarc/ephemeris'
+import { assignHouses, calcAllPlanets, calcHouses, julianDay } from '@solarc/ephemeris'
+import { moonPhase } from '@solarc/ephemeris'
+import { annualProfections, solarReturn, transitCalendar } from '@solarc/ephemeris'
+import { panchanga, vimshottariDasha } from '@solarc/ephemeris'
 
-import { synastryAspects } from '../engines/swiss-ephemeris/composite'
-import type { ZodiacSign } from '../engines/swiss-ephemeris/engine'
-import { run as ephemerisRun } from '../engines/swiss-ephemeris/engine'
-import {
-  assignHouses,
-  calcAllPlanets,
-  calcHouses,
-  julianDay,
-} from '../engines/swiss-ephemeris/engine'
-import { moonPhase } from '../engines/swiss-ephemeris/lunar'
-import {
-  annualProfections,
-  solarReturn,
-  transitCalendar,
-} from '../engines/swiss-ephemeris/predictive'
-import { panchanga, vimshottariDasha } from '../engines/swiss-ephemeris/vedic'
 import { MemoryService } from '../memory/memory-service'
 
 // ─── Tool Definitions (Anthropic format) ─────────────────────────────────────

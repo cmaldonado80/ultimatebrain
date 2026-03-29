@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
@@ -11,8 +13,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@solarc/engine-contracts": "workspace:*",
+    "@hono/node-server": "^1.19.11",
     "@solarc/brain-sdk": "workspace:*",
+    "@solarc/engine-contracts": "workspace:*",
+    "hono": "^4.12.9",
     "zod": "^3.24.0"
   },
   "devDependencies": {
