@@ -41,6 +41,7 @@ export default function ChatPage() {
   const [mentionQuery, setMentionQuery] = useState('')
   const [intelligenceDismissed, setIntelligenceDismissed] = useState(false)
   const [lastRecEventId, setLastRecEventId] = useState<string | null>(null)
+  const [decisionMode, setDecisionMode] = useState('balanced')
   const [evidenceTarget, setEvidenceTarget] = useState<{
     recommendationId: string
     recommendationType: string
@@ -122,6 +123,12 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamEvents, streaming, optimisticText])
+
+  // Load decision mode from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('decision-mode')
+    if (saved) setDecisionMode(saved)
+  }, [])
 
   // Reset intelligence dismissal on session change
   useEffect(() => {
@@ -518,6 +525,11 @@ export default function ChatPage() {
                             agentCount={selectedAgents.length || 1}
                             agentName={lastAgent}
                             finalAnswerText={finalText}
+                            decisionMode={decisionMode}
+                            onDecisionModeChange={(mode) => {
+                              setDecisionMode(mode)
+                              localStorage.setItem('decision-mode', mode)
+                            }}
                             onAction={(action) => {
                               if (action === 'retry') handleRetry('manual')
                               else if (action === 'retry_different') handleRetry('suggested')
@@ -542,6 +554,7 @@ export default function ChatPage() {
                       sessionId={selectedSession}
                       userInput={newMessage}
                       agentIds={selectedAgents.length > 0 ? selectedAgents : undefined}
+                      decisionMode={decisionMode}
                       onAction={(action, eventId) => {
                         if (eventId) setLastRecEventId(eventId)
                         if (action.type === 'switch_autonomy') {

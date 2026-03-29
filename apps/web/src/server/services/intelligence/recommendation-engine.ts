@@ -20,6 +20,45 @@ import { and, desc, eq, ne, not, sql } from 'drizzle-orm'
 
 // ── Types ─────────────────────────────────────────────────────────────
 
+export type DecisionMode = 'balanced' | 'quality' | 'speed' | 'stability' | 'simplicity'
+
+export interface DecisionWeights {
+  heuristic: number
+  effectiveness: number
+  quality: number
+}
+
+export interface PathRankWeights {
+  quality: number
+  speed: number
+  stability: number
+  complexity: number
+}
+
+const DECISION_WEIGHTS: Record<DecisionMode, DecisionWeights> = {
+  balanced: { heuristic: 0.5, effectiveness: 0.3, quality: 0.2 },
+  quality: { heuristic: 0.25, effectiveness: 0.25, quality: 0.5 },
+  speed: { heuristic: 0.5, effectiveness: 0.35, quality: 0.15 },
+  stability: { heuristic: 0.35, effectiveness: 0.4, quality: 0.25 },
+  simplicity: { heuristic: 0.45, effectiveness: 0.3, quality: 0.25 },
+}
+
+const PATH_RANK_WEIGHTS: Record<DecisionMode, PathRankWeights> = {
+  balanced: { quality: 0.35, speed: 0.25, stability: 0.25, complexity: 0.15 },
+  quality: { quality: 0.6, speed: 0.1, stability: 0.2, complexity: 0.1 },
+  speed: { quality: 0.15, speed: 0.5, stability: 0.2, complexity: 0.15 },
+  stability: { quality: 0.2, speed: 0.15, stability: 0.5, complexity: 0.15 },
+  simplicity: { quality: 0.15, speed: 0.2, stability: 0.15, complexity: 0.5 },
+}
+
+export function getDecisionWeights(mode: DecisionMode = 'balanced'): DecisionWeights {
+  return DECISION_WEIGHTS[mode]
+}
+
+export function getPathRankWeights(mode: DecisionMode = 'balanced'): PathRankWeights {
+  return PATH_RANK_WEIGHTS[mode]
+}
+
 export type RecommendationType =
   | 'workflow'
   | 'retry_strategy'
@@ -598,22 +637,30 @@ export function computeBlendedScore(
   baseConfidence: number,
   stats: RecommendationStats | null,
   avgQualityScore?: number | null,
+  mode?: DecisionMode,
 ): number {
+  const w = getDecisionWeights(mode ?? 'balanced')
   const hasEffectiveness = stats != null && stats.shown >= 3
   const hasQuality = avgQualityScore != null
 
   if (!hasEffectiveness && !hasQuality) return baseConfidence
 
   if (!hasEffectiveness && hasQuality) {
-    return Math.round((baseConfidence * 0.8 + avgQualityScore * 0.2) * 100) / 100
+    // Redistribute effectiveness weight to heuristic
+    const h = w.heuristic + w.effectiveness
+    return Math.round((baseConfidence * h + avgQualityScore * w.quality) * 100) / 100
   }
 
   const effectivenessScore = stats!.acceptanceRate * 0.4 + stats!.improvementRate * 0.6
   const qualityComponent = hasQuality ? avgQualityScore : baseConfidence
 
   return (
-    Math.round((baseConfidence * 0.5 + effectivenessScore * 0.3 + qualityComponent * 0.2) * 100) /
-    100
+    Math.round(
+      (baseConfidence * w.heuristic +
+        effectivenessScore * w.effectiveness +
+        qualityComponent * w.quality) *
+        100,
+    ) / 100
   )
 }
 
@@ -1097,7 +1144,13 @@ function patternHash(agents: string[], tools: string[]): string {
  */
 export async function extractBestKnownPaths(
   db: Database,
-  params: { sessionId: string; userInput?: string; agentIds?: string[]; limit?: number },
+  params: {
+    sessionId: string
+    userInput?: string
+    agentIds?: string[]
+    limit?: number
+    decisionMode?: DecisionMode
+  },
 ): Promise<BestKnownPath[]> {
   const limit = params.limit ?? 3
   const similarRuns = await findSimilarRuns(db, {
@@ -1178,10 +1231,19 @@ export async function extractBestKnownPaths(
     })
   }
 
-  // Rank by quality-weighted success: 60% quality + 40% success rate
+  // Rank by decision-mode-aware tradeoff weights
+  const pw = getPathRankWeights(params.decisionMode ?? 'balanced')
   paths.sort((a, b) => {
-    const scoreA = a.stats.avgQualityScore * 0.6 + a.stats.successRate * 0.4
-    const scoreB = b.stats.avgQualityScore * 0.6 + b.stats.successRate * 0.4
+    const scoreA =
+      a.tradeoff.quality * pw.quality +
+      a.tradeoff.speed * pw.speed +
+      a.tradeoff.stability * pw.stability +
+      a.tradeoff.complexity * pw.complexity
+    const scoreB =
+      b.tradeoff.quality * pw.quality +
+      b.tradeoff.speed * pw.speed +
+      b.tradeoff.stability * pw.stability +
+      b.tradeoff.complexity * pw.complexity
     return scoreB - scoreA
   })
 

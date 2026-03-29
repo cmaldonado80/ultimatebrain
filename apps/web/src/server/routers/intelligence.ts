@@ -730,6 +730,9 @@ export const intelligenceRouter = router({
         sessionId: z.string().uuid(),
         userInput: z.string().optional(),
         agentIds: z.array(z.string()).optional(),
+        decisionMode: z
+          .enum(['balanced', 'quality', 'speed', 'stability', 'simplicity'])
+          .optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -755,7 +758,7 @@ export const intelligenceRouter = router({
               : null
           return {
             ...rec,
-            confidence: computeBlendedScore(rec.confidence, stats, avgQuality),
+            confidence: computeBlendedScore(rec.confidence, stats, avgQuality, input.decisionMode),
             qualityScore: avgQuality !== null ? Math.round(avgQuality * 100) / 100 : null,
             stats:
               stats.shown >= 3
@@ -783,6 +786,9 @@ export const intelligenceRouter = router({
         userInput: z.string().optional(),
         agentIds: z.array(z.string()).optional(),
         limit: z.number().min(1).max(10).default(3),
+        decisionMode: z
+          .enum(['balanced', 'quality', 'speed', 'stability', 'simplicity'])
+          .optional(),
       }),
     )
     .query(async ({ ctx, input }) => {

@@ -95,6 +95,7 @@ interface IntelligenceCardProps {
   sessionId: string
   userInput?: string
   agentIds?: string[]
+  decisionMode?: string
   onAction: (action: RecommendationAction, eventId?: string) => void
   onDismiss: () => void
 }
@@ -103,6 +104,7 @@ export function IntelligenceCard({
   sessionId,
   userInput,
   agentIds,
+  decisionMode,
   onAction,
   onDismiss,
 }: IntelligenceCardProps) {
@@ -118,8 +120,16 @@ export function IntelligenceCard({
     return () => clearTimeout(timer)
   }, [userInput])
 
+  const castMode = decisionMode as
+    | 'balanced'
+    | 'quality'
+    | 'speed'
+    | 'stability'
+    | 'simplicity'
+    | undefined
+
   const query = trpc.intelligence.getWorkflowIntelligence.useQuery(
-    { sessionId, userInput: debouncedInput, agentIds },
+    { sessionId, userInput: debouncedInput, agentIds, decisionMode: castMode },
     {
       enabled: !!sessionId && (debouncedInput?.length ?? 0) > 5,
       staleTime: 30_000,
@@ -128,7 +138,7 @@ export function IntelligenceCard({
   )
 
   const pathsQuery = trpc.intelligence.getBestKnownPaths.useQuery(
-    { sessionId, userInput: debouncedInput, agentIds },
+    { sessionId, userInput: debouncedInput, agentIds, decisionMode: castMode },
     {
       enabled: !!sessionId && (debouncedInput?.length ?? 0) > 5,
       staleTime: 30_000,
@@ -235,6 +245,9 @@ export function IntelligenceCard({
               >
                 {bestPath.stats.avgQualityScore >= 0.7 ? 'high' : 'medium'}
               </span>
+              {decisionMode && decisionMode !== 'balanced' && (
+                <span className="text-[8px] text-slate-600">for {decisionMode}</span>
+              )}
             </div>
             <div className="flex flex-wrap gap-1 mb-1">
               {bestPath.agentSequence.map((agent, i) => (

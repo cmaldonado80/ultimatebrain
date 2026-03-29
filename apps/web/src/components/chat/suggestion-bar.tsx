@@ -18,6 +18,8 @@ interface SuggestionBarProps {
   agentName: string
   finalAnswerText: string
   onAction: (action: string, payload?: Record<string, unknown>) => void
+  decisionMode?: string
+  onDecisionModeChange?: (mode: string) => void
 }
 
 interface Suggestion {
@@ -191,6 +193,33 @@ export function SuggestionBar(props: SuggestionBarProps) {
             </option>
           ))}
         </select>
+
+        {/* Decision mode selector */}
+        {props.onDecisionModeChange && (
+          <select
+            className="text-[10px] bg-transparent border border-border-dim rounded px-1.5 py-0.5 cursor-pointer font-mono uppercase tracking-wider"
+            style={{
+              color:
+                props.decisionMode === 'quality'
+                  ? '#00d4ff'
+                  : props.decisionMode === 'speed'
+                    ? '#00ff88'
+                    : props.decisionMode === 'stability'
+                      ? '#00d4ff'
+                      : props.decisionMode === 'simplicity'
+                        ? '#ffd200'
+                        : '#94a3b8',
+            }}
+            value={props.decisionMode ?? 'balanced'}
+            onChange={(e) => props.onDecisionModeChange!(e.target.value)}
+          >
+            <option value="balanced">Balanced</option>
+            <option value="quality">Quality</option>
+            <option value="speed">Speed</option>
+            <option value="stability">Stability</option>
+            <option value="simplicity">Simplicity</option>
+          </select>
+        )}
 
         {/* Auto countdown indicator */}
         {autoCountdown !== null && (
