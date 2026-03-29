@@ -15,6 +15,7 @@ import { z } from 'zod'
 import { MiniBrainFactory, type MiniBrainTemplate } from '../services/mini-brain-factory/factory'
 import { createNeonBranch, deleteNeonBranch, maskConnectionUri } from '../services/neon/neon-api'
 import { getAgentSoul } from '../services/orchestration/agents'
+import { generateEntityApiKey } from '../services/platform/entity-auth'
 import { protectedProcedure, router } from '../trpc'
 
 let _factory: MiniBrainFactory | null = null
@@ -81,6 +82,9 @@ export const miniBrainFactoryRouter = router({
       // Wrap core provisioning in a transaction for atomicity
       const txResult = await ctx.db.transaction(async (tx) => {
         // 1. Create brain entity
+        // Generate entity API key for Brain SDK auth
+        const { apiKey: entityApiKey, apiKeyHash } = generateEntityApiKey()
+
         const [entity] = await tx
           .insert(brainEntities)
           .values({
@@ -90,6 +94,7 @@ export const miniBrainFactoryRouter = router({
             parentId: input.parentId,
             enginesEnabled: template.engines,
             status: 'provisioning',
+            apiKeyHash,
           })
           .returning()
         if (!entity) throw new Error('Failed to create entity')
@@ -215,7 +220,7 @@ export const miniBrainFactoryRouter = router({
           .set({ status: 'active' })
           .where(eq(brainEntities.id, entity.id))
 
-        return { entity, ws, agentIds }
+        return { entity, ws, agentIds, entityApiKey }
       })
 
       // 9. Auto-provision Neon database (outside transaction — non-blocking)
@@ -261,7 +266,21 @@ export const miniBrainFactoryRouter = router({
         agentCount: txResult.agentIds.length + 1, // +1 for orchestrator
         template: template.id,
         database: databaseHost ? { host: databaseHost, provisioned: true } : null,
+        // API key shown once — only hash stored in DB
+        apiKey: txResult.entityApiKey,
       }
+    }),
+
+  /** Regenerate API key for an entity (returns new key, old key invalidated) */
+  regenerateEntityApiKey: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { apiKey, apiKeyHash } = generateEntityApiKey()
+      await ctx.db
+        .update(brainEntities)
+        .set({ apiKeyHash })
+        .where(eq(brainEntities.id, input.entityId))
+      return { apiKey }
     }),
 
   /**

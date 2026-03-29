@@ -1,16 +1,12 @@
 /**
- * Astrology Brain Client — typed fetch wrapper
+ * Astrology Client — calls local server-side proxy
  *
- * Calls the Astrology Mini Brain over HTTP.
- * Does NOT import Brain SDK, ephemeris, or any Brain internals.
+ * The browser calls /api/chart (same origin).
+ * The server proxy adds auth and calls Mini Brain.
+ * Mini Brain URL and secrets never reach the browser.
  */
 
 import type { NatalSummaryInput, NatalSummaryResponse } from './types'
-
-const ENDPOINT =
-  typeof window !== 'undefined'
-    ? (process.env.NEXT_PUBLIC_ASTROLOGY_BRAIN_URL ?? 'http://localhost:3100')
-    : (process.env.NEXT_PUBLIC_ASTROLOGY_BRAIN_URL ?? 'http://localhost:3100')
 
 export class AstrologyBrainError extends Error {
   constructor(
@@ -23,7 +19,7 @@ export class AstrologyBrainError extends Error {
 }
 
 export async function fetchNatalSummary(input: NatalSummaryInput): Promise<NatalSummaryResponse> {
-  const res = await fetch(`${ENDPOINT}/astrology/natal-summary`, {
+  const res = await fetch('/api/chart', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),

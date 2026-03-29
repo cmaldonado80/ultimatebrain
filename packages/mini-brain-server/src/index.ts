@@ -23,6 +23,7 @@ export interface MiniBrainConfig {
   domain: string
   brainUrl: string
   brainApiKey: string
+  appSecret?: string // shared secret for Development → Mini Brain auth
   databaseUrl?: string
   port?: number
 }
@@ -88,19 +89,30 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
     }),
   )
 
-  // ── Domain Routes (injected) ────────────────────────────────────────
+  // ── Auth Middleware (protects domain + proxy routes) ──────────────────
+
+  const requireAppAuth: Parameters<typeof app.use>[1] = async (c, next) => {
+    if (!config.appSecret) return next() // no secret = open (dev mode)
+    const auth = c.req.header('authorization')
+    if (!auth || auth !== `Bearer ${config.appSecret}`) {
+      return c.json({ error: 'Unauthorized — invalid or missing app secret' }, 401)
+    }
+    return next()
+  }
+
+  // ── Domain Routes (injected, auth-protected) ────────────────────────
 
   for (const route of routes) {
     if (route.method === 'get') {
-      app.get(route.path, (c) => route.handler(c, brain))
+      app.get(route.path, requireAppAuth, (c) => route.handler(c, brain))
     } else {
-      app.post(route.path, (c) => route.handler(c, brain))
+      app.post(route.path, requireAppAuth, (c) => route.handler(c, brain))
     }
   }
 
-  // ── Proxy Routes (Development → Mini Brain → Brain) ─────────────────
+  // ── Proxy Routes (Development → Mini Brain → Brain, auth-protected) ─
 
-  app.post('/api/llm/chat', async (c) => {
+  app.post('/api/llm/chat', requireAppAuth, async (c) => {
     try {
       const body = await c.req.json()
       const result = await brain.llm.chat(body)
@@ -110,7 +122,7 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
     }
   })
 
-  app.post('/api/memory/search', async (c) => {
+  app.post('/api/memory/search', requireAppAuth, async (c) => {
     try {
       const body = await c.req.json()
       const result = await brain.memory.search(body)
@@ -120,7 +132,7 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
     }
   })
 
-  app.post('/api/memory/store', async (c) => {
+  app.post('/api/memory/store', requireAppAuth, async (c) => {
     try {
       const body = await c.req.json()
       const result = await brain.memory.store(body)
