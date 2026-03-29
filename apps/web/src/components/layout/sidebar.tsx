@@ -98,6 +98,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Engines', href: '/engines', icon: '⚙' },
       { label: 'Engine Registry', href: '/engines/registry', icon: '⊛' },
       { label: 'Brain Manager', href: '/engines/manage', icon: '◆' },
+      { label: 'Runtimes', href: '/runtimes', icon: '◎' },
       { label: 'Skills', href: '/skills', icon: '★' },
       { label: 'Integrations', href: '/integrations', icon: '⊕' },
       { label: 'Settings', href: '/settings', icon: '⚿' },

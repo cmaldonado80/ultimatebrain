@@ -44,6 +44,13 @@ export const brainEntities = pgTable(
     config: jsonb('config'),
     hookProfile: text('hook_profile').default('standard'),
     lastHealthCheck: timestamp('last_health_check'),
+    // Deployment metadata
+    environment: text('environment').default('local'),
+    deploymentProvider: text('deployment_provider'),
+    deploymentRef: text('deployment_ref'),
+    version: text('version'),
+    lastDeployedAt: timestamp('last_deployed_at'),
+    ownerUserId: uuid('owner_user_id'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },

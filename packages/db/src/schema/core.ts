@@ -16,10 +16,14 @@ import {
 
 export const entityTierEnum = pgEnum('entity_tier', ['brain', 'mini_brain', 'development'])
 export const entityStatusEnum = pgEnum('entity_status', [
-  'active',
-  'suspended',
-  'degraded',
   'provisioning',
+  'configured',
+  'deployed',
+  'verified',
+  'active',
+  'degraded',
+  'suspended',
+  'retired',
 ])
 export const ticketStatusEnum = pgEnum('ticket_status', [
   'backlog',

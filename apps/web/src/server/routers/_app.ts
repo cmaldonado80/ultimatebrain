@@ -30,6 +30,7 @@ import { playbooksRouter } from './playbooks'
 import { presenceRouter } from './presence'
 import { projectsRouter } from './projects'
 import { runtimeStatusRouter } from './runtime-status'
+import { runtimesRouter } from './runtimes'
 import { skillsRouter } from './skills'
 import { systemOrchestratorRouter } from './system-orchestrator'
 import { taskRunnerRouter } from './task-runner'
@@ -45,6 +46,7 @@ export const appRouter = router({
   tickets: ticketsRouter,
   projects: projectsRouter,
   runtimeStatus: runtimeStatusRouter,
+  runtimes: runtimesRouter,
   memory: memoryRouter,
   approvals: approvalsRouter,
   gateway: gatewayRouter,

@@ -100,6 +100,7 @@ export const miniBrainFactoryRouter = router({
             enginesEnabled: template.engines,
             status: 'provisioning',
             apiKeyHash,
+            ownerUserId: ctx.session.userId,
           })
           .returning()
         if (!entity) throw new Error('Failed to create entity')
