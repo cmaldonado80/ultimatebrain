@@ -71,6 +71,8 @@ export interface SimilarRunMatch {
     autonomyLevel: string | null
     memoryCount: number | null
     agentIds: string[] | null
+    qualityScore: number | null
+    qualityLabel: string | null
   }
 }
 
@@ -181,6 +183,17 @@ export async function findSimilarRuns(
     }
   }
 
+  // Load quality scores per run
+  const runQualityMap = new Map<string, { score: number; label: string }>()
+  if (runIds.length > 0) {
+    const qualities = await db.query.runQuality.findMany({
+      where: sql`${runQuality.runId} = ANY(${runIds})`,
+    })
+    for (const q of qualities) {
+      runQualityMap.set(q.runId, { score: q.score, label: q.label })
+    }
+  }
+
   // Score each run
   const scored: SimilarRunMatch[] = []
   for (const run of recentRuns) {
@@ -216,6 +229,8 @@ export async function findSimilarRuns(
           autonomyLevel: run.autonomyLevel,
           memoryCount: run.memoryCount,
           agentIds: run.agentIds,
+          qualityScore: runQualityMap.get(run.id)?.score ?? null,
+          qualityLabel: runQualityMap.get(run.id)?.label ?? null,
         },
       })
     }
@@ -256,14 +271,28 @@ export function buildRecommendations(similarRuns: SimilarRunMatch[]): Recommenda
     const sampleBonus = Math.min(total / 10, 1) * 0.3
     const successBonus = successRate * 0.5
     const similarityBonus = Math.min((runs[0]?.score ?? 0) * 0.2, 0.2)
-    const confidence = Math.min(sampleBonus + successBonus + similarityBonus, 1)
+    let confidence = Math.min(sampleBonus + successBonus + similarityBonus, 1)
+
+    // Quality bonus/penalty
+    const wfQualityScores = runs
+      .map((r) => r.run.qualityScore)
+      .filter((s): s is number => s != null)
+    const wfAvgQuality =
+      wfQualityScores.length > 0
+        ? wfQualityScores.reduce((a, b) => a + b, 0) / wfQualityScores.length
+        : null
+    const qualityBonus =
+      wfAvgQuality !== null ? (wfAvgQuality >= 0.7 ? 0.1 : wfAvgQuality < 0.4 ? -0.05 : 0) : 0
+    confidence = Math.min(confidence + qualityBonus, 1)
 
     if (confidence >= 0.3) {
+      const qualityNote =
+        wfAvgQuality !== null ? `, ${Math.round(wfAvgQuality * 100)}% avg quality` : ''
       recommendations.push({
         id: `wf-${runs[0]?.run.workflowId ?? workflowKey}`,
         type: 'workflow',
         label: `Use Workflow: "${workflowKey}"`,
-        explanation: `${total} similar run${total !== 1 ? 's' : ''}, ${Math.round(successRate * 100)}% success rate${avgDuration ? `, avg ${(avgDuration / 1000).toFixed(1)}s` : ''}`,
+        explanation: `${total} similar run${total !== 1 ? 's' : ''}, ${Math.round(successRate * 100)}% success rate${avgDuration ? `, avg ${(avgDuration / 1000).toFixed(1)}s` : ''}${qualityNote}`,
         confidence: Math.round(confidence * 100) / 100,
         evidence: {
           basedOnRunIds: runs.slice(0, 5).map((r) => r.runId),
@@ -562,18 +591,30 @@ export async function getEffectivenessStats(
 }
 
 /**
- * Compute a blended score: 70% base heuristic + 30% effectiveness.
- * Falls back to base score if no effectiveness data exists.
+ * Compute a blended score: 50% base heuristic + 30% effectiveness + 20% quality.
+ * Falls back gracefully when effectiveness or quality data is unavailable.
  */
 export function computeBlendedScore(
   baseConfidence: number,
   stats: RecommendationStats | null,
+  avgQualityScore?: number | null,
 ): number {
-  if (!stats || stats.shown < 3) return baseConfidence
+  const hasEffectiveness = stats != null && stats.shown >= 3
+  const hasQuality = avgQualityScore != null
 
-  const effectivenessScore = stats.acceptanceRate * 0.4 + stats.improvementRate * 0.6
+  if (!hasEffectiveness && !hasQuality) return baseConfidence
 
-  return Math.round((baseConfidence * 0.7 + effectivenessScore * 0.3) * 100) / 100
+  if (!hasEffectiveness && hasQuality) {
+    return Math.round((baseConfidence * 0.8 + avgQualityScore * 0.2) * 100) / 100
+  }
+
+  const effectivenessScore = stats!.acceptanceRate * 0.4 + stats!.improvementRate * 0.6
+  const qualityComponent = hasQuality ? avgQualityScore : baseConfidence
+
+  return (
+    Math.round((baseConfidence * 0.5 + effectivenessScore * 0.3 + qualityComponent * 0.2) * 100) /
+    100
+  )
 }
 
 // ── Evidence Payload ──────────────────────────────────────────────────
@@ -595,6 +636,8 @@ export interface SimilarRunEvidence {
   workflowName: string | null
   autonomyLevel: string | null
   memoryCount: number | null
+  qualityScore: number | null
+  qualityLabel: string | null
 }
 
 export interface RecommendationEvidencePayload {
@@ -629,6 +672,12 @@ export interface RecommendationEvidencePayload {
     withMemoryRate: number
     withoutMemoryRate: number
     impactDelta: number
+  } | null
+  qualityStats: {
+    avgScore: number
+    highCount: number
+    mediumCount: number
+    lowCount: number
   } | null
   explanationSummary: string
 }
@@ -666,7 +715,11 @@ export async function buildEvidencePayload(
   const effectivenessScore = hasEffectiveness
     ? stats.acceptanceRate * 0.4 + stats.improvementRate * 0.6
     : null
-  const blended = computeBlendedScore(baseHeuristic, hasEffectiveness ? stats : null)
+  // Compute avg quality from similar runs for blended score
+  const evQScores = similarRuns.map((r) => r.run.qualityScore).filter((s): s is number => s != null)
+  const evAvgQuality =
+    evQScores.length > 0 ? evQScores.reduce((a, b) => a + b, 0) / evQScores.length : null
+  const blended = computeBlendedScore(baseHeuristic, hasEffectiveness ? stats : null, evAvgQuality)
 
   const dataQuality: ConfidenceBreakdown['dataQuality'] =
     stats.shown >= 10 && stats.improved >= 3
@@ -688,7 +741,26 @@ export async function buildEvidencePayload(
     workflowName: m.run.workflowName,
     autonomyLevel: m.run.autonomyLevel,
     memoryCount: m.run.memoryCount,
+    qualityScore: m.run.qualityScore,
+    qualityLabel: m.run.qualityLabel,
   }))
+
+  // 4b. Quality stats from similar runs
+  const evQualityScores = similarRunEvidence
+    .map((r) => r.qualityScore)
+    .filter((s): s is number => s != null)
+  const qualityStats: RecommendationEvidencePayload['qualityStats'] =
+    evQualityScores.length > 0
+      ? {
+          avgScore:
+            Math.round(
+              (evQualityScores.reduce((a, b) => a + b, 0) / evQualityScores.length) * 100,
+            ) / 100,
+          highCount: evQualityScores.filter((s) => s >= 0.7).length,
+          mediumCount: evQualityScores.filter((s) => s >= 0.4 && s < 0.7).length,
+          lowCount: evQualityScores.filter((s) => s < 0.4).length,
+        }
+      : null
 
   // 5. Workflow stats (if workflow recommendation)
   let workflowStats: RecommendationEvidencePayload['workflowStats'] = null
@@ -818,8 +890,137 @@ export async function buildEvidencePayload(
     workflowStats,
     autonomyStats,
     memoryStats,
+    qualityStats,
     explanationSummary: parts.join('. ') + '.',
   }
+}
+
+// ── Best-Known Path Extraction ────────────────────────────────────────
+
+export interface BestKnownPath {
+  patternId: string
+  agentSequence: string[]
+  toolSequence: string[]
+  stats: {
+    totalRuns: number
+    successRate: number
+    avgQualityScore: number
+    avgDurationMs: number | null
+  }
+  sampleRunIds: string[]
+}
+
+function extractPattern(
+  steps: Array<{
+    sequence: number
+    type: string
+    agentName: string | null
+    toolName: string | null
+  }>,
+) {
+  const agents: string[] = []
+  const tools: string[] = []
+  const sorted = [...steps].sort((a, b) => a.sequence - b.sequence)
+  for (const step of sorted) {
+    if (step.type === 'agent' && step.agentName && !agents.includes(step.agentName)) {
+      agents.push(step.agentName)
+    }
+    if (step.type === 'tool' && step.toolName) {
+      tools.push(step.toolName)
+    }
+  }
+  return { agents, tools }
+}
+
+function patternHash(agents: string[], tools: string[]): string {
+  return JSON.stringify([agents, tools])
+}
+
+/**
+ * Extract the best-known execution paths from similar runs.
+ * Groups runs by agent+tool sequence pattern, ranks by quality-weighted success.
+ */
+export async function extractBestKnownPaths(
+  db: Database,
+  params: { sessionId: string; userInput?: string; agentIds?: string[]; limit?: number },
+): Promise<BestKnownPath[]> {
+  const limit = params.limit ?? 3
+  const similarRuns = await findSimilarRuns(db, {
+    sessionId: params.sessionId,
+    userInput: params.userInput,
+    agentIds: params.agentIds,
+    limit: 20, // wider net for pattern grouping
+  })
+
+  if (similarRuns.length === 0) return []
+
+  // Load steps for all similar runs
+  const runIds = similarRuns.map((r) => r.runId)
+  const allSteps = await db.query.chatRunSteps.findMany({
+    where: sql`${chatRunSteps.runId} = ANY(${runIds})`,
+  })
+
+  // Group steps by run
+  const stepsByRun = new Map<string, typeof allSteps>()
+  for (const step of allSteps) {
+    const existing = stepsByRun.get(step.runId) ?? []
+    existing.push(step)
+    stepsByRun.set(step.runId, existing)
+  }
+
+  // Extract patterns and group runs by pattern
+  const patternGroups = new Map<
+    string,
+    { agents: string[]; tools: string[]; runs: SimilarRunMatch[] }
+  >()
+  for (const match of similarRuns) {
+    const steps = stepsByRun.get(match.runId) ?? []
+    if (steps.length === 0) continue
+    const { agents, tools } = extractPattern(steps)
+    const hash = patternHash(agents, tools)
+    const group = patternGroups.get(hash) ?? { agents, tools, runs: [] }
+    group.runs.push(match)
+    patternGroups.set(hash, group)
+  }
+
+  // Compute stats and rank
+  const paths: BestKnownPath[] = []
+  for (const [hash, group] of patternGroups) {
+    const { agents, tools, runs } = group
+    if (runs.length < 1) continue
+    const completed = runs.filter((r) => r.run.status === 'completed').length
+    const successRate = runs.length > 0 ? completed / runs.length : 0
+    const qualityScores = runs.map((r) => r.run.qualityScore).filter((s): s is number => s != null)
+    const avgQuality =
+      qualityScores.length > 0 ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length : 0
+    const durations = runs.map((r) => r.run.durationMs).filter((d): d is number => d != null)
+    const avgDuration =
+      durations.length > 0
+        ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+        : null
+
+    paths.push({
+      patternId: hash,
+      agentSequence: agents,
+      toolSequence: tools,
+      stats: {
+        totalRuns: runs.length,
+        successRate: Math.round(successRate * 100) / 100,
+        avgQualityScore: Math.round(avgQuality * 100) / 100,
+        avgDurationMs: avgDuration,
+      },
+      sampleRunIds: runs.slice(0, 3).map((r) => r.runId),
+    })
+  }
+
+  // Rank by quality-weighted success: 60% quality + 40% success rate
+  paths.sort((a, b) => {
+    const scoreA = a.stats.avgQualityScore * 0.6 + a.stats.successRate * 0.4
+    const scoreB = b.stats.avgQualityScore * 0.6 + b.stats.successRate * 0.4
+    return scoreB - scoreA
+  })
+
+  return paths.slice(0, limit)
 }
 
 // ── Run Quality Scoring ───────────────────────────────────────────────

@@ -44,6 +44,7 @@ interface Recommendation {
   }
   action?: RecommendationAction
   stats?: RecommendationStats | null
+  qualityScore?: number | null
 }
 
 // ── Confidence Badge ──────────────────────────────────────────────────
@@ -126,6 +127,16 @@ export function IntelligenceCard({
     },
   )
 
+  const pathsQuery = trpc.intelligence.getBestKnownPaths.useQuery(
+    { sessionId, userInput: debouncedInput, agentIds },
+    {
+      enabled: !!sessionId && (debouncedInput?.length ?? 0) > 5,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  )
+  const bestPath = (pathsQuery.data ?? []).find((p) => p.stats.avgQualityScore >= 0.6) ?? null
+
   // Logging mutations (fire-and-forget)
   const logShown = trpc.intelligence.logRecommendationShown.useMutation()
   const logDismissed = trpc.intelligence.logRecommendationDismissed.useMutation()
@@ -190,7 +201,7 @@ export function IntelligenceCard({
     )
   }
 
-  if (recommendations.length === 0) return null
+  if (recommendations.length === 0 && !bestPath) return null
 
   return (
     <div className="max-w-3xl mx-auto mt-2 mb-2">
@@ -207,6 +218,59 @@ export function IntelligenceCard({
             Dismiss
           </button>
         </div>
+
+        {/* Best Known Path */}
+        {bestPath && (
+          <div className="px-3 py-2 border-b border-border-dim">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-orbitron text-neon-green uppercase tracking-wider">
+                Best Known Path
+              </span>
+              <span
+                className={`text-[9px] px-1.5 py-0.5 rounded ${
+                  bestPath.stats.avgQualityScore >= 0.7
+                    ? 'text-neon-green bg-neon-green/10'
+                    : 'text-neon-yellow bg-neon-yellow/10'
+                }`}
+              >
+                {bestPath.stats.avgQualityScore >= 0.7 ? 'high' : 'medium'}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1 mb-1">
+              {bestPath.agentSequence.map((agent, i) => (
+                <span
+                  key={i}
+                  className="text-[9px] px-1.5 py-0.5 rounded bg-neon-teal/10 text-neon-teal"
+                >
+                  {agent}
+                </span>
+              ))}
+              {bestPath.toolSequence.length > 0 && (
+                <span className="text-[9px] text-slate-600">→</span>
+              )}
+              {bestPath.toolSequence.slice(0, 3).map((tool, i) => (
+                <span
+                  key={i}
+                  className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400"
+                >
+                  {tool}
+                </span>
+              ))}
+              {bestPath.toolSequence.length > 3 && (
+                <span className="text-[9px] text-slate-600">
+                  +{bestPath.toolSequence.length - 3}
+                </span>
+              )}
+            </div>
+            <div className="text-[9px] text-slate-500">
+              {bestPath.stats.totalRuns} run{bestPath.stats.totalRuns !== 1 ? 's' : ''} ·{' '}
+              {Math.round(bestPath.stats.successRate * 100)}% success ·{' '}
+              {Math.round(bestPath.stats.avgQualityScore * 100)}% quality
+              {bestPath.stats.avgDurationMs != null &&
+                ` · ${(bestPath.stats.avgDurationMs / 1000).toFixed(1)}s avg`}
+            </div>
+          </div>
+        )}
 
         {/* Recommendations */}
         <div className="p-2 space-y-1.5">
@@ -227,6 +291,9 @@ export function IntelligenceCard({
                     {rec.label}
                   </span>
                   <ConfidenceBadge value={rec.confidence} />
+                  {rec.qualityScore != null && rec.qualityScore >= 0.6 && (
+                    <span className="text-[9px] text-neon-green">★ high quality</span>
+                  )}
                   {rec.stats && <CredibilityLine stats={rec.stats} />}
                   {/* Per-item dismiss */}
                   <button

@@ -29,6 +29,7 @@ import {
   buildRecommendations,
   computeBlendedScore,
   computeRunQualityScore,
+  extractBestKnownPaths,
   findSimilarRuns,
   getEffectivenessStats,
   refreshInsights,
@@ -736,13 +737,23 @@ export const intelligenceRouter = router({
       })
       const recs = buildRecommendations(similarRuns)
 
-      // Blend in effectiveness data from feedback loop
+      // Blend in effectiveness + quality data
       const enhanced = await Promise.all(
         recs.map(async (rec) => {
           const stats = await getEffectivenessStats(ctx.db, rec.id)
+          // Compute avg quality of runs backing this recommendation
+          const recRunQualityScores = similarRuns
+            .filter((r) => rec.evidence.basedOnRunIds.includes(r.runId))
+            .map((r) => r.run.qualityScore)
+            .filter((s): s is number => s != null)
+          const avgQuality =
+            recRunQualityScores.length > 0
+              ? recRunQualityScores.reduce((a, b) => a + b, 0) / recRunQualityScores.length
+              : null
           return {
             ...rec,
-            confidence: computeBlendedScore(rec.confidence, stats),
+            confidence: computeBlendedScore(rec.confidence, stats, avgQuality),
+            qualityScore: avgQuality !== null ? Math.round(avgQuality * 100) / 100 : null,
             stats:
               stats.shown >= 3
                 ? {
@@ -759,6 +770,20 @@ export const intelligenceRouter = router({
       )
 
       return enhanced.sort((a, b) => b.confidence - a.confidence)
+    }),
+
+  /** Get best-known execution paths for similar tasks */
+  getBestKnownPaths: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        userInput: z.string().optional(),
+        agentIds: z.array(z.string()).optional(),
+        limit: z.number().min(1).max(10).default(3),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return extractBestKnownPaths(ctx.db, input)
     }),
 
   /** Get structured evidence for a specific recommendation */

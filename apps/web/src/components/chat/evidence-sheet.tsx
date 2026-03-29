@@ -139,6 +139,25 @@ export function EvidenceSheet({
               </div>
             </div>
 
+            {/* Quality Stats */}
+            {data.qualityStats && (
+              <div className="cyber-card p-2.5 space-y-1.5">
+                <SectionLabel text="Quality" />
+                <ScoreBar label="Avg quality" value={data.qualityStats.avgScore} />
+                <div className="flex items-center gap-3 text-[9px]">
+                  {data.qualityStats.highCount > 0 && (
+                    <span className="text-neon-green">{data.qualityStats.highCount} high</span>
+                  )}
+                  {data.qualityStats.mediumCount > 0 && (
+                    <span className="text-neon-yellow">{data.qualityStats.mediumCount} medium</span>
+                  )}
+                  {data.qualityStats.lowCount > 0 && (
+                    <span className="text-neon-red">{data.qualityStats.lowCount} low</span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Similar Runs */}
             {data.similarRuns.length > 0 && (
               <div>
@@ -181,6 +200,19 @@ export function EvidenceSheet({
                           <span>{(run.durationMs / 1000).toFixed(1)}s</span>
                         )}
                         {run.stepCount != null && <span>{run.stepCount} steps</span>}
+                        {run.qualityLabel && (
+                          <span
+                            className={
+                              run.qualityLabel === 'high'
+                                ? 'text-neon-green'
+                                : run.qualityLabel === 'medium'
+                                  ? 'text-neon-yellow'
+                                  : 'text-neon-red'
+                            }
+                          >
+                            {run.qualityLabel}
+                          </span>
+                        )}
                         {run.workflowName && (
                           <span className="text-neon-blue truncate">{run.workflowName}</span>
                         )}
