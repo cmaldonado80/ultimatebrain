@@ -9,6 +9,7 @@ import { TRPCError } from '@trpc/server'
 import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
+import { computeAgentScorecard } from '../services/intelligence/agent-scorecard'
 import { AGENT_SOULS } from '../services/orchestration/agents'
 import { protectedProcedure, router } from '../trpc'
 
@@ -346,5 +347,29 @@ export const agentsRouter = router({
         .catch(() => [])
 
       return { ...agent, recentTraces }
+    }),
+
+  // === Agent Performance ===
+
+  /** Get performance scorecard for a single agent */
+  getAgentScorecard: protectedProcedure
+    .input(z.object({ agentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return computeAgentScorecard(ctx.db, input.agentId)
+    }),
+
+  /** Get ranked agent performance for all agents in a workspace */
+  getWorkspaceAgentPerformance: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const wsAgents = await ctx.db.query.agents.findMany({
+        where: eq(agents.workspaceId, input.workspaceId),
+      })
+
+      const scorecards = await Promise.all(wsAgents.map((a) => computeAgentScorecard(ctx.db, a.id)))
+
+      return scorecards
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .sort((a, b) => (b.avgQualityScore ?? 0) - (a.avgQualityScore ?? 0))
     }),
 })
