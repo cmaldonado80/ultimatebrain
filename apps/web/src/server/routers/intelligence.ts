@@ -5,7 +5,7 @@
  * and inter-agent messaging for collaborative reasoning.
  */
 import type { Database } from '@solarc/db'
-import { chatRuns, chatRunSteps, playbooks, runMemoryUsage } from '@solarc/db'
+import { chatRuns, chatRunSteps, playbooks, runMemoryUsage, workflowInsights } from '@solarc/db'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
@@ -15,6 +15,11 @@ import {
   ChatSessionManager,
   CognitionManager,
 } from '../services/intelligence'
+import {
+  buildRecommendations,
+  findSimilarRuns,
+  refreshInsights,
+} from '../services/intelligence/recommendation-engine'
 import { protectedProcedure, router } from '../trpc'
 
 let cognition: CognitionManager | null = null
@@ -608,6 +613,73 @@ export const intelligenceRouter = router({
             : []),
         ],
       }
+    }),
+
+  // === Workflow Intelligence ===
+
+  /** Find similar historical runs based on agents, input text, and tool patterns */
+  getSimilarRuns: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        userInput: z.string().optional(),
+        agentIds: z.array(z.string()).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return findSimilarRuns(ctx.db, {
+        sessionId: input.sessionId,
+        userInput: input.userInput,
+        agentIds: input.agentIds,
+      })
+    }),
+
+  /** Get evidence-based recommendations for a session context */
+  getWorkflowIntelligence: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        userInput: z.string().optional(),
+        agentIds: z.array(z.string()).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const similarRuns = await findSimilarRuns(ctx.db, {
+        sessionId: input.sessionId,
+        userInput: input.userInput,
+        agentIds: input.agentIds,
+      })
+      return buildRecommendations(similarRuns)
+    }),
+
+  /** Get cached workflow performance insights */
+  getWorkflowInsights: protectedProcedure
+    .input(
+      z.object({
+        workflowId: z.string().uuid().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      if (input.workflowId) {
+        return ctx.db.query.workflowInsights.findMany({
+          where: eq(workflowInsights.workflowId, input.workflowId),
+        })
+      }
+      return ctx.db.query.workflowInsights.findMany({
+        orderBy: desc(workflowInsights.totalRuns),
+        limit: 20,
+      })
+    }),
+
+  /** Recompute and cache workflow insight aggregates */
+  refreshWorkflowInsights: protectedProcedure
+    .input(
+      z.object({
+        workflowId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return refreshInsights(ctx.db, input.workflowId ?? undefined)
     }),
 
   // === Agent Messaging ===

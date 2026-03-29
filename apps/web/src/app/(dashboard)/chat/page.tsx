@@ -6,6 +6,7 @@ import { ActivityRail } from '../../../components/chat/activity-rail'
 import { CommandPalette } from '../../../components/chat/command-palette'
 import { buildExecutionGroups, ExecutionGroup } from '../../../components/chat/execution-group'
 import { InspectorPanel } from '../../../components/chat/inspector-panel'
+import { IntelligenceCard } from '../../../components/chat/intelligence-card'
 import { MentionPicker } from '../../../components/chat/mention-picker'
 import { RunHistoryPanel } from '../../../components/chat/run-history-panel'
 import { SuggestionBar } from '../../../components/chat/suggestion-bar'
@@ -37,6 +38,7 @@ export default function ChatPage() {
   const [showMentions, setShowMentions] = useState(false)
   const [commandQuery, setCommandQuery] = useState('')
   const [mentionQuery, setMentionQuery] = useState('')
+  const [intelligenceDismissed, setIntelligenceDismissed] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -113,6 +115,11 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamEvents, streaming, optimisticText])
+
+  // Reset intelligence dismissal on session change
+  useEffect(() => {
+    setIntelligenceDismissed(false)
+  }, [selectedSession])
 
   // ── Send wrapper (reads newMessage from local state) ────────────────
   const handleSend = useCallback(() => {
@@ -500,6 +507,25 @@ export default function ChatPage() {
                   </div>
                 )}
               </div>
+              {/* Pre-run intelligence */}
+              {selectedSession &&
+                !streaming &&
+                !intelligenceDismissed &&
+                newMessage.length > 10 && (
+                  <div className="flex-shrink-0 px-4">
+                    <IntelligenceCard
+                      sessionId={selectedSession}
+                      userInput={newMessage}
+                      agentIds={selectedAgents.length > 0 ? selectedAgents : undefined}
+                      onAction={(action) => {
+                        if (action.type === 'switch_autonomy') {
+                          localStorage.setItem('autonomy-level', action.payload.level as string)
+                        }
+                      }}
+                      onDismiss={() => setIntelligenceDismissed(true)}
+                    />
+                  </div>
+                )}
               {/* Composer */}
               <div className="border-t border-border px-4 py-3 flex-shrink-0">
                 <div className="max-w-3xl mx-auto">

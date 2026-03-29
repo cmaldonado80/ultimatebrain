@@ -17,6 +17,7 @@ import { auth } from '../../../../server/auth'
 import { buildAtlasContext } from '../../../../server/services/atlas'
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
 import { GatewayRouter } from '../../../../server/services/gateway'
+import { refreshInsights } from '../../../../server/services/intelligence/recommendation-engine'
 import { ContextPipeline } from '../../../../server/services/memory/context-pipeline'
 import { createEmbedFn } from '../../../../server/services/memory/embed-helper'
 import { MemoryService } from '../../../../server/services/memory/memory-service'
@@ -805,6 +806,9 @@ export async function POST(req: Request) {
               `data: ${JSON.stringify({ type: 'run_completed', runId: runRecord.id, durationMs: Date.now() - runStartTime })}\n\n`,
             ),
           )
+
+          // Fire-and-forget: refresh workflow insights with latest run data
+          refreshInsights(db, runRecord.id ? undefined : undefined).catch(() => {})
         }
 
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))

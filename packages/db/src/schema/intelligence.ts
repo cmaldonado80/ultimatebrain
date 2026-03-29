@@ -247,3 +247,27 @@ export const cognitiveCandidates = pgTable(
   },
   (t) => [index('cognitive_candidates_memory_id_idx').on(t.memoryId)],
 )
+
+// ── Workflow Intelligence (cached aggregates) ──────────────────────────
+
+export const workflowInsights = pgTable(
+  'workflow_insights',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workflowId: uuid('workflow_id'),
+    workflowName: text('workflow_name'),
+    totalRuns: integer('total_runs').default(0).notNull(),
+    completedRuns: integer('completed_runs').default(0).notNull(),
+    failedRuns: integer('failed_runs').default(0).notNull(),
+    successRate: real('success_rate').default(0).notNull(),
+    avgDurationMs: integer('avg_duration_ms'),
+    avgStepCount: integer('avg_step_count'),
+    retryRecoveryRate: real('retry_recovery_rate'),
+    memoryImpactScore: real('memory_impact_score'),
+    autonomyBreakdown: jsonb('autonomy_breakdown'),
+    topAgentIds: text('top_agent_ids').array(),
+    topToolNames: text('top_tool_names').array(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => [index('workflow_insights_workflow_idx').on(t.workflowId)],
+)
