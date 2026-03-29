@@ -13,6 +13,8 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
+import { buildTokens, sanitizeDomain, scaffoldDir } from './lib/generator.js'
+
 const domain = process.argv[2]
 
 if (!domain || domain.startsWith('-')) {
@@ -21,22 +23,14 @@ if (!domain || domain.startsWith('-')) {
   process.exit(1)
 }
 
-const DOMAIN = domain.toLowerCase().replace(/[^a-z0-9]/g, '')
-const DOMAIN_TITLE = DOMAIN.charAt(0).toUpperCase() + DOMAIN.slice(1)
-
-// Deterministic port from domain name hash (3100–3199 for brains, +100 for apps)
-function simpleHash(s: string): number {
-  let h = 0
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0
-  return Math.abs(h)
-}
-const PORT = 3100 + (simpleHash(DOMAIN) % 100)
-const APP_PORT = PORT + 100
+const DOMAIN = sanitizeDomain(domain)
+const tokens = buildTokens(DOMAIN)
+const PORT = tokens['{{PORT}}']
+const APP_PORT = tokens['{{APP_PORT}}']
 
 const BRAIN_DIR = path.resolve('apps', `${DOMAIN}-brain`)
 const APP_DIR = path.resolve('apps', `${DOMAIN}-app`)
 
-// Check if already exists
 if (fs.existsSync(BRAIN_DIR)) {
   console.error(`Error: ${BRAIN_DIR} already exists`)
   process.exit(1)
@@ -45,58 +39,6 @@ if (fs.existsSync(APP_DIR)) {
   console.error(`Error: ${APP_DIR} already exists`)
   process.exit(1)
 }
-
-// Token map
-const tokens: Record<string, string> = {
-  '{{DOMAIN}}': DOMAIN,
-  '{{DOMAIN_TITLE}}': DOMAIN_TITLE,
-  '{{PACKAGE_NAME}}': `@solarc/${DOMAIN}-brain`,
-  '{{APP_PACKAGE_NAME}}': `@solarc/${DOMAIN}-app`,
-  '{{PORT}}': String(PORT),
-  '{{APP_PORT}}': String(APP_PORT),
-  '{{ROUTE_PATH}}': `/${DOMAIN}/example`,
-  '{{COOKIE_NAME}}': `${DOMAIN.slice(0, 8)}-session`,
-  '{{BRAIN_ENV_PREFIX}}': DOMAIN.toUpperCase(),
-}
-
-function replaceTokens(content: string): string {
-  let result = content
-  for (const [token, value] of Object.entries(tokens)) {
-    result = result.split(token).join(value)
-  }
-  return result
-}
-
-function scaffoldDir(templateDir: string, outputDir: string): number {
-  let count = 0
-
-  function walk(dir: string, outDir: string) {
-    const entries = fs.readdirSync(dir, { withFileTypes: true })
-    for (const entry of entries) {
-      const srcPath = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        const subOut = path.join(outDir, entry.name)
-        fs.mkdirSync(subOut, { recursive: true })
-        walk(srcPath, subOut)
-      } else {
-        const isTemplate = entry.name.endsWith('.tmpl')
-        const outName = isTemplate ? entry.name.replace('.tmpl', '') : entry.name
-        const outPath = path.join(outDir, outName)
-        const content = fs.readFileSync(srcPath, 'utf-8')
-        fs.mkdirSync(path.dirname(outPath), { recursive: true })
-        fs.writeFileSync(outPath, isTemplate ? replaceTokens(content) : content)
-        count++
-      }
-    }
-  }
-
-  fs.mkdirSync(outputDir, { recursive: true })
-  walk(templateDir, outputDir)
-  return count
-}
-
-// Scaffold
-console.warn(`\nScaffolding ${DOMAIN_TITLE} Mini Brain + Development App...\n`)
 
 const brainTemplateDir = path.resolve('templates', 'mini-brain')
 const devTemplateDir = path.resolve('templates', 'development')
@@ -110,8 +52,10 @@ if (!fs.existsSync(devTemplateDir)) {
   process.exit(1)
 }
 
-const brainFiles = scaffoldDir(brainTemplateDir, BRAIN_DIR)
-const appFiles = scaffoldDir(devTemplateDir, APP_DIR)
+console.warn(`\nScaffolding ${tokens['{{DOMAIN_TITLE}}']} Mini Brain + Development App...\n`)
+
+const brainFiles = scaffoldDir(brainTemplateDir, BRAIN_DIR, tokens)
+const appFiles = scaffoldDir(devTemplateDir, APP_DIR, tokens)
 
 console.warn(`  Created apps/${DOMAIN}-brain/ (${brainFiles} files)`)
 console.warn(`  Created apps/${DOMAIN}-app/  (${appFiles} files)`)

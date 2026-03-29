@@ -10,3 +10,6 @@ dist/
 .DS_Store
 coverage/
 .port
+
+# Generated test artifacts
+.generated-test/
