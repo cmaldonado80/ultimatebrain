@@ -106,8 +106,11 @@ export interface SavedReport {
 export interface SavedRelationship {
   id: string
   personAName: string
+  personAData: Record<string, unknown>
   personBName: string
+  personBData: Record<string, unknown>
   compatibilityScore: number | null
+  synastryData: Record<string, unknown> | null
   narrative: string | null
   createdAt: string
 }
@@ -173,5 +176,17 @@ export async function saveRelationship(input: {
 export async function listRelationships(): Promise<SavedRelationship[]> {
   const res = await fetch('/api/relationships')
   if (!res.ok) return []
+  return res.json()
+}
+
+export async function getReport(id: string): Promise<SavedReport> {
+  const res = await fetch(`/api/reports/${id}`)
+  if (!res.ok) throw new AstrologyBrainError('Report not found', 404)
+  return res.json()
+}
+
+export async function getRelationship(id: string): Promise<SavedRelationship> {
+  const res = await fetch(`/api/relationships/${id}`)
+  if (!res.ok) throw new AstrologyBrainError('Relationship not found', 404)
   return res.json()
 }

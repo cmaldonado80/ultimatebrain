@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-import { getChart, type SavedChart } from '@/lib/astrology-client'
+import { getChart, listReports, type SavedChart, type SavedReport } from '@/lib/astrology-client'
 
 const SIGN_SYMBOL: Record<string, string> = {
   Aries: '\u2648',
@@ -44,6 +44,7 @@ export default function ChartDetailPage() {
   const params = useParams()
   const chartId = params.id as string
   const [chart, setChart] = useState<SavedChart | null>(null)
+  const [reports, setReports] = useState<SavedReport[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -52,6 +53,7 @@ export default function ChartDetailPage() {
       .then(setChart)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
+    listReports(chartId).then(setReports)
   }, [chartId])
 
   if (loading) {
@@ -175,6 +177,31 @@ export default function ChartDetailPage() {
                   <span className="text-slate-300">{a.planet2}</span>
                   <span className="text-slate-600 ml-1">({a.orb}&deg;)</span>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Saved Reports for this chart */}
+        {reports.length > 0 && (
+          <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+            <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
+              Reports ({reports.length})
+            </h2>
+            <div className="space-y-1.5">
+              {reports.map((r) => (
+                <Link
+                  key={r.id}
+                  href={`/reports/${r.id}`}
+                  className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-white/[0.03] transition-colors no-underline"
+                >
+                  <span className="text-xs text-slate-300">
+                    {r.reportType === 'natal' ? 'Natal Report' : r.reportType}
+                  </span>
+                  <span className="text-[10px] text-slate-600">
+                    {new Date(r.createdAt).toLocaleDateString()}
+                  </span>
+                </Link>
               ))}
             </div>
           </div>
