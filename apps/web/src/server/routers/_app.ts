@@ -7,6 +7,7 @@ import { alertingRouter } from './alerting'
 import { approvalsRouter } from './approvals'
 import { astrologyRouter } from './astrology'
 import { browserAgentRouter } from './browser-agent'
+import { builderRouter } from './builder'
 import { checkpointingRouter } from './checkpointing'
 import { deploymentsRouter } from './deployments'
 import { engineRegistryRouter } from './engine-registry'
@@ -89,6 +90,7 @@ export const appRouter = router({
   secrets: secretsRouter,
   organizations: organizationsRouter,
   astrology: astrologyRouter,
+  builder: builderRouter,
 })
 
 export type AppRouter = typeof appRouter
