@@ -847,6 +847,23 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         tier memory_tier,
         created_at timestamp NOT NULL DEFAULT now()
       )`,
+      `DO $$ BEGIN CREATE TYPE deployment_workflow_status AS ENUM ('pending','running','completed','failed','cancelled'); EXCEPTION WHEN duplicate_object THEN null; END $$`,
+      `CREATE TABLE IF NOT EXISTS deployment_workflows (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        entity_id uuid NOT NULL REFERENCES brain_entities(id) ON DELETE CASCADE,
+        dev_entity_id uuid REFERENCES brain_entities(id) ON DELETE SET NULL,
+        status deployment_workflow_status NOT NULL DEFAULT 'pending',
+        current_step text,
+        steps jsonb NOT NULL DEFAULT '[]'::jsonb,
+        config jsonb,
+        triggered_by uuid REFERENCES users(id),
+        error text,
+        started_at timestamp,
+        completed_at timestamp,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS deployment_workflows_entity_idx ON deployment_workflows(entity_id)`,
+      `CREATE INDEX IF NOT EXISTS deployment_workflows_status_idx ON deployment_workflows(status)`,
     ]
     for (const stmt of alterStatements) {
       await client.query(stmt).catch(() => {})

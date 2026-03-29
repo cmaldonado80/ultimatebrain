@@ -7,6 +7,7 @@ import { alertingRouter } from './alerting'
 import { approvalsRouter } from './approvals'
 import { browserAgentRouter } from './browser-agent'
 import { checkpointingRouter } from './checkpointing'
+import { deploymentsRouter } from './deployments'
 import { engineRegistryRouter } from './engine-registry'
 import { entitiesRouter } from './entities'
 import { ephemerisRouter } from './ephemeris'
@@ -81,6 +82,7 @@ export const appRouter = router({
   models: modelRegistryRouter,
   ephemeris: ephemerisRouter,
   journeys: journeysRouter,
+  deployments: deploymentsRouter,
 })
 
 export type AppRouter = typeof appRouter

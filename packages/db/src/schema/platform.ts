@@ -12,10 +12,12 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
+import { users } from './auth'
 import {
   agents,
   debateEdgeTypeEnum,
   debateSessionStatusEnum,
+  deploymentWorkflowStatusEnum,
   entityAgentRoleEnum,
   entityStatusEnum,
   entityTierEnum,
@@ -225,5 +227,33 @@ export const incidents = pgTable(
   (t) => [
     index('incidents_status_idx').on(t.status),
     index('incidents_triggered_idx').on(t.triggeredAt),
+  ],
+)
+
+// ── Deployment Workflows ─────────────────────────────────────────────
+
+export const deploymentWorkflows = pgTable(
+  'deployment_workflows',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    entityId: uuid('entity_id')
+      .references(() => brainEntities.id, { onDelete: 'cascade' })
+      .notNull(),
+    devEntityId: uuid('dev_entity_id').references(() => brainEntities.id, {
+      onDelete: 'set null',
+    }),
+    status: deploymentWorkflowStatusEnum('status').default('pending').notNull(),
+    currentStep: text('current_step'),
+    steps: jsonb('steps').default([]).notNull(),
+    config: jsonb('config'),
+    triggeredBy: uuid('triggered_by').references(() => users.id),
+    error: text('error'),
+    startedAt: timestamp('started_at'),
+    completedAt: timestamp('completed_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('deployment_workflows_entity_idx').on(t.entityId),
+    index('deployment_workflows_status_idx').on(t.status),
   ],
 )

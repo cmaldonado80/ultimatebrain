@@ -113,6 +113,14 @@ export const workspaceBindingTypeEnum = pgEnum('workspace_binding_type', [
   'engine',
   'skill',
 ])
+export const deploymentWorkflowStatusEnum = pgEnum('deployment_workflow_status', [
+  'pending',
+  'running',
+  'completed',
+  'failed',
+  'cancelled',
+])
+
 export const workspaceGoalStatusEnum = pgEnum('workspace_goal_status', [
   'active',
   'achieved',
