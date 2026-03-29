@@ -58,6 +58,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'DLQ', href: '/ops/dlq', icon: '⚠' },
       { label: 'Healing', href: '/ops/healing', icon: '♥' },
       { label: 'Checkpoints', href: '/ops/checkpoints', icon: '⟲' },
+      { label: 'Audit Log', href: '/audit', icon: '📋' },
     ],
   },
   {

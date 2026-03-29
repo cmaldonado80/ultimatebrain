@@ -12,6 +12,7 @@ import { ephemerisRouter } from './ephemeris'
 import { evalsRouter } from './evals'
 import { flowsRouter } from './flows'
 import { gatewayRouter } from './gateway'
+import { governanceRouter } from './governance'
 import { guardrailsRouter } from './guardrails'
 import { healingRouter } from './healing'
 import { instinctsRouter } from './instincts'
@@ -44,6 +45,7 @@ export const appRouter = router({
   memory: memoryRouter,
   approvals: approvalsRouter,
   gateway: gatewayRouter,
+  governance: governanceRouter,
   evals: evalsRouter,
   entities: entitiesRouter,
   topology: topologyRouter,
