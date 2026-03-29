@@ -5,8 +5,8 @@
  * and inter-agent messaging for collaborative reasoning.
  */
 import type { Database } from '@solarc/db'
-import { chatRuns, chatRunSteps, playbooks } from '@solarc/db'
-import { eq } from 'drizzle-orm'
+import { chatRuns, chatRunSteps, playbooks, runMemoryUsage } from '@solarc/db'
+import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { GatewayRouter } from '../services/gateway'
@@ -294,12 +294,13 @@ export const intelligenceRouter = router({
         : null
     }),
 
-  /** List runs for a session */
+  /** List runs for a session (newest first) */
   sessionRuns: protectedProcedure
     .input(z.object({ sessionId: z.string().uuid(), limit: z.number().min(1).max(50).default(10) }))
     .query(async ({ ctx, input }) => {
       return ctx.db.query.chatRuns.findMany({
         where: eq(chatRuns.sessionId, input.sessionId),
+        orderBy: desc(chatRuns.startedAt),
         limit: input.limit,
       })
     }),
@@ -332,6 +333,113 @@ export const intelligenceRouter = router({
         })
         .returning()
       return saved
+    }),
+
+  /** Get memory usage for a specific run */
+  getRunMemories: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.runMemoryUsage.findMany({
+        where: eq(runMemoryUsage.runId, input.runId),
+      })
+    }),
+
+  /** Compare two runs side by side */
+  compareRuns: protectedProcedure
+    .input(z.object({ runIdA: z.string().uuid(), runIdB: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const fetchDetails = async (runId: string) => {
+        const run = await ctx.db.query.chatRuns.findFirst({ where: eq(chatRuns.id, runId) })
+        if (!run) return null
+        const [steps, memUsage] = await Promise.all([
+          ctx.db.query.chatRunSteps.findMany({ where: eq(chatRunSteps.runId, runId) }),
+          ctx.db.query.runMemoryUsage.findMany({ where: eq(runMemoryUsage.runId, runId) }),
+        ])
+        return { run, steps: steps.sort((a, b) => a.sequence - b.sequence), memoryUsage: memUsage }
+      }
+
+      const [a, b] = await Promise.all([fetchDetails(input.runIdA), fetchDetails(input.runIdB)])
+      if (!a || !b) throw new Error('Run not found')
+
+      const toolCountA = a.steps.filter((s) => s.type === 'tool').length
+      const toolCountB = b.steps.filter((s) => s.type === 'tool').length
+      const agentNamesA = [...new Set(a.steps.filter((s) => s.agentName).map((s) => s.agentName!))]
+      const agentNamesB = [...new Set(b.steps.filter((s) => s.agentName).map((s) => s.agentName!))]
+      const avgConfA =
+        a.memoryUsage.length > 0
+          ? a.memoryUsage.reduce((sum, m) => sum + (m.confidence ?? 0), 0) / a.memoryUsage.length
+          : null
+      const avgConfB =
+        b.memoryUsage.length > 0
+          ? b.memoryUsage.reduce((sum, m) => sum + (m.confidence ?? 0), 0) / b.memoryUsage.length
+          : null
+
+      return {
+        runA: { id: a.run.id, status: a.run.status, startedAt: a.run.startedAt },
+        runB: { id: b.run.id, status: b.run.status, startedAt: b.run.startedAt },
+        sections: [
+          {
+            label: 'Outcome',
+            items: [
+              {
+                key: 'Status',
+                a: a.run.status,
+                b: b.run.status,
+                changed: a.run.status !== b.run.status,
+              },
+              {
+                key: 'Duration (ms)',
+                a: a.run.durationMs,
+                b: b.run.durationMs,
+                changed: a.run.durationMs !== b.run.durationMs,
+              },
+            ],
+          },
+          {
+            label: 'Execution',
+            items: [
+              {
+                key: 'Step Count',
+                a: a.run.stepCount ?? a.steps.length,
+                b: b.run.stepCount ?? b.steps.length,
+                changed:
+                  (a.run.stepCount ?? a.steps.length) !== (b.run.stepCount ?? b.steps.length),
+              },
+              {
+                key: 'Agents Used',
+                a: agentNamesA.join(', ') || 'none',
+                b: agentNamesB.join(', ') || 'none',
+                changed: agentNamesA.join(',') !== agentNamesB.join(','),
+              },
+              {
+                key: 'Tool Calls',
+                a: toolCountA,
+                b: toolCountB,
+                changed: toolCountA !== toolCountB,
+              },
+            ],
+          },
+          {
+            label: 'Memory',
+            items: [
+              {
+                key: 'Memories Used',
+                a: a.run.memoryCount ?? a.memoryUsage.length,
+                b: b.run.memoryCount ?? b.memoryUsage.length,
+                changed:
+                  (a.run.memoryCount ?? a.memoryUsage.length) !==
+                  (b.run.memoryCount ?? b.memoryUsage.length),
+              },
+              {
+                key: 'Avg Confidence',
+                a: avgConfA !== null ? Math.round(avgConfA * 100) / 100 : null,
+                b: avgConfB !== null ? Math.round(avgConfB * 100) / 100 : null,
+                changed: avgConfA !== avgConfB,
+              },
+            ],
+          },
+        ],
+      }
     }),
 
   // === Agent Messaging ===

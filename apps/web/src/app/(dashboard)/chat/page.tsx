@@ -7,6 +7,7 @@ import { CommandPalette } from '../../../components/chat/command-palette'
 import { buildExecutionGroups, ExecutionGroup } from '../../../components/chat/execution-group'
 import { InspectorPanel } from '../../../components/chat/inspector-panel'
 import { MentionPicker } from '../../../components/chat/mention-picker'
+import { RunHistoryPanel } from '../../../components/chat/run-history-panel'
 import { SuggestionBar } from '../../../components/chat/suggestion-bar'
 import { ThreadItem, type ThreadItemData } from '../../../components/chat/thread-item'
 import { DbErrorBanner } from '../../../components/db-error-banner'
@@ -31,6 +32,7 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [runHistoryOpen, setRunHistoryOpen] = useState(false)
   const [showCommands, setShowCommands] = useState(false)
   const [showMentions, setShowMentions] = useState(false)
   const [commandQuery, setCommandQuery] = useState('')
@@ -265,12 +267,26 @@ export default function ChatPage() {
             </span>
           )}
         </div>
-        <button
-          onClick={() => setInspectorOpen(!inspectorOpen)}
-          className={`cyber-btn-sm ${inspectorOpen ? 'cyber-btn-primary' : 'cyber-btn-secondary'} text-xs`}
-        >
-          Inspector
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => {
+              setRunHistoryOpen(!runHistoryOpen)
+              if (!runHistoryOpen) setInspectorOpen(false)
+            }}
+            className={`cyber-btn-sm ${runHistoryOpen ? 'cyber-btn-primary' : 'cyber-btn-secondary'} text-xs`}
+          >
+            Runs
+          </button>
+          <button
+            onClick={() => {
+              setInspectorOpen(!inspectorOpen)
+              if (!inspectorOpen) setRunHistoryOpen(false)
+            }}
+            className={`cyber-btn-sm ${inspectorOpen ? 'cyber-btn-primary' : 'cyber-btn-secondary'} text-xs`}
+          >
+            Inspector
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 flex min-h-0">
@@ -557,9 +573,19 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* Right panel -- inspector */}
+        {/* Right panel -- inspector or run history */}
         {inspectorOpen && (
           <InspectorPanel selection={inspectorSelection} onClose={() => setInspectorOpen(false)} />
+        )}
+        {runHistoryOpen && selectedSession && (
+          <RunHistoryPanel
+            sessionId={selectedSession}
+            onSelectRun={(sel) => {
+              handleInspect(sel)
+              setRunHistoryOpen(false)
+            }}
+            onClose={() => setRunHistoryOpen(false)}
+          />
         )}
       </div>
     </div>

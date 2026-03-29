@@ -23,6 +23,17 @@ export type InspectorSelection =
     }
   | { type: 'tool'; name: string; input: unknown; result?: string; status: string }
   | { type: 'agent'; id: string; name: string; model?: string; agentType?: string; soul?: string }
+  | {
+      type: 'run'
+      runId: string
+      status: string
+      agentNames: string[]
+      stepCount: number
+      durationMs: number | null
+      startedAt: Date
+      memoryCount: number
+      retryOfRunId?: string | null
+    }
   | null
 
 // ── Tabs ───────────────────────────────────────────────────────────────
@@ -59,7 +70,9 @@ export function InspectorPanel({ selection, onClose }: InspectorPanelProps) {
       ? 'Message'
       : selection.type === 'tool'
         ? 'Tool Call'
-        : 'Agent Profile'
+        : selection.type === 'run'
+          ? 'Run Details'
+          : 'Agent Profile'
 
   return (
     <div className="w-80 border-l border-border bg-bg-surface flex flex-col overflow-hidden">
@@ -132,6 +145,32 @@ function OverviewTab({ selection }: { selection: NonNullable<InspectorSelection>
           {selection.id && <InfoRow label="ID" value={selection.id.slice(0, 12) + '...'} />}
         </div>
       )}
+      {selection.type === 'run' && (
+        <div className="space-y-2">
+          <InfoRow label="Status" value={selection.status} />
+          <InfoRow label="Steps" value={String(selection.stepCount)} />
+          <InfoRow
+            label="Duration"
+            value={selection.durationMs ? `${selection.durationMs}ms` : 'N/A'}
+          />
+          <InfoRow label="Memories" value={String(selection.memoryCount)} />
+          {selection.agentNames.length > 0 && (
+            <div className="mt-2">
+              <Label text="Agents" />
+              <div className="flex flex-wrap gap-1 mt-1">
+                {selection.agentNames.map((name) => (
+                  <span key={name} className="cyber-badge text-[10px]">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {selection.retryOfRunId && (
+            <InfoRow label="Retry Of" value={selection.retryOfRunId.slice(0, 12) + '...'} mono />
+          )}
+        </div>
+      )}
     </>
   )
 }
@@ -172,6 +211,22 @@ function DetailsTab({ selection }: { selection: NonNullable<InspectorSelection> 
           </div>
         </div>
       )}
+      {selection.type === 'run' && (
+        <div className="space-y-2">
+          <Label text="Run Timeline" />
+          <div className="text-[10px] text-slate-500">
+            Started: {new Date(selection.startedAt).toLocaleString()}
+          </div>
+          <div className="text-[10px] text-slate-500">
+            {selection.stepCount} steps across {selection.agentNames.length} agent(s)
+          </div>
+          {selection.memoryCount > 0 && (
+            <div className="text-[10px] text-neon-purple">
+              {selection.memoryCount} memories recalled
+            </div>
+          )}
+        </div>
+      )}
     </>
   )
 }
@@ -205,6 +260,21 @@ function MetadataTab({ selection }: { selection: NonNullable<InspectorSelection>
           <InfoRow label="Name" value={selection.name} />
           {selection.agentType && <InfoRow label="Type" value={selection.agentType} />}
           {selection.model && <InfoRow label="Model" value={selection.model} mono />}
+        </>
+      )}
+      {selection.type === 'run' && (
+        <>
+          <InfoRow label="Run ID" value={selection.runId} mono />
+          <InfoRow label="Status" value={selection.status} />
+          <InfoRow label="Started" value={new Date(selection.startedAt).toISOString()} mono />
+          <InfoRow label="Steps" value={String(selection.stepCount)} />
+          <InfoRow label="Memories" value={String(selection.memoryCount)} />
+          {selection.durationMs !== null && (
+            <InfoRow label="Duration" value={`${selection.durationMs}ms`} mono />
+          )}
+          {selection.retryOfRunId && (
+            <InfoRow label="Retry Of" value={selection.retryOfRunId} mono />
+          )}
         </>
       )}
     </div>
