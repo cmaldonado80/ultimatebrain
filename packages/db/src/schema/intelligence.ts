@@ -250,6 +250,60 @@ export const cognitiveCandidates = pgTable(
 
 // ── Workflow Intelligence (cached aggregates) ──────────────────────────
 
+// ── Recommendation Feedback Loop ───────────────────────────────────────
+
+export const recommendationEvents = pgTable(
+  'recommendation_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .references(() => chatSessions.id, { onDelete: 'cascade' })
+      .notNull(),
+    runId: uuid('run_id'),
+    recommendationId: text('recommendation_id').notNull(),
+    recommendationType: text('recommendation_type').notNull(),
+    workflowId: uuid('workflow_id'),
+    autonomyLevel: text('autonomy_level'),
+    confidence: real('confidence'),
+    shownAt: timestamp('shown_at').defaultNow().notNull(),
+    dismissedAt: timestamp('dismissed_at'),
+    clickedAt: timestamp('clicked_at'),
+    actionType: text('action_type'),
+    resultingRunId: uuid('resulting_run_id'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('rec_events_session_idx').on(t.sessionId),
+    index('rec_events_type_idx').on(t.recommendationType),
+    index('rec_events_workflow_idx').on(t.workflowId),
+    index('rec_events_resulting_run_idx').on(t.resultingRunId),
+  ],
+)
+
+export const recommendationOutcomes = pgTable(
+  'recommendation_outcomes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id')
+      .references(() => recommendationEvents.id, { onDelete: 'cascade' })
+      .notNull(),
+    resultingRunId: uuid('resulting_run_id').notNull(),
+    improved: boolean('improved').default(false).notNull(),
+    faster: boolean('faster').default(false).notNull(),
+    recovered: boolean('recovered').default(false).notNull(),
+    fewerSteps: boolean('fewer_steps').default(false).notNull(),
+    deltaDurationMs: integer('delta_duration_ms'),
+    deltaStepCount: integer('delta_step_count'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('rec_outcomes_event_idx').on(t.eventId),
+    index('rec_outcomes_run_idx').on(t.resultingRunId),
+  ],
+)
+
+// ── Workflow Intelligence (cached aggregates) ──────────────────────────
+
 export const workflowInsights = pgTable(
   'workflow_insights',
   {

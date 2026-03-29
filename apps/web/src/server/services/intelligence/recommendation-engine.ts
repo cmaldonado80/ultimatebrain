@@ -7,7 +7,14 @@
  */
 
 import type { Database } from '@solarc/db'
-import { chatMessages, chatRuns, chatRunSteps, workflowInsights } from '@solarc/db'
+import {
+  chatMessages,
+  chatRuns,
+  chatRunSteps,
+  recommendationEvents,
+  recommendationOutcomes,
+  workflowInsights,
+} from '@solarc/db'
 import { and, desc, eq, ne, not, sql } from 'drizzle-orm'
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -479,4 +486,67 @@ export async function refreshInsights(
   }
 
   return { updated }
+}
+
+// ── Effectiveness Scoring ─────────────────────────────────────────────
+
+export interface RecommendationStats {
+  shown: number
+  clicked: number
+  improved: number
+  recovered: number
+  acceptanceRate: number
+  improvementRate: number
+}
+
+/**
+ * Fetch effectiveness stats for a recommendation ID.
+ * Used to boost/demote recommendations based on real-world outcomes.
+ */
+export async function getEffectivenessStats(
+  db: Database,
+  recommendationId: string,
+): Promise<RecommendationStats> {
+  const events = await db.query.recommendationEvents.findMany({
+    where: eq(recommendationEvents.recommendationId, recommendationId),
+    limit: 100,
+  })
+
+  const shown = events.length
+  const clicked = events.filter((e) => e.clickedAt).length
+  const linkedIds = events.filter((e) => e.resultingRunId).map((e) => e.id)
+
+  const outcomes =
+    linkedIds.length > 0
+      ? await db.query.recommendationOutcomes.findMany({
+          where: sql`${recommendationOutcomes.eventId} = ANY(${linkedIds})`,
+        })
+      : []
+
+  const improved = outcomes.filter((o) => o.improved).length
+  const recovered = outcomes.filter((o) => o.recovered).length
+
+  return {
+    shown,
+    clicked,
+    improved,
+    recovered,
+    acceptanceRate: shown > 0 ? clicked / shown : 0,
+    improvementRate: outcomes.length > 0 ? improved / outcomes.length : 0,
+  }
+}
+
+/**
+ * Compute a blended score: 70% base heuristic + 30% effectiveness.
+ * Falls back to base score if no effectiveness data exists.
+ */
+export function computeBlendedScore(
+  baseConfidence: number,
+  stats: RecommendationStats | null,
+): number {
+  if (!stats || stats.shown < 3) return baseConfidence
+
+  const effectivenessScore = stats.acceptanceRate * 0.4 + stats.improvementRate * 0.6
+
+  return Math.round((baseConfidence * 0.7 + effectivenessScore * 0.3) * 100) / 100
 }

@@ -1,12 +1,14 @@
 'use client'
 
 /**
- * Intelligence Card — evidence-based workflow recommendations.
- * Shows pre-run intelligence: best workflow, autonomy mode, memory impact.
- * Every recommendation includes confidence score and explainable evidence.
+ * Intelligence Card — evidence-based workflow recommendations
+ * with feedback loop instrumentation.
+ *
+ * Logs shown/dismissed/clicked events for effectiveness tracking.
+ * Shows credibility stats when available ("Helped 7 times").
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { trpc } from '../../utils/trpc'
 
@@ -16,6 +18,15 @@ interface RecommendationAction {
   type: string
   label: string
   payload: Record<string, unknown>
+}
+
+interface RecommendationStats {
+  shown: number
+  clicked: number
+  improved: number
+  recovered: number
+  acceptanceRate: number
+  improvementRate: number
 }
 
 interface Recommendation {
@@ -32,6 +43,7 @@ interface Recommendation {
     metricDelta?: string
   }
   action?: RecommendationAction
+  stats?: RecommendationStats | null
 }
 
 // ── Confidence Badge ──────────────────────────────────────────────────
@@ -45,6 +57,25 @@ function ConfidenceBadge({ value }: { value: number }) {
         ? 'text-neon-yellow bg-neon-yellow/10'
         : 'text-slate-400 bg-slate-700/50'
   return <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${color}`}>{pct}%</span>
+}
+
+// ── Credibility Line ──────────────────────────────────────────────────
+
+function CredibilityLine({ stats }: { stats: RecommendationStats }) {
+  if (stats.shown < 3) return null
+
+  const parts: string[] = []
+  if (stats.improved > 0)
+    parts.push(`Helped ${stats.improved} time${stats.improved !== 1 ? 's' : ''}`)
+  else if (stats.clicked > 0)
+    parts.push(`Used ${stats.clicked} time${stats.clicked !== 1 ? 's' : ''}`)
+  if (stats.recovered > 0) parts.push(`recovered ${stats.recovered}`)
+  if (stats.improvementRate > 0 && stats.improved >= 2)
+    parts.push(`${Math.round(stats.improvementRate * 100)}% effective`)
+
+  if (parts.length === 0) return null
+
+  return <span className="text-[9px] text-slate-600 ml-1">{parts.join(' · ')}</span>
 }
 
 // ── Type Icons ────────────────────────────────────────────────────────
@@ -63,7 +94,7 @@ interface IntelligenceCardProps {
   sessionId: string
   userInput?: string
   agentIds?: string[]
-  onAction: (action: RecommendationAction) => void
+  onAction: (action: RecommendationAction, eventId?: string) => void
   onDismiss: () => void
 }
 
@@ -76,6 +107,9 @@ export function IntelligenceCard({
 }: IntelligenceCardProps) {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [debouncedInput, setDebouncedInput] = useState(userInput)
+  // Track eventIds per recommendation (for linking runs later)
+  const [eventIds, setEventIds] = useState<Map<string, string>>(new Map())
+  const loggedRef = useRef<Set<string>>(new Set())
 
   // Debounce input changes
   useEffect(() => {
@@ -92,7 +126,57 @@ export function IntelligenceCard({
     },
   )
 
+  // Logging mutations (fire-and-forget)
+  const logShown = trpc.intelligence.logRecommendationShown.useMutation()
+  const logDismissed = trpc.intelligence.logRecommendationDismissed.useMutation()
+  const logAction = trpc.intelligence.logRecommendationAction.useMutation()
+
   const recommendations = (query.data ?? []).filter((r: Recommendation) => !dismissedIds.has(r.id))
+
+  // Log shown events (once per recommendation per render cycle)
+  useEffect(() => {
+    for (const rec of recommendations) {
+      if (loggedRef.current.has(rec.id)) continue
+      loggedRef.current.add(rec.id)
+
+      logShown
+        .mutateAsync({
+          sessionId,
+          recommendationId: rec.id,
+          recommendationType: rec.type,
+          workflowId:
+            rec.action?.payload?.workflowId != null
+              ? String(rec.action.payload.workflowId)
+              : undefined,
+          autonomyLevel:
+            rec.action?.payload?.level != null ? String(rec.action.payload.level) : undefined,
+          confidence: rec.confidence,
+        })
+        .then((result) => {
+          if (result?.eventId) {
+            setEventIds((prev) => new Map([...prev, [rec.id, result.eventId!]]))
+          }
+        })
+        .catch(() => {})
+    }
+  }, [recommendations.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDismiss = (recId: string) => {
+    setDismissedIds((prev) => new Set([...prev, recId]))
+    const eventId = eventIds.get(recId)
+    if (eventId) {
+      logDismissed.mutateAsync({ eventId }).catch(() => {})
+    }
+  }
+
+  const handleAction = (rec: Recommendation) => {
+    if (!rec.action) return
+    const eventId = eventIds.get(rec.id)
+    if (eventId) {
+      logAction.mutateAsync({ eventId, actionType: rec.action.type }).catch(() => {})
+    }
+    onAction(rec.action, eventId)
+  }
 
   // Hide entirely if no results or loading
   if (query.isLoading) {
@@ -143,9 +227,10 @@ export function IntelligenceCard({
                     {rec.label}
                   </span>
                   <ConfidenceBadge value={rec.confidence} />
+                  {rec.stats && <CredibilityLine stats={rec.stats} />}
                   {/* Per-item dismiss */}
                   <button
-                    onClick={() => setDismissedIds((prev) => new Set([...prev, rec.id]))}
+                    onClick={() => handleDismiss(rec.id)}
                     className="text-[9px] text-slate-700 hover:text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity ml-auto flex-shrink-0"
                   >
                     ✕
@@ -157,7 +242,7 @@ export function IntelligenceCard({
                 {rec.action && (
                   <div className="flex items-center gap-2 mt-1.5">
                     <button
-                      onClick={() => onAction(rec.action!)}
+                      onClick={() => handleAction(rec)}
                       className="text-[9px] px-2 py-0.5 rounded bg-neon-purple/10 text-neon-purple hover:bg-neon-purple/20 transition-colors"
                     >
                       {rec.action.label}

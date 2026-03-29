@@ -41,6 +41,7 @@ export type InspectorSelection =
       workflowName?: string | null
       autonomyLevel?: string | null
       autoActionsCount?: number | null
+      recommendationSource?: string | null
     }
   | null
 
@@ -222,6 +223,19 @@ function OverviewTab({
                     {name}
                   </span>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recommendation source */}
+          {selection.recommendationSource && (
+            <div className="cyber-card p-2.5 space-y-1">
+              <Label text="Triggered By" />
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <span className="text-neon-purple">◆</span>
+                <span className="text-slate-300">
+                  {selection.recommendationSource} recommendation
+                </span>
               </div>
             </div>
           )}

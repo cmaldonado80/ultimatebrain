@@ -39,6 +39,7 @@ export default function ChatPage() {
   const [commandQuery, setCommandQuery] = useState('')
   const [mentionQuery, setMentionQuery] = useState('')
   const [intelligenceDismissed, setIntelligenceDismissed] = useState(false)
+  const [lastRecEventId, setLastRecEventId] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -119,7 +120,19 @@ export default function ChatPage() {
   // Reset intelligence dismissal on session change
   useEffect(() => {
     setIntelligenceDismissed(false)
+    setLastRecEventId(null)
   }, [selectedSession])
+
+  // Link recommendation event to resulting run (fire-and-forget)
+  const linkRecToRun = trpc.intelligence.linkRecommendationToRun.useMutation()
+  useEffect(() => {
+    if (lastRunId && lastRecEventId) {
+      linkRecToRun
+        .mutateAsync({ eventId: lastRecEventId, resultingRunId: lastRunId })
+        .catch(() => {})
+      setLastRecEventId(null) // Only link once
+    }
+  }, [lastRunId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Send wrapper (reads newMessage from local state) ────────────────
   const handleSend = useCallback(() => {
@@ -517,7 +530,8 @@ export default function ChatPage() {
                       sessionId={selectedSession}
                       userInput={newMessage}
                       agentIds={selectedAgents.length > 0 ? selectedAgents : undefined}
-                      onAction={(action) => {
+                      onAction={(action, eventId) => {
+                        if (eventId) setLastRecEventId(eventId)
                         if (action.type === 'switch_autonomy') {
                           localStorage.setItem('autonomy-level', action.payload.level as string)
                         }

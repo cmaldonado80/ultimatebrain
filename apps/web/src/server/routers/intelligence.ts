@@ -5,8 +5,16 @@
  * and inter-agent messaging for collaborative reasoning.
  */
 import type { Database } from '@solarc/db'
-import { chatRuns, chatRunSteps, playbooks, runMemoryUsage, workflowInsights } from '@solarc/db'
-import { desc, eq } from 'drizzle-orm'
+import {
+  chatRuns,
+  chatRunSteps,
+  playbooks,
+  recommendationEvents,
+  recommendationOutcomes,
+  runMemoryUsage,
+  workflowInsights,
+} from '@solarc/db'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { GatewayRouter } from '../services/gateway'
@@ -17,7 +25,9 @@ import {
 } from '../services/intelligence'
 import {
   buildRecommendations,
+  computeBlendedScore,
   findSimilarRuns,
+  getEffectivenessStats,
   refreshInsights,
 } from '../services/intelligence/recommendation-engine'
 import { protectedProcedure, router } from '../trpc'
@@ -649,7 +659,31 @@ export const intelligenceRouter = router({
         userInput: input.userInput,
         agentIds: input.agentIds,
       })
-      return buildRecommendations(similarRuns)
+      const recs = buildRecommendations(similarRuns)
+
+      // Blend in effectiveness data from feedback loop
+      const enhanced = await Promise.all(
+        recs.map(async (rec) => {
+          const stats = await getEffectivenessStats(ctx.db, rec.id)
+          return {
+            ...rec,
+            confidence: computeBlendedScore(rec.confidence, stats),
+            stats:
+              stats.shown >= 3
+                ? {
+                    shown: stats.shown,
+                    clicked: stats.clicked,
+                    improved: stats.improved,
+                    recovered: stats.recovered,
+                    acceptanceRate: Math.round(stats.acceptanceRate * 100) / 100,
+                    improvementRate: Math.round(stats.improvementRate * 100) / 100,
+                  }
+                : null,
+          }
+        }),
+      )
+
+      return enhanced.sort((a, b) => b.confidence - a.confidence)
     }),
 
   /** Get cached workflow performance insights */
@@ -680,6 +714,180 @@ export const intelligenceRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       return refreshInsights(ctx.db, input.workflowId ?? undefined)
+    }),
+
+  // === Recommendation Feedback Loop ===
+
+  /** Log that a recommendation was shown to the user */
+  logRecommendationShown: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        recommendationId: z.string(),
+        recommendationType: z.string(),
+        workflowId: z.string().uuid().optional(),
+        autonomyLevel: z.string().optional(),
+        confidence: z.number().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [event] = await ctx.db
+        .insert(recommendationEvents)
+        .values({
+          sessionId: input.sessionId,
+          recommendationId: input.recommendationId,
+          recommendationType: input.recommendationType,
+          workflowId: input.workflowId ?? null,
+          autonomyLevel: input.autonomyLevel ?? null,
+          confidence: input.confidence ?? null,
+        })
+        .returning({ id: recommendationEvents.id })
+      return { eventId: event?.id }
+    }),
+
+  /** Log that a recommendation was dismissed */
+  logRecommendationDismissed: protectedProcedure
+    .input(z.object({ eventId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(recommendationEvents)
+        .set({ dismissedAt: new Date() })
+        .where(eq(recommendationEvents.id, input.eventId))
+    }),
+
+  /** Log that a recommendation action was clicked */
+  logRecommendationAction: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string().uuid(),
+        actionType: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(recommendationEvents)
+        .set({ clickedAt: new Date(), actionType: input.actionType })
+        .where(eq(recommendationEvents.id, input.eventId))
+    }),
+
+  /** Link a resulting run to a recommendation event and compute outcome */
+  linkRecommendationToRun: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string().uuid(),
+        resultingRunId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Link the run to the event
+      await ctx.db
+        .update(recommendationEvents)
+        .set({ resultingRunId: input.resultingRunId })
+        .where(eq(recommendationEvents.id, input.eventId))
+
+      // Load both runs to compute outcome
+      const event = await ctx.db.query.recommendationEvents.findFirst({
+        where: eq(recommendationEvents.id, input.eventId),
+      })
+      if (!event) return
+
+      const resultRun = await ctx.db.query.chatRuns.findFirst({
+        where: eq(chatRuns.id, input.resultingRunId),
+      })
+      if (!resultRun || resultRun.status === 'running') return
+
+      // Find the parent/baseline run (most recent completed run in same session before this one)
+      const baselineRun = await ctx.db.query.chatRuns.findFirst({
+        where: and(
+          eq(chatRuns.sessionId, event.sessionId),
+          sql`${chatRuns.id} != ${input.resultingRunId}`,
+          sql`${chatRuns.startedAt} < ${resultRun.startedAt}`,
+        ),
+        orderBy: desc(chatRuns.startedAt),
+      })
+
+      const improved =
+        resultRun.status === 'completed' && (!baselineRun || baselineRun.status !== 'completed')
+      const faster =
+        baselineRun?.durationMs != null &&
+        resultRun.durationMs != null &&
+        resultRun.durationMs < baselineRun.durationMs
+      const fewerSteps =
+        baselineRun?.stepCount != null &&
+        resultRun.stepCount != null &&
+        resultRun.stepCount < baselineRun.stepCount
+      const recovered = resultRun.status === 'completed' && baselineRun?.status === 'failed'
+
+      await ctx.db.insert(recommendationOutcomes).values({
+        eventId: input.eventId,
+        resultingRunId: input.resultingRunId,
+        improved: improved || faster || fewerSteps || recovered,
+        faster,
+        recovered,
+        fewerSteps,
+        deltaDurationMs:
+          baselineRun?.durationMs != null && resultRun.durationMs != null
+            ? resultRun.durationMs - baselineRun.durationMs
+            : null,
+        deltaStepCount:
+          baselineRun?.stepCount != null && resultRun.stepCount != null
+            ? resultRun.stepCount - baselineRun.stepCount
+            : null,
+      })
+    }),
+
+  /** Get aggregate stats for a recommendation type */
+  getRecommendationStats: protectedProcedure
+    .input(
+      z.object({
+        recommendationType: z.string().optional(),
+        recommendationId: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const where = input.recommendationId
+        ? eq(recommendationEvents.recommendationId, input.recommendationId)
+        : input.recommendationType
+          ? eq(recommendationEvents.recommendationType, input.recommendationType)
+          : undefined
+
+      const events = await ctx.db.query.recommendationEvents.findMany({
+        where,
+        orderBy: desc(recommendationEvents.shownAt),
+        limit: 200,
+      })
+
+      const total = events.length
+      const dismissed = events.filter((e) => e.dismissedAt).length
+      const clicked = events.filter((e) => e.clickedAt).length
+      const linked = events.filter((e) => e.resultingRunId).length
+
+      // Load outcomes for linked events
+      const linkedIds = events.filter((e) => e.resultingRunId).map((e) => e.id)
+      const outcomes =
+        linkedIds.length > 0
+          ? await ctx.db.query.recommendationOutcomes.findMany({
+              where: sql`${recommendationOutcomes.eventId} = ANY(${linkedIds})`,
+            })
+          : []
+
+      const improved = outcomes.filter((o) => o.improved).length
+      const recovered = outcomes.filter((o) => o.recovered).length
+      const faster = outcomes.filter((o) => o.faster).length
+
+      return {
+        shown: total,
+        dismissed,
+        clicked,
+        linked,
+        acceptanceRate: total > 0 ? clicked / total : 0,
+        outcomes: outcomes.length,
+        improved,
+        recovered,
+        faster,
+        improvementRate: outcomes.length > 0 ? improved / outcomes.length : 0,
+        recoveryRate: outcomes.length > 0 ? recovered / outcomes.length : 0,
+      }
     }),
 
   // === Agent Messaging ===
