@@ -1,0 +1,84 @@
+'use client'
+
+import { useState } from 'react'
+
+export default function Home() {
+  const [input, setInput] = useState('')
+  const [result, setResult] = useState<unknown>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    try {
+      const res = await fetch('/api/domain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Request failed')
+      setResult(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#06090f] text-slate-200 flex items-center justify-center p-6">
+      <div className="w-full max-w-lg">
+        <h1 className="text-2xl font-bold text-center mb-6" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+          {{DOMAIN_TITLE}}
+        </h1>
+
+        {error && (
+          <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3 mb-4 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
+        {!result ? (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Input</label>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                required
+                placeholder="Enter your request..."
+                className="w-full bg-[#111827] border border-white/10 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500/50"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 disabled:text-slate-400 text-white rounded py-2.5 text-sm font-medium transition-colors"
+            >
+              {loading ? 'Processing...' : 'Submit'}
+            </button>
+          </form>
+        ) : (
+          <div className="space-y-4">
+            <button onClick={() => setResult(null)} className="text-sm text-purple-400 hover:text-purple-300">
+              &larr; New Request
+            </button>
+            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4">
+              <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-2">Result</h2>
+              <pre className="text-xs text-slate-300 overflow-x-auto whitespace-pre-wrap">
+                {JSON.stringify(result, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
+
+        <p className="text-[10px] text-slate-600 text-center mt-6">
+          Powered by Solarc {{DOMAIN_TITLE}} Brain
+        </p>
+      </div>
+    </main>
+  )
+}

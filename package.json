@@ -14,6 +14,7 @@
     "db:migrate": "turbo db:migrate --filter=@solarc/db",
     "db:seed": "turbo db:seed --filter=@solarc/db",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "brain:create": "tsx scripts/create-brain.ts",
     "clean": "turbo clean && rm -rf node_modules",
     "prepare": "husky"
   },

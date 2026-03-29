@@ -89,6 +89,53 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  apps/hospitality-app:
+    dependencies:
+      jose:
+        specifier: ^6.0.0
+        version: 6.2.2
+      next:
+        specifier: ^15.1.0
+        version: 15.5.14(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  apps/hospitality-brain:
+    dependencies:
+      '@solarc/brain-sdk':
+        specifier: workspace:*
+        version: link:../../packages/brain-sdk
+      '@solarc/mini-brain-server':
+        specifier: workspace:*
+        version: link:../../packages/mini-brain-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
+      tsx:
+        specifier: ^4.19.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   apps/web:
     dependencies:
       '@solarc/db':
