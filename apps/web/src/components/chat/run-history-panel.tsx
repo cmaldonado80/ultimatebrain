@@ -105,6 +105,165 @@ function QualityBadge({ label }: { label?: string | null }) {
   )
 }
 
+// ── Session Summary Card ──────────────────────────────────────────────
+
+const TREND_STYLE: Record<string, { icon: string; cls: string }> = {
+  improving: { icon: '↑', cls: 'text-neon-green' },
+  declining: { icon: '↓', cls: 'text-neon-red' },
+  stable: { icon: '→', cls: 'text-slate-400' },
+}
+
+const BEST_RUN_ICONS: Record<string, { icon: string; label: string }> = {
+  bestQuality: { icon: '◆', label: 'quality' },
+  fastest: { icon: '⚡', label: 'fastest' },
+  mostStable: { icon: '◈', label: 'stable' },
+  simplest: { icon: '▸', label: 'simple' },
+}
+
+function SessionSummaryCard({
+  sessionId,
+  onSelectRun,
+}: {
+  sessionId: string
+  onSelectRun: (sel: InspectorSelection) => void
+}) {
+  const [collapsed, setCollapsed] = useState(false)
+  const query = trpc.intelligence.getSessionSummary.useQuery(
+    { sessionId },
+    { staleTime: 30_000, refetchOnWindowFocus: false },
+  )
+  const data = query.data
+
+  if (!data || data.totalRuns < 2) return null
+
+  const trendInfo = data.trend ? TREND_STYLE[data.trend] : null
+
+  const handleClickRun = (runId: string) => {
+    onSelectRun({
+      type: 'run',
+      runId,
+      status: 'unknown',
+      agentNames: [],
+      stepCount: 0,
+      durationMs: null,
+      startedAt: new Date(),
+      memoryCount: 0,
+    })
+  }
+
+  return (
+    <div className="border-b border-border-dim">
+      {/* Header */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="w-full flex items-center justify-between px-4 py-2 text-left hover:bg-white/[0.02] transition-colors"
+      >
+        <span className="text-[10px] font-orbitron text-neon-teal uppercase tracking-wider">
+          Session Summary
+        </span>
+        <span className="text-[10px] text-slate-600">{collapsed ? '▸' : '▾'}</span>
+      </button>
+
+      {!collapsed && (
+        <div className="px-4 pb-3 space-y-2">
+          {/* Overview line */}
+          <div className="flex items-center gap-2 text-[10px] text-slate-400">
+            <span>{data.totalRuns} runs</span>
+            <span>·</span>
+            <span>{Math.round(data.successRate * 100)}% success</span>
+            {trendInfo && (
+              <>
+                <span>·</span>
+                <span className={trendInfo.cls}>
+                  {trendInfo.icon} {data.trend}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Quality bar */}
+          {data.avgQualityScore != null && (
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-slate-500 w-16 flex-shrink-0">Avg quality</span>
+              <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-neon-teal/60 rounded-full"
+                  style={{ width: `${Math.round(data.avgQualityScore * 100)}%` }}
+                />
+              </div>
+              <span className="text-[9px] font-mono text-slate-400 w-8 text-right">
+                {Math.round(data.avgQualityScore * 100)}%
+              </span>
+            </div>
+          )}
+
+          {/* Best runs */}
+          {(data.bestRuns.bestQuality ||
+            data.bestRuns.fastest ||
+            data.bestRuns.mostStable ||
+            data.bestRuns.simplest) && (
+            <div className="space-y-1">
+              <div className="text-[9px] text-slate-600 uppercase">Best runs</div>
+              {(
+                Object.entries(data.bestRuns) as [keyof typeof BEST_RUN_ICONS, string | null][]
+              ).map(
+                ([key, runId]) =>
+                  runId &&
+                  BEST_RUN_ICONS[key] && (
+                    <button
+                      key={key}
+                      onClick={() => handleClickRun(runId)}
+                      className="flex items-center gap-2 w-full text-left hover:bg-white/[0.02] rounded px-1 py-0.5 transition-colors group"
+                    >
+                      <span className="text-[10px] text-neon-teal w-3">
+                        {BEST_RUN_ICONS[key]!.icon}
+                      </span>
+                      <span className="text-[9px] text-slate-500">
+                        {BEST_RUN_ICONS[key]!.label}
+                      </span>
+                      <span className="text-[9px] font-mono text-slate-400">
+                        {runId.slice(0, 8)}...
+                      </span>
+                      <span className="text-[9px] text-slate-700 group-hover:text-neon-teal ml-auto">
+                        →
+                      </span>
+                    </button>
+                  ),
+              )}
+            </div>
+          )}
+
+          {/* Best workflow */}
+          {data.bestWorkflow && (
+            <div className="text-[9px] text-slate-500">
+              <span className="text-neon-blue">▶</span> Top workflow:{' '}
+              <span className="text-slate-300">{data.bestWorkflow.workflowName}</span>
+              <span className="text-slate-600">
+                {' '}
+                ({Math.round(data.bestWorkflow.avgQualityScore * 100)}% quality,{' '}
+                {data.bestWorkflow.runCount} runs)
+              </span>
+            </div>
+          )}
+
+          {/* Best mode */}
+          {data.bestAutonomyMode && (
+            <div className="text-[9px] text-slate-500">
+              <span className="text-neon-purple">⚡</span> Best mode:{' '}
+              <span className="text-slate-300">{data.bestAutonomyMode.mode}</span>
+              <span className="text-slate-600">
+                {' '}
+                ({Math.round(data.bestAutonomyMode.avgQualityScore * 100)}% quality,{' '}
+                {data.bestAutonomyMode.runCount} runs)
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── RunHistoryPanel ───────────────────────────────────────────────────
 
 interface RunHistoryPanelProps {
@@ -187,6 +346,9 @@ export function RunHistoryPanel({ sessionId, onSelectRun, onClose }: RunHistoryP
           ✕
         </button>
       </div>
+
+      {/* Session Summary */}
+      <SessionSummaryCard sessionId={sessionId} onSelectRun={onSelectRun} />
 
       {/* Compare toggle */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border-dim">

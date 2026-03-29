@@ -1171,6 +1171,168 @@ export function summarizeTradeoffs(options: Array<{ id: string; vector: Tradeoff
   }
 }
 
+// ── Session Intelligence Summary ──────────────────────────────────────
+
+export interface SessionSummary {
+  sessionId: string
+  totalRuns: number
+  completedRuns: number
+  failedRuns: number
+  successRate: number
+  avgQualityScore: number | null
+  avgDurationMs: number | null
+  avgStepCount: number | null
+  bestRuns: {
+    bestQuality: string | null
+    fastest: string | null
+    mostStable: string | null
+    simplest: string | null
+  }
+  bestWorkflow: { workflowName: string; avgQualityScore: number; runCount: number } | null
+  bestAutonomyMode: { mode: string; avgQualityScore: number; runCount: number } | null
+  trend: 'improving' | 'declining' | 'stable' | null
+  qualityDelta: number | null
+}
+
+/**
+ * Compute a holistic session-level performance summary.
+ * Reuses existing computeTradeoffVector and summarizeTradeoffs.
+ */
+export async function computeSessionSummary(
+  db: Database,
+  sessionId: string,
+): Promise<SessionSummary> {
+  // 1. Fetch runs
+  const runs = await db.query.chatRuns.findMany({
+    where: eq(chatRuns.sessionId, sessionId),
+    orderBy: desc(chatRuns.startedAt),
+    limit: 50,
+  })
+
+  const nonRunning = runs.filter((r) => r.status !== 'running')
+  const completed = nonRunning.filter((r) => r.status === 'completed')
+  const failed = nonRunning.filter((r) => r.status === 'failed')
+  const totalRuns = nonRunning.length
+  const successRate = totalRuns > 0 ? Math.round((completed.length / totalRuns) * 100) / 100 : 0
+
+  // 2. Join quality data
+  const runIds = nonRunning.map((r) => r.id)
+  const qualities =
+    runIds.length > 0
+      ? await db.query.runQuality.findMany({
+          where: sql`${runQuality.runId} = ANY(${runIds})`,
+        })
+      : []
+  const qMap = new Map(qualities.map((q) => [q.runId, q]))
+
+  // 3. Aggregate stats
+  const durations = nonRunning.map((r) => r.durationMs).filter((d): d is number => d != null)
+  const avgDurationMs =
+    durations.length > 0
+      ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+      : null
+  const steps = nonRunning.map((r) => r.stepCount).filter((s): s is number => s != null)
+  const avgStepCount =
+    steps.length > 0 ? Math.round(steps.reduce((a, b) => a + b, 0) / steps.length) : null
+  const qualityScores = qualities.map((q) => q.score)
+  const avgQualityScore =
+    qualityScores.length > 0
+      ? Math.round((qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length) * 100) / 100
+      : null
+
+  // 4. Best runs per dimension (using tradeoff vectors)
+  const tradeoffOptions = nonRunning.map((r) => ({
+    id: r.id,
+    vector: computeTradeoffVector([
+      {
+        status: r.status,
+        durationMs: r.durationMs,
+        stepCount: r.stepCount,
+        qualityScore: qMap.get(r.id)?.score ?? null,
+      },
+    ]),
+  }))
+  const bestRuns = summarizeTradeoffs(tradeoffOptions)
+
+  // 5. Best workflow (group by workflowName, min 2 runs)
+  let bestWorkflow: SessionSummary['bestWorkflow'] = null
+  const byWorkflow = new Map<string, { scores: number[]; count: number }>()
+  for (const r of nonRunning) {
+    if (!r.workflowName) continue
+    const q = qMap.get(r.id)?.score
+    const entry = byWorkflow.get(r.workflowName) ?? { scores: [], count: 0 }
+    entry.count++
+    if (q != null) entry.scores.push(q)
+    byWorkflow.set(r.workflowName, entry)
+  }
+  for (const [name, data] of byWorkflow) {
+    if (data.count < 2 || data.scores.length === 0) continue
+    const avg = data.scores.reduce((a, b) => a + b, 0) / data.scores.length
+    if (!bestWorkflow || avg > bestWorkflow.avgQualityScore) {
+      bestWorkflow = {
+        workflowName: name,
+        avgQualityScore: Math.round(avg * 100) / 100,
+        runCount: data.count,
+      }
+    }
+  }
+
+  // 6. Best autonomy mode (group by autonomyLevel, min 2 runs)
+  let bestAutonomyMode: SessionSummary['bestAutonomyMode'] = null
+  const byMode = new Map<string, { scores: number[]; count: number }>()
+  for (const r of nonRunning) {
+    const mode = r.autonomyLevel ?? 'manual'
+    const q = qMap.get(r.id)?.score
+    const entry = byMode.get(mode) ?? { scores: [], count: 0 }
+    entry.count++
+    if (q != null) entry.scores.push(q)
+    byMode.set(mode, entry)
+  }
+  if (byMode.size > 1) {
+    for (const [mode, data] of byMode) {
+      if (data.count < 2 || data.scores.length === 0) continue
+      const avg = data.scores.reduce((a, b) => a + b, 0) / data.scores.length
+      if (!bestAutonomyMode || avg > bestAutonomyMode.avgQualityScore) {
+        bestAutonomyMode = {
+          mode,
+          avgQualityScore: Math.round(avg * 100) / 100,
+          runCount: data.count,
+        }
+      }
+    }
+  }
+
+  // 7. Trend (compare first 3 vs last 3 quality scores)
+  let trend: SessionSummary['trend'] = null
+  let qualityDelta: number | null = null
+  if (qualityScores.length >= 6) {
+    // Scores are from newest-first runs, so slice(0,3) = recent, slice(-3) = earlier
+    const scoredRuns = nonRunning
+      .map((r) => qMap.get(r.id)?.score)
+      .filter((s): s is number => s != null)
+    const recent = scoredRuns.slice(0, 3).reduce((a, b) => a + b, 0) / 3
+    const earlier = scoredRuns.slice(-3).reduce((a, b) => a + b, 0) / 3
+    qualityDelta = Math.round((recent - earlier) * 100) / 100
+    trend = qualityDelta > 0.1 ? 'improving' : qualityDelta < -0.1 ? 'declining' : 'stable'
+  }
+
+  return {
+    sessionId,
+    totalRuns,
+    completedRuns: completed.length,
+    failedRuns: failed.length,
+    successRate,
+    avgQualityScore,
+    avgDurationMs,
+    avgStepCount,
+    bestRuns,
+    bestWorkflow,
+    bestAutonomyMode,
+    trend,
+    qualityDelta,
+  }
+}
+
 // ── Best-Known Path Extraction ────────────────────────────────────────
 
 export interface BestKnownPath {

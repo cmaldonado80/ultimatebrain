@@ -31,6 +31,7 @@ import {
   computeBlendedScore,
   computeModeImpact,
   computeRunQualityScore,
+  computeSessionSummary,
   computeTradeoffVector,
   extractBestKnownPaths,
   findSimilarRuns,
@@ -483,6 +484,13 @@ export const intelligenceRouter = router({
       }
 
       return { runs: scored, avgScore, trend }
+    }),
+
+  /** Get comprehensive session intelligence summary */
+  getSessionSummary: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return computeSessionSummary(ctx.db, input.sessionId)
     }),
 
   /** Compare two runs side by side */
