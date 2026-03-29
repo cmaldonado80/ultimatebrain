@@ -9,11 +9,16 @@ import { TRPCError } from '@trpc/server'
 import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
+import { computeRouting } from '../services/intelligence/agent-routing'
 import { computeAgentScorecard } from '../services/intelligence/agent-scorecard'
 import {
   computeAgentSpecialization,
   getAgentWorkspacePerformance,
 } from '../services/intelligence/agent-specialization'
+import {
+  computeAgentPairings,
+  computeWorkforceInsights,
+} from '../services/intelligence/workforce-intelligence'
 import { AGENT_SOULS } from '../services/orchestration/agents'
 import { protectedProcedure, router } from '../trpc'
 
@@ -391,5 +396,37 @@ export const agentsRouter = router({
     .input(z.object({ workspaceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getAgentWorkspacePerformance(ctx.db, input.workspaceId)
+    }),
+
+  // === Adaptive Routing ===
+
+  /** Get routing recommendation for a task context */
+  getRoutingRecommendation: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        workflowName: z.string().optional(),
+        taskType: z.string().optional(),
+        preferredAgentIds: z.array(z.string().uuid()).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return computeRouting(ctx.db, input)
+    }),
+
+  // === Workforce Intelligence ===
+
+  /** Get workforce insights for a workspace */
+  getWorkforceInsights: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return computeWorkforceInsights(ctx.db, input.workspaceId)
+    }),
+
+  /** Get collaboration pairings for an agent */
+  getAgentPairings: protectedProcedure
+    .input(z.object({ agentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return computeAgentPairings(ctx.db, input.agentId)
     }),
 })

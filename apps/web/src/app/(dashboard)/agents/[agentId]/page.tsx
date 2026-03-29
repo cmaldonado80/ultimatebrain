@@ -12,6 +12,9 @@ export default function AgentDetailPage() {
   const agentId = params.agentId as string
 
   const { data, isLoading, error } = trpc.agents.agentWithTraces.useQuery({ id: agentId })
+  const scorecardQuery = trpc.agents.getAgentScorecard.useQuery({ agentId })
+  const specQuery = trpc.agents.getAgentSpecialization.useQuery({ agentId })
+  const pairingsQuery = trpc.agents.getAgentPairings.useQuery({ agentId })
   const modelsQuery = trpc.models.availableModels.useQuery()
   const utils = trpc.useUtils()
 
@@ -311,6 +314,194 @@ export default function AgentDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Performance Scorecard */}
+      {scorecardQuery.data && scorecardQuery.data.totalRuns > 0 && (
+        <div className="cyber-card p-4 mb-4">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2.5">
+            Performance
+          </div>
+          <div className="grid grid-cols-5 gap-4 text-center">
+            <div>
+              <div className="text-lg font-mono text-slate-200">
+                {scorecardQuery.data.totalRuns}
+              </div>
+              <div className="text-[10px] text-slate-500">Runs</div>
+            </div>
+            <div>
+              <div className="text-lg font-mono text-neon-green">
+                {Math.round(scorecardQuery.data.successRate * 100)}%
+              </div>
+              <div className="text-[10px] text-slate-500">Success</div>
+            </div>
+            <div>
+              <div className="text-lg font-mono text-neon-teal">
+                {scorecardQuery.data.avgQualityScore != null
+                  ? `${Math.round(scorecardQuery.data.avgQualityScore * 100)}%`
+                  : '--'}
+              </div>
+              <div className="text-[10px] text-slate-500">Quality</div>
+            </div>
+            <div>
+              <div className="text-lg font-mono text-slate-300">
+                {scorecardQuery.data.avgDurationMs != null
+                  ? `${Math.round(scorecardQuery.data.avgDurationMs / 1000)}s`
+                  : '--'}
+              </div>
+              <div className="text-[10px] text-slate-500">Avg Time</div>
+            </div>
+            <div>
+              <div
+                className={`text-lg font-mono ${
+                  scorecardQuery.data.trend === 'improving'
+                    ? 'text-neon-green'
+                    : scorecardQuery.data.trend === 'declining'
+                      ? 'text-neon-red'
+                      : 'text-slate-400'
+                }`}
+              >
+                {scorecardQuery.data.trend === 'improving'
+                  ? '↑'
+                  : scorecardQuery.data.trend === 'declining'
+                    ? '↓'
+                    : scorecardQuery.data.trend === 'stable'
+                      ? '→'
+                      : '--'}
+              </div>
+              <div className="text-[10px] text-slate-500">Trend</div>
+            </div>
+          </div>
+          <div className="text-[10px] text-slate-600 text-right mt-2">
+            Confidence: {scorecardQuery.data.dataConfidence}
+          </div>
+        </div>
+      )}
+
+      {/* Specialization */}
+      {specQuery.data &&
+        (specQuery.data.workflowAffinities.length > 0 ||
+          specQuery.data.toolProficiencies.length > 0) && (
+          <div className="cyber-card p-4 mb-4">
+            <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2.5">
+              Specialization
+            </div>
+
+            {specQuery.data.topStrength && (
+              <div className="text-[11px] text-neon-teal mb-2">
+                Top strength: <span className="font-semibold">{specQuery.data.topStrength}</span>
+              </div>
+            )}
+
+            {specQuery.data.workflowAffinities.length > 0 && (
+              <div className="mb-2.5">
+                <div className="text-[10px] text-slate-500 uppercase mb-1">Workflows</div>
+                <div className="flex flex-wrap gap-1">
+                  {specQuery.data.workflowAffinities.map((wf) => (
+                    <span
+                      key={wf.label}
+                      className={`text-[10px] px-2 py-0.5 rounded border ${
+                        wf.score >= 0.7
+                          ? 'bg-neon-green/10 text-neon-green border-neon-green/20'
+                          : wf.score >= 0.5
+                            ? 'bg-neon-blue/10 text-neon-blue border-neon-blue/20'
+                            : 'bg-neon-yellow/10 text-neon-yellow border-neon-yellow/20'
+                      }`}
+                    >
+                      {wf.label} {Math.round(wf.score * 100)}%
+                      <span className="ml-1 text-slate-600">({wf.runs})</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {specQuery.data.toolProficiencies.length > 0 && (
+              <div className="mb-2.5">
+                <div className="text-[10px] text-slate-500 uppercase mb-1">Tools</div>
+                <div className="flex flex-wrap gap-1">
+                  {specQuery.data.toolProficiencies.slice(0, 10).map((tp) => (
+                    <span
+                      key={tp.label}
+                      className={`text-[10px] px-2 py-0.5 rounded border ${
+                        tp.score >= 0.8
+                          ? 'bg-neon-green/10 text-neon-green border-neon-green/20'
+                          : tp.score >= 0.6
+                            ? 'bg-neon-blue/10 text-neon-blue border-neon-blue/20'
+                            : 'bg-neon-yellow/10 text-neon-yellow border-neon-yellow/20'
+                      }`}
+                    >
+                      {tp.label} {Math.round(tp.score * 100)}%
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {specQuery.data.weakContexts.length > 0 && (
+              <div>
+                <div className="text-[10px] text-slate-500 uppercase mb-1">Weak Areas</div>
+                <div className="flex flex-wrap gap-1">
+                  {specQuery.data.weakContexts.map((wc) => (
+                    <span
+                      key={wc.label}
+                      className="text-[10px] px-2 py-0.5 rounded border bg-neon-red/10 text-neon-red border-neon-red/20"
+                    >
+                      {wc.label} {Math.round(wc.score * 100)}%
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+      {/* Collaboration / Pairings */}
+      {pairingsQuery.data && pairingsQuery.data.pairings.length > 0 && (
+        <div className="cyber-card p-4 mb-4">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2.5">
+            Collaborations
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {pairingsQuery.data.pairings.map((p) => (
+              <div
+                key={p.partnerId}
+                className="flex items-center gap-2 bg-bg-elevated rounded px-2.5 py-1.5 cursor-pointer hover:border-neon-blue/30 border border-transparent transition-colors"
+                onClick={() => router.push(`/agents/${p.partnerId}`)}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    p.synergy === 'positive'
+                      ? 'bg-neon-green'
+                      : p.synergy === 'negative'
+                        ? 'bg-neon-red'
+                        : 'bg-slate-500'
+                  }`}
+                />
+                <span className="text-[12px] text-slate-200 font-medium flex-1">
+                  {p.partnerName}
+                </span>
+                <span
+                  className={`text-[10px] ${
+                    p.synergy === 'positive'
+                      ? 'text-neon-green'
+                      : p.synergy === 'negative'
+                        ? 'text-neon-red'
+                        : 'text-slate-500'
+                  }`}
+                >
+                  {p.synergy}
+                </span>
+                {p.avgQuality != null && (
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {Math.round(p.avgQuality * 100)}%
+                  </span>
+                )}
+                <span className="text-[10px] text-slate-600">{p.sharedRuns} shared</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Activity */}
       <div className="cyber-card p-4 mb-4">

@@ -36,6 +36,7 @@ export default function WorkspaceDetailPage() {
   const goalsQuery = trpc.workspaces.listGoals.useQuery({ workspaceId })
   const summaryQuery = trpc.workspaces.getWorkspaceSummary.useQuery({ workspaceId })
   const policyQuery = trpc.workspaces.getWorkspacePolicy.useQuery({ workspaceId })
+  const workforceQuery = trpc.agents.getWorkforceInsights.useQuery({ workspaceId })
   const utils = trpc.useUtils()
 
   const activateMut = trpc.workspaces.activate.useMutation({
@@ -228,6 +229,92 @@ export default function WorkspaceDetailPage() {
             <div className="text-slate-500">Guardrails</div>
             <div className="text-slate-300 capitalize">{policyQuery.data.guardrailLevel}</div>
           </div>
+        </div>
+      )}
+
+      {/* Workforce Intelligence */}
+      {workforceQuery.data && workforceQuery.data.agentsWithData > 0 && (
+        <div className="cyber-card p-4 mb-4">
+          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
+            Workforce Intelligence
+          </div>
+          <div className="text-[11px] text-slate-500 mb-3">{workforceQuery.data.summary}</div>
+
+          {/* Top Agents */}
+          {workforceQuery.data.topAgents.length > 0 && (
+            <div className="mb-3">
+              <div className="text-[11px] text-neon-teal font-semibold mb-1.5">Top Agents</div>
+              <div className="flex flex-col gap-1">
+                {workforceQuery.data.topAgents.slice(0, 5).map((agent, i) => (
+                  <div
+                    key={agent.agentId}
+                    className="flex items-center gap-2 text-[12px] bg-bg-elevated rounded px-2.5 py-1.5 cursor-pointer hover:border-neon-teal/30 border border-transparent transition-colors"
+                    onClick={() => router.push(`/agents/${agent.agentId}`)}
+                  >
+                    <span className="text-neon-teal font-mono w-5 text-right shrink-0">
+                      #{i + 1}
+                    </span>
+                    <span className="text-slate-200 font-medium flex-1">{agent.agentName}</span>
+                    <span className="text-neon-green font-mono">
+                      {Math.round(agent.score * 100)}%
+                    </span>
+                    <span className="text-slate-600 text-[10px]">{agent.runs} runs</span>
+                    {agent.topStrength && (
+                      <span className="cyber-badge text-[9px] text-neon-purple">
+                        {agent.topStrength}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Strong Pairs */}
+          {workforceQuery.data.strongPairs.length > 0 && (
+            <div className="mb-3">
+              <div className="text-[11px] text-neon-blue font-semibold mb-1.5">Strong Pairs</div>
+              <div className="flex flex-wrap gap-1.5">
+                {workforceQuery.data.strongPairs.map((pair, i) => (
+                  <span
+                    key={i}
+                    className="text-[10px] bg-neon-blue/10 text-neon-blue px-2 py-1 rounded border border-neon-blue/20"
+                  >
+                    {pair.agentA.name} + {pair.agentB.name}
+                    {pair.avgQuality != null && (
+                      <span className="ml-1 text-neon-green">
+                        {Math.round(pair.avgQuality * 100)}%
+                      </span>
+                    )}
+                    <span className="ml-1 text-slate-600">({pair.sharedRuns})</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Weak Coverage */}
+          {workforceQuery.data.weakCoverage.length > 0 && (
+            <div>
+              <div className="text-[11px] text-neon-yellow font-semibold mb-1.5">Weak Coverage</div>
+              <div className="flex flex-col gap-1">
+                {workforceQuery.data.weakCoverage.map((area, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 text-[11px] bg-neon-yellow/5 rounded px-2.5 py-1.5 border border-neon-yellow/10"
+                  >
+                    <span className="text-neon-yellow shrink-0">
+                      {area.type === 'workflow' ? '⚡' : '🔧'}
+                    </span>
+                    <span className="text-slate-300 flex-1">{area.warning}</span>
+                    <span className="text-neon-red font-mono text-[10px]">
+                      {Math.round(area.bestScore * 100)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
