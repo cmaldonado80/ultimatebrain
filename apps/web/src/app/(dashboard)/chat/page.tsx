@@ -5,24 +5,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityRail } from '../../../components/chat/activity-rail'
 import { CommandPalette } from '../../../components/chat/command-palette'
 import { buildExecutionGroups, ExecutionGroup } from '../../../components/chat/execution-group'
-import { InspectorPanel, type InspectorSelection } from '../../../components/chat/inspector-panel'
+import { InspectorPanel } from '../../../components/chat/inspector-panel'
 import { MentionPicker } from '../../../components/chat/mention-picker'
 import { SuggestionBar } from '../../../components/chat/suggestion-bar'
 import { ThreadItem, type ThreadItemData } from '../../../components/chat/thread-item'
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { useChatKeyboardShortcuts } from '../../../hooks/chat/use-chat-shortcuts'
+import { sessionTitle, streamEventToItem, useChatStream } from '../../../hooks/chat/use-chat-stream'
+import { useInspector } from '../../../hooks/chat/use-inspector'
 import { trpc } from '../../../utils/trpc'
-
-type StreamEvent =
-  // Execution lifecycle (new in V10)
-  | { type: 'run_started'; runId: string }
-  | { type: 'run_completed'; runId: string; durationMs?: number }
-  // Existing events (backward compatible)
-  | { type: 'agent_start'; agentName: string; agentId: string }
-  | { type: 'text'; content: string; agentId?: string; agentName?: string }
-  | { type: 'tool_use'; name: string; input: unknown }
-  | { type: 'tool_result'; name: string; result: string }
-  | { type: 'memory_context'; count: number; sources?: string[] }
-  | { type: 'error'; message: string }
 
 interface Agent {
   id: string
@@ -33,56 +24,22 @@ interface Agent {
   workspaceId: string | null
 }
 
-function sessionTitle(
-  msgs: Array<{ role: string; text: string }> | undefined,
-  createdAt: Date,
-): string {
-  const first = msgs?.find((m) => m.role === 'user')
-  if (first?.text) return first.text.length > 32 ? first.text.slice(0, 32) + '...' : first.text
-  return new Date(createdAt).toLocaleDateString()
-}
-
-function streamEventToItem(ev: StreamEvent): ThreadItemData {
-  switch (ev.type) {
-    case 'agent_start':
-      return { type: 'agent_start', agentName: ev.agentName, agentId: ev.agentId }
-    case 'text':
-      return { type: 'streaming', text: ev.content, agentName: ev.agentName }
-    case 'tool_use':
-      return { type: 'tool_use', name: ev.name, input: ev.input }
-    case 'tool_result':
-      return { type: 'tool_result', name: ev.name, result: ev.result }
-    case 'memory_context':
-      return { type: 'memory_context', count: ev.count, sources: ev.sources }
-    case 'error':
-      return { type: 'error', message: ev.message }
-    case 'run_started':
-    case 'run_completed':
-      // Lifecycle events don't render as thread items — they're metadata
-      return { type: 'system', text: '' }
-  }
-}
-
 export default function ChatPage() {
+  // ── Session & UI state ──────────────────────────────────────────────
   const [selectedSession, setSelectedSession] = useState<string | null>(null)
   const [selectedAgents, setSelectedAgents] = useState<string[]>([])
   const [newMessage, setNewMessage] = useState('')
-  const [inspectorOpen, setInspectorOpen] = useState(false)
-  const [inspectorSelection, setInspectorSelection] = useState<InspectorSelection>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-  const [streaming, setStreaming] = useState(false)
-  const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([])
-  const [optimisticText, setOptimisticText] = useState<string | null>(null)
   const [showCommands, setShowCommands] = useState(false)
   const [showMentions, setShowMentions] = useState(false)
   const [commandQuery, setCommandQuery] = useState('')
   const [mentionQuery, setMentionQuery] = useState('')
 
-  const abortRef = useRef<AbortController | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // ── tRPC queries & mutations ────────────────────────────────────────
   const sessionsQuery = trpc.intelligence.chatSessions.useQuery()
   const sessionQuery = trpc.intelligence.chatSession.useQuery(
     { id: selectedSession!, messageLimit: 100 },
@@ -90,7 +47,7 @@ export default function ChatPage() {
   )
   const agentsQuery = trpc.agents.list.useQuery({ limit: 200, offset: 0 })
   const agents: Agent[] = (agentsQuery.data ?? []) as Agent[]
-  const agentMap = new Map(agents.map((a) => [a.id, a]))
+  const agentMap = useMemo(() => new Map(agents.map((a) => [a.id, a])), [agents])
 
   const createSession = trpc.intelligence.createChatSession.useMutation()
   const deleteSession = trpc.intelligence.deleteChatSession.useMutation()
@@ -111,11 +68,18 @@ export default function ChatPage() {
   }>
   const currentSession = sessions.find((s) => s.id === selectedSession)
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamEvents, streaming, optimisticText])
+  // ── Custom hooks ────────────────────────────────────────────────────
+  const {
+    streaming,
+    streamEvents,
+    optimisticText,
+    handleSend: sendStream,
+    abort,
+  } = useChatStream(selectedSession, selectedAgents, utils)
 
-  const handleNewSession = async () => {
+  const { inspectorOpen, setInspectorOpen, inspectorSelection, handleInspect } = useInspector()
+
+  const handleNewSession = useCallback(async () => {
     const agentId = selectedAgents[0] || undefined
     const agent = agentId ? agentMap.get(agentId) : undefined
     const session = await createSession.mutateAsync({
@@ -124,161 +88,55 @@ export default function ChatPage() {
     })
     utils.intelligence.chatSessions.invalidate()
     if (session) setSelectedSession(session.id)
-  }
+  }, [selectedAgents, agentMap, createSession, utils])
 
-  const handleDelete = async (id: string) => {
-    await deleteSession.mutateAsync({ id })
-    utils.intelligence.chatSessions.invalidate()
-    if (selectedSession === id) setSelectedSession(null)
-    setDeleteConfirm(null)
-  }
+  const handleCreateSession = useCallback(() => {
+    createSession.mutateAsync({})
+  }, [createSession])
 
-  const handleSend = useCallback(async () => {
-    if (!selectedSession || !newMessage.trim() || streaming) return
+  useChatKeyboardShortcuts({
+    streaming,
+    inspectorOpen,
+    showCommands,
+    showMentions,
+    setInspectorOpen,
+    setShowCommands,
+    setShowMentions,
+    createSession: handleCreateSession,
+    abort,
+  })
+
+  // ── Auto-scroll ─────────────────────────────────────────────────────
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, streamEvents, streaming, optimisticText])
+
+  // ── Send wrapper (reads newMessage from local state) ────────────────
+  const handleSend = useCallback(() => {
+    if (!newMessage.trim()) return
     const text = newMessage.trim()
     setNewMessage('')
-    setOptimisticText(text)
-    setStreaming(true)
-    setStreamEvents([])
-    if (textareaRef.current) textareaRef.current.style.height = 'auto'
+    sendStream(text, textareaRef)
+  }, [newMessage, sendStream])
 
-    const controller = new AbortController()
-    abortRef.current = controller
+  // ── Session delete ──────────────────────────────────────────────────
+  const handleDelete = useCallback(
+    async (id: string) => {
+      await deleteSession.mutateAsync({ id })
+      utils.intelligence.chatSessions.invalidate()
+      if (selectedSession === id) setSelectedSession(null)
+      setDeleteConfirm(null)
+    },
+    [deleteSession, utils, selectedSession],
+  )
 
-    try {
-      const res = await fetch('/api/chat/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: selectedSession,
-          text,
-          agentIds: selectedAgents.length > 0 ? selectedAgents : undefined,
-        }),
-        signal: controller.signal,
-      })
-      if (!res.ok) {
-        const errText = await res.text().catch(() => `HTTP ${res.status}`)
-        setStreamEvents((prev) => [...prev, { type: 'error', message: errText }])
-        setStreaming(false)
-        return
-      }
-
-      const reader = res.body!.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n\n')
-        buffer = lines.pop() ?? ''
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const ev = JSON.parse(line.slice(6)) as Record<string, unknown>
-            if (ev.error) {
-              setStreamEvents((p) => [...p, { type: 'error', message: ev.error as string }])
-            } else if (ev.agentStart) {
-              setStreamEvents((p) => [
-                ...p,
-                {
-                  type: 'agent_start',
-                  agentName: ev.agentStart as string,
-                  agentId: (ev.agentId as string) ?? '',
-                },
-              ])
-            } else if (ev.text) {
-              setStreamEvents((p) => {
-                const last = p[p.length - 1]
-                if (last?.type === 'text') {
-                  const u = [...p]
-                  u[u.length - 1] = {
-                    ...last,
-                    content: last.content + (ev.text as string),
-                    agentName: (ev.agentName as string) ?? last.agentName,
-                    agentId: (ev.agentId as string) ?? last.agentId,
-                  }
-                  return u
-                }
-                return [
-                  ...p,
-                  {
-                    type: 'text' as const,
-                    content: ev.text as string,
-                    agentName: ev.agentName as string | undefined,
-                    agentId: ev.agentId as string | undefined,
-                  },
-                ]
-              })
-            } else if (ev.type === 'tool_use') {
-              setStreamEvents((p) => [
-                ...p,
-                { type: 'tool_use', name: ev.name as string, input: ev.input },
-              ])
-            } else if (ev.type === 'tool_result') {
-              setStreamEvents((p) => [
-                ...p,
-                { type: 'tool_result', name: ev.name as string, result: ev.result as string },
-              ])
-            } else if (ev.type === 'memory_context') {
-              setStreamEvents((p) => [
-                ...p,
-                {
-                  type: 'memory_context',
-                  count: ev.count as number,
-                  sources: ev.sources as string[] | undefined,
-                },
-              ])
-            } else if (ev.type === 'run_started') {
-              setStreamEvents((p) => [...p, { type: 'run_started', runId: ev.runId as string }])
-            } else if (ev.type === 'run_completed') {
-              setStreamEvents((p) => [
-                ...p,
-                {
-                  type: 'run_completed',
-                  runId: ev.runId as string,
-                  durationMs: ev.durationMs as number | undefined,
-                },
-              ])
-            }
-            if (ev.done) break
-          } catch {
-            /* skip malformed */
-          }
-        }
-      }
-    } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
-        // Auto-retry once if autonomy level is 'auto'
-        const autonomyLevel = localStorage.getItem('autonomy-level')
-        const alreadyRetried = (err as Error & { retried?: boolean }).retried
-        if (autonomyLevel === 'auto' && !alreadyRetried) {
-          setStreamEvents((p) => [
-            ...p,
-            { type: 'error', message: `${(err as Error).message} — auto-retrying in 2s...` },
-          ])
-          setTimeout(() => handleSend(), 2000)
-        } else {
-          setStreamEvents((p) => [...p, { type: 'error', message: (err as Error).message }])
-        }
-      }
-    } finally {
-      setStreaming(false)
-      setOptimisticText(null)
-      abortRef.current = null
-      await utils.intelligence.chatSession.invalidate({ id: selectedSession })
-      setStreamEvents([])
-    }
-  }, [selectedSession, selectedAgents, newMessage, streaming, utils])
-
-  // ── Slash commands ───────────────────────────────────────────────────
+  // ── Slash commands ──────────────────────────────────────────────────
   const handleCommand = useCallback(
     (command: string) => {
       setShowCommands(false)
       setNewMessage('')
       switch (command) {
         case 'crew':
-          // Select all agents
           if (agents.length > 0) {
             setSelectedAgents(agents.map((a) => a.id).slice(0, 10))
           }
@@ -287,11 +145,10 @@ export default function ChatPage() {
           createSession.mutateAsync({})
           break
         case 'retry':
-          // Retry last message — resend
           handleSend()
           break
         case 'stop':
-          abortRef.current?.abort()
+          abort()
           break
         case 'export': {
           const data = sessionQuery.data as
@@ -312,10 +169,10 @@ export default function ChatPage() {
         }
       }
     },
-    [agents, createSession, handleSend, selectedSession, sessionQuery.data],
+    [agents, createSession, handleSend, abort, selectedSession, sessionQuery.data],
   )
 
-  // ── @mention handler ─────────────────────────────────────────────────
+  // ── @mention handler ────────────────────────────────────────────────
   const handleMention = useCallback(
     (agent: { id: string; name: string }) => {
       setShowMentions(false)
@@ -327,36 +184,7 @@ export default function ChatPage() {
     [selectedAgents],
   )
 
-  // ── Keyboard shortcuts ───────────────────────────────────────────────
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      // Cmd+N → new conversation
-      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
-        e.preventDefault()
-        createSession.mutateAsync({})
-      }
-      // Cmd+Shift+I → toggle inspector
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'I') {
-        e.preventDefault()
-        setInspectorOpen((v) => !v)
-      }
-      // Escape → stop generation or close inspector
-      if (e.key === 'Escape') {
-        if (streaming) abortRef.current?.abort()
-        else if (inspectorOpen) setInspectorOpen(false)
-        else if (showCommands) setShowCommands(false)
-        else if (showMentions) setShowMentions(false)
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [streaming, inspectorOpen, showCommands, showMentions, createSession])
-
-  const handleInspect = useCallback((sel: InspectorSelection) => {
-    setInspectorSelection(sel)
-    setInspectorOpen(true)
-  }, [])
-
+  // ── Textarea auto-resize ────────────────────────────────────────────
   const autoResize = useCallback(() => {
     const el = textareaRef.current
     if (!el) return
@@ -364,6 +192,7 @@ export default function ChatPage() {
     el.style.height = Math.min(el.scrollHeight, 160) + 'px'
   }, [])
 
+  // ── Build thread items ──────────────────────────────────────────────
   function getAgentName(msg: { role: string; sourceAgentId: string | null }): string {
     if (msg.role === 'user') return 'You'
     if (msg.sourceAgentId) return agentMap.get(msg.sourceAgentId)?.name ?? 'Agent'
@@ -398,13 +227,15 @@ export default function ChatPage() {
   if (streaming && streamEvents.length === 0) {
     streamItems.push({ type: 'streaming', text: '', agentName: undefined })
   }
-  const allItems = [...threadItems, ...streamItems]
+
+  const allItems = useMemo(() => [...threadItems, ...streamItems], [threadItems, streamItems])
   const groupedItems = useMemo(() => buildExecutionGroups(allItems), [allItems])
 
   const headerTitle = selectedSession
     ? sessionTitle(messages, currentSession?.createdAt ?? new Date())
     : 'Chat'
 
+  // ── Error state ─────────────────────────────────────────────────────
   if (sessionsQuery.error) {
     return (
       <div className="p-6">
@@ -413,6 +244,7 @@ export default function ChatPage() {
     )
   }
 
+  // ── Render ──────────────────────────────────────────────────────────
   return (
     <div className="h-[calc(100vh-60px)] flex flex-col">
       {/* Header */}
@@ -696,7 +528,7 @@ export default function ChatPage() {
                     {streaming ? (
                       <button
                         className="cyber-btn-danger rounded-xl py-2.5 flex-shrink-0"
-                        onClick={() => abortRef.current?.abort()}
+                        onClick={abort}
                       >
                         &#9632; Stop
                       </button>
