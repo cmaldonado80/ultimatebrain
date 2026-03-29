@@ -37,6 +37,13 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: 'Organization',
+    items: [
+      { label: 'Org Settings', href: '/org', icon: '⊞' },
+      { label: 'Members', href: '/org/members', icon: '◉' },
+    ],
+  },
+  {
     title: 'Ops Center',
     items: [{ label: 'Overview', href: '/ops', icon: '◎' }],
   },

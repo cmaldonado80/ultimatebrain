@@ -8,6 +8,7 @@
 
 import { useState } from 'react'
 
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 const SEVERITY_STYLE: Record<string, { dot: string; border: string }> = {
@@ -54,7 +55,9 @@ export default function IncidentsPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-xl font-orbitron text-white">Incidents</h1>
+        <h1 className="text-xl font-orbitron text-white flex items-center gap-2">
+          Incidents <OrgBadge />
+        </h1>
         {activeCount > 0 && (
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-neon-red/10 text-neon-red font-mono">
             {activeCount} active

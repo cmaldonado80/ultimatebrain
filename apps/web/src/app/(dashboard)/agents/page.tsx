@@ -10,6 +10,7 @@ import { useRef, useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import ConfirmDialog from '../../../components/ui/confirm-dialog'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 interface Agent {
@@ -212,7 +213,9 @@ export default function AgentsPage() {
     <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Agents ({allAgents.length})</h2>
+          <h2 className="m-0 text-[22px] font-bold font-orbitron flex items-center gap-2">
+            Agents ({allAgents.length}) <OrgBadge />
+          </h2>
           <div className="flex gap-2">
             <button
               className="cyber-btn-secondary"

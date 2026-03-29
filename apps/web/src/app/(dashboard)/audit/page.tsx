@@ -10,6 +10,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 const ACTION_LABELS: Record<string, string> = {
@@ -45,7 +46,9 @@ export default function AuditPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-orbitron text-white mb-6">Audit Log</h1>
+      <h1 className="text-xl font-orbitron text-white mb-6 flex items-center gap-2">
+        Audit Log <OrgBadge />
+      </h1>
 
       {query.error && <DbErrorBanner error={{ message: query.error.message }} />}
 

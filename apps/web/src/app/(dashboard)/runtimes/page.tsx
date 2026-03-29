@@ -9,6 +9,7 @@
 
 import { useState } from 'react'
 
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 const STATUS_STYLE: Record<string, { label: string; dot: string }> = {
@@ -188,7 +189,9 @@ export default function RuntimesPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-orbitron text-white mb-6">Runtimes</h1>
+      <h1 className="text-xl font-orbitron text-white mb-6 flex items-center gap-2">
+        Runtimes <OrgBadge />
+      </h1>
 
       {/* Summary */}
       <div className="flex items-center gap-4 mb-6 p-3 rounded-lg bg-bg-elevated/50 border border-border-dim">
