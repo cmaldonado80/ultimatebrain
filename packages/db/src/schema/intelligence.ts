@@ -69,6 +69,7 @@ export const chatRunSteps = pgTable(
     toolName: text('tool_name'),
     toolInput: jsonb('tool_input'),
     toolResult: text('tool_result'),
+    groupId: text('group_id'),
     status: chatStepStatusEnum('status').default('running').notNull(),
     startedAt: timestamp('started_at').defaultNow().notNull(),
     completedAt: timestamp('completed_at'),
@@ -78,6 +79,23 @@ export const chatRunSteps = pgTable(
     index('chat_run_steps_run_idx').on(t.runId),
     index('chat_run_steps_sequence_idx').on(t.runId, t.sequence),
   ],
+)
+
+// ── Run-Memory Linkage (per-run memory transparency) ────────────────────
+
+export const runMemoryUsage = pgTable(
+  'run_memory_usage',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .references(() => chatRuns.id, { onDelete: 'cascade' })
+      .notNull(),
+    memoryId: uuid('memory_id').notNull(), // FK to memories (added after memories table)
+    confidence: real('confidence'),
+    tier: memoryTierEnum('tier'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [index('run_memory_usage_run_idx').on(t.runId)],
 )
 
 export const memories = pgTable(

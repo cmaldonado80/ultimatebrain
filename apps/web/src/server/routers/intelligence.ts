@@ -5,7 +5,7 @@
  * and inter-agent messaging for collaborative reasoning.
  */
 import type { Database } from '@solarc/db'
-import { chatRuns, chatRunSteps } from '@solarc/db'
+import { chatRuns, chatRunSteps, playbooks } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
@@ -302,6 +302,36 @@ export const intelligenceRouter = router({
         where: eq(chatRuns.sessionId, input.sessionId),
         limit: input.limit,
       })
+    }),
+
+  /** Save a workflow from an existing run's steps */
+  saveWorkflowFromRun: protectedProcedure
+    .input(z.object({ runId: z.string().uuid(), name: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const run = await ctx.db.query.chatRuns.findFirst({
+        where: eq(chatRuns.id, input.runId),
+      })
+      if (!run) throw new Error('Run not found')
+      const steps = await ctx.db.query.chatRunSteps.findMany({
+        where: eq(chatRunSteps.runId, input.runId),
+      })
+      const sortedSteps = steps.sort((a, b) => a.sequence - b.sequence)
+      const playbookSteps = sortedSteps.map((s) => ({
+        index: s.sequence,
+        name: s.agentName ?? s.toolName ?? 'step',
+        type: s.type === 'tool' ? ('api_call' as const) : ('custom' as const),
+        description: s.type === 'tool' ? `Call tool: ${s.toolName}` : `Agent: ${s.agentName}`,
+        parameters: (s.toolInput as Record<string, unknown>) ?? {},
+      }))
+      const [saved] = await ctx.db
+        .insert(playbooks)
+        .values({
+          name: input.name,
+          steps: playbookSteps,
+          createdBy: `run:${input.runId}`,
+        })
+        .returning()
+      return saved
     }),
 
   // === Agent Messaging ===

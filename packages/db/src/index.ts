@@ -838,6 +838,15 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS source_agent_id uuid`,
       `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS database_url text`,
       `ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL`,
+      `ALTER TABLE chat_run_steps ADD COLUMN IF NOT EXISTS group_id text`,
+      `CREATE TABLE IF NOT EXISTS run_memory_usage (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        run_id uuid NOT NULL REFERENCES chat_runs(id) ON DELETE CASCADE,
+        memory_id uuid NOT NULL,
+        confidence real,
+        tier memory_tier,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
     ]
     for (const stmt of alterStatements) {
       await client.query(stmt).catch(() => {})

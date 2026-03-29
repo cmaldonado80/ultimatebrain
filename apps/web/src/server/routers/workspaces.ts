@@ -448,4 +448,35 @@ export const workspacesRouter = router({
       await ctx.db.delete(workspaces).where(eq(workspaces.id, input.id))
       return { deleted: true }
     }),
+
+  // ── Autonomy ──────────────────────────────────────────────────────
+
+  getAutonomyLevel: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid().optional() }))
+    .query(async ({ ctx, input }) => {
+      if (!input.workspaceId) return 'manual' as const
+      const ws = await ctx.db.query.workspaces.findFirst({
+        where: eq(workspaces.id, input.workspaceId),
+      })
+      const level = ws?.autonomyLevel ?? 1
+      if (level >= 4) return 'auto' as const
+      if (level >= 3) return 'assist' as const
+      return 'manual' as const
+    }),
+
+  setAutonomyLevel: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        level: z.enum(['manual', 'assist', 'auto']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const dbLevel = input.level === 'auto' ? 5 : input.level === 'assist' ? 3 : 1
+      await ctx.db
+        .update(workspaces)
+        .set({ autonomyLevel: dbLevel, updatedAt: new Date() })
+        .where(eq(workspaces.id, input.workspaceId))
+      return { level: input.level }
+    }),
 })

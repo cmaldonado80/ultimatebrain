@@ -10,7 +10,7 @@ export type StreamEvent =
   | { type: 'run_started'; runId: string }
   | { type: 'run_completed'; runId: string; durationMs?: number }
   // Existing events (backward compatible)
-  | { type: 'agent_start'; agentName: string; agentId: string }
+  | { type: 'agent_start'; agentName: string; agentId: string; groupId?: string }
   | { type: 'text'; content: string; agentId?: string; agentName?: string }
   | { type: 'tool_use'; name: string; input: unknown }
   | { type: 'tool_result'; name: string; result: string }
