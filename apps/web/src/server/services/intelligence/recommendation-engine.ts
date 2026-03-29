@@ -550,3 +550,249 @@ export function computeBlendedScore(
 
   return Math.round((baseConfidence * 0.7 + effectivenessScore * 0.3) * 100) / 100
 }
+
+// ── Evidence Payload ──────────────────────────────────────────────────
+
+export interface ConfidenceBreakdown {
+  baseHeuristic: number
+  effectiveness: number | null
+  blended: number
+  dataQuality: 'strong' | 'moderate' | 'early' | 'heuristic_only'
+}
+
+export interface SimilarRunEvidence {
+  runId: string
+  score: number
+  reasons: string[]
+  status: string
+  durationMs: number | null
+  stepCount: number | null
+  workflowName: string | null
+  autonomyLevel: string | null
+  memoryCount: number | null
+}
+
+export interface RecommendationEvidencePayload {
+  recommendationId: string
+  recommendationType: string
+  label: string
+  confidence: ConfidenceBreakdown
+  similarRuns: SimilarRunEvidence[]
+  effectivenessStats: {
+    shown: number
+    clicked: number
+    improved: number
+    recovered: number
+    acceptanceRate: number
+    improvementRate: number
+  } | null
+  workflowStats: {
+    workflowName: string
+    totalRuns: number
+    successRate: number
+    avgDurationMs: number | null
+    avgStepCount: number | null
+    retryRecoveryRate: number | null
+  } | null
+  autonomyStats: {
+    breakdown: Record<string, { count: number; successRate: number }>
+    bestMode: string | null
+    bestRate: number | null
+    delta: number | null
+  } | null
+  memoryStats: {
+    withMemoryRate: number
+    withoutMemoryRate: number
+    impactDelta: number
+  } | null
+  explanationSummary: string
+}
+
+/**
+ * Build a full evidence payload for a recommendation.
+ * Reuses findSimilarRuns, buildRecommendations, and getEffectivenessStats.
+ */
+export async function buildEvidencePayload(
+  db: Database,
+  params: {
+    recommendationId: string
+    recommendationType: string
+    label: string
+    sessionId: string
+    userInput?: string
+    agentIds?: string[]
+  },
+): Promise<RecommendationEvidencePayload> {
+  // 1. Get similar runs (same as when recommendation was generated)
+  const similarRuns = await findSimilarRuns(db, {
+    sessionId: params.sessionId,
+    userInput: params.userInput,
+    agentIds: params.agentIds,
+  })
+
+  // 2. Find the specific recommendation to get base heuristic confidence
+  const recs = buildRecommendations(similarRuns)
+  const targetRec = recs.find((r) => r.id === params.recommendationId)
+  const baseHeuristic = targetRec?.confidence ?? 0
+
+  // 3. Get effectiveness stats
+  const stats = await getEffectivenessStats(db, params.recommendationId)
+  const hasEffectiveness = stats.shown >= 3
+  const effectivenessScore = hasEffectiveness
+    ? stats.acceptanceRate * 0.4 + stats.improvementRate * 0.6
+    : null
+  const blended = computeBlendedScore(baseHeuristic, hasEffectiveness ? stats : null)
+
+  const dataQuality: ConfidenceBreakdown['dataQuality'] =
+    stats.shown >= 10 && stats.improved >= 3
+      ? 'strong'
+      : stats.shown >= 3
+        ? 'moderate'
+        : stats.shown >= 1
+          ? 'early'
+          : 'heuristic_only'
+
+  // 4. Build similar runs evidence
+  const similarRunEvidence: SimilarRunEvidence[] = similarRuns.slice(0, 5).map((m) => ({
+    runId: m.runId,
+    score: m.score,
+    reasons: m.reasons,
+    status: m.run.status,
+    durationMs: m.run.durationMs,
+    stepCount: m.run.stepCount,
+    workflowName: m.run.workflowName,
+    autonomyLevel: m.run.autonomyLevel,
+    memoryCount: m.run.memoryCount,
+  }))
+
+  // 5. Workflow stats (if workflow recommendation)
+  let workflowStats: RecommendationEvidencePayload['workflowStats'] = null
+  if (params.recommendationType === 'workflow') {
+    const workflowRuns = similarRuns.filter((r) => r.run.workflowName)
+    const topWorkflow = workflowRuns[0]?.run.workflowName
+    if (topWorkflow) {
+      const wfRuns = workflowRuns.filter((r) => r.run.workflowName === topWorkflow)
+      const completed = wfRuns.filter((r) => r.run.status === 'completed').length
+      workflowStats = {
+        workflowName: topWorkflow,
+        totalRuns: wfRuns.length,
+        successRate: wfRuns.length > 0 ? completed / wfRuns.length : 0,
+        avgDurationMs: avg(wfRuns.map((r) => r.run.durationMs)),
+        avgStepCount: avg(wfRuns.map((r) => r.run.stepCount)),
+        retryRecoveryRate: null,
+      }
+      // Try to get richer stats from workflowInsights
+      const wfId = wfRuns[0]?.run.workflowId
+      if (wfId) {
+        const insight = await db.query.workflowInsights.findFirst({
+          where: eq(workflowInsights.workflowId, wfId),
+        })
+        if (insight) {
+          workflowStats.totalRuns = insight.totalRuns
+          workflowStats.successRate = insight.successRate
+          workflowStats.avgDurationMs = insight.avgDurationMs
+          workflowStats.avgStepCount = insight.avgStepCount
+          workflowStats.retryRecoveryRate = insight.retryRecoveryRate
+        }
+      }
+    }
+  }
+
+  // 6. Autonomy stats (if autonomy recommendation)
+  let autonomyStats: RecommendationEvidencePayload['autonomyStats'] = null
+  if (params.recommendationType === 'autonomy') {
+    const breakdown: Record<string, { count: number; successRate: number }> = {}
+    const byLevel = new Map<string, SimilarRunMatch[]>()
+    for (const m of similarRuns) {
+      const lvl = m.run.autonomyLevel ?? 'manual'
+      const group = byLevel.get(lvl) ?? []
+      group.push(m)
+      byLevel.set(lvl, group)
+    }
+    let bestMode: string | null = null
+    let bestRate = 0
+    for (const [level, runs] of byLevel) {
+      const completed = runs.filter((r) => r.run.status === 'completed').length
+      const rate = runs.length > 0 ? completed / runs.length : 0
+      breakdown[level] = { count: runs.length, successRate: Math.round(rate * 100) / 100 }
+      if (rate > bestRate) {
+        bestRate = rate
+        bestMode = level
+      }
+    }
+    const manualRate = breakdown['manual']?.successRate ?? 0
+    autonomyStats = {
+      breakdown,
+      bestMode,
+      bestRate: Math.round(bestRate * 100) / 100,
+      delta: bestMode && bestMode !== 'manual' ? Math.round((bestRate - manualRate) * 100) : null,
+    }
+  }
+
+  // 7. Memory stats (if memory recommendation)
+  let memoryStats: RecommendationEvidencePayload['memoryStats'] = null
+  if (params.recommendationType === 'memory') {
+    const withMem = similarRuns.filter((r) => (r.run.memoryCount ?? 0) > 0)
+    const withoutMem = similarRuns.filter((r) => (r.run.memoryCount ?? 0) === 0)
+    if (withMem.length > 0 && withoutMem.length > 0) {
+      const memRate = withMem.filter((r) => r.run.status === 'completed').length / withMem.length
+      const noMemRate =
+        withoutMem.filter((r) => r.run.status === 'completed').length / withoutMem.length
+      memoryStats = {
+        withMemoryRate: Math.round(memRate * 100) / 100,
+        withoutMemoryRate: Math.round(noMemRate * 100) / 100,
+        impactDelta: Math.round((memRate - noMemRate) * 100),
+      }
+    }
+  }
+
+  // 8. Build explanation summary from structured data
+  const parts: string[] = []
+  parts.push(`Based on ${similarRuns.length} similar run${similarRuns.length !== 1 ? 's' : ''}`)
+  if (workflowStats) {
+    parts[0] += ` using "${workflowStats.workflowName}" with ${Math.round(workflowStats.successRate * 100)}% success rate`
+  }
+  if (autonomyStats?.bestMode && autonomyStats.delta) {
+    parts.push(
+      `${autonomyStats.bestMode} mode had ${Math.round(autonomyStats.bestRate! * 100)}% success (+${autonomyStats.delta}% vs manual)`,
+    )
+  }
+  if (memoryStats) {
+    parts.push(
+      `memory usage correlated with ${memoryStats.impactDelta > 0 ? '+' : ''}${memoryStats.impactDelta}% outcomes`,
+    )
+  }
+  if (hasEffectiveness && stats.improved > 0) {
+    parts.push(
+      `historically helped ${stats.improved}/${stats.shown} time${stats.shown !== 1 ? 's' : ''}`,
+    )
+  }
+
+  return {
+    recommendationId: params.recommendationId,
+    recommendationType: params.recommendationType,
+    label: params.label,
+    confidence: {
+      baseHeuristic: Math.round(baseHeuristic * 100) / 100,
+      effectiveness:
+        effectivenessScore !== null ? Math.round(effectivenessScore * 100) / 100 : null,
+      blended: Math.round(blended * 100) / 100,
+      dataQuality,
+    },
+    similarRuns: similarRunEvidence,
+    effectivenessStats: hasEffectiveness
+      ? {
+          shown: stats.shown,
+          clicked: stats.clicked,
+          improved: stats.improved,
+          recovered: stats.recovered,
+          acceptanceRate: Math.round(stats.acceptanceRate * 100) / 100,
+          improvementRate: Math.round(stats.improvementRate * 100) / 100,
+        }
+      : null,
+    workflowStats,
+    autonomyStats,
+    memoryStats,
+    explanationSummary: parts.join('. ') + '.',
+  }
+}

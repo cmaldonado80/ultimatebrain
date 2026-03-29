@@ -253,8 +253,9 @@ export function IntelligenceCard({
                           type: 'inspect_evidence',
                           label: 'View Evidence',
                           payload: {
-                            runIds: rec.evidence.basedOnRunIds,
-                            type: rec.type,
+                            recommendationId: rec.id,
+                            recommendationType: rec.type,
+                            recommendationLabel: rec.label,
                           },
                         })
                       }

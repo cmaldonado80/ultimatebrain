@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ActivityRail } from '../../../components/chat/activity-rail'
 import { CommandPalette } from '../../../components/chat/command-palette'
+import { EvidenceSheet } from '../../../components/chat/evidence-sheet'
 import { buildExecutionGroups, ExecutionGroup } from '../../../components/chat/execution-group'
 import { InspectorPanel } from '../../../components/chat/inspector-panel'
 import { IntelligenceCard } from '../../../components/chat/intelligence-card'
@@ -40,6 +41,11 @@ export default function ChatPage() {
   const [mentionQuery, setMentionQuery] = useState('')
   const [intelligenceDismissed, setIntelligenceDismissed] = useState(false)
   const [lastRecEventId, setLastRecEventId] = useState<string | null>(null)
+  const [evidenceTarget, setEvidenceTarget] = useState<{
+    recommendationId: string
+    recommendationType: string
+    label: string
+  } | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -346,7 +352,10 @@ export default function ChatPage() {
           <button
             onClick={() => {
               setRunHistoryOpen(!runHistoryOpen)
-              if (!runHistoryOpen) setInspectorOpen(false)
+              if (!runHistoryOpen) {
+                setInspectorOpen(false)
+                setEvidenceTarget(null)
+              }
             }}
             className={`cyber-btn-sm ${runHistoryOpen ? 'cyber-btn-primary' : 'cyber-btn-secondary'} text-xs`}
           >
@@ -355,7 +364,10 @@ export default function ChatPage() {
           <button
             onClick={() => {
               setInspectorOpen(!inspectorOpen)
-              if (!inspectorOpen) setRunHistoryOpen(false)
+              if (!inspectorOpen) {
+                setRunHistoryOpen(false)
+                setEvidenceTarget(null)
+              }
             }}
             className={`cyber-btn-sm ${inspectorOpen ? 'cyber-btn-primary' : 'cyber-btn-secondary'} text-xs`}
           >
@@ -534,6 +546,14 @@ export default function ChatPage() {
                         if (eventId) setLastRecEventId(eventId)
                         if (action.type === 'switch_autonomy') {
                           localStorage.setItem('autonomy-level', action.payload.level as string)
+                        } else if (action.type === 'inspect_evidence') {
+                          setEvidenceTarget({
+                            recommendationId: action.payload.recommendationId as string,
+                            recommendationType: action.payload.recommendationType as string,
+                            label: action.payload.recommendationLabel as string,
+                          })
+                          setInspectorOpen(false)
+                          setRunHistoryOpen(false)
                         }
                       }}
                       onDismiss={() => setIntelligenceDismissed(true)}
@@ -716,6 +736,30 @@ export default function ChatPage() {
               // handled internally by RunHistoryPanel
             }}
             onClose={() => setRunHistoryOpen(false)}
+          />
+        )}
+        {evidenceTarget && selectedSession && (
+          <EvidenceSheet
+            recommendationId={evidenceTarget.recommendationId}
+            recommendationType={evidenceTarget.recommendationType}
+            label={evidenceTarget.label}
+            sessionId={selectedSession}
+            userInput={newMessage.length > 5 ? newMessage : undefined}
+            agentIds={selectedAgents.length > 0 ? selectedAgents : undefined}
+            onClose={() => setEvidenceTarget(null)}
+            onNavigateToRun={(runId) => {
+              setEvidenceTarget(null)
+              handleInspect({
+                type: 'run',
+                runId,
+                status: 'unknown',
+                agentNames: [],
+                stepCount: 0,
+                durationMs: null,
+                startedAt: new Date(),
+                memoryCount: 0,
+              })
+            }}
           />
         )}
       </div>

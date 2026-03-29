@@ -24,6 +24,7 @@ import {
   CognitionManager,
 } from '../services/intelligence'
 import {
+  buildEvidencePayload,
   buildRecommendations,
   computeBlendedScore,
   findSimilarRuns,
@@ -684,6 +685,22 @@ export const intelligenceRouter = router({
       )
 
       return enhanced.sort((a, b) => b.confidence - a.confidence)
+    }),
+
+  /** Get structured evidence for a specific recommendation */
+  getRecommendationEvidence: protectedProcedure
+    .input(
+      z.object({
+        recommendationId: z.string(),
+        recommendationType: z.string(),
+        label: z.string(),
+        sessionId: z.string().uuid(),
+        userInput: z.string().optional(),
+        agentIds: z.array(z.string()).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return buildEvidencePayload(ctx.db, input)
     }),
 
   /** Get cached workflow performance insights */
