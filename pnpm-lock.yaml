@@ -89,7 +89,7 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  apps/hospitality-app:
+  apps/legal-app:
     dependencies:
       jose:
         specifier: ^6.0.0
@@ -117,7 +117,7 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  apps/hospitality-brain:
+  apps/legal-brain:
     dependencies:
       '@solarc/brain-sdk':
         specifier: workspace:*
