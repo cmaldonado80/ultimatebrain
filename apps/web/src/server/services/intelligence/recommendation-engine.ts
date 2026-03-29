@@ -59,6 +59,71 @@ export function getPathRankWeights(mode: DecisionMode = 'balanced'): PathRankWei
   return PATH_RANK_WEIGHTS[mode]
 }
 
+// ── Mode Impact Explainability ────────────────────────────────────────
+
+export interface ModeImpact {
+  currentMode: DecisionMode
+  currentScore: number
+  baselineScore: number
+  delta: number
+  emphasized: string[]
+  deEmphasized: string[]
+  summary: string
+}
+
+const DIMENSION_LABELS: Record<string, string> = {
+  heuristic: 'pattern match',
+  effectiveness: 'proven outcomes',
+  quality: 'run quality',
+}
+
+/**
+ * Compute the impact of the current decision mode vs balanced baseline.
+ * Returns structured explanation of how mode affected the score.
+ */
+export function computeModeImpact(
+  baseConfidence: number,
+  stats: RecommendationStats | null,
+  avgQualityScore: number | null,
+  mode: DecisionMode,
+): ModeImpact | null {
+  if (mode === 'balanced') return null
+
+  const currentScore = computeBlendedScore(baseConfidence, stats, avgQualityScore, mode)
+  const baselineScore = computeBlendedScore(baseConfidence, stats, avgQualityScore, 'balanced')
+  const delta = Math.round((currentScore - baselineScore) * 100) / 100
+
+  const currentW = getDecisionWeights(mode)
+  const baselineW = getDecisionWeights('balanced')
+
+  const emphasized: string[] = []
+  const deEmphasized: string[] = []
+  for (const key of Object.keys(baselineW) as (keyof DecisionWeights)[]) {
+    const diff = currentW[key] - baselineW[key]
+    if (diff > 0.05) emphasized.push(DIMENSION_LABELS[key] ?? key)
+    if (diff < -0.05) deEmphasized.push(DIMENSION_LABELS[key] ?? key)
+  }
+
+  let summary: string
+  if (Math.abs(delta) < 0.02) {
+    summary = 'Mode has minimal impact on this recommendation'
+  } else if (delta > 0) {
+    summary = `Ranked higher in ${mode} mode (+${delta}) — ${emphasized.join(', ')} weighted more`
+  } else {
+    summary = `Ranked lower in ${mode} mode (${delta}) — ${deEmphasized.join(', ')} weighted less`
+  }
+
+  return {
+    currentMode: mode,
+    currentScore,
+    baselineScore,
+    delta,
+    emphasized,
+    deEmphasized,
+    summary,
+  }
+}
+
 export type RecommendationType =
   | 'workflow'
   | 'retry_strategy'
@@ -727,6 +792,7 @@ export interface RecommendationEvidencePayload {
     lowCount: number
   } | null
   tradeoff: TradeoffVector | null
+  modeImpact: ModeImpact | null
   explanationSummary: string
 }
 
@@ -743,6 +809,7 @@ export async function buildEvidencePayload(
     sessionId: string
     userInput?: string
     agentIds?: string[]
+    decisionMode?: DecisionMode
   },
 ): Promise<RecommendationEvidencePayload> {
   // 1. Get similar runs (same as when recommendation was generated)
@@ -950,6 +1017,14 @@ export async function buildEvidencePayload(
             })),
           )
         : null,
+    modeImpact: params.decisionMode
+      ? computeModeImpact(
+          baseHeuristic,
+          hasEffectiveness ? stats : null,
+          evAvgQuality,
+          params.decisionMode,
+        )
+      : null,
     explanationSummary: parts.join('. ') + '.',
   }
 }

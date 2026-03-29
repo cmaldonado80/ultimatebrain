@@ -45,6 +45,10 @@ interface Recommendation {
   action?: RecommendationAction
   stats?: RecommendationStats | null
   qualityScore?: number | null
+  modeImpact?: {
+    delta: number
+    summary: string
+  } | null
 }
 
 // ── Confidence Badge ──────────────────────────────────────────────────
@@ -337,6 +341,15 @@ export function IntelligenceCard({
                   </button>
                 </div>
                 <div className="text-[10px] text-slate-500 truncate">{rec.explanation}</div>
+                {rec.modeImpact && Math.abs(rec.modeImpact.delta) >= 0.02 && (
+                  <div
+                    className={`text-[9px] ${
+                      rec.modeImpact.delta > 0 ? 'text-neon-green' : 'text-slate-600'
+                    }`}
+                  >
+                    {rec.modeImpact.delta > 0 ? '↑' : '↓'} {rec.modeImpact.summary}
+                  </div>
+                )}
 
                 {/* Actions */}
                 {rec.action && (

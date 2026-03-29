@@ -759,6 +759,7 @@ export default function ChatPage() {
             sessionId={selectedSession}
             userInput={newMessage.length > 5 ? newMessage : undefined}
             agentIds={selectedAgents.length > 0 ? selectedAgents : undefined}
+            decisionMode={decisionMode}
             onClose={() => setEvidenceTarget(null)}
             onNavigateToRun={(runId) => {
               setEvidenceTarget(null)

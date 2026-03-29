@@ -54,6 +54,7 @@ interface EvidenceSheetProps {
   sessionId: string
   userInput?: string
   agentIds?: string[]
+  decisionMode?: string
   onClose: () => void
   onNavigateToRun?: (runId: string) => void
 }
@@ -65,11 +66,28 @@ export function EvidenceSheet({
   sessionId,
   userInput,
   agentIds,
+  decisionMode,
   onClose,
   onNavigateToRun,
 }: EvidenceSheetProps) {
+  const castMode = decisionMode as
+    | 'balanced'
+    | 'quality'
+    | 'speed'
+    | 'stability'
+    | 'simplicity'
+    | undefined
+
   const query = trpc.intelligence.getRecommendationEvidence.useQuery(
-    { recommendationId, recommendationType, label, sessionId, userInput, agentIds },
+    {
+      recommendationId,
+      recommendationType,
+      label,
+      sessionId,
+      userInput,
+      agentIds,
+      decisionMode: castMode,
+    },
     { staleTime: 60_000, refetchOnWindowFocus: false },
   )
 
@@ -166,6 +184,67 @@ export function EvidenceSheet({
                 <ScoreBar label="Speed" value={data.tradeoff.speed} />
                 <ScoreBar label="Stability" value={data.tradeoff.stability} />
                 <ScoreBar label="Simplicity" value={data.tradeoff.complexity} />
+              </div>
+            )}
+
+            {/* Decision Mode Impact */}
+            {data.modeImpact && (
+              <div className="cyber-card p-2.5 space-y-1.5">
+                <SectionLabel text="Decision Mode Impact" />
+                <div className="text-[10px] text-slate-400">{data.modeImpact.summary}</div>
+                <div className="flex items-center gap-3 text-[10px]">
+                  <div>
+                    <span className="text-slate-500">Balanced: </span>
+                    <span className="font-mono text-slate-300">
+                      {Math.round(data.modeImpact.baselineScore * 100)}%
+                    </span>
+                  </div>
+                  <span className="text-slate-600">→</span>
+                  <div>
+                    <span className="text-slate-500">{data.modeImpact.currentMode}: </span>
+                    <span className="font-mono text-slate-300">
+                      {Math.round(data.modeImpact.currentScore * 100)}%
+                    </span>
+                  </div>
+                  <span
+                    className={`font-mono text-[9px] ${
+                      data.modeImpact.delta > 0
+                        ? 'text-neon-green'
+                        : data.modeImpact.delta < 0
+                          ? 'text-neon-red'
+                          : 'text-slate-500'
+                    }`}
+                  >
+                    {data.modeImpact.delta > 0 ? '+' : ''}
+                    {Math.round(data.modeImpact.delta * 100)}
+                  </span>
+                </div>
+                {data.modeImpact.emphasized.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-[9px] text-slate-600">Emphasized:</span>
+                    {data.modeImpact.emphasized.map((d) => (
+                      <span
+                        key={d}
+                        className="text-[8px] px-1 py-0.5 rounded bg-neon-green/10 text-neon-green"
+                      >
+                        ↑ {d}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {data.modeImpact.deEmphasized.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-[9px] text-slate-600">De-emphasized:</span>
+                    {data.modeImpact.deEmphasized.map((d) => (
+                      <span
+                        key={d}
+                        className="text-[8px] px-1 py-0.5 rounded bg-slate-700/50 text-slate-500"
+                      >
+                        ↓ {d}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
