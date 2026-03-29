@@ -3,6 +3,7 @@ import { a2aRouter } from './a2a'
 import { adaptiveRouter } from './adaptive'
 import { agentsRouter } from './agents'
 import { aitmplRouter } from './aitmpl'
+import { alertingRouter } from './alerting'
 import { approvalsRouter } from './approvals'
 import { browserAgentRouter } from './browser-agent'
 import { checkpointingRouter } from './checkpointing'
@@ -72,6 +73,7 @@ export const appRouter = router({
   visualQa: visualQaRouter,
   presence: presenceRouter,
   adaptive: adaptiveRouter,
+  alerting: alertingRouter,
   factory: miniBrainFactoryRouter,
   systemOrchestrator: systemOrchestratorRouter,
   models: modelRegistryRouter,

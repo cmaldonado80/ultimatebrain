@@ -21,6 +21,7 @@ import {
   entityTierEnum,
   projects,
 } from './core'
+import { anomalySeverityEnum } from './execution'
 
 // Brain entity hierarchy
 export const brainEntities = pgTable(
@@ -180,3 +181,42 @@ export const tokenBudgets = pgTable('token_budgets', {
   enforce: boolean('enforce').default(true),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
+
+// ── Alerting + Incidents ──────────────────────────────────────────────
+
+export const alertRules = pgTable('alert_rules', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  serviceScope: text('service_scope').notNull(),
+  condition: text('condition').notNull(),
+  threshold: real('threshold').notNull(),
+  windowMinutes: integer('window_minutes').default(5).notNull(),
+  severity: anomalySeverityEnum('severity').default('medium').notNull(),
+  enabled: boolean('enabled').default(true).notNull(),
+  createdBy: uuid('created_by'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const incidents = pgTable(
+  'incidents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ruleId: uuid('rule_id'),
+    serviceId: text('service_id').notNull(),
+    serviceName: text('service_name').notNull(),
+    severity: anomalySeverityEnum('severity').default('medium').notNull(),
+    status: text('status').default('triggered').notNull(),
+    message: text('message'),
+    triggeredAt: timestamp('triggered_at').defaultNow().notNull(),
+    acknowledgedAt: timestamp('acknowledged_at'),
+    acknowledgedBy: uuid('acknowledged_by'),
+    resolvedAt: timestamp('resolved_at'),
+    resolvedBy: uuid('resolved_by'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('incidents_status_idx').on(t.status),
+    index('incidents_triggered_idx').on(t.triggeredAt),
+  ],
+)
