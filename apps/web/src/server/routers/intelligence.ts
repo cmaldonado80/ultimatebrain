@@ -5,6 +5,8 @@
  * and inter-agent messaging for collaborative reasoning.
  */
 import type { Database } from '@solarc/db'
+import { chatRuns, chatRunSteps } from '@solarc/db'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { GatewayRouter } from '../services/gateway'
@@ -262,6 +264,44 @@ export const intelligenceRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getChatManager(ctx.db).deleteSession(input.id)
+    }),
+
+  // === Execution Run Tracking ===
+
+  /** Get a chat run with its steps */
+  getRun: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const run = await ctx.db.query.chatRuns.findFirst({
+        where: eq(chatRuns.id, input.runId),
+      })
+      if (!run) return null
+      const steps = await ctx.db.query.chatRunSteps.findMany({
+        where: eq(chatRunSteps.runId, input.runId),
+      })
+      return { run, steps: steps.sort((a, b) => a.sequence - b.sequence) }
+    }),
+
+  /** Get full (untruncated) tool result for a step */
+  getFullToolResult: protectedProcedure
+    .input(z.object({ stepId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const step = await ctx.db.query.chatRunSteps.findFirst({
+        where: eq(chatRunSteps.id, input.stepId),
+      })
+      return step
+        ? { toolName: step.toolName, toolInput: step.toolInput, toolResult: step.toolResult }
+        : null
+    }),
+
+  /** List runs for a session */
+  sessionRuns: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid(), limit: z.number().min(1).max(50).default(10) }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.chatRuns.findMany({
+        where: eq(chatRuns.sessionId, input.sessionId),
+        limit: input.limit,
+      })
     }),
 
   // === Agent Messaging ===

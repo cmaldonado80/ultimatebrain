@@ -62,6 +62,9 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       ['receipt_action_status', ['completed', 'rolled_back', 'failed']],
       ['anomaly_severity', ['low', 'medium', 'high', 'critical']],
       ['flow_status', ['draft', 'active', 'paused', 'archived']],
+      ['chat_run_status', ['running', 'completed', 'failed', 'retried']],
+      ['chat_step_type', ['agent', 'tool', 'synthesis']],
+      ['chat_step_status', ['running', 'completed', 'failed']],
     ]
 
     for (const [name, values] of enums) {
@@ -371,6 +374,36 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         status candidate_status DEFAULT 'pending',
         created_at timestamp NOT NULL DEFAULT now(),
         updated_at timestamp DEFAULT now()
+      )`,
+
+      // Chat runs + steps (execution tracking)
+      `CREATE TABLE IF NOT EXISTS chat_runs (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        session_id uuid NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+        user_message_id uuid REFERENCES chat_messages(id) ON DELETE SET NULL,
+        status chat_run_status DEFAULT 'running' NOT NULL,
+        agent_ids text[],
+        step_count integer DEFAULT 0,
+        retry_of_run_id uuid,
+        memory_count integer DEFAULT 0,
+        started_at timestamp NOT NULL DEFAULT now(),
+        completed_at timestamp,
+        duration_ms integer
+      )`,
+      `CREATE TABLE IF NOT EXISTS chat_run_steps (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        run_id uuid NOT NULL REFERENCES chat_runs(id) ON DELETE CASCADE,
+        sequence integer NOT NULL,
+        type chat_step_type NOT NULL,
+        agent_id uuid REFERENCES agents(id) ON DELETE SET NULL,
+        agent_name text,
+        tool_name text,
+        tool_input jsonb,
+        tool_result text,
+        status chat_step_status DEFAULT 'running' NOT NULL,
+        started_at timestamp NOT NULL DEFAULT now(),
+        completed_at timestamp,
+        duration_ms integer
       )`,
 
       // Memory vectors (pgvector)
