@@ -10,6 +10,10 @@ import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { computeAgentScorecard } from '../services/intelligence/agent-scorecard'
+import {
+  computeAgentSpecialization,
+  getAgentWorkspacePerformance,
+} from '../services/intelligence/agent-specialization'
 import { AGENT_SOULS } from '../services/orchestration/agents'
 import { protectedProcedure, router } from '../trpc'
 
@@ -371,5 +375,21 @@ export const agentsRouter = router({
       return scorecards
         .filter((s): s is NonNullable<typeof s> => s !== null)
         .sort((a, b) => (b.avgQualityScore ?? 0) - (a.avgQualityScore ?? 0))
+    }),
+
+  // === Agent Specialization ===
+
+  /** Detect specialization patterns for an agent */
+  getAgentSpecialization: protectedProcedure
+    .input(z.object({ agentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return computeAgentSpecialization(ctx.db, input.agentId)
+    }),
+
+  /** Get per-agent performance comparison within a workspace */
+  getAgentWorkspacePerformance: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return getAgentWorkspacePerformance(ctx.db, input.workspaceId)
     }),
 })
