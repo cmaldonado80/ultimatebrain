@@ -121,6 +121,8 @@ export async function POST(req: Request) {
     agentIds?: string[]
     retryOfRunId?: string
     retryType?: 'manual' | 'auto' | 'suggested'
+    retryScope?: 'run' | 'group' | 'step'
+    retryTargetId?: string
     retryReason?: string
     workflowId?: string
     workflowName?: string
@@ -284,6 +286,8 @@ export async function POST(req: Request) {
         memoryCount: memoryRecallCount,
         retryOfRunId: body.retryOfRunId ?? undefined,
         retryType: body.retryType ?? undefined,
+        retryScope: body.retryScope ?? undefined,
+        retryTargetId: body.retryTargetId ?? undefined,
         retryReason: body.retryReason ?? undefined,
         workflowId: body.workflowId ?? undefined,
         workflowName: body.workflowName ?? undefined,
@@ -307,7 +311,7 @@ export async function POST(req: Request) {
         if (runRecord) {
           controller.enqueue(
             encoder.encode(
-              `data: ${JSON.stringify({ type: 'run_started', runId: runRecord.id })}\n\n`,
+              `data: ${JSON.stringify({ type: 'run_started', runId: runRecord.id, retryScope: body.retryScope })}\n\n`,
             ),
           )
         }

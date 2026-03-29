@@ -31,6 +31,7 @@ export const chatStepTypeEnum = pgEnum('chat_step_type', ['agent', 'tool', 'synt
 export const chatStepStatusEnum = pgEnum('chat_step_status', ['running', 'completed', 'failed'])
 
 export const retryTypeEnum = pgEnum('retry_type', ['manual', 'auto', 'suggested'])
+export const retryScopeEnum = pgEnum('retry_scope', ['run', 'group', 'step'])
 export const runAutonomyEnum = pgEnum('run_autonomy', ['manual', 'assist', 'auto'])
 
 export const chatRuns = pgTable(
@@ -48,6 +49,8 @@ export const chatRuns = pgTable(
     stepCount: integer('step_count').default(0),
     retryOfRunId: uuid('retry_of_run_id'),
     retryType: retryTypeEnum('retry_type'),
+    retryScope: retryScopeEnum('retry_scope'),
+    retryTargetId: text('retry_target_id'),
     retryReason: text('retry_reason'),
     workflowId: uuid('workflow_id'),
     workflowName: text('workflow_name'),
@@ -87,6 +90,7 @@ export const chatRunSteps = pgTable(
   (t) => [
     index('chat_run_steps_run_idx').on(t.runId),
     index('chat_run_steps_sequence_idx').on(t.runId, t.sequence),
+    index('chat_run_steps_group_idx').on(t.groupId),
   ],
 )
 

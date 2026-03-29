@@ -335,6 +335,42 @@ export const intelligenceRouter = router({
       return saved
     }),
 
+  /** Get steps for a specific group within a run */
+  getGroupSteps: protectedProcedure
+    .input(z.object({ runId: z.string().uuid(), groupId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const steps = await ctx.db.query.chatRunSteps.findMany({
+        where: eq(chatRunSteps.runId, input.runId),
+      })
+      return steps
+        .filter((s) => s.groupId === input.groupId)
+        .sort((a, b) => a.sequence - b.sequence)
+    }),
+
+  /** Get a specific step with its context (adjacent steps in same group) */
+  getStepContext: protectedProcedure
+    .input(z.object({ stepId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const step = await ctx.db.query.chatRunSteps.findFirst({
+        where: eq(chatRunSteps.id, input.stepId),
+      })
+      if (!step) return null
+      const siblings = step.groupId
+        ? (
+            await ctx.db.query.chatRunSteps.findMany({
+              where: eq(chatRunSteps.runId, step.runId),
+            })
+          )
+            .filter((s) => s.groupId === step.groupId)
+            .sort((a, b) => a.sequence - b.sequence)
+        : [step]
+      return {
+        step,
+        siblings,
+        run: await ctx.db.query.chatRuns.findFirst({ where: eq(chatRuns.id, step.runId) }),
+      }
+    }),
+
   /** Get child runs (retries of a given run) */
   getChildRuns: protectedProcedure
     .input(z.object({ runId: z.string().uuid() }))
@@ -480,6 +516,12 @@ export const intelligenceRouter = router({
                 a: a.run.retryType ?? 'none',
                 b: b.run.retryType ?? 'none',
                 changed: a.run.retryType !== b.run.retryType,
+              },
+              {
+                key: 'Retry Scope',
+                a: a.run.retryScope ?? 'none',
+                b: b.run.retryScope ?? 'none',
+                changed: a.run.retryScope !== b.run.retryScope,
               },
             ],
           },

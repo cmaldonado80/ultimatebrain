@@ -51,17 +51,21 @@ function formatDuration(ms: number | null): string {
 function RetryLineageBadge({
   retryType,
   retryOfRunId,
+  retryScope,
 }: {
   retryType?: string | null
   retryOfRunId?: string | null
+  retryScope?: string | null
 }) {
   if (!retryOfRunId) return null
   const icon = RETRY_TYPE_ICON[retryType ?? 'manual'] ?? '↻'
-  const label =
-    retryType === 'auto' ? 'auto-retry' : retryType === 'suggested' ? 'suggested retry' : 'retry'
+  const scopeLabel =
+    retryScope === 'group' ? 'group retry' : retryScope === 'step' ? 'step retry' : 'retry'
+  const typePrefix = retryType === 'auto' ? 'auto-' : retryType === 'suggested' ? 'suggested ' : ''
   return (
     <span className="inline-flex items-center gap-1 text-[10px] text-neon-yellow bg-neon-yellow/10 px-1.5 py-0.5 rounded">
-      {icon} {label}
+      {icon} {typePrefix}
+      {scopeLabel}
     </span>
   )
 }
@@ -127,6 +131,8 @@ export function RunHistoryPanel({ sessionId, onSelectRun, onClose }: RunHistoryP
       memoryCount: run.memoryCount ?? 0,
       retryOfRunId: run.retryOfRunId,
       retryType: run.retryType,
+      retryScope: run.retryScope,
+      retryTargetId: run.retryTargetId,
       retryReason: run.retryReason,
       workflowId: run.workflowId,
       workflowName: run.workflowName,
@@ -219,7 +225,11 @@ export function RunHistoryPanel({ sessionId, onSelectRun, onClose }: RunHistoryP
                     className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[run.status] ?? 'bg-slate-500'}`}
                   />
                   <span className="text-xs text-slate-300">Run #{runs.length - idx}</span>
-                  <RetryLineageBadge retryType={run.retryType} retryOfRunId={run.retryOfRunId} />
+                  <RetryLineageBadge
+                    retryType={run.retryType}
+                    retryOfRunId={run.retryOfRunId}
+                    retryScope={run.retryScope}
+                  />
                   <WorkflowBadge workflowName={run.workflowName} />
                   <AutonomyBadge level={run.autonomyLevel} />
                 </div>

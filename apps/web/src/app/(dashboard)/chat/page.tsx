@@ -138,6 +138,25 @@ export default function ChatPage() {
     [messages, lastRunId, sendStream],
   )
 
+  /** Targeted retry: group-level */
+  const handleGroupRetry = useCallback(
+    (runId: string, groupId: string) => {
+      const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
+      if (!lastUserMsg) return
+      const autonomy =
+        (localStorage.getItem('autonomy-level') as 'manual' | 'assist' | 'auto') ?? 'manual'
+      sendStream(lastUserMsg.text, textareaRef, {
+        retryOfRunId: runId,
+        retryType: 'manual',
+        retryScope: 'group',
+        retryTargetId: groupId,
+        retryReason: `Retry group ${groupId}`,
+        autonomyLevel: autonomy,
+      })
+    },
+    [messages, sendStream],
+  )
+
   // ── Session delete ──────────────────────────────────────────────────
   const handleDelete = useCallback(
     async (id: string) => {
@@ -402,6 +421,11 @@ export default function ChatPage() {
                           key={i}
                           group={item as Parameters<typeof ExecutionGroup>[0]['group']}
                           onInspect={handleInspect}
+                          onRetryGroup={
+                            lastRunId
+                              ? (groupId) => handleGroupRetry(lastRunId, groupId)
+                              : undefined
+                          }
                         />
                       ) : (
                         <ThreadItem

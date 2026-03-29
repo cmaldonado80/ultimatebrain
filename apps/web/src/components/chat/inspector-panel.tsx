@@ -34,6 +34,8 @@ export type InspectorSelection =
       memoryCount: number
       retryOfRunId?: string | null
       retryType?: string | null
+      retryScope?: string | null
+      retryTargetId?: string | null
       retryReason?: string | null
       workflowId?: string | null
       workflowName?: string | null
@@ -217,7 +219,15 @@ function OverviewTab({
                       ? '↺'
                       : '↻'}
                 </span>
-                <span className="text-slate-400">{selection.retryType ?? 'manual'} retry of</span>
+                <span className="text-slate-400">
+                  {selection.retryType ?? 'manual'}{' '}
+                  {selection.retryScope === 'group'
+                    ? 'group retry'
+                    : selection.retryScope === 'step'
+                      ? 'step retry'
+                      : 'retry'}{' '}
+                  of
+                </span>
                 {onNavigateToRun ? (
                   <button
                     onClick={() => onNavigateToRun(selection.retryOfRunId!)}
@@ -231,6 +241,16 @@ function OverviewTab({
                   </span>
                 )}
               </div>
+              {selection.retryScope &&
+                selection.retryScope !== 'run' &&
+                selection.retryTargetId && (
+                  <div className="text-[10px] text-slate-500 truncate">
+                    Target:{' '}
+                    <span className="font-mono text-slate-400">
+                      {selection.retryTargetId.slice(0, 12)}...
+                    </span>
+                  </div>
+                )}
               {selection.retryReason && (
                 <div className="text-[10px] text-slate-500 truncate">
                   Reason: {selection.retryReason}
@@ -340,7 +360,12 @@ function DetailsTab({ selection }: { selection: NonNullable<InspectorSelection> 
             <Label text="Run Context" />
             {selection.retryOfRunId && (
               <div className="text-[10px] text-neon-yellow">
-                {selection.retryType ?? 'manual'} retry
+                {selection.retryType ?? 'manual'}{' '}
+                {selection.retryScope === 'group'
+                  ? 'group retry'
+                  : selection.retryScope === 'step'
+                    ? 'step retry'
+                    : 'retry'}
               </div>
             )}
             {selection.workflowName && (
@@ -405,6 +430,10 @@ function MetadataTab({ selection }: { selection: NonNullable<InspectorSelection>
             <InfoRow label="Retry Of" value={selection.retryOfRunId} mono />
           )}
           {selection.retryType && <InfoRow label="Retry Type" value={selection.retryType} />}
+          {selection.retryScope && <InfoRow label="Retry Scope" value={selection.retryScope} />}
+          {selection.retryTargetId && (
+            <InfoRow label="Retry Target" value={selection.retryTargetId} mono />
+          )}
           {selection.workflowId && (
             <InfoRow label="Workflow ID" value={selection.workflowId} mono />
           )}

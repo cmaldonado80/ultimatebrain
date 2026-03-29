@@ -50,6 +50,8 @@ export function sessionTitle(
 export interface StreamMeta {
   retryOfRunId?: string
   retryType?: 'manual' | 'auto' | 'suggested'
+  retryScope?: 'run' | 'group' | 'step'
+  retryTargetId?: string
   retryReason?: string
   workflowId?: string
   workflowName?: string
