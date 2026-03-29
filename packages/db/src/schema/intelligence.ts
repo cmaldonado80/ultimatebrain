@@ -30,6 +30,9 @@ export const chatStepTypeEnum = pgEnum('chat_step_type', ['agent', 'tool', 'synt
 
 export const chatStepStatusEnum = pgEnum('chat_step_status', ['running', 'completed', 'failed'])
 
+export const retryTypeEnum = pgEnum('retry_type', ['manual', 'auto', 'suggested'])
+export const runAutonomyEnum = pgEnum('run_autonomy', ['manual', 'assist', 'auto'])
+
 export const chatRuns = pgTable(
   'chat_runs',
   {
@@ -44,6 +47,12 @@ export const chatRuns = pgTable(
     agentIds: text('agent_ids').array(),
     stepCount: integer('step_count').default(0),
     retryOfRunId: uuid('retry_of_run_id'),
+    retryType: retryTypeEnum('retry_type'),
+    retryReason: text('retry_reason'),
+    workflowId: uuid('workflow_id'),
+    workflowName: text('workflow_name'),
+    autonomyLevel: runAutonomyEnum('autonomy_level').default('manual'),
+    autoActionsCount: integer('auto_actions_count').default(0),
     memoryCount: integer('memory_count').default(0),
     startedAt: timestamp('started_at').defaultNow().notNull(),
     completedAt: timestamp('completed_at'),

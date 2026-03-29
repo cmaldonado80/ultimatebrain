@@ -28,10 +28,62 @@ const STATUS_DOT: Record<string, string> = {
   retried: 'bg-neon-yellow',
 }
 
+const AUTONOMY_STYLE: Record<string, string> = {
+  manual: 'bg-slate-700/50 text-slate-400',
+  assist: 'bg-neon-blue/10 text-neon-blue',
+  auto: 'bg-neon-purple/10 text-neon-purple',
+}
+
+const RETRY_TYPE_ICON: Record<string, string> = {
+  manual: '↻',
+  auto: '⟳',
+  suggested: '↺',
+}
+
 function formatDuration(ms: number | null): string {
   if (ms === null) return '--'
   if (ms < 1000) return `${ms}ms`
   return `${(ms / 1000).toFixed(1)}s`
+}
+
+// ── Badge Components ──────────────────────────────────────────────────
+
+function RetryLineageBadge({
+  retryType,
+  retryOfRunId,
+}: {
+  retryType?: string | null
+  retryOfRunId?: string | null
+}) {
+  if (!retryOfRunId) return null
+  const icon = RETRY_TYPE_ICON[retryType ?? 'manual'] ?? '↻'
+  const label =
+    retryType === 'auto' ? 'auto-retry' : retryType === 'suggested' ? 'suggested retry' : 'retry'
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] text-neon-yellow bg-neon-yellow/10 px-1.5 py-0.5 rounded">
+      {icon} {label}
+    </span>
+  )
+}
+
+function WorkflowBadge({ workflowName }: { workflowName?: string | null }) {
+  if (!workflowName) return null
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] text-neon-blue bg-neon-blue/10 px-1.5 py-0.5 rounded truncate max-w-[120px]">
+      ▶ {workflowName}
+    </span>
+  )
+}
+
+function AutonomyBadge({ level }: { level?: string | null }) {
+  if (!level || level === 'manual') return null
+  return (
+    <span
+      className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded ${AUTONOMY_STYLE[level] ?? ''}`}
+    >
+      {level}
+    </span>
+  )
 }
 
 // ── RunHistoryPanel ───────────────────────────────────────────────────
@@ -39,6 +91,7 @@ function formatDuration(ms: number | null): string {
 interface RunHistoryPanelProps {
   sessionId: string
   onSelectRun: (sel: InspectorSelection) => void
+  onCompare?: (idA: string, idB: string) => void
   onClose: () => void
 }
 
@@ -63,18 +116,30 @@ export function RunHistoryPanel({ sessionId, onSelectRun, onClose }: RunHistoryP
       handleToggleSelect(run.id)
       return
     }
-    const agentNames = run.agentIds ?? []
     onSelectRun({
       type: 'run',
       runId: run.id,
       status: run.status,
-      agentNames,
+      agentNames: run.agentIds ?? [],
       stepCount: run.stepCount ?? 0,
       durationMs: run.durationMs,
       startedAt: run.startedAt,
       memoryCount: run.memoryCount ?? 0,
       retryOfRunId: run.retryOfRunId,
+      retryType: run.retryType,
+      retryReason: run.retryReason,
+      workflowId: run.workflowId,
+      workflowName: run.workflowName,
+      autonomyLevel: run.autonomyLevel,
+      autoActionsCount: run.autoActionsCount,
     })
+  }
+
+  /** Find the previous run (parent or chronologically prior) for quick compare */
+  const findCompareTarget = (run: (typeof runs)[number]): string | null => {
+    if (run.retryOfRunId) return run.retryOfRunId
+    const idx = runs.findIndex((r) => r.id === run.id)
+    return idx < runs.length - 1 ? (runs[idx + 1]?.id ?? null) : null
   }
 
   if (comparing) {
@@ -132,46 +197,84 @@ export function RunHistoryPanel({ sessionId, onSelectRun, onClose }: RunHistoryP
         )}
         {runs.map((run, idx) => {
           const isSelected = selectedIds.includes(run.id)
+          const compareTarget = findCompareTarget(run)
           return (
-            <button
+            <div
               key={run.id}
-              onClick={() => handleClickRun(run)}
-              className={`w-full text-left px-4 py-3 border-b border-border-dim transition-colors hover:bg-white/5 ${
+              className={`group relative border-b border-border-dim transition-colors hover:bg-white/5 ${
                 isSelected ? 'bg-neon-teal/5 ring-1 ring-inset ring-neon-teal/20' : ''
               }`}
             >
-              <div className="flex items-center gap-2 mb-1">
-                {compareMode && (
+              <button onClick={() => handleClickRun(run)} className="w-full text-left px-4 py-3">
+                {/* Row 1: status + number + badges */}
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  {compareMode && (
+                    <div
+                      className={`w-3 h-3 rounded border flex-shrink-0 ${
+                        isSelected ? 'bg-neon-teal border-neon-teal' : 'border-slate-600'
+                      }`}
+                    />
+                  )}
                   <div
-                    className={`w-3 h-3 rounded border ${
-                      isSelected ? 'bg-neon-teal border-neon-teal' : 'border-slate-600'
-                    }`}
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[run.status] ?? 'bg-slate-500'}`}
                   />
+                  <span className="text-xs text-slate-300">Run #{runs.length - idx}</span>
+                  <RetryLineageBadge retryType={run.retryType} retryOfRunId={run.retryOfRunId} />
+                  <WorkflowBadge workflowName={run.workflowName} />
+                  <AutonomyBadge level={run.autonomyLevel} />
+                </div>
+
+                {/* Row 2: stats */}
+                <div className="text-[10px] text-slate-500 flex gap-3 ml-4">
+                  <span>{(run.agentIds ?? []).length} agents</span>
+                  <span>{run.stepCount ?? 0} steps</span>
+                  <span>{formatDuration(run.durationMs)}</span>
+                  {(run.memoryCount ?? 0) > 0 && <span>{run.memoryCount} mem</span>}
+                </div>
+
+                {/* Row 3: retry reason if present */}
+                {run.retryReason && (
+                  <div className="text-[10px] text-slate-600 ml-4 mt-1 truncate">
+                    Reason: {run.retryReason}
+                  </div>
                 )}
-                <div
-                  className={`w-2 h-2 rounded-full ${STATUS_DOT[run.status] ?? 'bg-slate-500'}`}
-                />
-                <span className="text-xs text-slate-300">Run #{runs.length - idx}</span>
-                <span className="text-[10px] text-slate-500 ml-auto">{run.status}</span>
-              </div>
-              <div className="text-[10px] text-slate-500 flex gap-3 ml-4">
-                <span>{(run.agentIds ?? []).length} agents</span>
-                <span>{run.stepCount ?? 0} steps</span>
-                <span>{formatDuration(run.durationMs)}</span>
-                {(run.memoryCount ?? 0) > 0 && <span>{run.memoryCount} mem</span>}
-              </div>
-              {run.retryOfRunId && (
-                <div className="text-[10px] text-neon-yellow ml-4 mt-1">↻ retry of earlier run</div>
+
+                {/* Row 4: timestamp */}
+                <div className="text-[9px] text-slate-600 ml-4 mt-1">
+                  {new Date(run.startedAt).toLocaleString()}
+                </div>
+              </button>
+
+              {/* Quick compare button (hover) */}
+              {!compareMode && compareTarget && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setComparing({ idA: compareTarget, idB: run.id })
+                  }}
+                  className="absolute right-3 top-3 text-[9px] text-slate-600 hover:text-neon-teal bg-bg-elevated px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                  title={run.retryOfRunId ? 'Compare with parent' : 'Compare with previous'}
+                >
+                  {run.retryOfRunId ? '⇄ parent' : '⇄ prev'}
+                </button>
               )}
-              <div className="text-[9px] text-slate-600 ml-4 mt-1">
-                {new Date(run.startedAt).toLocaleString()}
-              </div>
-            </button>
+            </div>
           )
         })}
       </div>
     </div>
   )
+}
+
+// ── Verdict Badge ─────────────────────────────────────────────────────
+
+const VERDICT_STYLE: Record<string, { label: string; cls: string }> = {
+  'B improved': { label: 'Improved', cls: 'text-neon-green bg-neon-green/10' },
+  'B mixed': { label: 'Mixed', cls: 'text-neon-yellow bg-neon-yellow/10' },
+  similar: { label: 'Similar', cls: 'text-slate-400 bg-slate-700/50' },
+  'B recovered': { label: 'Recovered', cls: 'text-neon-green bg-neon-green/10' },
+  'B regressed': { label: 'Regressed', cls: 'text-neon-red bg-neon-red/10' },
+  inconclusive: { label: 'Inconclusive', cls: 'text-slate-500 bg-slate-700/50' },
 }
 
 // ── RunComparisonView ─────────────────────────────────────────────────
@@ -216,6 +319,19 @@ function RunComparisonView({ idA, idB, onBack, onClose }: RunComparisonViewProps
         )}
         {data && (
           <>
+            {/* Verdict */}
+            {data.verdict && (
+              <div className="flex items-center justify-center">
+                <span
+                  className={`text-[10px] font-orbitron px-3 py-1 rounded ${
+                    VERDICT_STYLE[data.verdict]?.cls ?? 'text-slate-500'
+                  }`}
+                >
+                  {VERDICT_STYLE[data.verdict]?.label ?? data.verdict}
+                </span>
+              </div>
+            )}
+
             {/* Run IDs header */}
             <div className="flex justify-between text-[10px] text-slate-500">
               <div>
@@ -237,36 +353,49 @@ function RunComparisonView({ idA, idB, onBack, onClose }: RunComparisonViewProps
             </div>
 
             {/* Diff sections */}
-            {data.sections.map((section: RunDiffSection) => (
-              <div key={section.label} className="cyber-card p-3">
-                <div className="text-[10px] font-orbitron text-slate-400 uppercase tracking-wider mb-2">
-                  {section.label}
-                </div>
-                <div className="space-y-1.5">
-                  {section.items.map((item: RunDiffItem) => (
-                    <div key={item.key} className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-500">{item.key}</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className={item.changed ? 'text-slate-400' : 'text-slate-500'}>
-                          {item.a ?? '--'}
-                        </span>
-                        <span className="text-slate-600">→</span>
-                        <span className={item.changed ? 'text-neon-yellow' : 'text-slate-500'}>
-                          {item.b ?? '--'}
-                        </span>
-                        {item.changed &&
-                          typeof item.a === 'number' &&
-                          typeof item.b === 'number' && (
-                            <span className={item.b > item.a ? 'text-neon-green' : 'text-neon-red'}>
-                              {item.b > item.a ? '↑' : '↓'}
-                            </span>
-                          )}
+            {data.sections.map((section: RunDiffSection) => {
+              const hasChanges = section.items.some((i: RunDiffItem) => i.changed)
+              if (!hasChanges) return null
+              return (
+                <div key={section.label} className="cyber-card p-3">
+                  <div className="text-[10px] font-orbitron text-slate-400 uppercase tracking-wider mb-2">
+                    {section.label}
+                  </div>
+                  <div className="space-y-1.5">
+                    {section.items.map((item: RunDiffItem) => (
+                      <div key={item.key} className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">{item.key}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className={item.changed ? 'text-slate-400' : 'text-slate-500'}>
+                            {item.a ?? '--'}
+                          </span>
+                          <span className="text-slate-600">→</span>
+                          <span className={item.changed ? 'text-neon-yellow' : 'text-slate-500'}>
+                            {item.b ?? '--'}
+                          </span>
+                          {item.changed &&
+                            typeof item.a === 'number' &&
+                            typeof item.b === 'number' && (
+                              <span
+                                className={item.b > item.a ? 'text-neon-green' : 'text-neon-red'}
+                              >
+                                {item.b > item.a ? '↑' : '↓'}
+                              </span>
+                            )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
+
+            {/* Unchanged sections note */}
+            {data.sections.every(
+              (s: RunDiffSection) => !s.items.some((i: RunDiffItem) => i.changed),
+            ) && (
+              <div className="text-center text-slate-600 text-xs py-4">No differences detected</div>
+            )}
           </>
         )}
       </div>

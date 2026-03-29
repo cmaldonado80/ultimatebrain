@@ -335,6 +335,16 @@ export const intelligenceRouter = router({
       return saved
     }),
 
+  /** Get child runs (retries of a given run) */
+  getChildRuns: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.chatRuns.findMany({
+        where: eq(chatRuns.retryOfRunId, input.runId),
+        orderBy: desc(chatRuns.startedAt),
+      })
+    }),
+
   /** Get memory usage for a specific run */
   getRunMemories: protectedProcedure
     .input(z.object({ runId: z.string().uuid() }))
@@ -374,9 +384,28 @@ export const intelligenceRouter = router({
           ? b.memoryUsage.reduce((sum, m) => sum + (m.confidence ?? 0), 0) / b.memoryUsage.length
           : null
 
+      const durationA = a.run.durationMs
+      const durationB = b.run.durationMs
+      const stepsA = a.run.stepCount ?? a.steps.length
+      const stepsB = b.run.stepCount ?? b.steps.length
+      const isFasterB = durationA !== null && durationB !== null && durationB < durationA
+      const isFewerStepsB = stepsB < stepsA
+
       return {
         runA: { id: a.run.id, status: a.run.status, startedAt: a.run.startedAt },
         runB: { id: b.run.id, status: b.run.status, startedAt: b.run.startedAt },
+        verdict:
+          a.run.status === 'completed' && b.run.status === 'completed'
+            ? isFasterB && isFewerStepsB
+              ? 'B improved'
+              : isFasterB || isFewerStepsB
+                ? 'B mixed'
+                : 'similar'
+            : b.run.status === 'completed' && a.run.status !== 'completed'
+              ? 'B recovered'
+              : a.run.status === 'completed' && b.run.status !== 'completed'
+                ? 'B regressed'
+                : 'inconclusive',
         sections: [
           {
             label: 'Outcome',
@@ -389,9 +418,9 @@ export const intelligenceRouter = router({
               },
               {
                 key: 'Duration (ms)',
-                a: a.run.durationMs,
-                b: b.run.durationMs,
-                changed: a.run.durationMs !== b.run.durationMs,
+                a: durationA,
+                b: durationB,
+                changed: durationA !== durationB,
               },
             ],
           },
@@ -400,10 +429,9 @@ export const intelligenceRouter = router({
             items: [
               {
                 key: 'Step Count',
-                a: a.run.stepCount ?? a.steps.length,
-                b: b.run.stepCount ?? b.steps.length,
-                changed:
-                  (a.run.stepCount ?? a.steps.length) !== (b.run.stepCount ?? b.steps.length),
+                a: stepsA,
+                b: stepsB,
+                changed: stepsA !== stepsB,
               },
               {
                 key: 'Agents Used',
@@ -435,6 +463,51 @@ export const intelligenceRouter = router({
                 a: avgConfA !== null ? Math.round(avgConfA * 100) / 100 : null,
                 b: avgConfB !== null ? Math.round(avgConfB * 100) / 100 : null,
                 changed: avgConfA !== avgConfB,
+              },
+            ],
+          },
+          {
+            label: 'Retry',
+            items: [
+              {
+                key: 'Is Retry',
+                a: a.run.retryOfRunId ? 'yes' : 'no',
+                b: b.run.retryOfRunId ? 'yes' : 'no',
+                changed: !!a.run.retryOfRunId !== !!b.run.retryOfRunId,
+              },
+              {
+                key: 'Retry Type',
+                a: a.run.retryType ?? 'none',
+                b: b.run.retryType ?? 'none',
+                changed: a.run.retryType !== b.run.retryType,
+              },
+            ],
+          },
+          {
+            label: 'Workflow',
+            items: [
+              {
+                key: 'Workflow',
+                a: a.run.workflowName ?? 'none',
+                b: b.run.workflowName ?? 'none',
+                changed: a.run.workflowId !== b.run.workflowId,
+              },
+            ],
+          },
+          {
+            label: 'Autonomy',
+            items: [
+              {
+                key: 'Level',
+                a: a.run.autonomyLevel ?? 'manual',
+                b: b.run.autonomyLevel ?? 'manual',
+                changed: a.run.autonomyLevel !== b.run.autonomyLevel,
+              },
+              {
+                key: 'Auto Actions',
+                a: a.run.autoActionsCount ?? 0,
+                b: b.run.autoActionsCount ?? 0,
+                changed: (a.run.autoActionsCount ?? 0) !== (b.run.autoActionsCount ?? 0),
               },
             ],
           },

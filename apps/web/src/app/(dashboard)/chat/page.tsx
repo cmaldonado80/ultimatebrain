@@ -75,6 +75,7 @@ export default function ChatPage() {
     streaming,
     streamEvents,
     optimisticText,
+    lastRunId,
     handleSend: sendStream,
     abort,
   } = useChatStream(selectedSession, selectedAgents, utils)
@@ -121,6 +122,22 @@ export default function ChatPage() {
     sendStream(text, textareaRef)
   }, [newMessage, sendStream])
 
+  /** Retry last message with lineage tracking */
+  const handleRetry = useCallback(
+    (retryType: 'manual' | 'suggested' = 'manual') => {
+      const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
+      if (!lastUserMsg) return
+      const autonomy =
+        (localStorage.getItem('autonomy-level') as 'manual' | 'assist' | 'auto') ?? 'manual'
+      sendStream(lastUserMsg.text, textareaRef, {
+        retryOfRunId: lastRunId ?? undefined,
+        retryType,
+        autonomyLevel: autonomy,
+      })
+    },
+    [messages, lastRunId, sendStream],
+  )
+
   // ── Session delete ──────────────────────────────────────────────────
   const handleDelete = useCallback(
     async (id: string) => {
@@ -147,7 +164,7 @@ export default function ChatPage() {
           createSession.mutateAsync({})
           break
         case 'retry':
-          handleSend()
+          handleRetry('manual')
           break
         case 'stop':
           abort()
@@ -171,7 +188,7 @@ export default function ChatPage() {
         }
       }
     },
-    [agents, createSession, handleSend, abort, selectedSession, sessionQuery.data],
+    [agents, createSession, handleRetry, abort, selectedSession, sessionQuery.data],
   )
 
   // ── @mention handler ────────────────────────────────────────────────
@@ -421,7 +438,8 @@ export default function ChatPage() {
                             agentName={lastAgent}
                             finalAnswerText={finalText}
                             onAction={(action) => {
-                              if (action === 'retry' || action === 'retry_different') handleSend()
+                              if (action === 'retry') handleRetry('manual')
+                              else if (action === 'retry_different') handleRetry('suggested')
                               else if (action === 'copy') navigator.clipboard.writeText(finalText)
                               else if (action === 'follow_up') textareaRef.current?.focus()
                               else if (action === 'second_opinion') setShowMentions(true)
@@ -575,7 +593,27 @@ export default function ChatPage() {
 
         {/* Right panel -- inspector or run history */}
         {inspectorOpen && (
-          <InspectorPanel selection={inspectorSelection} onClose={() => setInspectorOpen(false)} />
+          <InspectorPanel
+            selection={inspectorSelection}
+            onClose={() => setInspectorOpen(false)}
+            onCompareWithParent={() => {
+              setInspectorOpen(false)
+              setRunHistoryOpen(true)
+            }}
+            onNavigateToRun={(runId) => {
+              // Open inspector for the target run (minimal info)
+              handleInspect({
+                type: 'run',
+                runId,
+                status: 'unknown',
+                agentNames: [],
+                stepCount: 0,
+                durationMs: null,
+                startedAt: new Date(),
+                memoryCount: 0,
+              })
+            }}
+          />
         )}
         {runHistoryOpen && selectedSession && (
           <RunHistoryPanel
@@ -583,6 +621,9 @@ export default function ChatPage() {
             onSelectRun={(sel) => {
               handleInspect(sel)
               setRunHistoryOpen(false)
+            }}
+            onCompare={() => {
+              // handled internally by RunHistoryPanel
             }}
             onClose={() => setRunHistoryOpen(false)}
           />

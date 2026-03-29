@@ -115,7 +115,17 @@ export async function POST(req: Request) {
     return new Response('Too many requests', { status: 429, headers: { 'Retry-After': '60' } })
   }
 
-  const body = (await req.json()) as { sessionId: string; text: string; agentIds?: string[] }
+  const body = (await req.json()) as {
+    sessionId: string
+    text: string
+    agentIds?: string[]
+    retryOfRunId?: string
+    retryType?: 'manual' | 'auto' | 'suggested'
+    retryReason?: string
+    workflowId?: string
+    workflowName?: string
+    autonomyLevel?: 'manual' | 'assist' | 'auto'
+  }
   if (!body.sessionId || !body.text) {
     return new Response('Missing sessionId or text', { status: 400 })
   }
@@ -272,6 +282,12 @@ export async function POST(req: Request) {
         userMessageId: userMessage?.id,
         agentIds: agentConfigs.map((a) => a.id).filter(Boolean),
         memoryCount: memoryRecallCount,
+        retryOfRunId: body.retryOfRunId ?? undefined,
+        retryType: body.retryType ?? undefined,
+        retryReason: body.retryReason ?? undefined,
+        workflowId: body.workflowId ?? undefined,
+        workflowName: body.workflowName ?? undefined,
+        autonomyLevel: body.autonomyLevel ?? 'manual',
       })
       .returning()
     runRecord = r ?? null

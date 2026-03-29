@@ -47,6 +47,15 @@ export function sessionTitle(
   return new Date(createdAt).toLocaleDateString()
 }
 
+export interface StreamMeta {
+  retryOfRunId?: string
+  retryType?: 'manual' | 'auto' | 'suggested'
+  retryReason?: string
+  workflowId?: string
+  workflowName?: string
+  autonomyLevel?: 'manual' | 'assist' | 'auto'
+}
+
 export function useChatStream(
   selectedSession: string | null,
   selectedAgents: string[],
@@ -55,10 +64,15 @@ export function useChatStream(
   const [streaming, setStreaming] = useState(false)
   const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([])
   const [optimisticText, setOptimisticText] = useState<string | null>(null)
+  const [lastRunId, setLastRunId] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const handleSend = useCallback(
-    async (text: string, textareaRef?: React.RefObject<HTMLTextAreaElement | null>) => {
+    async (
+      text: string,
+      textareaRef?: React.RefObject<HTMLTextAreaElement | null>,
+      meta?: StreamMeta,
+    ) => {
       if (!selectedSession || !text.trim() || streaming) return
       const trimmed = text.trim()
       setOptimisticText(trimmed)
@@ -77,6 +91,7 @@ export function useChatStream(
             sessionId: selectedSession,
             text: trimmed,
             agentIds: selectedAgents.length > 0 ? selectedAgents : undefined,
+            ...meta,
           }),
           signal: controller.signal,
         })
@@ -154,6 +169,7 @@ export function useChatStream(
                   },
                 ])
               } else if (ev.type === 'run_started') {
+                setLastRunId(ev.runId as string)
                 setStreamEvents((p) => [...p, { type: 'run_started', runId: ev.runId as string }])
               } else if (ev.type === 'run_completed') {
                 setStreamEvents((p) => [
@@ -181,7 +197,16 @@ export function useChatStream(
               ...p,
               { type: 'error', message: `${(err as Error).message} — auto-retrying in 2s...` },
             ])
-            setTimeout(() => handleSend(trimmed, textareaRef), 2000)
+            setTimeout(
+              () =>
+                handleSend(trimmed, textareaRef, {
+                  ...meta,
+                  retryType: 'auto',
+                  retryReason: (err as Error).message,
+                  autonomyLevel: 'auto',
+                }),
+              2000,
+            )
           } else {
             setStreamEvents((p) => [...p, { type: 'error', message: (err as Error).message }])
           }
@@ -201,5 +226,5 @@ export function useChatStream(
     abortRef.current?.abort()
   }, [])
 
-  return { streaming, streamEvents, optimisticText, handleSend, abort, setStreamEvents }
+  return { streaming, streamEvents, optimisticText, lastRunId, handleSend, abort, setStreamEvents }
 }
