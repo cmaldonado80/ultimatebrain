@@ -6,6 +6,7 @@
  */
 import {
   astrologyCharts,
+  astrologyEngagement,
   astrologyRelationships,
   astrologyReports,
   astrologyShareTokens,
@@ -307,5 +308,48 @@ export const astrologyRouter = router({
         .set({ revokedAt: new Date() })
         .where(eq(astrologyShareTokens.id, input.id))
       return { revoked: true }
+    }),
+
+  // ── Engagement ──────────────────────────────────────────────────────
+
+  /** Get last-seen timestamp for a chart */
+  getLastSeen: protectedProcedure
+    .input(z.object({ chartId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const record = await ctx.db.query.astrologyEngagement.findFirst({
+        where: and(
+          eq(astrologyEngagement.userId, ctx.session.userId),
+          eq(astrologyEngagement.chartId, input.chartId),
+        ),
+      })
+      return record ? { lastSeenAt: record.lastSeenAt.toISOString() } : null
+    }),
+
+  /** Update last-seen timestamp (upsert) */
+  updateLastSeen: protectedProcedure
+    .input(z.object({ chartId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.astrologyEngagement.findFirst({
+        where: and(
+          eq(astrologyEngagement.userId, ctx.session.userId),
+          eq(astrologyEngagement.chartId, input.chartId),
+        ),
+      })
+
+      const now = new Date()
+      if (existing) {
+        await ctx.db
+          .update(astrologyEngagement)
+          .set({ lastSeenAt: now })
+          .where(eq(astrologyEngagement.id, existing.id))
+      } else {
+        await ctx.db.insert(astrologyEngagement).values({
+          userId: ctx.session.userId,
+          chartId: input.chartId,
+          lastSeenAt: now,
+        })
+      }
+
+      return { lastSeenAt: now.toISOString() }
     }),
 })

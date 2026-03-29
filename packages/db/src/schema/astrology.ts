@@ -95,3 +95,18 @@ export const astrologyShareTokens = pgTable(
     index('share_tokens_resource_idx').on(t.resourceType, t.resourceId),
   ],
 )
+
+// ── Engagement State ─────────────────────────────────────────────────
+
+export const astrologyEngagement = pgTable(
+  'astrology_engagement',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull(),
+    chartId: uuid('chart_id')
+      .references(() => astrologyCharts.id, { onDelete: 'cascade' })
+      .notNull(),
+    lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
+  },
+  (t) => [index('engagement_user_chart_idx').on(t.userId, t.chartId)],
+)

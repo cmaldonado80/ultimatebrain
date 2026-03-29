@@ -210,3 +210,19 @@ export async function getSharedResource(token: string): Promise<Record<string, u
   if (!res.ok) throw new AstrologyBrainError('Not found or revoked', 404)
   return res.json()
 }
+
+// ── Engagement ──────────────────────────────────────────────────────
+
+export async function getLastSeen(chartId: string): Promise<{ lastSeenAt: string } | null> {
+  const res = await fetch(`/api/engagement?chartId=${chartId}`)
+  if (!res.ok) return null
+  return res.json()
+}
+
+export async function updateLastSeen(chartId: string): Promise<void> {
+  await fetch('/api/engagement', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chartId }),
+  })
+}
