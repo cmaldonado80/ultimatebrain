@@ -43,6 +43,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Monitoring',
     items: [
+      { label: 'Runtime Status', href: '/ops/status', icon: '●' },
       { label: 'Traces', href: '/ops/traces', icon: '⋯' },
       { label: 'Evals', href: '/ops/evals', icon: '✓' },
       { label: 'Gateway', href: '/ops/gateway', icon: '⇄' },
