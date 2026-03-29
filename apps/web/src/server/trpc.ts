@@ -1,8 +1,8 @@
 import type { Database } from '@solarc/db'
-import { workspaces } from '@solarc/db'
 import { initTRPC, TRPCError } from '@trpc/server'
-import { eq } from 'drizzle-orm'
 import superjson from 'superjson'
+
+import { can } from './services/platform/permissions'
 
 export interface TRPCContext {
   db: Database
@@ -25,13 +25,18 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 })
 export const middleware = t.middleware
 
+/**
+ * Workspace access check — verifies user has at least read access to the workspace.
+ * Uses real permission system: checks global roles + workspace membership.
+ */
 const workspaceAccess = middleware(async ({ ctx, input, next }) => {
   const workspaceId = (input as Record<string, unknown>)?.workspaceId
   if (typeof workspaceId === 'string' && ctx.session?.userId) {
-    const membership = await ctx.db.query.workspaces.findFirst({
-      where: eq(workspaces.id, workspaceId),
+    const allowed = await can(ctx.db, ctx.session.userId, 'read', {
+      type: 'workspace',
+      id: workspaceId,
     })
-    if (!membership) {
+    if (!allowed) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'No access to this workspace' })
     }
   }

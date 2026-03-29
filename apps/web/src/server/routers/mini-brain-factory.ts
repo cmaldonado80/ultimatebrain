@@ -15,7 +15,9 @@ import { z } from 'zod'
 import { MiniBrainFactory, type MiniBrainTemplate } from '../services/mini-brain-factory/factory'
 import { createNeonBranch, deleteNeonBranch, maskConnectionUri } from '../services/neon/neon-api'
 import { getAgentSoul } from '../services/orchestration/agents'
+import { auditEvent } from '../services/platform/audit'
 import { generateEntityApiKey } from '../services/platform/entity-auth'
+import { assertPermission } from '../services/platform/permissions'
 import { protectedProcedure, router } from '../trpc'
 
 let _factory: MiniBrainFactory | null = null
@@ -76,6 +78,9 @@ export const miniBrainFactoryRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Governance: only platform_owner can create Mini Brains
+      await assertPermission(ctx.db, ctx.session.userId, 'create_brain')
+
       const template = getFactory().getTemplate(input.template as MiniBrainTemplate)
       if (!template) throw new Error(`Template '${input.template}' not found`)
 
@@ -255,6 +260,20 @@ export const miniBrainFactoryRouter = router({
         }
       }
 
+      // Audit: log Mini Brain creation
+      await auditEvent(
+        ctx.db,
+        ctx.session.userId,
+        'create_mini_brain',
+        'brain_entity',
+        txResult.entity.id,
+        {
+          template: template.id,
+          name: input.name,
+          workspaceId: txResult.ws.id,
+        },
+      )
+
       return {
         entity: {
           id: txResult.entity.id,
@@ -275,11 +294,16 @@ export const miniBrainFactoryRouter = router({
   regenerateEntityApiKey: protectedProcedure
     .input(z.object({ entityId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      await assertPermission(ctx.db, ctx.session.userId, 'rotate_key', {
+        type: 'brain_entity',
+        id: input.entityId,
+      })
       const { apiKey, apiKeyHash } = generateEntityApiKey()
       await ctx.db
         .update(brainEntities)
         .set({ apiKeyHash })
         .where(eq(brainEntities.id, input.entityId))
+      await auditEvent(ctx.db, ctx.session.userId, 'rotate_key', 'brain_entity', input.entityId)
       return { apiKey }
     }),
 
