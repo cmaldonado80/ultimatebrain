@@ -4,12 +4,17 @@
  * All records are org-scoped. The astrology Development app calls these
  * via its proxy routes through the Brain web app's tRPC endpoint.
  */
-import { astrologyCharts, astrologyRelationships, astrologyReports } from '@solarc/db'
+import {
+  astrologyCharts,
+  astrologyRelationships,
+  astrologyReports,
+  astrologyShareTokens,
+} from '@solarc/db'
 import { TRPCError } from '@trpc/server'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 
-import { protectedProcedure, router } from '../trpc'
+import { protectedProcedure, publicProcedure, router } from '../trpc'
 
 export const astrologyRouter = router({
   // ── Charts ──────────────────────────────────────────────────────────
@@ -195,5 +200,112 @@ export const astrologyRouter = router({
       })
       if (!rel) throw new TRPCError({ code: 'NOT_FOUND' })
       return rel
+    }),
+
+  // ── Sharing ─────────────────────────────────────────────────────────
+
+  /** Create a share token for a report or relationship */
+  createShareToken: protectedProcedure
+    .input(
+      z.object({
+        resourceType: z.enum(['report', 'relationship']),
+        resourceId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify resource exists and belongs to user's org
+      if (input.resourceType === 'report') {
+        const report = await ctx.db.query.astrologyReports.findFirst({
+          where: and(
+            eq(astrologyReports.id, input.resourceId),
+            eq(astrologyReports.organizationId, ctx.session.organizationId),
+          ),
+        })
+        if (!report) throw new TRPCError({ code: 'NOT_FOUND' })
+      } else {
+        const rel = await ctx.db.query.astrologyRelationships.findFirst({
+          where: and(
+            eq(astrologyRelationships.id, input.resourceId),
+            eq(astrologyRelationships.organizationId, ctx.session.organizationId),
+          ),
+        })
+        if (!rel) throw new TRPCError({ code: 'NOT_FOUND' })
+      }
+
+      const token = crypto.randomUUID().replace(/-/g, '')
+
+      const [shareToken] = await ctx.db
+        .insert(astrologyShareTokens)
+        .values({
+          resourceType: input.resourceType,
+          resourceId: input.resourceId,
+          token,
+          createdByUserId: ctx.session.userId,
+          organizationId: ctx.session.organizationId,
+        })
+        .returning()
+
+      if (!shareToken) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
+      return { token, id: shareToken.id }
+    }),
+
+  /** Get a shared resource by token (PUBLIC — no auth required) */
+  getSharedResource: publicProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const shareToken = await ctx.db.query.astrologyShareTokens.findFirst({
+        where: and(
+          eq(astrologyShareTokens.token, input.token),
+          isNull(astrologyShareTokens.revokedAt),
+        ),
+      })
+      if (!shareToken)
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Link not found or revoked' })
+
+      if (shareToken.resourceType === 'report') {
+        const report = await ctx.db.query.astrologyReports.findFirst({
+          where: eq(astrologyReports.id, shareToken.resourceId),
+        })
+        if (!report) throw new TRPCError({ code: 'NOT_FOUND' })
+        return {
+          type: 'report' as const,
+          reportType: report.reportType,
+          sections: report.sections,
+          summary: report.summary,
+          createdAt: report.createdAt,
+        }
+      }
+
+      const rel = await ctx.db.query.astrologyRelationships.findFirst({
+        where: eq(astrologyRelationships.id, shareToken.resourceId),
+      })
+      if (!rel) throw new TRPCError({ code: 'NOT_FOUND' })
+      return {
+        type: 'relationship' as const,
+        personAName: rel.personAName,
+        personBName: rel.personBName,
+        compatibilityScore: rel.compatibilityScore,
+        synastryData: rel.synastryData,
+        narrative: rel.narrative,
+        createdAt: rel.createdAt,
+      }
+    }),
+
+  /** Revoke a share token */
+  revokeShareToken: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const token = await ctx.db.query.astrologyShareTokens.findFirst({
+        where: and(
+          eq(astrologyShareTokens.id, input.id),
+          eq(astrologyShareTokens.organizationId, ctx.session.organizationId),
+        ),
+      })
+      if (!token) throw new TRPCError({ code: 'NOT_FOUND' })
+      await ctx.db
+        .update(astrologyShareTokens)
+        .set({ revokedAt: new Date() })
+        .where(eq(astrologyShareTokens.id, input.id))
+      return { revoked: true }
     }),
 })

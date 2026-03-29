@@ -956,6 +956,17 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         created_at timestamp NOT NULL DEFAULT now()
       )`,
       `CREATE INDEX IF NOT EXISTS astrology_relationships_org_idx ON astrology_relationships(organization_id)`,
+      `CREATE TABLE IF NOT EXISTS astrology_share_tokens (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        resource_type text NOT NULL,
+        resource_id uuid NOT NULL,
+        token text UNIQUE NOT NULL,
+        created_by_user_id uuid,
+        organization_id uuid,
+        revoked_at timestamp,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS share_tokens_token_idx ON astrology_share_tokens(token)`,
     ]
     for (const stmt of alterStatements) {
       await client.query(stmt).catch(() => {})

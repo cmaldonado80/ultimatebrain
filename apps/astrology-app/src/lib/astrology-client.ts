@@ -190,3 +190,23 @@ export async function getRelationship(id: string): Promise<SavedRelationship> {
   if (!res.ok) throw new AstrologyBrainError('Relationship not found', 404)
   return res.json()
 }
+
+// ── Sharing ─────────────────────────────────────────────────────────
+
+export interface ShareLinkResult {
+  token: string
+  id: string
+}
+
+export async function createShareLink(
+  resourceType: 'report' | 'relationship',
+  resourceId: string,
+): Promise<ShareLinkResult> {
+  return post('/api/share', { resourceType, resourceId })
+}
+
+export async function getSharedResource(token: string): Promise<Record<string, unknown>> {
+  const res = await fetch(`/api/share/${token}`)
+  if (!res.ok) throw new AstrologyBrainError('Not found or revoked', 404)
+  return res.json()
+}

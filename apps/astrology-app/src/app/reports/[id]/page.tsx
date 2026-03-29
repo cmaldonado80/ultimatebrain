@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-import { getReport, type SavedReport } from '@/lib/astrology-client'
+import { createShareLink, getReport, type SavedReport } from '@/lib/astrology-client'
 
 interface Section {
   title: string
@@ -19,6 +19,9 @@ export default function ReportDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<number | null>(0)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [sharing, setSharing] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
 
   useEffect(() => {
     getReport(reportId)
@@ -73,6 +76,70 @@ export default function ReportDetailPage() {
           </div>
         )}
 
+        {/* Action bar */}
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={async () => {
+              setSharing(true)
+              try {
+                const result = await createShareLink('report', reportId)
+                const url = `${window.location.origin}/share/${result.token}`
+                setShareUrl(url)
+                await navigator.clipboard.writeText(url)
+                setCopied('link')
+                setTimeout(() => setCopied(null), 2000)
+              } catch {
+                // silent
+              } finally {
+                setSharing(false)
+              }
+            }}
+            disabled={sharing}
+            className="text-xs px-3 py-1.5 rounded bg-purple-600/80 hover:bg-purple-500 text-white border-none cursor-pointer disabled:opacity-50"
+          >
+            {sharing ? 'Creating...' : shareUrl ? 'Reshare' : 'Share'}
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="text-xs px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 cursor-pointer"
+          >
+            Print / PDF
+          </button>
+          {report.summary && (
+            <button
+              onClick={async () => {
+                await navigator.clipboard.writeText(report.summary!)
+                setCopied('summary')
+                setTimeout(() => setCopied(null), 2000)
+              }}
+              className="text-xs px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 cursor-pointer"
+            >
+              {copied === 'summary' ? 'Copied!' : 'Copy Summary'}
+            </button>
+          )}
+          {copied === 'link' && <span className="text-xs text-green-400">Link copied!</span>}
+        </div>
+
+        {shareUrl && (
+          <div className="bg-[#0a0f1a] border border-purple-500/20 rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
+            <input
+              readOnly
+              value={shareUrl}
+              className="flex-1 bg-transparent text-xs text-slate-400 font-mono border-none outline-none"
+            />
+            <button
+              onClick={async () => {
+                await navigator.clipboard.writeText(shareUrl)
+                setCopied('link')
+                setTimeout(() => setCopied(null), 2000)
+              }}
+              className="text-xs text-purple-400 hover:text-purple-300 bg-transparent border-none cursor-pointer"
+            >
+              Copy
+            </button>
+          </div>
+        )}
+
         {/* Sections */}
         <div className="space-y-2 mb-6">
           {sections.map((section, i) => (
@@ -86,7 +153,19 @@ export default function ReportDetailPage() {
               </button>
               {expanded === i && (
                 <div className="px-4 pb-4 border-t border-white/5">
-                  <pre className="text-xs text-slate-400 whitespace-pre-wrap leading-relaxed mt-3">
+                  <div className="flex justify-end mt-2">
+                    <button
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(section.content)
+                        setCopied(`s${i}`)
+                        setTimeout(() => setCopied(null), 1500)
+                      }}
+                      className="text-[10px] text-slate-600 hover:text-slate-400 bg-transparent border-none cursor-pointer"
+                    >
+                      {copied === `s${i}` ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <pre className="text-xs text-slate-400 whitespace-pre-wrap leading-relaxed mt-1">
                     {section.content}
                   </pre>
                   {section.narrative && (

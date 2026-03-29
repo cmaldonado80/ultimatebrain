@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-import { getRelationship, type SavedRelationship } from '@/lib/astrology-client'
+import { createShareLink, getRelationship, type SavedRelationship } from '@/lib/astrology-client'
 
 const ASPECT_COLOR: Record<string, string> = {
   Conjunction: 'text-purple-400',
@@ -27,6 +27,9 @@ export default function RelationshipDetailPage() {
   const [rel, setRel] = useState<SavedRelationship | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [sharing, setSharing] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
 
   useEffect(() => {
     getRelationship(relId)
@@ -86,6 +89,65 @@ export default function RelationshipDetailPage() {
             {new Date(rel.createdAt).toLocaleString()}
           </div>
         </div>
+
+        {/* Action bar */}
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={async () => {
+              setSharing(true)
+              try {
+                const result = await createShareLink('relationship', relId)
+                const url = `${window.location.origin}/share/${result.token}`
+                setShareUrl(url)
+                await navigator.clipboard.writeText(url)
+                setCopied('link')
+                setTimeout(() => setCopied(null), 2000)
+              } catch {
+                // silent
+              } finally {
+                setSharing(false)
+              }
+            }}
+            disabled={sharing}
+            className="text-xs px-3 py-1.5 rounded bg-purple-600/80 hover:bg-purple-500 text-white border-none cursor-pointer disabled:opacity-50"
+          >
+            {sharing ? 'Creating...' : shareUrl ? 'Reshare' : 'Share'}
+          </button>
+          {rel.narrative && (
+            <button
+              onClick={async () => {
+                const text = `${rel.personAName} + ${rel.personBName}: ${rel.compatibilityScore ?? '—'}% compatibility\n\n${rel.narrative}`
+                await navigator.clipboard.writeText(text)
+                setCopied('summary')
+                setTimeout(() => setCopied(null), 2000)
+              }}
+              className="text-xs px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 cursor-pointer"
+            >
+              {copied === 'summary' ? 'Copied!' : 'Copy Summary'}
+            </button>
+          )}
+          {copied === 'link' && <span className="text-xs text-green-400">Link copied!</span>}
+        </div>
+
+        {shareUrl && (
+          <div className="bg-[#0a0f1a] border border-purple-500/20 rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
+            <input
+              readOnly
+              value={shareUrl}
+              className="flex-1 bg-transparent text-xs text-slate-400 font-mono border-none outline-none"
+            />
+            <button
+              onClick={async () => {
+                await navigator.clipboard.writeText(shareUrl)
+                setCopied('link')
+                setTimeout(() => setCopied(null), 2000)
+              }}
+              className="text-xs text-purple-400 hover:text-purple-300 bg-transparent border-none cursor-pointer"
+            >
+              Copy
+            </button>
+          </div>
+        )}
 
         {/* Composite highlights */}
         {composite && (

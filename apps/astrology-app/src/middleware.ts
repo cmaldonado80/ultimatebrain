@@ -14,7 +14,9 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
   if (
     pathname.startsWith('/signin') ||
+    pathname.startsWith('/share') ||
     pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/share') ||
     pathname.startsWith('/_next') ||
     pathname === '/favicon.ico'
   ) {
