@@ -17,7 +17,10 @@ import { auth } from '../../../../server/auth'
 import { buildAtlasContext } from '../../../../server/services/atlas'
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
 import { GatewayRouter } from '../../../../server/services/gateway'
-import { refreshInsights } from '../../../../server/services/intelligence/recommendation-engine'
+import {
+  computeRunQualityScore,
+  refreshInsights,
+} from '../../../../server/services/intelligence/recommendation-engine'
 import { ContextPipeline } from '../../../../server/services/memory/context-pipeline'
 import { createEmbedFn } from '../../../../server/services/memory/embed-helper'
 import { MemoryService } from '../../../../server/services/memory/memory-service'
@@ -807,7 +810,8 @@ export async function POST(req: Request) {
             ),
           )
 
-          // Fire-and-forget: refresh workflow insights with latest run data
+          // Fire-and-forget: compute quality + refresh insights
+          computeRunQualityScore(db, runRecord.id).catch(() => {})
           refreshInsights(db, runRecord.id ? undefined : undefined).catch(() => {})
         }
 
@@ -829,6 +833,8 @@ export async function POST(req: Request) {
           } catch {
             // Non-blocking
           }
+          // Fire-and-forget: compute quality for failed run
+          computeRunQualityScore(db, runRecord.id).catch(() => {})
         }
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`))
         controller.close()

@@ -42,6 +42,8 @@ export type InspectorSelection =
       autonomyLevel?: string | null
       autoActionsCount?: number | null
       recommendationSource?: string | null
+      qualityScore?: number | null
+      qualityLabel?: string | null
     }
   | null
 
@@ -328,6 +330,29 @@ function OverviewTab({
                     {selection.autoActionsCount !== 1 ? 's' : ''}
                   </span>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Quality section */}
+          {selection.qualityScore != null && (
+            <div className="cyber-card p-2.5 space-y-1">
+              <Label text="Quality" />
+              <div className="flex items-center gap-2 text-[10px]">
+                <span
+                  className={`px-1.5 py-0.5 rounded ${
+                    selection.qualityLabel === 'high'
+                      ? 'bg-neon-green/10 text-neon-green'
+                      : selection.qualityLabel === 'medium'
+                        ? 'bg-neon-yellow/10 text-neon-yellow'
+                        : 'bg-neon-red/10 text-neon-red'
+                  }`}
+                >
+                  {selection.qualityLabel}
+                </span>
+                <span className="text-slate-400 font-mono">
+                  {Math.round(selection.qualityScore * 100)}%
+                </span>
               </div>
             </div>
           )}

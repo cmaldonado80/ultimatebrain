@@ -12,6 +12,7 @@ import {
   recommendationEvents,
   recommendationOutcomes,
   runMemoryUsage,
+  runQuality,
   workflowInsights,
 } from '@solarc/db'
 import { and, desc, eq, sql } from 'drizzle-orm'
@@ -27,6 +28,7 @@ import {
   buildEvidencePayload,
   buildRecommendations,
   computeBlendedScore,
+  computeRunQualityScore,
   findSimilarRuns,
   getEffectivenessStats,
   refreshInsights,
@@ -314,11 +316,25 @@ export const intelligenceRouter = router({
   sessionRuns: protectedProcedure
     .input(z.object({ sessionId: z.string().uuid(), limit: z.number().min(1).max(50).default(10) }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.query.chatRuns.findMany({
+      const runs = await ctx.db.query.chatRuns.findMany({
         where: eq(chatRuns.sessionId, input.sessionId),
         orderBy: desc(chatRuns.startedAt),
         limit: input.limit,
       })
+      // Join quality scores
+      const runIds = runs.map((r) => r.id)
+      const qualities =
+        runIds.length > 0
+          ? await ctx.db.query.runQuality.findMany({
+              where: sql`${runQuality.runId} = ANY(${runIds})`,
+            })
+          : []
+      const qMap = new Map(qualities.map((q) => [q.runId, q]))
+      return runs.map((r) => ({
+        ...r,
+        qualityScore: qMap.get(r.id)?.score ?? null,
+        qualityLabel: qMap.get(r.id)?.label ?? null,
+      }))
     }),
 
   /** Save a workflow from an existing run's steps */
@@ -404,6 +420,64 @@ export const intelligenceRouter = router({
       return ctx.db.query.runMemoryUsage.findMany({
         where: eq(runMemoryUsage.runId, input.runId),
       })
+    }),
+
+  // === Run Quality ===
+
+  /** Get precomputed quality score for a run */
+  getRunQuality: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.runQuality.findFirst({
+        where: eq(runQuality.runId, input.runId),
+      })
+    }),
+
+  /** Compute (or recompute) quality score for a run */
+  computeRunQuality: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      return computeRunQualityScore(ctx.db, input.runId)
+    }),
+
+  /** Get quality summary for all runs in a session */
+  getSessionQualitySummary: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const runs = await ctx.db.query.chatRuns.findMany({
+        where: eq(chatRuns.sessionId, input.sessionId),
+        orderBy: desc(chatRuns.startedAt),
+        limit: 50,
+      })
+      const runIds = runs.map((r) => r.id)
+      const qualities =
+        runIds.length > 0
+          ? await ctx.db.query.runQuality.findMany({
+              where: sql`${runQuality.runId} = ANY(${runIds})`,
+            })
+          : []
+
+      const qMap = new Map(qualities.map((q) => [q.runId, q]))
+      const scored = runs.map((r) => ({
+        runId: r.id,
+        status: r.status,
+        score: qMap.get(r.id)?.score ?? null,
+        label: qMap.get(r.id)?.label ?? null,
+      }))
+
+      const scores = scored.filter((s) => s.score !== null).map((s) => s.score!)
+      const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
+
+      // Trend: compare first 3 vs last 3
+      let trend: 'improving' | 'declining' | 'stable' | null = null
+      if (scores.length >= 6) {
+        const recent = scores.slice(0, 3).reduce((a, b) => a + b, 0) / 3
+        const earlier = scores.slice(-3).reduce((a, b) => a + b, 0) / 3
+        trend =
+          recent - earlier > 0.1 ? 'improving' : recent - earlier < -0.1 ? 'declining' : 'stable'
+      }
+
+      return { runs: scored, avgScore, trend }
     }),
 
   /** Compare two runs side by side */

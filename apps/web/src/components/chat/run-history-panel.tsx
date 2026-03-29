@@ -90,6 +90,21 @@ function AutonomyBadge({ level }: { level?: string | null }) {
   )
 }
 
+function QualityBadge({ label }: { label?: string | null }) {
+  if (!label) return null
+  const style =
+    label === 'high'
+      ? 'text-neon-green bg-neon-green/10'
+      : label === 'medium'
+        ? 'text-neon-yellow bg-neon-yellow/10'
+        : 'text-neon-red bg-neon-red/10'
+  return (
+    <span className={`inline-flex items-center text-[9px] px-1.5 py-0.5 rounded ${style}`}>
+      {label}
+    </span>
+  )
+}
+
 // ── RunHistoryPanel ───────────────────────────────────────────────────
 
 interface RunHistoryPanelProps {
@@ -138,6 +153,8 @@ export function RunHistoryPanel({ sessionId, onSelectRun, onClose }: RunHistoryP
       workflowName: run.workflowName,
       autonomyLevel: run.autonomyLevel,
       autoActionsCount: run.autoActionsCount,
+      qualityScore: (run as { qualityScore?: number | null }).qualityScore ?? null,
+      qualityLabel: (run as { qualityLabel?: string | null }).qualityLabel ?? null,
     })
   }
 
@@ -232,6 +249,7 @@ export function RunHistoryPanel({ sessionId, onSelectRun, onClose }: RunHistoryP
                   />
                   <WorkflowBadge workflowName={run.workflowName} />
                   <AutonomyBadge level={run.autonomyLevel} />
+                  <QualityBadge label={(run as { qualityLabel?: string }).qualityLabel} />
                 </div>
 
                 {/* Row 2: stats */}

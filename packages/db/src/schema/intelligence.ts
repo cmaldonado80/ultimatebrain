@@ -321,7 +321,29 @@ export const workflowInsights = pgTable(
     autonomyBreakdown: jsonb('autonomy_breakdown'),
     topAgentIds: text('top_agent_ids').array(),
     topToolNames: text('top_tool_names').array(),
+    avgQualityScore: real('avg_quality_score'),
+    highQualityRate: real('high_quality_rate'),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (t) => [index('workflow_insights_workflow_idx').on(t.workflowId)],
+)
+
+// ── Run Quality Scoring ───────────────────────────────────────────────
+
+export const runQuality = pgTable(
+  'run_quality',
+  {
+    runId: uuid('run_id')
+      .references(() => chatRuns.id, { onDelete: 'cascade' })
+      .primaryKey(),
+    score: real('score').notNull(),
+    label: text('label').notNull(),
+    successScore: real('success_score').notNull(),
+    efficiencyScore: real('efficiency_score').notNull(),
+    stabilityScore: real('stability_score').notNull(),
+    consistencyScore: real('consistency_score').notNull(),
+    explanation: text('explanation').notNull(),
+    computedAt: timestamp('computed_at').defaultNow().notNull(),
+  },
+  (t) => [index('run_quality_score_idx').on(t.score)],
 )

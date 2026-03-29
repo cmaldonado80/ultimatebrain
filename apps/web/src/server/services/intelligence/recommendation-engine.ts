@@ -13,6 +13,7 @@ import {
   chatRunSteps,
   recommendationEvents,
   recommendationOutcomes,
+  runQuality,
   workflowInsights,
 } from '@solarc/db'
 import { and, desc, eq, ne, not, sql } from 'drizzle-orm'
@@ -459,6 +460,28 @@ export async function refreshInsights(
         : sql`${workflowInsights.workflowId} IS NULL`,
     })
 
+    // Quality aggregation
+    const runIds = runs.map((r) => r.id)
+    const qualityRecords =
+      runIds.length > 0
+        ? await db.query.runQuality.findMany({
+            where: sql`${runQuality.runId} = ANY(${runIds})`,
+          })
+        : []
+    const avgQualityScore =
+      qualityRecords.length > 0
+        ? Math.round(
+            (qualityRecords.reduce((s, q) => s + q.score, 0) / qualityRecords.length) * 1000,
+          ) / 1000
+        : null
+    const highQualityRate =
+      qualityRecords.length > 0
+        ? Math.round(
+            (qualityRecords.filter((q) => q.label === 'high').length / qualityRecords.length) *
+              1000,
+          ) / 1000
+        : null
+
     const values = {
       workflowId: wfId,
       workflowName: wfName,
@@ -474,6 +497,8 @@ export async function refreshInsights(
       autonomyBreakdown,
       topAgentIds: topAgents,
       topToolNames: topTools,
+      avgQualityScore,
+      highQualityRate,
       updatedAt: new Date(),
     }
 
@@ -794,5 +819,170 @@ export async function buildEvidencePayload(
     autonomyStats,
     memoryStats,
     explanationSummary: parts.join('. ') + '.',
+  }
+}
+
+// ── Run Quality Scoring ───────────────────────────────────────────────
+
+export interface RunQualityResult {
+  score: number
+  label: 'high' | 'medium' | 'low'
+  components: {
+    success: number
+    efficiency: number
+    stability: number
+    consistency: number
+  }
+  explanation: string
+}
+
+/**
+ * Compute an absolute quality score for a run.
+ * Deterministic, no LLM dependency, grounded in execution data.
+ * Returns null for runs still in 'running' state.
+ */
+export async function computeRunQualityScore(
+  db: Database,
+  runId: string,
+): Promise<RunQualityResult | null> {
+  const run = await db.query.chatRuns.findFirst({ where: eq(chatRuns.id, runId) })
+  if (!run || run.status === 'running') return null
+
+  const steps = await db.query.chatRunSteps.findMany({
+    where: eq(chatRunSteps.runId, runId),
+  })
+
+  // 1. Success Score (weight 0.40)
+  let successScore = 0
+  if (run.status === 'completed') {
+    successScore = 1.0
+    const failedSteps = steps.filter((s) => s.status === 'failed')
+    if (failedSteps.length === 0 && run.completedAt) successScore = 1.0 // clean
+  } else if (run.status === 'retried') {
+    successScore = 0.5
+  } else {
+    successScore = 0.0
+  }
+
+  // 2. Efficiency Score (weight 0.25) — normalized against session baseline
+  let efficiencyScore = 0.5
+  const baselineRuns = await db.query.chatRuns.findMany({
+    where: and(eq(chatRuns.sessionId, run.sessionId), eq(chatRuns.status, 'completed')),
+    orderBy: desc(chatRuns.startedAt),
+    limit: 20,
+  })
+  const baselineDurations = baselineRuns
+    .map((r) => r.durationMs)
+    .filter((d): d is number => d != null)
+  const baselineSteps = baselineRuns.map((r) => r.stepCount).filter((s): s is number => s != null)
+
+  if (baselineDurations.length >= 2 && run.durationMs != null) {
+    const avgDuration = baselineDurations.reduce((a, b) => a + b, 0) / baselineDurations.length
+    const durationScore =
+      avgDuration > 0 ? Math.max(0, Math.min(1, 1 - run.durationMs / (avgDuration * 2))) : 0.5
+    const avgSteps =
+      baselineSteps.length > 0
+        ? baselineSteps.reduce((a, b) => a + b, 0) / baselineSteps.length
+        : null
+    const stepScore =
+      avgSteps && (run.stepCount ?? 0) > 0
+        ? Math.max(0, Math.min(1, 1 - (run.stepCount ?? 0) / (avgSteps * 2)))
+        : 0.5
+    efficiencyScore = durationScore * 0.6 + stepScore * 0.4
+  }
+
+  // 3. Stability Score (weight 0.20)
+  let stabilityScore = 1.0
+  if (run.retryOfRunId) {
+    // This is a retry
+    const parentRun = await db.query.chatRuns.findFirst({
+      where: eq(chatRuns.id, run.retryOfRunId),
+    })
+    if (run.status === 'completed' && parentRun?.status === 'failed') {
+      stabilityScore = 0.7 // recovered
+    } else if (run.status === 'completed') {
+      stabilityScore = 0.8 // retry that succeeded (parent may not have failed)
+    } else {
+      stabilityScore = 0.3 // retry that didn't help
+    }
+  } else if (run.status === 'failed') {
+    stabilityScore = 0.0
+  } else {
+    const failedSteps = steps.filter((s) => s.status === 'failed')
+    if (failedSteps.length > 0 && run.status === 'completed') {
+      stabilityScore = 0.6 // completed despite some failed steps
+    }
+  }
+
+  // 4. Consistency Score (weight 0.15) — pattern match with successful runs
+  let consistencyScore = 0.5
+  const successfulRuns = baselineRuns.filter((r) => r.id !== runId)
+  if (successfulRuns.length > 0) {
+    const runAgents = (run.agentIds ?? []).filter(Boolean)
+    const similarities = successfulRuns.slice(0, 3).map((sr) => {
+      const srAgents = (sr.agentIds ?? []).filter(Boolean)
+      return agentOverlap(runAgents, srAgents)
+    })
+    consistencyScore =
+      similarities.length > 0 ? similarities.reduce((a, b) => a + b, 0) / similarities.length : 0.5
+  }
+
+  // Composite
+  const score =
+    Math.round(
+      (successScore * 0.4 +
+        efficiencyScore * 0.25 +
+        stabilityScore * 0.2 +
+        consistencyScore * 0.15) *
+        100,
+    ) / 100
+
+  const label: RunQualityResult['label'] = score >= 0.7 ? 'high' : score >= 0.4 ? 'medium' : 'low'
+
+  // Build explanation from components
+  const explParts: string[] = []
+  if (run.status === 'completed') explParts.push('completed successfully')
+  else if (run.status === 'failed') explParts.push('failed')
+  else explParts.push(run.status)
+  if (efficiencyScore > 0.6) explParts.push('efficient execution')
+  else if (efficiencyScore < 0.4) explParts.push('below-average efficiency')
+  if (stabilityScore >= 1.0) explParts.push('no retries needed')
+  else if (stabilityScore >= 0.7) explParts.push('recovered via retry')
+  else if (stabilityScore < 0.4) explParts.push('unstable execution')
+  if (consistencyScore > 0.6) explParts.push('consistent pattern')
+  else if (consistencyScore < 0.4) explParts.push('new pattern')
+
+  const explanation = `${label.charAt(0).toUpperCase() + label.slice(1)} quality: ${explParts.join(', ')}`
+
+  // Persist
+  const values = {
+    runId,
+    score,
+    label,
+    successScore,
+    efficiencyScore,
+    stabilityScore,
+    consistencyScore,
+    explanation,
+    computedAt: new Date(),
+  }
+
+  const existing = await db.query.runQuality.findFirst({ where: eq(runQuality.runId, runId) })
+  if (existing) {
+    await db.update(runQuality).set(values).where(eq(runQuality.runId, runId))
+  } else {
+    await db.insert(runQuality).values(values)
+  }
+
+  return {
+    score,
+    label,
+    components: {
+      success: successScore,
+      efficiency: efficiencyScore,
+      stability: stabilityScore,
+      consistency: consistencyScore,
+    },
+    explanation,
   }
 }
