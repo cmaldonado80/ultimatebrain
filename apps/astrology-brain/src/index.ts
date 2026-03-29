@@ -14,6 +14,10 @@
 import { createMiniBrainServer } from '@solarc/mini-brain-server'
 
 import { natalSummaryRoute } from './routes/natal-summary.js'
+import { reportRoute } from './routes/report.js'
+import { synastryRoute } from './routes/synastry.js'
+import { timelineRoute } from './routes/timeline.js'
+import { transitsRoute } from './routes/transits.js'
 
 // ── Config from environment ───────────────────────────────────────────
 
@@ -31,11 +35,19 @@ if (!brainApiKey) {
 
 const server = createMiniBrainServer({ entityId, domain, brainUrl, brainApiKey, port }, [
   natalSummaryRoute,
+  reportRoute,
+  transitsRoute,
+  timelineRoute,
+  synastryRoute,
 ])
 
 server.start(port)
 
 console.warn(`[AstrologyBrain] Domain endpoints:`)
 console.warn(`  POST /astrology/natal-summary`)
+console.warn(`  POST /astrology/report`)
+console.warn(`  POST /astrology/transits`)
+console.warn(`  POST /astrology/timeline`)
+console.warn(`  POST /astrology/synastry`)
 console.warn(`  GET  /health`)
 console.warn(`  GET  /info`)

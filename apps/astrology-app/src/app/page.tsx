@@ -1,9 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 
 import { AstrologyBrainError, fetchNatalSummary } from '@/lib/astrology-client'
-import type { NatalSummaryResponse } from '@/lib/types'
+import type { BirthData, NatalSummaryResponse } from '@/lib/types'
 
 // ── Sign Symbols ──────────────────────────────────────────────────────
 
@@ -61,7 +62,7 @@ export default function Home() {
     const birthHour = (hours ?? 0) + (minutes ?? 0) / 60
 
     try {
-      const data = await fetchNatalSummary({
+      const birthData: BirthData = {
         name: (form.get('name') as string) || undefined,
         birthYear: year!,
         birthMonth: month!,
@@ -69,8 +70,11 @@ export default function Home() {
         birthHour,
         latitude: lat,
         longitude: lng,
-      })
+      }
+      const data = await fetchNatalSummary(birthData)
       setResult(data)
+      // Save profile for other pages
+      localStorage.setItem('astro_profile', JSON.stringify(birthData))
     } catch (err) {
       if (err instanceof AstrologyBrainError) {
         setError(err.message)
@@ -170,7 +174,7 @@ export default function Home() {
 
           {/* Aspects */}
           {result.aspects.length > 0 && (
-            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4">
+            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
               <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
                 Key Aspects
               </h2>
@@ -185,6 +189,38 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          {/* Navigation */}
+          <div className="grid grid-cols-2 gap-3">
+            <Link
+              href="/reports"
+              className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center hover:border-purple-500/30 transition-colors"
+            >
+              <div className="text-sm text-purple-400">Full Report</div>
+              <div className="text-xs text-slate-600">15 sections</div>
+            </Link>
+            <Link
+              href="/insights"
+              className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center hover:border-purple-500/30 transition-colors"
+            >
+              <div className="text-sm text-purple-400">Daily Insights</div>
+              <div className="text-xs text-slate-600">Transits & timeline</div>
+            </Link>
+            <Link
+              href="/relationships"
+              className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center hover:border-purple-500/30 transition-colors"
+            >
+              <div className="text-sm text-purple-400">Relationships</div>
+              <div className="text-xs text-slate-600">Synastry</div>
+            </Link>
+            <Link
+              href="/dashboard"
+              className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center hover:border-purple-500/30 transition-colors"
+            >
+              <div className="text-sm text-purple-400">Dashboard</div>
+              <div className="text-xs text-slate-600">Your cosmos</div>
+            </Link>
+          </div>
         </div>
       </main>
     )
