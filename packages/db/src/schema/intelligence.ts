@@ -17,6 +17,69 @@ import { agents, memoryTierEnum, workspaces } from './core'
 // === Enums ===
 export const candidateStatusEnum = pgEnum('candidate_status', ['pending', 'promoted', 'rejected'])
 
+// ── Chat Run Tracking ──────────────────────────────────────────────────
+
+export const chatRunStatusEnum = pgEnum('chat_run_status', [
+  'running',
+  'completed',
+  'failed',
+  'retried',
+])
+
+export const chatStepTypeEnum = pgEnum('chat_step_type', ['agent', 'tool', 'synthesis'])
+
+export const chatStepStatusEnum = pgEnum('chat_step_status', ['running', 'completed', 'failed'])
+
+export const chatRuns = pgTable(
+  'chat_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .references(() => chatSessions.id, { onDelete: 'cascade' })
+      .notNull(),
+    userMessageId: uuid('user_message_id').references(() => chatMessages.id, {
+      onDelete: 'set null',
+    }),
+    status: chatRunStatusEnum('status').default('running').notNull(),
+    agentIds: text('agent_ids').array(),
+    stepCount: integer('step_count').default(0),
+    retryOfRunId: uuid('retry_of_run_id'),
+    memoryCount: integer('memory_count').default(0),
+    startedAt: timestamp('started_at').defaultNow().notNull(),
+    completedAt: timestamp('completed_at'),
+    durationMs: integer('duration_ms'),
+  },
+  (t) => [
+    index('chat_runs_session_idx').on(t.sessionId),
+    index('chat_runs_started_idx').on(t.startedAt),
+  ],
+)
+
+export const chatRunSteps = pgTable(
+  'chat_run_steps',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .references(() => chatRuns.id, { onDelete: 'cascade' })
+      .notNull(),
+    sequence: integer('sequence').notNull(),
+    type: chatStepTypeEnum('type').notNull(),
+    agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    agentName: text('agent_name'),
+    toolName: text('tool_name'),
+    toolInput: jsonb('tool_input'),
+    toolResult: text('tool_result'),
+    status: chatStepStatusEnum('status').default('running').notNull(),
+    startedAt: timestamp('started_at').defaultNow().notNull(),
+    completedAt: timestamp('completed_at'),
+    durationMs: integer('duration_ms'),
+  },
+  (t) => [
+    index('chat_run_steps_run_idx').on(t.runId),
+    index('chat_run_steps_sequence_idx').on(t.runId, t.sequence),
+  ],
+)
+
 export const memories = pgTable(
   'memories',
   {

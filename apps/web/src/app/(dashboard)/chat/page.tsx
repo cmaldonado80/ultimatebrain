@@ -13,6 +13,10 @@ import { DbErrorBanner } from '../../../components/db-error-banner'
 import { trpc } from '../../../utils/trpc'
 
 type StreamEvent =
+  // Execution lifecycle (new in V10)
+  | { type: 'run_started'; runId: string }
+  | { type: 'run_completed'; runId: string; durationMs?: number }
+  // Existing events (backward compatible)
   | { type: 'agent_start'; agentName: string; agentId: string }
   | { type: 'text'; content: string; agentId?: string; agentName?: string }
   | { type: 'tool_use'; name: string; input: unknown }
@@ -52,6 +56,10 @@ function streamEventToItem(ev: StreamEvent): ThreadItemData {
       return { type: 'memory_context', count: ev.count, sources: ev.sources }
     case 'error':
       return { type: 'error', message: ev.message }
+    case 'run_started':
+    case 'run_completed':
+      // Lifecycle events don't render as thread items — they're metadata
+      return { type: 'system', text: '' }
   }
 }
 
@@ -219,6 +227,17 @@ export default function ChatPage() {
                   type: 'memory_context',
                   count: ev.count as number,
                   sources: ev.sources as string[] | undefined,
+                },
+              ])
+            } else if (ev.type === 'run_started') {
+              setStreamEvents((p) => [...p, { type: 'run_started', runId: ev.runId as string }])
+            } else if (ev.type === 'run_completed') {
+              setStreamEvents((p) => [
+                ...p,
+                {
+                  type: 'run_completed',
+                  runId: ev.runId as string,
+                  durationMs: ev.durationMs as number | undefined,
                 },
               ])
             }

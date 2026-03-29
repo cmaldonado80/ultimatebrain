@@ -2,7 +2,15 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 import { createDb, createMiniBrainDb, type Database, waitForSchema } from '@solarc/db'
-import { agents, brainEntities, brainEntityAgents, chatMessages, chatSessions } from '@solarc/db'
+import {
+  agents,
+  brainEntities,
+  brainEntityAgents,
+  chatMessages,
+  chatRuns,
+  chatRunSteps,
+  chatSessions,
+} from '@solarc/db'
 import { desc, eq } from 'drizzle-orm'
 
 import { auth } from '../../../../server/auth'
@@ -117,11 +125,14 @@ export async function POST(req: Request) {
   const gateway = getGateway()
 
   // 1. Store user message
-  await db.insert(chatMessages).values({
-    sessionId: body.sessionId,
-    role: 'user',
-    text: body.text,
-  })
+  const [userMessage] = await db
+    .insert(chatMessages)
+    .values({
+      sessionId: body.sessionId,
+      role: 'user',
+      text: body.text,
+    })
+    .returning()
   await db
     .update(chatSessions)
     .set({ updatedAt: new Date() })
@@ -250,13 +261,41 @@ export async function POST(req: Request) {
   })
   const history = msgs.reverse().map((m) => ({ role: m.role, content: m.text }))
 
-  // 5. Stream responses — iterate agents sequentially
+  // 5. Create execution run record
+  const runStartTime = Date.now()
+  let runRecord: { id: string } | null = null
+  try {
+    const [r] = await db
+      .insert(chatRuns)
+      .values({
+        sessionId: body.sessionId,
+        userMessageId: userMessage?.id,
+        agentIds: agentConfigs.map((a) => a.id).filter(Boolean),
+        memoryCount: memoryRecallCount,
+      })
+      .returning()
+    runRecord = r ?? null
+  } catch {
+    // Non-blocking — run tracking is optional
+  }
+  let stepSeq = 0
+
+  // 6. Stream responses — iterate agents sequentially
   const encoder = new TextEncoder()
   const isMultiAgent = agentConfigs.length > 1
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // Emit run_started event
+        if (runRecord) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: 'run_started', runId: runRecord.id })}\n\n`,
+            ),
+          )
+        }
+
         // Emit memory context hint if memories were recalled
         if (memoryRecallCount > 0) {
           controller.enqueue(
@@ -277,6 +316,21 @@ export async function POST(req: Request) {
           }
 
           let fullContent = ''
+
+          // Create agent step record
+          if (runRecord) {
+            try {
+              await db.insert(chatRunSteps).values({
+                runId: runRecord.id,
+                sequence: stepSeq++,
+                type: 'agent',
+                agentId: agentConfig.id || null,
+                agentName: agentConfig.name,
+              })
+            } catch {
+              // Non-blocking
+            }
+          }
 
           // Build the base messages for this agent
           const atlasContext = buildAtlasContext({
@@ -309,14 +363,35 @@ export async function POST(req: Request) {
             }
 
             // Execute the tool
+            const toolExecStart = Date.now()
             const toolOutput = await executeTool(
               toolResult.toolUse.name,
               toolResult.toolUse.input,
               db,
               agentConfig.workspaceId,
             )
+            const toolDurationMs = Date.now() - toolExecStart
 
-            // Send SSE events to client showing tool use
+            // Persist tool step with FULL result (not truncated)
+            if (runRecord) {
+              try {
+                await db.insert(chatRunSteps).values({
+                  runId: runRecord.id,
+                  sequence: stepSeq++,
+                  type: 'tool',
+                  toolName: toolResult.toolUse.name,
+                  toolInput: toolResult.toolUse.input as Record<string, unknown>,
+                  toolResult: toolOutput,
+                  status: 'completed',
+                  completedAt: new Date(),
+                  durationMs: toolDurationMs,
+                })
+              } catch {
+                // Non-blocking
+              }
+            }
+
+            // Send SSE events to client showing tool use (preview only — 500 char max)
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({ type: 'tool_use', name: toolResult.toolUse.name, input: toolResult.toolUse.input })}\n\n`,
@@ -393,10 +468,48 @@ export async function POST(req: Request) {
           .set({ updatedAt: new Date() })
           .where(eq(chatSessions.id, body.sessionId))
 
+        // Complete run record
+        if (runRecord) {
+          const runDurationMs = Date.now() - runStartTime
+          try {
+            await db
+              .update(chatRuns)
+              .set({
+                status: 'completed',
+                completedAt: new Date(),
+                stepCount: stepSeq,
+                durationMs: runDurationMs,
+              })
+              .where(eq(chatRuns.id, runRecord.id))
+          } catch {
+            // Non-blocking
+          }
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: 'run_completed', runId: runRecord.id, durationMs: Date.now() - runStartTime })}\n\n`,
+            ),
+          )
+        }
+
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
         controller.close()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
+        // Mark run as failed
+        if (runRecord) {
+          try {
+            await db
+              .update(chatRuns)
+              .set({
+                status: 'failed',
+                completedAt: new Date(),
+                durationMs: Date.now() - runStartTime,
+              })
+              .where(eq(chatRuns.id, runRecord.id))
+          } catch {
+            // Non-blocking
+          }
+        }
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`))
         controller.close()
         // Emit agent error event (non-blocking)
