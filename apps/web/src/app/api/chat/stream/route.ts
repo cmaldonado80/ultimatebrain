@@ -310,12 +310,15 @@ export async function POST(req: Request) {
           if (isMultiAgent) {
             controller.enqueue(
               encoder.encode(
-                `data: ${JSON.stringify({ agentStart: agentConfig.name, agentId: agentConfig.id })}\n\n`,
+                `data: ${JSON.stringify({ agentStart: agentConfig.name, agentId: agentConfig.id, groupId: `group-${agentConfig.id || 'default'}-${stepSeq}` })}\n\n`,
               ),
             )
           }
 
           let fullContent = ''
+          const currentGroupId = runRecord
+            ? `group-${agentConfig.id || 'default'}-${stepSeq}`
+            : undefined
 
           // Create agent step record
           if (runRecord) {
@@ -326,6 +329,7 @@ export async function POST(req: Request) {
                 type: 'agent',
                 agentId: agentConfig.id || null,
                 agentName: agentConfig.name,
+                groupId: currentGroupId,
               })
             } catch {
               // Non-blocking
@@ -382,6 +386,7 @@ export async function POST(req: Request) {
                   toolName: toolResult.toolUse.name,
                   toolInput: toolResult.toolUse.input as Record<string, unknown>,
                   toolResult: toolOutput,
+                  groupId: currentGroupId,
                   status: 'completed',
                   completedAt: new Date(),
                   durationMs: toolDurationMs,
