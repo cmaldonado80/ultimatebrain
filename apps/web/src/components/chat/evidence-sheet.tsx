@@ -158,6 +158,17 @@ export function EvidenceSheet({
               </div>
             )}
 
+            {/* Tradeoff Profile */}
+            {data.tradeoff && (
+              <div className="cyber-card p-2.5 space-y-2">
+                <SectionLabel text="Tradeoffs" />
+                <ScoreBar label="Quality" value={data.tradeoff.quality} />
+                <ScoreBar label="Speed" value={data.tradeoff.speed} />
+                <ScoreBar label="Stability" value={data.tradeoff.stability} />
+                <ScoreBar label="Simplicity" value={data.tradeoff.complexity} />
+              </div>
+            )}
+
             {/* Similar Runs */}
             {data.similarRuns.length > 0 && (
               <div>

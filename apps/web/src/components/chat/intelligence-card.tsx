@@ -269,6 +269,26 @@ export function IntelligenceCard({
               {bestPath.stats.avgDurationMs != null &&
                 ` · ${(bestPath.stats.avgDurationMs / 1000).toFixed(1)}s avg`}
             </div>
+            {/* Tradeoff indicators */}
+            {bestPath.tradeoff && (
+              <div className="flex items-center gap-2 mt-1">
+                {bestPath.tradeoff.quality >= 0.7 && (
+                  <span className="text-[8px] text-neon-green">↑ quality</span>
+                )}
+                {bestPath.tradeoff.speed >= 0.7 && (
+                  <span className="text-[8px] text-neon-blue">↑ speed</span>
+                )}
+                {bestPath.tradeoff.stability >= 0.7 && (
+                  <span className="text-[8px] text-neon-teal">↑ stable</span>
+                )}
+                {bestPath.tradeoff.speed < 0.4 && (
+                  <span className="text-[8px] text-neon-yellow">↓ speed</span>
+                )}
+                {bestPath.tradeoff.complexity < 0.4 && (
+                  <span className="text-[8px] text-neon-yellow">↓ complex</span>
+                )}
+              </div>
+            )}
           </div>
         )}
 

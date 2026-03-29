@@ -679,6 +679,7 @@ export interface RecommendationEvidencePayload {
     mediumCount: number
     lowCount: number
   } | null
+  tradeoff: TradeoffVector | null
   explanationSummary: string
 }
 
@@ -891,7 +892,160 @@ export async function buildEvidencePayload(
     autonomyStats,
     memoryStats,
     qualityStats,
+    tradeoff:
+      similarRuns.length > 0
+        ? computeTradeoffVector(
+            similarRuns.map((r) => ({
+              status: r.run.status,
+              durationMs: r.run.durationMs,
+              stepCount: r.run.stepCount,
+              qualityScore: r.run.qualityScore,
+            })),
+          )
+        : null,
     explanationSummary: parts.join('. ') + '.',
+  }
+}
+
+// ── Tradeoff Intelligence ─────────────────────────────────────────────
+
+export interface TradeoffVector {
+  quality: number // 0-1, from runQuality score
+  speed: number // 0-1, normalized (faster = higher)
+  stability: number // 0-1, normalized (fewer retries/failures = higher)
+  complexity: number // 0-1, normalized (fewer steps = higher)
+}
+
+export type TradeoffDimension = keyof TradeoffVector
+
+export interface TradeoffInsight {
+  betterIn: TradeoffDimension[]
+  worseIn: TradeoffDimension[]
+  summary: string
+}
+
+export interface TradeoffComparison {
+  vectorA: TradeoffVector
+  vectorB: TradeoffVector
+  delta: TradeoffVector // B - A (positive = B is better)
+  insight: TradeoffInsight
+}
+
+const TRADEOFF_LABELS: Record<TradeoffDimension, { better: string; worse: string }> = {
+  quality: { better: 'higher quality', worse: 'lower quality' },
+  speed: { better: 'faster', worse: 'slower' },
+  stability: { better: 'more stable', worse: 'less stable' },
+  complexity: { better: 'simpler', worse: 'more complex' },
+}
+
+/**
+ * Compute a normalized tradeoff vector for a set of runs.
+ * Each dimension is 0-1 where higher = better.
+ * Uses session-relative baselines for normalization.
+ */
+export function computeTradeoffVector(
+  runs: Array<{
+    status: string
+    durationMs: number | null
+    stepCount: number | null
+    qualityScore: number | null
+  }>,
+  baselines?: { maxDurationMs: number; maxStepCount: number },
+): TradeoffVector {
+  // Quality: average quality score, fallback to success rate
+  const qualityScores = runs.map((r) => r.qualityScore).filter((s): s is number => s != null)
+  const quality =
+    qualityScores.length > 0
+      ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length
+      : runs.filter((r) => r.status === 'completed').length / Math.max(runs.length, 1)
+
+  // Speed: normalized against baseline (lower duration = higher speed)
+  const durations = runs.map((r) => r.durationMs).filter((d): d is number => d != null)
+  const avgDuration =
+    durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : null
+  const maxD = baselines?.maxDurationMs ?? 30000 // fallback 30s
+  const speed = avgDuration != null ? Math.max(0, Math.min(1, 1 - avgDuration / (maxD * 2))) : 0.5
+
+  // Stability: based on failure rate + retry rate
+  const failedCount = runs.filter((r) => r.status === 'failed').length
+  const retriedCount = runs.filter((r) => r.status === 'retried').length
+  const failureRate = (failedCount + retriedCount * 0.5) / Math.max(runs.length, 1)
+  const stability = Math.max(0, Math.min(1, 1 - failureRate))
+
+  // Complexity: normalized step count (fewer steps = higher simplicity)
+  const stepCounts = runs.map((r) => r.stepCount).filter((s): s is number => s != null)
+  const avgSteps =
+    stepCounts.length > 0 ? stepCounts.reduce((a, b) => a + b, 0) / stepCounts.length : null
+  const maxS = baselines?.maxStepCount ?? 20 // fallback 20 steps
+  const complexity = avgSteps != null ? Math.max(0, Math.min(1, 1 - avgSteps / (maxS * 2))) : 0.5
+
+  return {
+    quality: Math.round(quality * 100) / 100,
+    speed: Math.round(speed * 100) / 100,
+    stability: Math.round(stability * 100) / 100,
+    complexity: Math.round(complexity * 100) / 100,
+  }
+}
+
+/**
+ * Compare tradeoff vectors between two options.
+ * Returns delta (B - A) and a human-readable insight.
+ */
+export function compareTradeoffs(
+  vectorA: TradeoffVector,
+  vectorB: TradeoffVector,
+): TradeoffComparison {
+  const delta: TradeoffVector = {
+    quality: Math.round((vectorB.quality - vectorA.quality) * 100) / 100,
+    speed: Math.round((vectorB.speed - vectorA.speed) * 100) / 100,
+    stability: Math.round((vectorB.stability - vectorA.stability) * 100) / 100,
+    complexity: Math.round((vectorB.complexity - vectorA.complexity) * 100) / 100,
+  }
+
+  const THRESHOLD = 0.05 // 5% minimum to count as different
+  const dims: TradeoffDimension[] = ['quality', 'speed', 'stability', 'complexity']
+  const betterIn = dims.filter((d) => delta[d] > THRESHOLD)
+  const worseIn = dims.filter((d) => delta[d] < -THRESHOLD)
+
+  // Build human-readable summary
+  const betterParts = betterIn.map((d) => TRADEOFF_LABELS[d].better)
+  const worseParts = worseIn.map((d) => TRADEOFF_LABELS[d].worse)
+
+  let summary: string
+  if (betterParts.length > 0 && worseParts.length > 0) {
+    summary = `${betterParts.join(', ')} but ${worseParts.join(', ')}`
+  } else if (betterParts.length > 0) {
+    summary = `${betterParts.join(', ')}`
+  } else if (worseParts.length > 0) {
+    summary = `${worseParts.join(', ')}`
+  } else {
+    summary = 'similar tradeoffs'
+  }
+
+  return { vectorA, vectorB, delta, insight: { betterIn, worseIn, summary } }
+}
+
+/**
+ * Summarize tradeoffs across multiple options.
+ * Returns the best option per dimension.
+ */
+export function summarizeTradeoffs(options: Array<{ id: string; vector: TradeoffVector }>): {
+  bestQuality: string | null
+  fastest: string | null
+  mostStable: string | null
+  simplest: string | null
+} {
+  if (options.length === 0)
+    return { bestQuality: null, fastest: null, mostStable: null, simplest: null }
+
+  const best = (dim: TradeoffDimension) =>
+    options.reduce((a, b) => (b.vector[dim] > a.vector[dim] ? b : a)).id
+
+  return {
+    bestQuality: best('quality'),
+    fastest: best('speed'),
+    mostStable: best('stability'),
+    simplest: best('complexity'),
   }
 }
 
@@ -907,6 +1061,7 @@ export interface BestKnownPath {
     avgQualityScore: number
     avgDurationMs: number | null
   }
+  tradeoff: TradeoffVector
   sampleRunIds: string[]
 }
 
@@ -999,6 +1154,15 @@ export async function extractBestKnownPaths(
         ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
         : null
 
+    // Compute tradeoff vector for this pattern's runs
+    const tradeoffRuns = runs.map((r) => ({
+      status: r.run.status,
+      durationMs: r.run.durationMs,
+      stepCount: r.run.stepCount,
+      qualityScore: r.run.qualityScore,
+    }))
+    const tradeoff = computeTradeoffVector(tradeoffRuns)
+
     paths.push({
       patternId: hash,
       agentSequence: agents,
@@ -1009,6 +1173,7 @@ export async function extractBestKnownPaths(
         avgQualityScore: Math.round(avgQuality * 100) / 100,
         avgDurationMs: avgDuration,
       },
+      tradeoff,
       sampleRunIds: runs.slice(0, 3).map((r) => r.runId),
     })
   }

@@ -27,12 +27,15 @@ import {
 import {
   buildEvidencePayload,
   buildRecommendations,
+  compareTradeoffs,
   computeBlendedScore,
   computeRunQualityScore,
+  computeTradeoffVector,
   extractBestKnownPaths,
   findSimilarRuns,
   getEffectivenessStats,
   refreshInsights,
+  summarizeTradeoffs,
 } from '../services/intelligence/recommendation-engine'
 import { protectedProcedure, router } from '../trpc'
 
@@ -784,6 +787,70 @@ export const intelligenceRouter = router({
     )
     .query(async ({ ctx, input }) => {
       return extractBestKnownPaths(ctx.db, input)
+    }),
+
+  /** Compare tradeoffs between two runs */
+  getTradeoffComparison: protectedProcedure
+    .input(
+      z.object({
+        runIdA: z.string().uuid(),
+        runIdB: z.string().uuid(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const fetchRunData = async (runId: string) => {
+        const run = await ctx.db.query.chatRuns.findFirst({ where: eq(chatRuns.id, runId) })
+        if (!run) return null
+        const quality = await ctx.db.query.runQuality.findFirst({
+          where: eq(runQuality.runId, runId),
+        })
+        return {
+          status: run.status,
+          durationMs: run.durationMs,
+          stepCount: run.stepCount,
+          qualityScore: quality?.score ?? null,
+        }
+      }
+      const [a, b] = await Promise.all([fetchRunData(input.runIdA), fetchRunData(input.runIdB)])
+      if (!a || !b) return null
+      const vectorA = computeTradeoffVector([a])
+      const vectorB = computeTradeoffVector([b])
+      return compareTradeoffs(vectorA, vectorB)
+    }),
+
+  /** Get tradeoff summary across all runs in a session */
+  getSessionTradeoffSummary: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const runs = await ctx.db.query.chatRuns.findMany({
+        where: and(eq(chatRuns.sessionId, input.sessionId), sql`${chatRuns.status} != 'running'`),
+        orderBy: desc(chatRuns.startedAt),
+        limit: 20,
+      })
+      if (runs.length === 0) return null
+
+      const runIds = runs.map((r) => r.id)
+      const qualities = await ctx.db.query.runQuality.findMany({
+        where: sql`${runQuality.runId} = ANY(${runIds})`,
+      })
+      const qMap = new Map(qualities.map((q) => [q.runId, q.score]))
+
+      const options = runs.map((r) => ({
+        id: r.id,
+        vector: computeTradeoffVector([
+          {
+            status: r.status,
+            durationMs: r.durationMs,
+            stepCount: r.stepCount,
+            qualityScore: qMap.get(r.id) ?? null,
+          },
+        ]),
+      }))
+
+      return {
+        summary: summarizeTradeoffs(options),
+        runs: options.map((o) => ({ runId: o.id, vector: o.vector })),
+      }
     }),
 
   /** Get structured evidence for a specific recommendation */
