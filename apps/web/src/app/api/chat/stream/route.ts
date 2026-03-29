@@ -17,6 +17,7 @@ import { auth } from '../../../../server/auth'
 import { buildAtlasContext } from '../../../../server/services/atlas'
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
 import { GatewayRouter } from '../../../../server/services/gateway'
+import { observeRunCompletion } from '../../../../server/services/instincts/run-observer'
 import {
   computeRunQualityScore,
   refreshInsights,
@@ -810,9 +811,10 @@ export async function POST(req: Request) {
             ),
           )
 
-          // Fire-and-forget: compute quality + refresh insights
+          // Fire-and-forget: compute quality + refresh insights + observe for instincts
           computeRunQualityScore(db, runRecord.id).catch(() => {})
           refreshInsights(db, runRecord.id ? undefined : undefined).catch(() => {})
+          observeRunCompletion(db, runRecord.id).catch(() => {})
         }
 
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
@@ -833,8 +835,9 @@ export async function POST(req: Request) {
           } catch {
             // Non-blocking
           }
-          // Fire-and-forget: compute quality for failed run
+          // Fire-and-forget: compute quality for failed run + observe for instincts
           computeRunQualityScore(db, runRecord.id).catch(() => {})
+          observeRunCompletion(db, runRecord.id).catch(() => {})
         }
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`))
         controller.close()

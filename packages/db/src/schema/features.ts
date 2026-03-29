@@ -196,6 +196,7 @@ export const instincts = pgTable('instincts', {
   confidence: real('confidence').default(0.3).notNull(),
   domain: text('domain').default('universal'),
   scope: instinctScopeEnum('scope').default('development').notNull(),
+  status: text('status').default('observed').notNull(), // 'observed' | 'candidate' | 'promoted' | 'deprecated' | 'disabled'
   entityId: uuid('entity_id'),
   evidenceCount: integer('evidence_count').default(1),
   lastObservedAt: timestamp('last_observed_at').defaultNow(),
@@ -205,9 +206,7 @@ export const instincts = pgTable('instincts', {
 
 export const instinctObservations = pgTable('instinct_observations', {
   id: uuid('id').primaryKey().defaultRandom(),
-  instinctId: uuid('instinct_id')
-    .references(() => instincts.id, { onDelete: 'cascade' })
-    .notNull(),
+  instinctId: uuid('instinct_id').references(() => instincts.id, { onDelete: 'cascade' }),
   eventType: text('event_type').notNull(),
   payload: jsonb('payload'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

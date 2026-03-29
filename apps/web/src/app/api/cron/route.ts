@@ -8,6 +8,7 @@ import { createDb, waitForSchema } from '@solarc/db'
 import { AtlasFreshnessScanner } from '../../../server/services/atlas'
 import { GatewayRouter } from '../../../server/services/gateway'
 import { HealingEngine } from '../../../server/services/healing/healing-engine'
+import { runInstinctPipeline } from '../../../server/services/instincts/instinct-pipeline'
 import { CronEngine, SystemOrchestrator } from '../../../server/services/orchestration'
 
 export async function GET(req: Request) {
@@ -107,6 +108,14 @@ export async function GET(req: Request) {
       console.warn('[Cron] ATLAS freshness scan failed:', err)
     }
 
+    // 6. Instinct pipeline — detect patterns, score confidence, promote
+    let instinctResult = { observationsProcessed: 0, candidatesCreated: 0, promoted: 0 }
+    try {
+      instinctResult = await runInstinctPipeline(db)
+    } catch (err) {
+      console.warn('[Cron] instinct pipeline failed:', err)
+    }
+
     return Response.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -126,6 +135,11 @@ export async function GET(req: Request) {
       },
       atlas: {
         ticketsCreated: atlasTicketsCreated,
+      },
+      instincts: {
+        observations: instinctResult.observationsProcessed,
+        candidates: instinctResult.candidatesCreated,
+        promoted: instinctResult.promoted,
       },
     })
   } catch (err) {
