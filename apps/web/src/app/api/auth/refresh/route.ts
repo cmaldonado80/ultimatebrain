@@ -28,7 +28,7 @@ export async function POST() {
     secure,
     sameSite: 'lax',
     path: '/',
-    maxAge: 15 * 60,
+    maxAge: 24 * 60 * 60,
   })
   res.cookies.set(COOKIE_NAMES.refresh, tokens.refreshToken, {
     httpOnly: true,

@@ -27,7 +27,7 @@ export async function createSession(
   const accessToken = await new SignJWT({ email, name, sub, userId, type: 'access' })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('15m')
+    .setExpirationTime('24h')
     .sign(SECRET)
 
   const refreshToken = await new SignJWT({ email, sub, userId, type: 'refresh' })

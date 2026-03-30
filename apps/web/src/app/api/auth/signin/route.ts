@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       secure,
       sameSite: 'lax',
       path: '/',
-      maxAge: 15 * 60, // 15 minutes
+      maxAge: 24 * 60 * 60, // 24 hours
     })
     res.cookies.set(COOKIE_NAMES.refresh, refreshToken, {
       httpOnly: true,

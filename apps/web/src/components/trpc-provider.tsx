@@ -2,7 +2,7 @@
 
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { httpBatchLink } from '@trpc/client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import superjson from 'superjson'
 
 import { trpc } from '../utils/trpc'
@@ -22,9 +22,9 @@ async function tryRefreshSession(): Promise<boolean> {
   }
 }
 
-let refreshAttempted = false
-
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
+  const refreshingRef = useRef(false)
+
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -36,18 +36,17 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
 
             if (isUnauth && typeof window !== 'undefined') {
               // Try refreshing the token once before redirecting to signin
-              if (!refreshAttempted) {
-                refreshAttempted = true
+              if (!refreshingRef.current) {
+                refreshingRef.current = true
                 const refreshed = await tryRefreshSession()
+                refreshingRef.current = false
                 if (refreshed) {
                   // Token refreshed — retry all failed queries
-                  refreshAttempted = false
                   queryClient.invalidateQueries()
                   return
                 }
               }
-              // Refresh failed or already attempted — redirect to signin
-              refreshAttempted = false
+              // Refresh failed or already in progress — redirect to signin
               window.location.href = '/auth/signin'
             }
           },
