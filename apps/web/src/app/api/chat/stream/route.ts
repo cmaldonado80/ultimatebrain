@@ -550,6 +550,7 @@ export async function POST(req: Request) {
           // 7. Downstream recomputation — agent continues with tool loop
           let fullContent = ''
           let usedTools = false
+          const recentToolCalls: string[] = [] // Loop detection
           for (let toolIter = 0; toolIter < 5; toolIter++) {
             const toolResult = await gateway.chat({
               model: targetAgentConfig.model,
@@ -562,6 +563,15 @@ export async function POST(req: Request) {
             if (!toolResult.toolUse) {
               fullContent = toolResult.content
               usedTools = true
+              break
+            }
+
+            // Loop detection: break if same tool+input called 3+ times
+            const callSig = `${toolResult.toolUse.name}:${JSON.stringify(toolResult.toolUse.input).slice(0, 100)}`
+            recentToolCalls.push(callSig)
+            const repeatCount = recentToolCalls.filter((c) => c === callSig).length
+            if (repeatCount >= 3) {
+              fullContent = `[Tool loop detected: ${toolResult.toolUse.name} called ${repeatCount} times with same input. Breaking loop.]`
               break
             }
 
@@ -708,6 +718,7 @@ export async function POST(req: Request) {
             // Tool use loop (non-streaming, max 5 iterations)
             let toolMessages = [...baseMessages]
             let usedTools = false
+            const mainToolCalls: string[] = [] // Loop detection
             for (let toolIter = 0; toolIter < 5; toolIter++) {
               const toolResult = await gateway.chat({
                 model: agentConfig.model,
@@ -721,6 +732,15 @@ export async function POST(req: Request) {
                 // No tool call — use this as the final content
                 fullContent = toolResult.content
                 usedTools = true
+                break
+              }
+
+              // Loop detection: break if same tool+input called 3+ times
+              const mainCallSig = `${toolResult.toolUse.name}:${JSON.stringify(toolResult.toolUse.input).slice(0, 100)}`
+              mainToolCalls.push(mainCallSig)
+              const mainRepeatCount = mainToolCalls.filter((c) => c === mainCallSig).length
+              if (mainRepeatCount >= 3) {
+                fullContent = `[Tool loop detected: ${toolResult.toolUse.name} called ${mainRepeatCount} times with same input. Breaking loop.]`
                 break
               }
 

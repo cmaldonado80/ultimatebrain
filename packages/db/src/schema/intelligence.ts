@@ -149,6 +149,8 @@ export const chatSessions = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
     workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
+    modelOverride: text('model_override'), // Per-session model override (e.g., 'deepseek-v3.2:cloud')
+    parentSessionId: uuid('parent_session_id'), // For session branching
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
