@@ -5,6 +5,7 @@
  * scope promotion (development → mini_brain → brain), and evolution into skills.
  */
 import { instinctObservations, instincts } from '@solarc/db'
+import { TRPCError } from '@trpc/server'
 import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
@@ -72,6 +73,8 @@ export const instinctsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const [inst] = await ctx.db.insert(instincts).values(input).returning()
+      if (!inst)
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create instinct' })
       return inst
     }),
 

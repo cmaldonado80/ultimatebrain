@@ -6,6 +6,7 @@
  */
 import type { Database } from '@solarc/db'
 import { evalCases, evalDatasets, evalRuns } from '@solarc/db'
+import { TRPCError } from '@trpc/server'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
@@ -45,6 +46,8 @@ export const evalsRouter = router({
     .input(z.object({ name: z.string().min(1), description: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const [ds] = await ctx.db.insert(evalDatasets).values(input).returning()
+      if (!ds)
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create dataset' })
       return ds
     }),
 

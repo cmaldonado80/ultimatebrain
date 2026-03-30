@@ -413,6 +413,8 @@ export const workspacesRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const [goal] = await ctx.db.insert(workspaceGoals).values(input).returning()
+      if (!goal)
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create goal' })
       return goal
     }),
 

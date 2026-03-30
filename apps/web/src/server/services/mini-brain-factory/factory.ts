@@ -1127,6 +1127,8 @@ export class MiniBrainFactory {
       .returning({ id: agents.id })
 
     // Add orchestrator route from system workspace if this is a mini brain
+    if (!orch) throw new Error('Failed to create orchestrator agent')
+
     if (tier === 'mini_brain') {
       const systemWs = await db.query.workspaces.findFirst({
         where: eq(workspaces.type, 'system'),
@@ -1287,7 +1289,7 @@ export class MiniBrainFactory {
             skills: def.capabilities,
           })
           .returning({ id: agents.id })
-        ids.push(inserted.id)
+        if (inserted) ids.push(inserted.id)
       }
       return ids
     } catch (err) {
