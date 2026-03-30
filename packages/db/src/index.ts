@@ -815,6 +815,45 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         enforce boolean DEFAULT true,
         updated_at timestamp NOT NULL DEFAULT now()
       )`,
+
+      // Persistence: Journey Execution State
+      `CREATE TABLE IF NOT EXISTS journey_executions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        journey_id text NOT NULL,
+        status text NOT NULL DEFAULT 'active',
+        current_state text NOT NULL,
+        context jsonb,
+        history jsonb,
+        started_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS journey_executions_journey_idx ON journey_executions(journey_id)`,
+      `CREATE INDEX IF NOT EXISTS journey_executions_status_idx ON journey_executions(status)`,
+
+      // Persistence: Presence Entries
+      `CREATE TABLE IF NOT EXISTS presence_entries (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id text,
+        type text NOT NULL,
+        location text,
+        workspace_id text,
+        status jsonb,
+        cursor jsonb,
+        last_heartbeat timestamp NOT NULL DEFAULT now(),
+        connected_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS presence_entries_user_idx ON presence_entries(user_id)`,
+      `CREATE INDEX IF NOT EXISTS presence_entries_heartbeat_idx ON presence_entries(last_heartbeat)`,
+
+      // Persistence: User Layout Preferences
+      `CREATE TABLE IF NOT EXISTS user_preferences (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id text NOT NULL UNIQUE,
+        pinned_panels text[],
+        hidden_panels text[],
+        behavior_weights jsonb,
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
     ]
 
     for (const sql of tables) {
@@ -837,6 +876,7 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `ALTER TABLE orchestrator_routes ADD COLUMN IF NOT EXISTS orchestrator_id uuid`,
       `ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS source_agent_id uuid`,
       `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS database_url text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS encrypted_database_url text`,
       `ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL`,
       `ALTER TABLE chat_run_steps ADD COLUMN IF NOT EXISTS group_id text`,
       `CREATE TABLE IF NOT EXISTS run_memory_usage (
@@ -1003,6 +1043,13 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         resolved_by uuid
       )`,
       `CREATE INDEX IF NOT EXISTS improvement_proposals_domain_idx ON improvement_proposals(domain)`,
+
+      // Missing indexes from audit (Batch 1)
+      `CREATE INDEX IF NOT EXISTS chat_run_steps_agent_idx ON chat_run_steps(agent_id)`,
+      `CREATE INDEX IF NOT EXISTS guardrail_logs_ticket_id_idx ON guardrail_logs(ticket_id)`,
+      `CREATE INDEX IF NOT EXISTS receipt_actions_receipt_seq_idx ON receipt_actions(receipt_id, sequence)`,
+      `CREATE INDEX IF NOT EXISTS approval_gates_status_idx ON approval_gates(status)`,
+      `CREATE INDEX IF NOT EXISTS approval_gates_agent_idx ON approval_gates(agent_id)`,
     ]
     for (const stmt of alterStatements) {
       await client.query(stmt).catch(() => {})
@@ -1120,6 +1167,63 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         stream: true,
         inCost: 0.15,
         outCost: 0.6,
+        speed: 'fast',
+      },
+      // Ollama Cloud Models
+      {
+        id: 'qwen3.5:cloud',
+        name: 'Qwen 3.5 Cloud',
+        provider: 'ollama',
+        type: 'agentic',
+        ctx: 128000,
+        out: 32000,
+        vision: false,
+        tools: true,
+        stream: true,
+        inCost: 0,
+        outCost: 0,
+        speed: 'medium',
+      },
+      {
+        id: 'deepseek-v3.2:cloud',
+        name: 'DeepSeek V3.2 Cloud',
+        provider: 'ollama',
+        type: 'reasoning',
+        ctx: 128000,
+        out: 32000,
+        vision: false,
+        tools: true,
+        stream: true,
+        inCost: 0,
+        outCost: 0,
+        speed: 'medium',
+      },
+      {
+        id: 'llama-3.2-11b-vision:cloud',
+        name: 'Llama 3.2 11B Vision Cloud',
+        provider: 'ollama',
+        type: 'vision',
+        ctx: 128000,
+        out: 8192,
+        vision: true,
+        tools: false,
+        stream: true,
+        inCost: 0,
+        outCost: 0,
+        speed: 'fast',
+      },
+      {
+        id: 'llama-guard-3:cloud',
+        name: 'Llama Guard 3 Cloud',
+        provider: 'ollama',
+        type: 'guard',
+        ctx: 8192,
+        out: 4096,
+        vision: false,
+        tools: false,
+        stream: true,
+        inCost: 0,
+        outCost: 0,
         speed: 'fast',
       },
     ]
