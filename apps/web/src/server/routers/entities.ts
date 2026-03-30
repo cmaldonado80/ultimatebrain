@@ -47,6 +47,21 @@ export const entitiesRouter = router({
     return getOpenClawStatus()
   }),
 
+  /** Get full OpenClaw capabilities (providers, channels, skills, MCP servers). */
+  openclawCapabilities: protectedProcedure.query(async () => {
+    const { getOpenClawCapabilities, getOpenClawStatus } =
+      await import('../adapters/openclaw/bootstrap')
+    const status = getOpenClawStatus()
+    const capabilities = getOpenClawCapabilities()
+    return {
+      ...status,
+      providers: capabilities?.providers ?? [],
+      channels: capabilities?.channels ?? [],
+      skills: capabilities?.skills ?? [],
+      mcpServers: capabilities?.mcpServers ?? [],
+    }
+  }),
+
   byId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {

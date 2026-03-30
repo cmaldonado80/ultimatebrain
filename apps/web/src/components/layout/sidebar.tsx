@@ -116,6 +116,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Builder', href: '/builder', icon: '◈' },
       { label: 'Skills', href: '/skills', icon: '★' },
       { label: 'Integrations', href: '/integrations', icon: '⊕' },
+      { label: 'OpenClaw', href: '/openclaw', icon: '🦞' },
       { label: 'Settings', href: '/settings', icon: '⚿' },
     ],
   },
