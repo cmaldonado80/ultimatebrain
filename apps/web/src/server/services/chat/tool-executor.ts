@@ -445,23 +445,28 @@ export const AGENT_TOOLS = [
   {
     name: 'web_search',
     description:
-      'Search the web using DuckDuckGo. Returns top results with titles, URLs, and snippets.',
+      'Search the web using DuckDuckGo. Returns structured results with titles, URLs, and snippets.',
     input_schema: {
       type: 'object' as const,
       properties: {
         query: { type: 'string', description: 'Search query' },
-        maxResults: { type: 'number', description: 'Max results (default 5)' },
+        maxResults: { type: 'number', description: 'Max results (default 5, max 10)' },
       },
       required: ['query'],
     },
   },
   {
     name: 'web_scrape',
-    description: 'Fetch a URL and extract its text content. Returns the page text.',
+    description:
+      'Fetch a URL and extract readable article content with metadata (title, description, author, date). Uses readability-style extraction to filter out navigation, ads, and boilerplate.',
     input_schema: {
       type: 'object' as const,
       properties: {
         url: { type: 'string', description: 'URL to fetch' },
+        maxLength: {
+          type: 'number',
+          description: 'Max content length in chars (default 8000)',
+        },
       },
       required: ['url'],
     },
@@ -672,6 +677,69 @@ export const AGENT_TOOLS = [
         content: { type: 'string', description: 'Memory content to store' },
       },
       required: ['key', 'content'],
+    },
+  },
+  {
+    name: 'deep_research',
+    description:
+      'Anthropic-style deep research: breaks a question into sub-queries, runs parallel web searches, scrapes top results, and synthesizes a comprehensive cited answer.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        question: { type: 'string', description: 'Research question to investigate' },
+        depth: {
+          type: 'string',
+          description:
+            'Research depth: quick (3 sub-queries), standard (5), thorough (7). Default: standard',
+        },
+      },
+      required: ['question'],
+    },
+  },
+  {
+    name: 'cite_sources',
+    description:
+      'Given a text with claims and a list of source URLs, maps each claim to its supporting source. Returns claim-to-source mappings with quotes.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        text: { type: 'string', description: 'Text containing claims to cite' },
+        sourceUrls: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'List of source URLs to match claims against',
+        },
+      },
+      required: ['text', 'sourceUrls'],
+    },
+  },
+  {
+    name: 'panel_debate',
+    description:
+      'Multi-perspective analysis: spawns 3 expert agents with different viewpoints on a topic, gets their arguments, then synthesizes a balanced view with consensus and disagreements.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        topic: { type: 'string', description: 'Topic to analyze from multiple perspectives' },
+        perspectives: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Custom perspective roles (default: optimist, skeptic, pragmatist)',
+        },
+      },
+      required: ['topic'],
+    },
+  },
+  {
+    name: 'extract_metadata',
+    description:
+      'Extract structured metadata from a URL: title, description, author, date, Open Graph tags, and JSON-LD structured data.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        url: { type: 'string', description: 'URL to extract metadata from' },
+      },
+      required: ['url'],
     },
   },
 ]
@@ -1101,26 +1169,85 @@ export async function executeTool(
 
       case 'web_search': {
         const query = toolInput.query as string
-        const max = (toolInput.maxResults as number) ?? 5
+        const max = Math.min((toolInput.maxResults as number) ?? 5, 10)
         try {
-          const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
-          const res = await fetch(url, { headers: { 'User-Agent': 'SolarcBrain/1.0' } })
+          const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`
+          const res = await fetch(searchUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)',
+              Accept: 'text/html',
+            },
+            signal: AbortSignal.timeout(10000),
+          })
           const html = await res.text()
-          // Extract result snippets from HTML (simplified)
-          const results =
-            html
-              .match(
-                /<a rel="nofollow".*?class="result__a".*?>(.*?)<\/a>[\s\S]*?<a class="result__snippet".*?>(.*?)<\/a>/g,
-              )
-              ?.slice(0, max)
-              .map((m) => {
-                const title =
-                  m.match(/class="result__a".*?>(.*?)<\/a>/)?.[1]?.replace(/<.*?>/g, '') ?? ''
-                const snippet =
-                  m.match(/class="result__snippet".*?>(.*?)<\/a>/)?.[1]?.replace(/<.*?>/g, '') ?? ''
-                return { title, snippet }
-              }) ?? []
-          return JSON.stringify({ query, results })
+
+          // Parse DuckDuckGo Lite results — each result is in a table row structure
+          const results: Array<{ title: string; url: string; snippet: string }> = []
+
+          // Match result links: <a rel="nofollow" href="..." class="result-link">Title</a>
+          const linkPattern =
+            /<a[^>]*rel="nofollow"[^>]*href="([^"]*)"[^>]*class="result-link"[^>]*>([\s\S]*?)<\/a>/gi
+          const snippetPattern = /<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
+
+          const links: Array<{ url: string; title: string }> = []
+          let linkMatch: RegExpExecArray | null
+          while ((linkMatch = linkPattern.exec(html)) !== null) {
+            const href = linkMatch[1] ?? ''
+            const title = (linkMatch[2] ?? '').replace(/<[^>]+>/g, '').trim()
+            if (href && title && !href.includes('duckduckgo.com')) {
+              links.push({ url: href, title })
+            }
+          }
+
+          const snippets: string[] = []
+          let snippetMatch: RegExpExecArray | null
+          while ((snippetMatch = snippetPattern.exec(html)) !== null) {
+            snippets.push(
+              (snippetMatch[1] ?? '')
+                .replace(/<[^>]+>/g, '')
+                .replace(/\s+/g, ' ')
+                .trim(),
+            )
+          }
+
+          for (let i = 0; i < Math.min(links.length, max); i++) {
+            results.push({
+              title: links[i]!.title,
+              url: links[i]!.url,
+              snippet: snippets[i] ?? '',
+            })
+          }
+
+          // Fallback: try HTML endpoint if lite returned no results
+          if (results.length === 0) {
+            const fallbackUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
+            const fbRes = await fetch(fallbackUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)' },
+              signal: AbortSignal.timeout(10000),
+            })
+            const fbHtml = await fbRes.text()
+
+            // Parse result__a links and result__snippet
+            const resultBlocks = fbHtml.match(
+              /<div class="result results_links[\s\S]*?<\/div>\s*<\/div>/gi,
+            )
+            if (resultBlocks) {
+              for (const block of resultBlocks.slice(0, max)) {
+                const urlMatch = block.match(/href="([^"]*)"/)
+                const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/)
+                const snipMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/)
+                if (urlMatch?.[1] && titleMatch?.[1]) {
+                  results.push({
+                    title: titleMatch[1].replace(/<[^>]+>/g, '').trim(),
+                    url: urlMatch[1],
+                    snippet: snipMatch?.[1]?.replace(/<[^>]+>/g, '').trim() ?? '',
+                  })
+                }
+              }
+            }
+          }
+
+          return JSON.stringify({ query, resultCount: results.length, results })
         } catch (err) {
           return JSON.stringify({
             query,
@@ -1131,25 +1258,102 @@ export async function executeTool(
       }
 
       case 'web_scrape': {
-        const url = toolInput.url as string
+        const scrapeUrl = toolInput.url as string
+        const maxLen = (toolInput.maxLength as number) ?? 8000
         try {
-          const res = await fetch(url, {
-            headers: { 'User-Agent': 'SolarcBrain/1.0' },
+          const res = await fetch(scrapeUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)',
+              Accept: 'text/html',
+            },
             signal: AbortSignal.timeout(15000),
+            redirect: 'follow',
           })
           const html = await res.text()
-          // Strip HTML tags for plain text
-          const text = html
+
+          // Extract metadata
+          const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
+          const metaDesc = html.match(
+            /<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["']/i,
+          )
+          const metaAuthor = html.match(
+            /<meta[^>]*name=["']author["'][^>]*content=["']([\s\S]*?)["']/i,
+          )
+          const metaDate =
+            html.match(
+              /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([\s\S]*?)["']/i,
+            ) ??
+            html.match(/<meta[^>]*name=["']date["'][^>]*content=["']([\s\S]*?)["']/i) ??
+            html.match(/<time[^>]*datetime=["']([\s\S]*?)["']/i)
+          const ogImage = html.match(
+            /<meta[^>]*property=["']og:image["'][^>]*content=["']([\s\S]*?)["']/i,
+          )
+
+          // Readability-style content extraction
+          // 1. Remove non-content elements
+          let content = html
             .replace(/<script[\s\S]*?<\/script>/gi, '')
             .replace(/<style[\s\S]*?<\/style>/gi, '')
+            .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+            .replace(/<header[\s\S]*?<\/header>/gi, '')
+            .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+            .replace(/<aside[\s\S]*?<\/aside>/gi, '')
+            .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+            .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+            .replace(/<!--[\s\S]*?-->/g, '')
+
+          // 2. Try to find main content container
+          const articleMatch = content.match(/<article[^>]*>([\s\S]*?)<\/article>/i)
+          const mainMatch = content.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
+          const contentDiv = content.match(
+            /<div[^>]*(?:class|id)=["'][^"']*(?:content|article|post|entry|body)[^"']*["'][^>]*>([\s\S]*?)<\/div>\s*(?:<\/div>|$)/i,
+          )
+
+          // Use most specific container found
+          if (articleMatch?.[1]) {
+            content = articleMatch[1]
+          } else if (mainMatch?.[1]) {
+            content = mainMatch[1]
+          } else if (contentDiv?.[1]) {
+            content = contentDiv[1]
+          }
+
+          // 3. Convert block elements to newlines, strip remaining tags
+          content = content
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/(?:p|div|h[1-6]|li|tr|blockquote)>/gi, '\n\n')
+            .replace(/<(?:hr)\s*\/?>/gi, '\n---\n')
             .replace(/<[^>]+>/g, ' ')
-            .replace(/\s+/g, ' ')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/\n{3,}/g, '\n\n')
+            .replace(/[ \t]+/g, ' ')
+            .split('\n')
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0)
+            .join('\n')
             .trim()
-            .slice(0, 5000)
-          return JSON.stringify({ url, text, length: text.length })
+            .slice(0, maxLen)
+
+          return JSON.stringify({
+            url: scrapeUrl,
+            metadata: {
+              title: titleMatch?.[1]?.trim() ?? null,
+              description: metaDesc?.[1]?.trim() ?? null,
+              author: metaAuthor?.[1]?.trim() ?? null,
+              date: metaDate?.[1]?.trim() ?? null,
+              image: ogImage?.[1]?.trim() ?? null,
+            },
+            content,
+            contentLength: content.length,
+          })
         } catch (err) {
           return JSON.stringify({
-            url,
+            url: scrapeUrl,
             error: err instanceof Error ? err.message : 'Scrape failed',
           })
         }
@@ -1608,6 +1812,455 @@ export async function executeTool(
           ],
           synthesis: synthesisResult.content,
         })
+      }
+
+      case 'deep_research': {
+        const question = toolInput.question as string
+        const depth = (toolInput.depth as string) ?? 'standard'
+        const subQueryCount = depth === 'quick' ? 3 : depth === 'thorough' ? 7 : 5
+        const resultsPerQuery = depth === 'quick' ? 2 : depth === 'thorough' ? 5 : 3
+
+        try {
+          // Step 1: Generate sub-queries using gateway
+          let subQueries: string[] = []
+          if (db) {
+            const { GatewayRouter: GW } = await import('../gateway')
+            const gw = new GW(db)
+            const planResult = await gw.chat({
+              messages: [
+                {
+                  role: 'system',
+                  content: `You are a research planning expert. Given a research question, generate exactly ${subQueryCount} specific web search queries that together will comprehensively answer the question. Return ONLY a JSON array of strings, no other text.`,
+                },
+                { role: 'user', content: question },
+              ],
+            })
+            try {
+              const parsed = JSON.parse(
+                planResult.content.replace(/```json\n?/g, '').replace(/```\n?/g, ''),
+              )
+              subQueries = Array.isArray(parsed) ? parsed.slice(0, subQueryCount) : []
+            } catch {
+              // Fallback: split the question into queries manually
+              subQueries = [question, `${question} latest research`, `${question} expert analysis`]
+            }
+          } else {
+            subQueries = [question, `${question} research`, `${question} analysis`].slice(
+              0,
+              subQueryCount,
+            )
+          }
+
+          // Step 2: Parallel web searches
+          const searchFn = async (q: string) => {
+            const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`
+            const res = await fetch(searchUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)' },
+              signal: AbortSignal.timeout(10000),
+            }).catch(() => null)
+            if (!res) return []
+            const html = await res.text()
+            const linkPattern =
+              /<a[^>]*rel="nofollow"[^>]*href="([^"]*)"[^>]*class="result-link"[^>]*>([\s\S]*?)<\/a>/gi
+            const snippetPattern = /<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
+            const links: Array<{ url: string; title: string }> = []
+            let m: RegExpExecArray | null
+            while ((m = linkPattern.exec(html)) !== null) {
+              const href = m[1] ?? ''
+              const title = (m[2] ?? '').replace(/<[^>]+>/g, '').trim()
+              if (href && title && !href.includes('duckduckgo.com')) {
+                links.push({ url: href, title })
+              }
+            }
+            const snips: string[] = []
+            while ((m = snippetPattern.exec(html)) !== null) {
+              snips.push(
+                (m[1] ?? '')
+                  .replace(/<[^>]+>/g, '')
+                  .replace(/\s+/g, ' ')
+                  .trim(),
+              )
+            }
+            return links.slice(0, resultsPerQuery).map((l, i) => ({
+              ...l,
+              snippet: snips[i] ?? '',
+              query: q,
+            }))
+          }
+
+          const searchResults = await Promise.all(subQueries.map(searchFn))
+          const allResults = searchResults.flat()
+
+          // Step 3: Deduplicate by URL and scrape top results
+          const seen = new Set<string>()
+          const uniqueResults = allResults.filter((r) => {
+            if (seen.has(r.url)) return false
+            seen.add(r.url)
+            return true
+          })
+
+          const scrapeFn = async (r: { url: string; title: string; snippet: string }) => {
+            try {
+              const res = await fetch(r.url, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)' },
+                signal: AbortSignal.timeout(8000),
+                redirect: 'follow',
+              })
+              const html = await res.text()
+              let content = html
+                .replace(/<script[\s\S]*?<\/script>/gi, '')
+                .replace(/<style[\s\S]*?<\/style>/gi, '')
+                .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+                .replace(/<header[\s\S]*?<\/header>/gi, '')
+                .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+                .replace(/<aside[\s\S]*?<\/aside>/gi, '')
+
+              const article = content.match(/<article[^>]*>([\s\S]*?)<\/article>/i)
+              const main = content.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
+              if (article?.[1]) content = article[1]
+              else if (main?.[1]) content = main[1]
+
+              content = content
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 2000)
+
+              return { url: r.url, title: r.title, snippet: r.snippet, content }
+            } catch {
+              return { url: r.url, title: r.title, snippet: r.snippet, content: '' }
+            }
+          }
+
+          const maxScrape = depth === 'quick' ? 6 : depth === 'thorough' ? 15 : 10
+          const sources = await Promise.all(uniqueResults.slice(0, maxScrape).map(scrapeFn))
+
+          // Step 4: Synthesize with citations
+          let synthesis = ''
+          const citations: Array<{ claim: string; sourceUrl: string }> = []
+
+          if (db) {
+            const { GatewayRouter: GW2 } = await import('../gateway')
+            const gw2 = new GW2(db)
+
+            const sourceSummaries = sources
+              .filter((s) => s.content.length > 50)
+              .map((s, i) => `[Source ${i + 1}] ${s.title}\nURL: ${s.url}\n${s.content}`)
+              .join('\n\n---\n\n')
+
+            const synthResult = await gw2.chat({
+              messages: [
+                {
+                  role: 'system',
+                  content:
+                    'You are a research synthesis expert. Given a question and multiple source extracts, produce a comprehensive, well-structured answer. Cite sources using [Source N] notation. Be factual, thorough, and highlight areas of agreement/disagreement between sources.',
+                },
+                {
+                  role: 'user',
+                  content: `Research Question: ${question}\n\nSources:\n${sourceSummaries}`,
+                },
+              ],
+            })
+            synthesis = synthResult.content
+
+            // Extract citation references from synthesis
+            const citeMatches = synthesis.matchAll(/\[Source (\d+)\]/g)
+            for (const cm of citeMatches) {
+              const idx = parseInt(cm[1]!, 10) - 1
+              if (sources[idx]) {
+                citations.push({
+                  claim:
+                    cm.input
+                      ?.slice(Math.max(0, (cm.index ?? 0) - 80), (cm.index ?? 0) + 80)
+                      ?.trim() ?? '',
+                  sourceUrl: sources[idx]!.url,
+                })
+              }
+            }
+          } else {
+            synthesis =
+              'Synthesis requires database access for LLM gateway. Raw sources are provided below.'
+          }
+
+          return JSON.stringify({
+            question,
+            depth,
+            plan: subQueries,
+            sourceCount: sources.length,
+            sources: sources.map((s) => ({
+              url: s.url,
+              title: s.title,
+              snippet: s.snippet,
+              contentPreview: s.content.slice(0, 200),
+            })),
+            synthesis,
+            citations: [...new Map(citations.map((c) => [c.sourceUrl, c])).values()],
+          })
+        } catch (err) {
+          return JSON.stringify({
+            question,
+            error: err instanceof Error ? err.message : 'Deep research failed',
+          })
+        }
+      }
+
+      case 'cite_sources': {
+        const text = toolInput.text as string
+        const sourceUrls = toolInput.sourceUrls as string[]
+        try {
+          // Scrape each source to get content
+          const scrapedSources = await Promise.all(
+            sourceUrls.slice(0, 10).map(async (srcUrl) => {
+              try {
+                const res = await fetch(srcUrl, {
+                  headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)' },
+                  signal: AbortSignal.timeout(8000),
+                })
+                const html = await res.text()
+                const content = html
+                  .replace(/<script[\s\S]*?<\/script>/gi, '')
+                  .replace(/<style[\s\S]*?<\/style>/gi, '')
+                  .replace(/<[^>]+>/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim()
+                  .slice(0, 3000)
+                return { url: srcUrl, content }
+              } catch {
+                return { url: srcUrl, content: '' }
+              }
+            }),
+          )
+
+          if (!db) {
+            return JSON.stringify({
+              error: 'Citation mapping requires database access for LLM gateway',
+              sources: scrapedSources.map((s) => ({ url: s.url, available: s.content.length > 0 })),
+            })
+          }
+
+          const { GatewayRouter: GW } = await import('../gateway')
+          const gw = new GW(db)
+
+          const sourceBlock = scrapedSources
+            .filter((s) => s.content.length > 0)
+            .map((s) => `[${s.url}]\n${s.content}`)
+            .join('\n\n---\n\n')
+
+          const citeResult = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'You map claims to sources. Given a text and sources, identify each factual claim in the text and match it to the source URL that supports it. Return ONLY a JSON array: [{"claim": "...", "sourceUrl": "...", "quote": "relevant quote from source"}]. If a claim has no matching source, omit it.',
+              },
+              {
+                role: 'user',
+                content: `Text to cite:\n${text}\n\nSources:\n${sourceBlock}`,
+              },
+            ],
+          })
+
+          try {
+            const citations = JSON.parse(
+              citeResult.content.replace(/```json\n?/g, '').replace(/```\n?/g, ''),
+            )
+            return JSON.stringify({ citations, sourceCount: scrapedSources.length })
+          } catch {
+            return JSON.stringify({
+              rawResponse: citeResult.content,
+              sourceCount: scrapedSources.length,
+            })
+          }
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Citation failed',
+          })
+        }
+      }
+
+      case 'panel_debate': {
+        const topic = toolInput.topic as string
+        const perspectives = (toolInput.perspectives as string[]) ?? [
+          'optimist',
+          'skeptic',
+          'pragmatist',
+        ]
+
+        if (!db) {
+          return JSON.stringify({ error: 'Panel debate requires database access for LLM gateway' })
+        }
+
+        try {
+          const { GatewayRouter: GW } = await import('../gateway')
+          const gw = new GW(db)
+
+          // Spawn parallel "expert" calls
+          const perspectiveResults = await Promise.all(
+            perspectives.slice(0, 5).map(async (role) => {
+              const result = await gw
+                .chat({
+                  messages: [
+                    {
+                      role: 'system',
+                      content: `You are a ${role} expert analyst. Analyze the given topic from a ${role}'s perspective. Be specific, use evidence-based reasoning, and make a compelling case for your viewpoint. Keep your response under 300 words.`,
+                    },
+                    {
+                      role: 'user',
+                      content: `Analyze this topic: ${topic}`,
+                    },
+                  ],
+                })
+                .catch((err) => ({
+                  content: `[${role} perspective unavailable: ${err instanceof Error ? err.message : 'error'}]`,
+                  tokensIn: 0,
+                  tokensOut: 0,
+                }))
+              return { role, argument: result.content }
+            }),
+          )
+
+          // Synthesis call
+          const debateText = perspectiveResults
+            .map((p) => `### ${p.role.toUpperCase()}\n${p.argument}`)
+            .join('\n\n')
+
+          const synthesisResult = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'You are a balanced moderator. Given multiple expert perspectives on a topic, synthesize a balanced analysis. Identify: 1) Points of consensus, 2) Key disagreements, 3) Your balanced conclusion. Return as JSON: {"synthesis": "...", "consensus": ["..."], "disagreements": ["..."]}',
+              },
+              {
+                role: 'user',
+                content: `Topic: ${topic}\n\n${debateText}`,
+              },
+            ],
+          })
+
+          let synthesis = synthesisResult.content
+          let consensus: string[] = []
+          let disagreements: string[] = []
+
+          try {
+            const parsed = JSON.parse(synthesis.replace(/```json\n?/g, '').replace(/```\n?/g, ''))
+            synthesis = parsed.synthesis ?? synthesis
+            consensus = parsed.consensus ?? []
+            disagreements = parsed.disagreements ?? []
+          } catch {
+            // Use raw synthesis if JSON parsing fails
+          }
+
+          return JSON.stringify({
+            topic,
+            perspectives: perspectiveResults,
+            synthesis,
+            consensus,
+            disagreements,
+          })
+        } catch (err) {
+          return JSON.stringify({
+            topic,
+            error: err instanceof Error ? err.message : 'Panel debate failed',
+          })
+        }
+      }
+
+      case 'extract_metadata': {
+        const metaUrl = toolInput.url as string
+        try {
+          const res = await fetch(metaUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)' },
+            signal: AbortSignal.timeout(10000),
+            redirect: 'follow',
+          })
+          const html = await res.text()
+
+          // Standard meta tags
+          const getMetaContent = (nameOrProp: string): string | null => {
+            const byName = html.match(
+              new RegExp(`<meta[^>]*name=["']${nameOrProp}["'][^>]*content=["']([^"']*?)["']`, 'i'),
+            )
+            const byProp = html.match(
+              new RegExp(
+                `<meta[^>]*property=["']${nameOrProp}["'][^>]*content=["']([^"']*?)["']`,
+                'i',
+              ),
+            )
+            // Also match content before name/property attribute
+            const byNameRev = html.match(
+              new RegExp(`<meta[^>]*content=["']([^"']*?)["'][^>]*name=["']${nameOrProp}["']`, 'i'),
+            )
+            const byPropRev = html.match(
+              new RegExp(
+                `<meta[^>]*content=["']([^"']*?)["'][^>]*property=["']${nameOrProp}["']`,
+                'i',
+              ),
+            )
+            return byName?.[1] ?? byProp?.[1] ?? byNameRev?.[1] ?? byPropRev?.[1] ?? null
+          }
+
+          const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() ?? null
+          const canonical =
+            html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']*?)["']/i)?.[1] ?? null
+
+          // Open Graph
+          const og = {
+            title: getMetaContent('og:title'),
+            description: getMetaContent('og:description'),
+            image: getMetaContent('og:image'),
+            type: getMetaContent('og:type'),
+            siteName: getMetaContent('og:site_name'),
+            url: getMetaContent('og:url'),
+          }
+
+          // Twitter Card
+          const twitter = {
+            card: getMetaContent('twitter:card'),
+            title: getMetaContent('twitter:title'),
+            description: getMetaContent('twitter:description'),
+            image: getMetaContent('twitter:image'),
+            creator: getMetaContent('twitter:creator'),
+          }
+
+          // JSON-LD structured data
+          const jsonLdMatches = html.matchAll(
+            /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+          )
+          const jsonLd: unknown[] = []
+          for (const jm of jsonLdMatches) {
+            try {
+              jsonLd.push(JSON.parse(jm[1]!))
+            } catch {
+              // Skip invalid JSON-LD
+            }
+          }
+
+          return JSON.stringify({
+            url: metaUrl,
+            title,
+            description: getMetaContent('description'),
+            author: getMetaContent('author'),
+            date:
+              getMetaContent('article:published_time') ??
+              getMetaContent('date') ??
+              html.match(/<time[^>]*datetime=["']([^"']*?)["']/i)?.[1] ??
+              null,
+            canonical,
+            openGraph: og,
+            twitter,
+            jsonLd: jsonLd.length > 0 ? jsonLd : null,
+            favicon:
+              html.match(
+                /<link[^>]*rel=["'](?:icon|shortcut icon)["'][^>]*href=["']([^"']*?)["']/i,
+              )?.[1] ?? null,
+          })
+        } catch (err) {
+          return JSON.stringify({
+            url: metaUrl,
+            error: err instanceof Error ? err.message : 'Metadata extraction failed',
+          })
+        }
       }
 
       default:
