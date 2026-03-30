@@ -417,6 +417,32 @@ export const AGENT_TOOLS = [
     },
   },
   {
+    name: 'sessions_send',
+    description:
+      'Send a message to another agent and get their response. Enables agent-to-agent collaboration.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        targetAgentId: { type: 'string', description: 'UUID of the agent to message' },
+        message: { type: 'string', description: 'Message to send to the target agent' },
+      },
+      required: ['targetAgentId', 'message'],
+    },
+  },
+  {
+    name: 'sessions_spawn',
+    description:
+      'Spawn a child agent to handle a sub-task independently. Returns the child agent response when complete.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        agentId: { type: 'string', description: 'UUID of the agent to spawn' },
+        task: { type: 'string', description: 'Task description for the child agent' },
+      },
+      required: ['agentId', 'task'],
+    },
+  },
+  {
     name: 'memory_search',
     description:
       'Search stored memories for relevant context. Returns matching memories ranked by relevance.',
@@ -811,6 +837,59 @@ export async function executeTool(
             | 'general',
         })
         return JSON.stringify(result)
+      }
+
+      case 'sessions_send': {
+        if (!db) return JSON.stringify({ error: 'Database required for agent messaging' })
+        const targetId = toolInput.targetAgentId as string
+        const msg = toolInput.message as string
+        const { agents: agentsTable } = await import('@solarc/db')
+        const { eq: eqOp } = await import('drizzle-orm')
+        const target = await db.query.agents.findFirst({ where: eqOp(agentsTable.id, targetId) })
+        if (!target) return JSON.stringify({ error: `Agent ${targetId} not found` })
+        const { GatewayRouter: GW } = await import('../gateway')
+        const gw = new GW(db)
+        const resp = await gw.chat({
+          model: target.model ?? undefined,
+          messages: [
+            ...(target.soul ? [{ role: 'system' as const, content: target.soul }] : []),
+            { role: 'user', content: msg },
+          ],
+          agentId: target.id,
+        })
+        return JSON.stringify({
+          agentId: target.id,
+          agentName: target.name,
+          response: resp.content,
+        })
+      }
+
+      case 'sessions_spawn': {
+        if (!db) return JSON.stringify({ error: 'Database required for agent spawning' })
+        const spawnAgentId = toolInput.agentId as string
+        const spawnTask = toolInput.task as string
+        const { agents: agentsT } = await import('@solarc/db')
+        const { eq: eqFn } = await import('drizzle-orm')
+        const spawnAgent = await db.query.agents.findFirst({
+          where: eqFn(agentsT.id, spawnAgentId),
+        })
+        if (!spawnAgent) return JSON.stringify({ error: `Agent ${spawnAgentId} not found` })
+        const { GatewayRouter: Gateway } = await import('../gateway')
+        const spawnGw = new Gateway(db)
+        const spawnResult = await spawnGw.chat({
+          model: spawnAgent.model ?? undefined,
+          messages: [
+            ...(spawnAgent.soul ? [{ role: 'system' as const, content: spawnAgent.soul }] : []),
+            { role: 'user', content: spawnTask },
+          ],
+          agentId: spawnAgent.id,
+        })
+        return JSON.stringify({
+          agentId: spawnAgent.id,
+          agentName: spawnAgent.name,
+          response: spawnResult.content,
+          status: 'completed',
+        })
       }
 
       default:

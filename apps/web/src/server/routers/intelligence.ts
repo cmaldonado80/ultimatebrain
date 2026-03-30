@@ -1273,4 +1273,163 @@ export const intelligenceRouter = router({
     const { getOpenClawStatus } = await import('../adapters/openclaw/bootstrap')
     return getOpenClawStatus()
   }),
+
+  // ── Background Agent Sessions ──────────────────────────────────────────
+
+  /** Dispatch an agent chat in the background (fire-and-forget). Returns run ID for polling. */
+  backgroundChat: protectedProcedure
+    .input(
+      z.object({
+        agentId: z.string().uuid(),
+        message: z.string().min(1),
+        workspaceId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { agents, chatSessions, chatMessages } = await import('@solarc/db')
+      const agent = await ctx.db.query.agents.findFirst({
+        where: eq(agents.id, input.agentId),
+      })
+      if (!agent) throw new Error('Agent not found')
+
+      // Create session + run record
+      const [session] = await ctx.db
+        .insert(chatSessions)
+        .values({ agentId: agent.id, workspaceId: input.workspaceId ?? agent.workspaceId })
+        .returning()
+      if (!session) throw new Error('Failed to create session')
+
+      await ctx.db.insert(chatMessages).values({
+        sessionId: session.id,
+        role: 'user',
+        text: input.message,
+      })
+
+      const [run] = await ctx.db
+        .insert(chatRuns)
+        .values({ sessionId: session.id, agentIds: [agent.id], status: 'running' })
+        .returning()
+
+      // Fire-and-forget: run chat in background
+      const { GatewayRouter } = await import('../services/gateway')
+      const gw = new GatewayRouter(ctx.db)
+      gw.chat({
+        model: agent.model ?? undefined,
+        messages: [
+          ...(agent.soul ? [{ role: 'system' as const, content: agent.soul }] : []),
+          { role: 'user', content: input.message },
+        ],
+        agentId: agent.id,
+      })
+        .then(async (result) => {
+          await ctx.db.insert(chatMessages).values({
+            sessionId: session.id,
+            role: 'assistant',
+            text: result.content,
+          })
+          if (run) {
+            await ctx.db
+              .update(chatRuns)
+              .set({ status: 'completed', completedAt: new Date() })
+              .where(eq(chatRuns.id, run.id))
+          }
+        })
+        .catch(async (err) => {
+          if (run) {
+            await ctx.db
+              .update(chatRuns)
+              .set({ status: 'failed', completedAt: new Date() })
+              .where(eq(chatRuns.id, run.id))
+          }
+          console.error('[backgroundChat] Error:', err)
+        })
+
+      return { sessionId: session.id, runId: run?.id, status: 'dispatched' }
+    }),
+
+  /** Check status of a background chat run. */
+  backgroundStatus: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const run = await ctx.db.query.chatRuns.findFirst({
+        where: eq(chatRuns.id, input.runId),
+      })
+      if (!run) return { status: 'not_found' }
+
+      // Get last assistant message for the session
+      const { chatMessages } = await import('@solarc/db')
+      const lastMsg = await ctx.db.query.chatMessages.findFirst({
+        where: and(eq(chatMessages.sessionId, run.sessionId), eq(chatMessages.role, 'assistant')),
+        orderBy: desc(chatMessages.createdAt),
+      })
+
+      return {
+        status: run.status,
+        content: lastMsg?.text ?? null,
+        completedAt: run.completedAt,
+        sessionId: run.sessionId,
+      }
+    }),
+
+  // ── Session Branching ──────────────────────────────────────────────────
+
+  /** Branch a session: copy messages up to a point into a new session. */
+  branchSession: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        afterMessageId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { chatSessions, chatMessages } = await import('@solarc/db')
+
+      // Get original session
+      const original = await ctx.db.query.chatSessions.findFirst({
+        where: eq(chatSessions.id, input.sessionId),
+      })
+      if (!original) throw new Error('Session not found')
+
+      // Get messages to copy
+      const allMessages = await ctx.db.query.chatMessages.findMany({
+        where: eq(chatMessages.sessionId, input.sessionId),
+        orderBy: [sql`created_at ASC`],
+      })
+
+      let messagesToCopy = allMessages
+      if (input.afterMessageId) {
+        const idx = allMessages.findIndex((m) => m.id === input.afterMessageId)
+        if (idx >= 0) messagesToCopy = allMessages.slice(0, idx + 1)
+      }
+
+      // Create new branched session
+      const [newSession] = await ctx.db
+        .insert(chatSessions)
+        .values({
+          agentId: original.agentId,
+          workspaceId: original.workspaceId,
+          modelOverride: original.modelOverride,
+          parentSessionId: original.id,
+        })
+        .returning()
+      if (!newSession) throw new Error('Failed to create branch')
+
+      // Copy messages
+      if (messagesToCopy.length > 0) {
+        await ctx.db.insert(chatMessages).values(
+          messagesToCopy.map((m) => ({
+            sessionId: newSession.id,
+            role: m.role,
+            text: m.text,
+            sourceAgentId: m.sourceAgentId,
+          })),
+        )
+      }
+
+      return {
+        branchedSessionId: newSession.id,
+        parentSessionId: original.id,
+        messagesCopied: messagesToCopy.length,
+      }
+    }),
 })
