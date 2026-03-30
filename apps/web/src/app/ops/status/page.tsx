@@ -10,6 +10,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 // ── Status Badge ──────────────────────────────────────────────────────
@@ -59,7 +60,9 @@ export default function StatusPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-orbitron text-white mb-6">Runtime Status</h1>
+      <h1 className="text-xl font-orbitron text-white mb-6">
+        Runtime Status <OrgBadge />
+      </h1>
 
       {statusQuery.error && <DbErrorBanner error={{ message: statusQuery.error.message }} />}
 

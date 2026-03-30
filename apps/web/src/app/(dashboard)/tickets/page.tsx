@@ -8,6 +8,7 @@ import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import ConfirmDialog from '../../../components/ui/confirm-dialog'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 interface Ticket {
@@ -118,7 +119,9 @@ export default function TicketsPage() {
     <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Tickets ({allTickets.length})</h2>
+          <h2 className="m-0 text-[22px] font-bold font-orbitron">
+            Tickets ({allTickets.length}) <OrgBadge />
+          </h2>
           <button className="cyber-btn-primary text-xs" onClick={() => setShowForm(!showForm)}>
             {showForm ? 'Cancel' : '+ New Ticket'}
           </button>

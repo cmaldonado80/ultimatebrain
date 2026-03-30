@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 // ── Types (mirroring server types for client use) ─────────────────────────
@@ -278,7 +279,9 @@ export default function EvalsPage() {
       {/* Header */}
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="m-0 text-[22px] font-bold font-orbitron">Eval Dashboard</h1>
+          <h1 className="m-0 text-[22px] font-bold font-orbitron">
+            Eval Dashboard <OrgBadge />
+          </h1>
           <p className="mt-1 mb-0 text-xs text-slate-500">
             Production-to-eval pipeline &middot; automated regression detection
           </p>

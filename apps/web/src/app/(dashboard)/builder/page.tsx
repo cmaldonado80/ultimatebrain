@@ -7,6 +7,7 @@
 
 import { useState } from 'react'
 
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 const LAYER_COLORS: Record<string, string> = {
@@ -96,7 +97,9 @@ export default function BuilderPage() {
 
   return (
     <div className="p-6 text-slate-50 max-w-[900px]">
-      <h2 className="m-0 text-[22px] font-bold font-orbitron mb-2">Product Builder</h2>
+      <h2 className="m-0 text-[22px] font-bold font-orbitron mb-2 flex items-center gap-2">
+        Product Builder <OrgBadge />
+      </h2>
       <p className="text-[13px] text-slate-500 mb-6">
         Analyze any domain and generate a product blueprint with gap detection.
       </p>

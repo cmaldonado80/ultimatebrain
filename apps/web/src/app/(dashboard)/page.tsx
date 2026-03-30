@@ -8,6 +8,7 @@
 import Link from 'next/link'
 
 import { DbErrorBanner } from '../../components/db-error-banner'
+import { OrgBadge } from '../../components/ui/org-badge'
 import { trpc } from '../../utils/trpc'
 
 const STAT_COLORS: Record<string, string> = {
@@ -138,7 +139,9 @@ export default function MissionControlPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="m-0 text-2xl font-bold font-orbitron">Mission Control</h2>
+          <h2 className="m-0 text-2xl font-bold font-orbitron flex items-center gap-2">
+            Mission Control <OrgBadge />
+          </h2>
           <p className="mt-1 mb-0 text-xs text-slate-500">Real-time overview of all systems</p>
         </div>
         <div className="flex items-center gap-2">

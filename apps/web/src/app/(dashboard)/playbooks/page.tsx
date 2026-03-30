@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import type { PlaybookStep, SavedPlaybook } from '../../../server/services/playbooks/recorder'
 import { trpc } from '../../../utils/trpc'
 
@@ -253,7 +254,9 @@ export default function PlaybooksPage() {
       {/* Header */}
       <div className="flex justify-between items-start mb-5">
         <div>
-          <h1 className="m-0 text-[22px] font-bold font-orbitron">Playbooks</h1>
+          <h1 className="m-0 text-[22px] font-bold font-orbitron">
+            Playbooks <OrgBadge />
+          </h1>
           <p className="mt-1 text-[13px] text-slate-500">
             Teach the brain by recording your actions. Replay anytime.
           </p>

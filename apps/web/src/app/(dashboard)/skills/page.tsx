@@ -12,6 +12,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import type {
   SkillCapability,
   SkillCategory,
@@ -312,7 +313,9 @@ export default function SkillsPage() {
       {/* Header */}
       <div className="mb-4">
         <div>
-          <h1 className="m-0 text-[22px] font-bold font-orbitron">Skill Store</h1>
+          <h1 className="m-0 text-[22px] font-bold font-orbitron">
+            Skill Store <OrgBadge />
+          </h1>
           <p className="mt-1 mb-0 text-[13px] text-slate-500">
             Browse, install, and manage agent skills
           </p>

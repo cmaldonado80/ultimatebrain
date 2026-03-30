@@ -7,6 +7,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 interface Project {
@@ -80,8 +81,8 @@ export default function ProjectsPage() {
     <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">
-            Projects ({allProjects.length})
+          <h2 className="m-0 text-[22px] font-bold font-orbitron flex items-center gap-2">
+            Projects ({allProjects.length}) <OrgBadge />
           </h2>
           <button className="cyber-btn-primary text-xs" onClick={() => setShowForm(!showForm)}>
             {showForm ? 'Cancel' : '+ New Project'}

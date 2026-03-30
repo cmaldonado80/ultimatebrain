@@ -8,6 +8,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { memo, useEffect, useState } from 'react'
 
+import { trpc } from '../../utils/trpc'
+
 // ── Navigation Structure ────────────────────────────────────────────────
 
 interface NavItem {
@@ -176,6 +178,15 @@ const SpotlightSearch = memo(function SpotlightSearch({
   )
 })
 
+// ── Org Name ──────────────────────────────────────────────────────────────
+
+function OrgNameLabel() {
+  const { data } = trpc.organizations.list.useQuery(undefined, { staleTime: 60_000 })
+  const active = data?.find((o) => o.isActive)
+  if (!active) return null
+  return <div className="text-[10px] text-neon-teal/50 mt-1 truncate ml-7">{active.name}</div>
+}
+
 // ── Sidebar Component ───────────────────────────────────────────────────
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
@@ -203,12 +214,15 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
   return (
     <>
       <aside className="w-64 h-full flex-shrink-0 bg-bg-surface border-r border-border flex flex-col px-3 py-4 z-20 overflow-hidden">
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 px-2 mb-5">
-          <span className="text-neon-blue text-lg">◆</span>
-          <span className="font-orbitron text-[14px] font-bold text-white tracking-widest">
-            SOLARC<span className="text-neon-blue">.</span>BRAIN
-          </span>
+        {/* Logo + Org */}
+        <div className="px-2 mb-5">
+          <div className="flex items-center gap-2.5">
+            <span className="text-neon-blue text-lg">◆</span>
+            <span className="font-orbitron text-[14px] font-bold text-white tracking-widest">
+              SOLARC<span className="text-neon-blue">.</span>BRAIN
+            </span>
+          </div>
+          <OrgNameLabel />
         </div>
 
         {/* Search trigger */}

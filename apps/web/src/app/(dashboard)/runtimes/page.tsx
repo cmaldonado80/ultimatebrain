@@ -10,6 +10,7 @@
 import { useState } from 'react'
 
 import { OrgBadge } from '../../../components/ui/org-badge'
+import { useOrgRole } from '../../../hooks/use-org-role'
 import { trpc } from '../../../utils/trpc'
 
 const STATUS_STYLE: Record<string, { label: string; dot: string }> = {
@@ -158,6 +159,7 @@ function SecretsPanel({ entityId }: { entityId: string }) {
 export default function RuntimesPage() {
   const [filter, setFilter] = useState<Filter>('all')
   const [expanded, setExpanded] = useState<string | null>(null)
+  const { isOperator } = useOrgRole()
   const utils = trpc.useUtils()
 
   const query = trpc.runtimes.getRuntimes.useQuery(
@@ -327,60 +329,62 @@ export default function RuntimesPage() {
                     {/* Secrets */}
                     <SecretsPanel entityId={rt.id} />
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 mt-2">
-                      {rt.endpoint && rt.status !== 'active' && rt.status !== 'retired' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            verify.mutate({ entityId: rt.id })
-                          }}
-                          className="text-[10px] px-2.5 py-1 rounded bg-neon-teal/10 text-neon-teal hover:bg-neon-teal/20 transition-colors"
+                    {/* Actions (operator+ only) */}
+                    {isOperator && (
+                      <div className="flex items-center gap-2 mt-2">
+                        {rt.endpoint && rt.status !== 'active' && rt.status !== 'retired' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              verify.mutate({ entityId: rt.id })
+                            }}
+                            className="text-[10px] px-2.5 py-1 rounded bg-neon-teal/10 text-neon-teal hover:bg-neon-teal/20 transition-colors"
+                          >
+                            Verify
+                          </button>
+                        )}
+                        {rt.status === 'suspended' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              activate.mutate({ entityId: rt.id })
+                            }}
+                            className="text-[10px] px-2.5 py-1 rounded bg-neon-green/10 text-neon-green hover:bg-neon-green/20 transition-colors"
+                          >
+                            Activate
+                          </button>
+                        )}
+                        {(rt.status === 'active' || rt.status === 'degraded') && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              suspend.mutate({ entityId: rt.id })
+                            }}
+                            className="text-[10px] px-2.5 py-1 rounded bg-neon-yellow/10 text-neon-yellow hover:bg-neon-yellow/20 transition-colors"
+                          >
+                            Suspend
+                          </button>
+                        )}
+                        {rt.status !== 'retired' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              retire.mutate({ entityId: rt.id })
+                            }}
+                            className="text-[10px] px-2.5 py-1 rounded bg-neon-red/10 text-neon-red hover:bg-neon-red/20 transition-colors"
+                          >
+                            Retire
+                          </button>
+                        )}
+                        <a
+                          href={`/ops/status`}
+                          className="text-[10px] text-neon-teal hover:underline ml-auto"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          Verify
-                        </button>
-                      )}
-                      {rt.status === 'suspended' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            activate.mutate({ entityId: rt.id })
-                          }}
-                          className="text-[10px] px-2.5 py-1 rounded bg-neon-green/10 text-neon-green hover:bg-neon-green/20 transition-colors"
-                        >
-                          Activate
-                        </button>
-                      )}
-                      {(rt.status === 'active' || rt.status === 'degraded') && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            suspend.mutate({ entityId: rt.id })
-                          }}
-                          className="text-[10px] px-2.5 py-1 rounded bg-neon-yellow/10 text-neon-yellow hover:bg-neon-yellow/20 transition-colors"
-                        >
-                          Suspend
-                        </button>
-                      )}
-                      {rt.status !== 'retired' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            retire.mutate({ entityId: rt.id })
-                          }}
-                          className="text-[10px] px-2.5 py-1 rounded bg-neon-red/10 text-neon-red hover:bg-neon-red/20 transition-colors"
-                        >
-                          Retire
-                        </button>
-                      )}
-                      <a
-                        href={`/ops/status`}
-                        className="text-[10px] text-neon-teal hover:underline ml-auto"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        View status →
-                      </a>
-                    </div>
+                          View status →
+                        </a>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

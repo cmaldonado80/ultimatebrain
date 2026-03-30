@@ -7,6 +7,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 export default function SettingsPage() {
@@ -95,7 +96,9 @@ export default function SettingsPage() {
   return (
     <div className="p-6 text-slate-50">
       <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">Settings</h2>
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">
+          Settings <OrgBadge />
+        </h2>
         <p className="mt-1 mb-0 text-[13px] text-slate-500">
           Configure brain identity, API keys, LLM providers, and system preferences.
         </p>
