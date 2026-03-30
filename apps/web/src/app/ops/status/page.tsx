@@ -10,7 +10,9 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { FilterPills } from '../../../components/ui/filter-pills'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 // ── Status Badge ──────────────────────────────────────────────────────
@@ -60,9 +62,7 @@ export default function StatusPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-orbitron text-white mb-6">
-        Runtime Status <OrgBadge />
-      </h1>
+      <PageHeader title="Runtime Status" />
 
       {statusQuery.error && <DbErrorBanner error={{ message: statusQuery.error.message }} />}
 
@@ -99,33 +99,23 @@ export default function StatusPage() {
       )}
 
       {/* Filters */}
-      <div className="flex items-center gap-1.5 mb-4">
-        {(
-          [
-            ['all', 'All'],
-            ['brain', 'Brain'],
-            ['mini_brain', 'Mini Brains'],
-            ['development', 'Developments'],
-            ['issues', 'Issues Only'],
-          ] as [Filter, string][]
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setFilter(key)}
-            className={`text-[10px] px-2.5 py-1 rounded transition-colors ${
-              filter === key
-                ? 'bg-neon-teal/10 text-neon-teal ring-1 ring-neon-teal/30'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <FilterPills
+        options={['all', 'brain', 'mini_brain', 'development', 'issues'] as const}
+        value={filter}
+        onChange={setFilter}
+        labels={{
+          all: 'All',
+          brain: 'Brain',
+          mini_brain: 'Mini Brains',
+          development: 'Developments',
+          issues: 'Issues Only',
+        }}
+        className="mb-4"
+      />
 
       {/* Service Cards */}
       {statusQuery.isLoading ? (
-        <div className="text-sm text-slate-500 py-12 text-center">Loading runtime status...</div>
+        <LoadingState message="Loading runtime status..." />
       ) : filteredServices.length === 0 ? (
         <div className="text-sm text-slate-600 py-12 text-center">
           {filter === 'issues' ? 'No issues detected' : 'No services found'}

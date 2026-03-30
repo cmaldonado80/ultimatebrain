@@ -5,7 +5,9 @@
  */
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface GuardrailLog {
@@ -36,14 +38,7 @@ export default function GuardrailsPage() {
   const isLoading = logsQuery.isLoading || statsQuery.isLoading
 
   if (isLoading) {
-    return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-xs">Fetching guardrail data</div>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Loading guardrail data..." />
   }
 
   const logs: GuardrailLog[] = (logsQuery.data as GuardrailLog[]) ?? []
@@ -58,15 +53,7 @@ export default function GuardrailsPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex items-center gap-3 mb-6">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Guardrails</h2>
-          <OrgBadge />
-        </div>
-        <p className="mt-1 mb-0 text-xs text-slate-500">
-          Safety rules, PII detection logs, and content policy enforcement across all agents.
-        </p>
-      </div>
+      <PageHeader title="Guardrails" />
       {stats && (
         <div className="cyber-grid grid-cols-3 gap-2.5 mb-5">
           <div className="cyber-card p-3.5 text-center">
@@ -85,7 +72,7 @@ export default function GuardrailsPage() {
       )}
 
       {logs.length === 0 ? (
-        <div className="text-center text-slate-500 py-10 text-sm">No guardrail logs yet.</div>
+        <EmptyState title="No guardrail logs yet" />
       ) : (
         <div className="cyber-card overflow-hidden">
           <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border">

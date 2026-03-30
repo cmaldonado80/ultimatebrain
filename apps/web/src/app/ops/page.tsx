@@ -5,6 +5,9 @@
  */
 
 import { DbErrorBanner } from '../../components/db-error-banner'
+import { LoadingState } from '../../components/ui/loading-state'
+import { PageHeader } from '../../components/ui/page-header'
+import { StatCard } from '../../components/ui/stat-card'
 import { trpc } from '../../utils/trpc'
 
 export default function OpsOverviewPage() {
@@ -32,11 +35,8 @@ export default function OpsOverviewPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching ops overview</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading ops overview..." />
       </div>
     )
   }
@@ -50,43 +50,29 @@ export default function OpsOverviewPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">Ops Overview</h2>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          System-wide operational dashboard — health, throughput, errors, and SLA compliance.
-        </p>
-      </div>
+      <PageHeader
+        title="Ops Overview"
+        subtitle="System-wide operational dashboard — health, throughput, errors, and SLA compliance."
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-6">
-        <div className="cyber-card p-3.5 text-center">
-          <div
-            className={`text-xl font-bold ${health?.status === 'healthy' ? 'text-neon-green' : 'text-neon-red'}`}
-          >
-            {health?.status || 'unknown'}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">System Health</div>
-        </div>
-        <div className="cyber-card p-3.5 text-center">
-          <div
-            className={`text-xl font-bold ${gatewayHealth?.status === 'healthy' ? 'text-neon-green' : 'text-neon-yellow'}`}
-          >
-            {gatewayHealth?.status || 'unknown'}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Gateway</div>
-        </div>
-        <div className="cyber-card p-3.5 text-center">
-          <div className="text-xl font-bold">{traces.length}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Recent Traces</div>
-        </div>
-        <div className="cyber-card p-3.5 text-center">
-          <div
-            className={`text-xl font-bold ${pendingApprovals.length > 0 ? 'text-neon-yellow' : 'text-neon-green'}`}
-          >
-            {pendingApprovals.length}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Pending Approvals</div>
-        </div>
+        <StatCard
+          label="System Health"
+          value={health?.status || 'unknown'}
+          color={health?.status === 'healthy' ? 'green' : 'red'}
+        />
+        <StatCard
+          label="Gateway"
+          value={gatewayHealth?.status || 'unknown'}
+          color={gatewayHealth?.status === 'healthy' ? 'green' : 'yellow'}
+        />
+        <StatCard label="Recent Traces" value={traces.length} />
+        <StatCard
+          label="Pending Approvals"
+          value={pendingApprovals.length}
+          color={pendingApprovals.length > 0 ? 'yellow' : 'green'}
+        />
       </div>
 
       {/* Cost & Performance */}

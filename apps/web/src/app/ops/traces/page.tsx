@@ -5,7 +5,9 @@
  */
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface Span {
@@ -34,33 +36,17 @@ export default function TracesPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching traces</div>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Loading traces..." />
   }
 
   const spans: Span[] = (data as Span[]) ?? []
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">
-          Traces <OrgBadge />
-        </h2>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Distributed tracing for agent executions — spans, latency, and dependency graphs.
-        </p>
-      </div>
+      <PageHeader title="Traces" />
 
       {spans.length === 0 ? (
-        <div className="text-center text-slate-500 py-10 text-sm">
-          No traces found. Traces appear as agents execute tasks.
-        </div>
+        <EmptyState title="No traces found" message="Traces appear as agents execute tasks." />
       ) : (
         <div className="cyber-table-scroll">
           <div className="bg-bg-elevated rounded-lg border border-border overflow-hidden min-w-[700px]">

@@ -7,7 +7,9 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 export default function DatabasesPage() {
@@ -77,16 +79,10 @@ export default function DatabasesPage() {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <h1 className="text-2xl font-orbitron text-neon-teal">Databases</h1>
-          <OrgBadge />
-        </div>
-        <p className="text-sm text-slate-400 mt-1">
-          Brain entity database provisioning &mdash; {entities.length} entities
-        </p>
-      </div>
+      <PageHeader
+        title="Databases"
+        subtitle={`Brain entity database provisioning \u2014 ${entities.length} entities`}
+      />
 
       {actionMsg && (
         <div className="cyber-card border-neon-teal/40 bg-neon-teal/5 px-4 py-2 text-sm text-neon-teal">
@@ -95,11 +91,9 @@ export default function DatabasesPage() {
       )}
 
       {entitiesQuery.isLoading ? (
-        <div className="flex items-center justify-center min-h-[40vh]">
-          <div className="text-lg font-orbitron text-slate-500">Loading entities...</div>
-        </div>
+        <LoadingState message="Loading entities..." />
       ) : entities.length === 0 ? (
-        <div className="cyber-card p-8 text-center text-slate-500">No brain entities found.</div>
+        <EmptyState title="No brain entities found" />
       ) : (
         <div className="grid gap-4">
           {/* Entity list */}

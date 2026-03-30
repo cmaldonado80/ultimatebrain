@@ -7,7 +7,8 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface McpTool {
@@ -71,13 +72,7 @@ export default function McpPage() {
   }
 
   if (toolsQuery.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-lg font-orbitron">Loading MCP tools...</div>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Loading MCP tools..." />
   }
 
   const allTools = (toolsQuery.data ?? []) as McpTool[]
@@ -93,12 +88,9 @@ export default function McpPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3 mb-6">
-            <h2 className="m-0 text-[22px] font-bold font-orbitron">MCP Tools</h2>
-            <OrgBadge />
-          </div>
+      <PageHeader
+        title="MCP Tools"
+        actions={
           <div className="flex gap-2">
             <button
               className="cyber-btn-secondary"
@@ -111,11 +103,8 @@ export default function McpPage() {
               {showAddServer ? 'Cancel' : '+ Add Server'}
             </button>
           </div>
-        </div>
-        <p className="mt-1 mb-0 text-xs text-slate-500">
-          Browse registered MCP tools, manage external servers, and test tool execution.
-        </p>
-      </div>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-4">

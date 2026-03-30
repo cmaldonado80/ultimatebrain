@@ -7,7 +7,9 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 export default function VisualQAPage() {
@@ -54,15 +56,7 @@ export default function VisualQAPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <h1 className="text-2xl font-orbitron text-neon-teal">Visual QA</h1>
-          <OrgBadge />
-        </div>
-        <p className="text-sm text-slate-400 mt-1">
-          Browser session recordings &amp; LLM-powered review &mdash; {recordings.length} recordings
-        </p>
-      </div>
+      <PageHeader title="Visual QA" />
 
       {reviewResult && (
         <div className="cyber-card border-neon-teal/40 bg-neon-teal/5 px-4 py-2 text-sm text-neon-teal">
@@ -71,13 +65,9 @@ export default function VisualQAPage() {
       )}
 
       {recordingsQuery.isLoading ? (
-        <div className="flex items-center justify-center min-h-[40vh]">
-          <div className="text-lg font-orbitron text-slate-500">Loading recordings...</div>
-        </div>
+        <LoadingState message="Loading recordings..." />
       ) : recordings.length === 0 ? (
-        <div className="cyber-card p-8 text-center text-slate-500">
-          No recordings yet. Start a browser session recording to capture agent interactions.
-        </div>
+        <EmptyState title="No recordings yet" />
       ) : (
         <div className="cyber-table-scroll">
           <table className="w-full text-sm">

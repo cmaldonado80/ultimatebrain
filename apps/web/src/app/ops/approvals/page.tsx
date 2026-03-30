@@ -5,7 +5,9 @@
  */
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface ApprovalGate {
@@ -47,33 +49,16 @@ export default function ApprovalsPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-xs">Fetching approvals</div>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Loading approvals..." />
   }
 
   const gates: ApprovalGate[] = (data as ApprovalGate[]) ?? []
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex items-center gap-3 mb-6">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Approvals</h2>
-          <OrgBadge />
-        </div>
-        <p className="mt-1 mb-0 text-xs text-slate-500">
-          Review and approve pending agent actions that require human-in-the-loop authorization.
-        </p>
-      </div>
+      <PageHeader title="Approvals" />
       {gates.length === 0 ? (
-        <div className="text-center text-slate-500 py-10 text-sm">
-          No pending approvals. All clear.
-        </div>
+        <EmptyState title="No pending approvals" message="All clear." />
       ) : (
         <div className="flex flex-col gap-3">
           {gates.map((g) => (

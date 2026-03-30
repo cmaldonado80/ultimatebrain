@@ -7,7 +7,8 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 type Category = 'agents' | 'skills' | 'commands' | 'hooks' | 'mcps' | 'settings'
@@ -91,21 +92,18 @@ export default function AitmplPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-orbitron text-neon-teal">Component Marketplace</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            AITMPL components &mdash; {catalog?.totals.total ?? 0} pre-installed
-          </p>
-        </div>
-        <button
-          className="cyber-btn-secondary text-sm px-3 py-1.5"
-          onClick={() => syncMut.mutate()}
-          disabled={syncMut.isPending}
-        >
-          {syncMut.isPending ? 'Syncing...' : 'Sync Catalog'}
-        </button>
-      </div>
+      <PageHeader
+        title="Marketplace"
+        actions={
+          <button
+            className="cyber-btn-secondary text-sm px-3 py-1.5"
+            onClick={() => syncMut.mutate()}
+            disabled={syncMut.isPending}
+          >
+            {syncMut.isPending ? 'Syncing...' : 'Sync Catalog'}
+          </button>
+        }
+      />
 
       {actionMsg && (
         <div className="cyber-card border-neon-teal/40 bg-neon-teal/5 px-4 py-2 text-sm text-neon-teal">
@@ -130,15 +128,10 @@ export default function AitmplPage() {
 
       {/* Pre-installed components for active tab */}
       {preInstalledQuery.isLoading ? (
-        <div className="flex items-center justify-center min-h-[40vh]">
-          <div className="text-lg font-orbitron text-slate-500">Loading catalog...</div>
-        </div>
+        <LoadingState message="Loading catalog..." />
       ) : (
         <div>
-          <div className="flex items-center gap-3 mb-6">
-            <h2 className="text-sm font-orbitron text-slate-400 m-0 3">Pre-installed</h2>
-            <OrgBadge />
-          </div>
+          <h2 className="text-sm font-orbitron text-slate-400 m-0 mb-6">Pre-installed</h2>
           <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {activeTab === 'agents' &&
               catalog?.agents.map((a) => (

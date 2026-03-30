@@ -32,7 +32,7 @@ const STATUS_STYLE: Record<string, { label: string; dot: string }> = {
 
 const STATUS_COLOR: Record<string, StatusColor> = {
   active: 'green',
-  verified: 'blue',
+  verified: 'teal',
   deployed: 'yellow',
   degraded: 'yellow',
   suspended: 'red',

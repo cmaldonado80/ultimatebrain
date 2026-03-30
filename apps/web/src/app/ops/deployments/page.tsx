@@ -7,7 +7,11 @@
 
 import { useState } from 'react'
 
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { ActionBar } from '../../../components/ui/action-bar'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { FilterPills } from '../../../components/ui/filter-pills'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { PermissionGate } from '../../../components/ui/permission-gate'
 import { trpc } from '../../../utils/trpc'
 
@@ -50,14 +54,15 @@ const STEP_LABELS: Record<string, string> = {
 }
 
 export default function DeploymentsPage() {
-  const [filter, setFilter] = useState<string>('')
+  const [filter, setFilter] = useState<'all' | 'running' | 'failed' | 'completed'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [confirmData, setConfirmData] = useState<Record<string, string>>({})
 
   const workflowsQuery = trpc.deployments.list.useQuery({
-    status: filter
-      ? (filter as 'pending' | 'running' | 'completed' | 'failed' | 'cancelled')
-      : undefined,
+    status:
+      filter !== 'all'
+        ? (filter as 'pending' | 'running' | 'completed' | 'failed' | 'cancelled')
+        : undefined,
     limit: 50,
   })
   const utils = trpc.useUtils()
@@ -89,45 +94,21 @@ export default function DeploymentsPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron flex items-center gap-2">
-          Deployments ({counts.all}) <OrgBadge />
-        </h2>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Deployment workflows — from provisioning to activation.
-        </p>
-      </div>
+      <PageHeader title="Deployments" count={counts.all} />
 
-      {/* Filter tabs */}
-      <div className="flex gap-1.5 mb-4">
-        {[
-          { value: '', label: 'All', count: counts.all },
-          { value: 'running', label: 'Running', count: counts.running },
-          { value: 'failed', label: 'Failed', count: counts.failed },
-          { value: 'completed', label: 'Completed', count: counts.completed },
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            className={`px-3 py-1 rounded text-[12px] font-medium border transition-colors ${
-              filter === tab.value
-                ? 'bg-neon-teal/20 border-neon-teal/30 text-neon-teal'
-                : 'bg-transparent border-border text-slate-400 hover:text-slate-200'
-            }`}
-            onClick={() => setFilter(tab.value)}
-          >
-            {tab.label} ({tab.count})
-          </button>
-        ))}
-      </div>
+      <FilterPills
+        options={['all', 'running', 'failed', 'completed'] as const}
+        value={filter}
+        onChange={setFilter}
+        className="mb-4"
+      />
 
       {workflowsQuery.isLoading && (
-        <div className="text-center text-slate-500 py-10">Loading workflows...</div>
+        <LoadingState message="Loading workflows..." fullHeight={false} />
       )}
 
       {workflows.length === 0 && !workflowsQuery.isLoading && (
-        <div className="text-center text-slate-600 py-10 text-sm">
-          No deployment workflows found.
-        </div>
+        <EmptyState title="No deployment workflows found" />
       )}
 
       {/* Workflow cards */}
@@ -333,7 +314,7 @@ export default function DeploymentsPage() {
 
                   {/* Actions — operator+ only */}
                   <PermissionGate require="operator">
-                    <div className="flex gap-2 items-center">
+                    <ActionBar>
                       {wf.status === 'running' && !currentRunningStep?.manual && (
                         <button
                           className="cyber-btn-secondary text-[11px] px-3 py-1"
@@ -361,7 +342,7 @@ export default function DeploymentsPage() {
                           {new Date(wf.createdAt).toLocaleString()}
                         </span>
                       )}
-                    </div>
+                    </ActionBar>
                   </PermissionGate>
 
                   {(confirmMut.error || retryMut.error || advanceMut.error) && (

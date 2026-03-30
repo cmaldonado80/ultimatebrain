@@ -278,10 +278,7 @@ export default function AgentDetailPage() {
       </SectionCard>
 
       {/* Skills & Tags */}
-      <div className="cyber-card p-4 mb-4">
-        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2">
-          Skills & Tags
-        </div>
+      <SectionCard title="Skills & Tags" className="mb-4">
         <div className="flex gap-4">
           <div className="flex-1">
             <div className="text-[11px] text-slate-500 mb-1">Skills</div>
@@ -315,14 +312,11 @@ export default function AgentDetailPage() {
             </div>
           </div>
         </div>
-      </div>
+      </SectionCard>
 
       {/* Performance Scorecard */}
       {scorecardQuery.data && scorecardQuery.data.totalRuns > 0 && (
-        <div className="cyber-card p-4 mb-4">
-          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2.5">
-            Performance
-          </div>
+        <SectionCard title="Performance" className="mb-4">
           <div className="grid grid-cols-5 gap-4 text-center">
             <div>
               <div className="text-lg font-mono text-slate-200">
@@ -376,18 +370,14 @@ export default function AgentDetailPage() {
           <div className="text-[10px] text-slate-600 text-right mt-2">
             Confidence: {scorecardQuery.data.dataConfidence}
           </div>
-        </div>
+        </SectionCard>
       )}
 
       {/* Specialization */}
       {specQuery.data &&
         (specQuery.data.workflowAffinities.length > 0 ||
           specQuery.data.toolProficiencies.length > 0) && (
-          <div className="cyber-card p-4 mb-4">
-            <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2.5">
-              Specialization
-            </div>
-
+          <SectionCard title="Specialization" variant="intelligence" className="mb-4">
             {specQuery.data.topStrength && (
               <div className="text-[11px] text-neon-teal mb-2">
                 Top strength: <span className="font-semibold">{specQuery.data.topStrength}</span>
@@ -454,15 +444,12 @@ export default function AgentDetailPage() {
                 </div>
               </div>
             )}
-          </div>
+          </SectionCard>
         )}
 
       {/* Collaboration / Pairings */}
       {pairingsQuery.data && pairingsQuery.data.pairings.length > 0 && (
-        <div className="cyber-card p-4 mb-4">
-          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2.5">
-            Collaborations
-          </div>
+        <SectionCard title="Collaborations" className="mb-4">
           <div className="flex flex-col gap-1.5">
             {pairingsQuery.data.pairings.map((p) => (
               <div
@@ -502,14 +489,11 @@ export default function AgentDetailPage() {
               </div>
             ))}
           </div>
-        </div>
+        </SectionCard>
       )}
 
       {/* Recent Activity */}
-      <div className="cyber-card p-4 mb-4">
-        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2">
-          Recent Activity ({agent.recentTraces.length})
-        </div>
+      <SectionCard title={`Recent Activity (${agent.recentTraces.length})`} className="mb-4">
         {agent.recentTraces.length === 0 ? (
           <div className="text-slate-600 text-[13px] p-4 text-center">
             No activity recorded yet.
@@ -541,7 +525,7 @@ export default function AgentDetailPage() {
             ))}
           </div>
         )}
-      </div>
+      </SectionCard>
     </div>
   )
 }

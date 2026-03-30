@@ -7,7 +7,8 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface Checkpoint {
@@ -36,15 +37,7 @@ export default function CheckpointsPage() {
 
   return (
     <div className="p-6 text-slate-100">
-      <div className="mb-5">
-        <div className="flex items-center gap-3 mb-6">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Checkpoints</h2>
-          <OrgBadge />
-        </div>
-        <p className="mt-1 mb-0 text-xs text-slate-500">
-          State snapshots for agent execution — restore, compare, and debug from any checkpoint.
-        </p>
-      </div>
+      <PageHeader title="Checkpoints" />
 
       <div className="flex gap-2 mb-5">
         <select
@@ -78,7 +71,7 @@ export default function CheckpointsPage() {
           Enter an entity type and ID to browse checkpoints.
         </div>
       ) : listQuery.isLoading ? (
-        <div className="text-center text-slate-500 py-10 text-sm">Loading checkpoints...</div>
+        <LoadingState message="Loading checkpoints..." />
       ) : listQuery.error ? (
         <DbErrorBanner error={listQuery.error} />
       ) : (
