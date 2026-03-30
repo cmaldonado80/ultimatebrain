@@ -132,6 +132,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   orgs: 'Organizations',
   users: 'Users',
   openclaw: 'OpenClaw',
+  clawhub: 'ClawHub',
   domain: 'Domain',
   developments: 'Developments',
   astrology: 'Astrology',

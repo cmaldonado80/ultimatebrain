@@ -172,7 +172,7 @@ export default function PresenceAvatars({
   maxVisible = 5,
 }: PresenceAvatarsProps) {
   const { data: liveEntries } = trpc.presence.getActive.useQuery(undefined, {
-    refetchInterval: 5000,
+    refetchInterval: 2000,
     retry: false,
   })
   const entries = entriesProp ?? (liveEntries as PresenceEntry[] | undefined) ?? MOCK_ENTRIES

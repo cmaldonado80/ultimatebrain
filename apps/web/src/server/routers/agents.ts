@@ -20,7 +20,7 @@ import {
   computeWorkforceInsights,
 } from '../services/intelligence/workforce-intelligence'
 import { AGENT_SOULS } from '../services/orchestration/agents'
-import { protectedProcedure, router } from '../trpc'
+import { protectedProcedure, router, workspaceProcedure } from '../trpc'
 
 export const agentsRouter = router({
   list: protectedProcedure
@@ -41,7 +41,7 @@ export const agentsRouter = router({
     .query(async ({ ctx, input }) => {
       return ctx.db.query.agents.findFirst({ where: eq(agents.id, input.id) })
     }),
-  byWorkspace: protectedProcedure
+  byWorkspace: workspaceProcedure
     .input(
       z.object({
         workspaceId: z.string().uuid(),
@@ -368,7 +368,7 @@ export const agentsRouter = router({
     }),
 
   /** Get ranked agent performance for all agents in a workspace */
-  getWorkspaceAgentPerformance: protectedProcedure
+  getWorkspaceAgentPerformance: workspaceProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const wsAgents = await ctx.db.query.agents.findMany({
@@ -392,7 +392,7 @@ export const agentsRouter = router({
     }),
 
   /** Get per-agent performance comparison within a workspace */
-  getAgentWorkspacePerformance: protectedProcedure
+  getAgentWorkspacePerformance: workspaceProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return getAgentWorkspacePerformance(ctx.db, input.workspaceId)
@@ -401,7 +401,7 @@ export const agentsRouter = router({
   // === Adaptive Routing ===
 
   /** Get routing recommendation for a task context */
-  getRoutingRecommendation: protectedProcedure
+  getRoutingRecommendation: workspaceProcedure
     .input(
       z.object({
         workspaceId: z.string().uuid(),
@@ -417,7 +417,7 @@ export const agentsRouter = router({
   // === Workforce Intelligence ===
 
   /** Get workforce insights for a workspace */
-  getWorkforceInsights: protectedProcedure
+  getWorkforceInsights: workspaceProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return computeWorkforceInsights(ctx.db, input.workspaceId)

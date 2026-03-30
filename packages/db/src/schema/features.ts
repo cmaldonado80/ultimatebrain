@@ -306,6 +306,17 @@ export const userPreferences = pgTable('user_preferences', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+// Feature: Document Ingestion
+export const documents = pgTable('documents', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  content: text('content').notNull(),
+  chunkCount: integer('chunk_count').default(0),
+  workspaceId: uuid('workspace_id'),
+  organizationId: uuid('organization_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 // NOTE: Debate tables (debateSessions, debateNodes, debateEdges, debateElo)
 // and token tables (tokenLedger, tokenBudgets) are defined in platform.ts
 // with proper FK constraints to agents and brainEntities.

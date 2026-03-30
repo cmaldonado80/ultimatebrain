@@ -1129,6 +1129,16 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       )`,
       `CREATE INDEX IF NOT EXISTS improvement_proposals_domain_idx ON improvement_proposals(domain)`,
 
+      `CREATE TABLE IF NOT EXISTS documents (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        name text NOT NULL,
+        content text NOT NULL,
+        chunk_count integer DEFAULT 0,
+        workspace_id uuid,
+        organization_id uuid,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+
       // Missing indexes from audit (Batch 1)
       `CREATE INDEX IF NOT EXISTS chat_run_steps_agent_idx ON chat_run_steps(agent_id)`,
       `CREATE INDEX IF NOT EXISTS guardrail_logs_ticket_id_idx ON guardrail_logs(ticket_id)`,
