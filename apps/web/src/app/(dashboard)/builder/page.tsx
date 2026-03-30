@@ -491,41 +491,79 @@ export default function BuilderPage() {
         </>
       )}
 
-      {/* File Preview Modal */}
-      {previewContent && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6"
-          onClick={() => setPreviewContent(null)}
-        >
-          <div
-            className="cyber-card w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <div className="text-[13px] font-bold text-slate-400">Generated File</div>
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(previewContent)
-                  }}
-                  className="text-[11px] px-3 py-1 rounded bg-neon-teal/20 text-neon-teal hover:bg-neon-teal/30 border-none cursor-pointer"
-                >
-                  Copy
-                </button>
-                <button
-                  onClick={() => setPreviewContent(null)}
-                  className="text-[11px] px-3 py-1 rounded bg-white/5 text-slate-400 hover:text-slate-200 border-none cursor-pointer"
-                >
-                  Close
-                </button>
+      {/* File Preview Modal (structured FileOutput) */}
+      {previewContent &&
+        (() => {
+          let fileOutput: {
+            filePath?: string
+            content?: string
+            safetyLevel?: string
+            language?: string
+            lineCount?: number
+          } | null = null
+          try {
+            fileOutput = JSON.parse(previewContent)
+          } catch {
+            /* raw content fallback */
+          }
+          const displayContent = fileOutput?.content ?? previewContent
+          const filePath = fileOutput?.filePath ?? 'Generated Output'
+          const safety = fileOutput?.safetyLevel ?? 'low'
+          const lang = fileOutput?.language ?? 'unknown'
+          const lines = fileOutput?.lineCount ?? displayContent.split('\n').length
+
+          return (
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6"
+              onClick={() => setPreviewContent(null)}
+            >
+              <div
+                className="cyber-card w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between p-4 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <div className="text-[13px] font-bold text-slate-300 font-mono">{filePath}</div>
+                    <span
+                      className={`text-[9px] px-1.5 py-0.5 rounded ${
+                        safety === 'low'
+                          ? 'bg-neon-green/10 text-neon-green'
+                          : safety === 'medium'
+                            ? 'bg-neon-yellow/10 text-neon-yellow'
+                            : 'bg-neon-red/10 text-neon-red'
+                      }`}
+                    >
+                      {safety}
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-slate-500">
+                      {lang}
+                    </span>
+                    <span className="text-[9px] text-slate-600">{lines} lines</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(displayContent)
+                      }}
+                      className="text-[11px] px-3 py-1 rounded bg-neon-teal/20 text-neon-teal hover:bg-neon-teal/30 border-none cursor-pointer"
+                    >
+                      Copy
+                    </button>
+                    <button
+                      onClick={() => setPreviewContent(null)}
+                      className="text-[11px] px-3 py-1 rounded bg-white/5 text-slate-400 hover:text-slate-200 border-none cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+                <pre className="p-4 overflow-auto flex-1 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
+                  {displayContent}
+                </pre>
               </div>
             </div>
-            <pre className="p-4 overflow-auto flex-1 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
-              {previewContent}
-            </pre>
-          </div>
-        </div>
-      )}
+          )
+        })()}
     </div>
   )
 }

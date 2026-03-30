@@ -97,6 +97,15 @@ export type ActionType =
   | 'add_page'
   | 'informational'
 
+export interface FileOutput {
+  filePath: string
+  content: string
+  type: 'create'
+  safetyLevel: 'low' | 'medium' | 'high'
+  language: 'typescript' | 'sql' | 'json' | 'unknown'
+  lineCount: number
+}
+
 export interface ExecutionAction {
   id: string
   type: ActionType
@@ -330,6 +339,59 @@ export function generateExecutionPlan(
   }
 }
 
+// ── Validation ───────────────────────────────────────────────────────
+
+const TABLE_NAME_PATTERN = /^[a-z][a-z0-9_]+$/
+const DANGEROUS_SQL = /\b(DROP|DELETE|TRUNCATE|ALTER|UPDATE|INSERT)\b/i
+const ALLOWED_PATH_PREFIXES = ['apps/', 'packages/']
+
+function validateTableName(name: string): string | null {
+  if (!name) return 'Table name is empty'
+  if (!TABLE_NAME_PATTERN.test(name))
+    return `Invalid table name: ${name} (must be lowercase alphanumeric + underscores)`
+  if (name.length > 63) return `Table name too long: ${name} (max 63 chars)`
+  return null
+}
+
+function validateSQL(sqlStr: string): string | null {
+  if (!sqlStr.trim().startsWith('CREATE TABLE IF NOT EXISTS')) {
+    return 'SQL must start with CREATE TABLE IF NOT EXISTS'
+  }
+  // Check for dangerous SQL outside the CREATE TABLE statement
+  const afterCreate = sqlStr.slice(sqlStr.indexOf(')') + 1)
+  if (DANGEROUS_SQL.test(afterCreate)) {
+    return 'SQL contains dangerous statements outside CREATE TABLE'
+  }
+  return null
+}
+
+function validateFilePath(path: string): string | null {
+  if (!path) return 'File path is empty'
+  if (path.includes('..')) return 'File path contains directory traversal (..)'
+  if (!ALLOWED_PATH_PREFIXES.some((p) => path.startsWith(p))) {
+    return `File path must start with: ${ALLOWED_PATH_PREFIXES.join(', ')}`
+  }
+  return null
+}
+
+function validateTokens(tokens: Record<string, string>): string | null {
+  for (const [key, value] of Object.entries(tokens)) {
+    if (typeof value !== 'string') return `Token ${key} is not a string`
+    if (DANGEROUS_SQL.test(value)) return `Token ${key} contains dangerous SQL keywords`
+
+    if (/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(value))
+      return `Token ${key} contains control characters`
+  }
+  return null
+}
+
+function detectLanguage(filePath: string): FileOutput['language'] {
+  if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) return 'typescript'
+  if (filePath.endsWith('.sql')) return 'sql'
+  if (filePath.endsWith('.json')) return 'json'
+  return 'unknown'
+}
+
 // ── Action Execution ─────────────────────────────────────────────────
 
 /**
@@ -350,14 +412,20 @@ export async function executeAction(
 
   if (action.type === 'create_table') {
     const sqlStr = action.payload.sql as string
-    if (!sqlStr) {
-      return { ...action, status: 'failed', error: 'No SQL in payload' }
-    }
+    const tableName = action.payload.tableName as string
+
+    if (!sqlStr) return { ...action, status: 'failed', error: 'No SQL in payload' }
+
+    // Validate table name
+    const tableErr = validateTableName(tableName)
+    if (tableErr) return { ...action, status: 'failed', error: tableErr }
+
+    // Validate SQL content
+    const sqlErr = validateSQL(sqlStr)
+    if (sqlErr) return { ...action, status: 'failed', error: sqlErr }
 
     try {
       await db.execute(sql.raw(sqlStr))
-      // Create index on organization_id if the table has it
-      const tableName = action.payload.tableName as string
       try {
         await db.execute(
           sql.raw(
@@ -365,12 +433,22 @@ export async function executeAction(
           ),
         )
       } catch {
-        // Index creation is non-blocking (column might not exist)
+        // Index creation is non-blocking
       }
+
+      const output: FileOutput = {
+        filePath: `SQL: ${tableName}`,
+        content: sqlStr,
+        type: 'create',
+        safetyLevel: 'low',
+        language: 'sql',
+        lineCount: sqlStr.split('\n').length,
+      }
+
       return {
         ...action,
         status: 'completed',
-        result: `Table ${tableName} created successfully`,
+        result: JSON.stringify(output),
       }
     } catch (err) {
       return {
@@ -383,25 +461,38 @@ export async function executeAction(
 
   if (action.type === 'generate_file') {
     const template = action.payload.template as string
-    const tokens = action.payload.tokens as Record<string, string>
+    const tokens = (action.payload.tokens as Record<string, string>) ?? {}
     const targetPath = action.payload.targetPath as string
 
-    if (!template) {
-      return { ...action, status: 'failed', error: 'No template content in payload' }
-    }
+    if (!template) return { ...action, status: 'failed', error: 'No template content in payload' }
+
+    // Validate file path
+    const pathErr = validateFilePath(targetPath)
+    if (pathErr) return { ...action, status: 'failed', error: pathErr }
+
+    // Validate tokens
+    const tokenErr = validateTokens(tokens)
+    if (tokenErr) return { ...action, status: 'failed', error: tokenErr }
 
     // Apply token replacement
     let content = template
-    if (tokens) {
-      for (const [token, value] of Object.entries(tokens)) {
-        content = content.split(token).join(value)
-      }
+    for (const [token, value] of Object.entries(tokens)) {
+      content = content.split(token).join(value)
+    }
+
+    const output: FileOutput = {
+      filePath: targetPath,
+      content,
+      type: 'create',
+      safetyLevel: 'low',
+      language: detectLanguage(targetPath),
+      lineCount: content.split('\n').length,
     }
 
     return {
       ...action,
       status: 'completed',
-      result: `Generated file for ${targetPath}:\n\n${content}`,
+      result: JSON.stringify(output),
     }
   }
 
