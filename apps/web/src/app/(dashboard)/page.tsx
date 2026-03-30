@@ -8,38 +8,13 @@
 import Link from 'next/link'
 
 import { DbErrorBanner } from '../../components/db-error-banner'
-import { OrgBadge } from '../../components/ui/org-badge'
+import { LoadingState } from '../../components/ui/loading-state'
+import { PageGrid } from '../../components/ui/page-grid'
+import { PageHeader } from '../../components/ui/page-header'
+import { SectionCard } from '../../components/ui/section-card'
+import { StatCard } from '../../components/ui/stat-card'
+import { StatusBadge } from '../../components/ui/status-badge'
 import { trpc } from '../../utils/trpc'
-
-const STAT_COLORS: Record<string, string> = {
-  'neon-blue': 'text-neon-blue',
-  'neon-green': 'text-neon-green',
-  'neon-red': 'text-neon-red',
-  'neon-purple': 'text-neon-purple',
-  'slate-600': 'text-slate-600',
-}
-
-function StatCard({
-  label,
-  value,
-  sub,
-  color = 'neon-blue',
-}: {
-  label: string
-  value: string | number
-  sub?: string
-  color?: string
-}) {
-  return (
-    <div className="cyber-card p-4">
-      <div className={`text-2xl font-bold font-orbitron ${STAT_COLORS[color] ?? 'text-neon-blue'}`}>
-        {value}
-      </div>
-      <div className="text-xs text-slate-400 mt-1">{label}</div>
-      {sub && <div className="text-[10px] text-slate-600 mt-0.5">{sub}</div>}
-    </div>
-  )
-}
 
 function timeAgo(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date
@@ -94,13 +69,7 @@ export default function MissionControlPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-lg font-orbitron">Loading Mission Control...</div>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Loading Mission Control..." />
   }
 
   const agents = (agentsQuery.data ?? []) as Array<{
@@ -136,62 +105,55 @@ export default function MissionControlPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="m-0 text-2xl font-bold font-orbitron flex items-center gap-2">
-            Mission Control <OrgBadge />
-          </h2>
-          <p className="mt-1 mb-0 text-xs text-slate-500">Real-time overview of all systems</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="neon-dot neon-dot-green animate-pulse" />
-          <span className="text-xs text-slate-500">Live</span>
-          {timeOfDayQuery.data && (
-            <span className="cyber-badge text-[9px] bg-neon-teal/10 text-neon-teal border-neon-teal/20 ml-2">
+      <PageHeader
+        title="Mission Control"
+        subtitle="Real-time overview of all systems"
+        live
+        actions={
+          timeOfDayQuery.data ? (
+            <span className="cyber-badge text-[9px] bg-neon-teal/10 text-neon-teal border-neon-teal/20">
               {timeOfDayQuery.data.timeOfDay}
             </span>
-          )}
-        </div>
-      </div>
+          ) : undefined
+        }
+        className="mb-6"
+      />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+      <PageGrid cols="6" className="mb-6">
         <StatCard label="Total Agents" value={agents.length} sub={`${agentsByStatus.idle} idle`} />
         <StatCard
           label="Active Agents"
           value={agentsByStatus.executing}
-          color="neon-green"
+          color="green"
           sub="executing/planning"
         />
         <StatCard
           label="Error Agents"
           value={agentsByStatus.error}
-          color={agentsByStatus.error > 0 ? 'neon-red' : 'slate-600'}
+          color={agentsByStatus.error > 0 ? 'red' : 'slate'}
           sub={agentsByStatus.error > 0 ? 'needs attention' : 'all healthy'}
         />
-        <StatCard label="Workspaces" value={workspaces.length} color="neon-purple" />
+        <StatCard label="Workspaces" value={workspaces.length} color="purple" />
         <StatCard label="Cron Jobs" value={activeCrons} sub={`of ${cronJobs.length} total`} />
-        <StatCard label="Chat Sessions" value={sessions.length} color="neon-blue" />
-      </div>
+        <StatCard label="Chat Sessions" value={sessions.length} />
+      </PageGrid>
 
       {/* Agents at Work */}
       {activeAgents.length > 0 && (
         <div className="mb-6">
           <h3 className="text-sm font-orbitron text-white mb-3">Agents at Work</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <PageGrid cols="3">
             {activeAgents.map((agent) => {
               const agentTicket = tickets.find(
                 (t) => t.assignedAgentId === agent.id && t.status === 'in_progress',
               )
               return (
-                <div key={agent.id} className="cyber-card p-3">
+                <SectionCard key={agent.id} padding="sm">
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="neon-dot neon-dot-green animate-pulse" />
                     <span className="text-sm font-medium text-slate-200">{agent.name}</span>
-                    <span className="cyber-badge text-[9px] text-neon-blue border-neon-blue/20">
-                      {agent.status}
-                    </span>
+                    <StatusBadge label={agent.status ?? 'unknown'} color="blue" />
                   </div>
                   {agentTicket && (
                     <div className="text-xs text-slate-400 truncate">{agentTicket.title}</div>
@@ -199,17 +161,17 @@ export default function MissionControlPage() {
                   <div className="text-[10px] text-slate-600 mt-1">
                     {agent.model ?? 'no model'} &middot; {agent.type ?? 'agent'}
                   </div>
-                </div>
+                </SectionCard>
               )
             })}
-          </div>
+          </PageGrid>
         </div>
       )}
 
       {/* Live Activity + Recent Completed */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+      <PageGrid cols="2" gap="md" className="mb-6">
         {/* Live Activity */}
-        <div className="cyber-card p-4">
+        <SectionCard>
           <div className="flex items-center gap-2 mb-3">
             <div className="neon-dot neon-dot-blue animate-pulse" />
             <h3 className="text-sm font-orbitron text-white">Live Activity</h3>
@@ -253,11 +215,10 @@ export default function MissionControlPage() {
               })}
             </div>
           )}
-        </div>
+        </SectionCard>
 
         {/* Recently Completed */}
-        <div className="cyber-card p-4">
-          <h3 className="text-sm font-orbitron text-white mb-3">Recently Completed</h3>
+        <SectionCard title="Recently Completed">
           {recentlyDone.length === 0 ? (
             <div className="text-xs text-slate-600 py-4 text-center">No completed tasks yet.</div>
           ) : (
@@ -284,12 +245,11 @@ export default function MissionControlPage() {
               View all tickets →
             </Link>
           </div>
-        </div>
-      </div>
+        </SectionCard>
+      </PageGrid>
 
       {/* Quick Actions */}
-      <div className="cyber-card p-4 mb-6">
-        <h3 className="text-sm font-orbitron text-white mb-3">Quick Actions</h3>
+      <SectionCard title="Quick Actions" className="mb-6">
         <div className="flex flex-wrap gap-2">
           <Link href="/chat" className="cyber-btn-primary cyber-btn-sm no-underline">
             New Chat
@@ -313,13 +273,13 @@ export default function MissionControlPage() {
             API Costs
           </Link>
         </div>
-      </div>
+      </SectionCard>
 
       {/* Adaptive Recommended Panels */}
       {rankedPanelsQuery.data && (
         <div>
           <h3 className="text-sm font-orbitron text-white mb-3">Recommended for You</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <PageGrid cols="6">
             {(
               rankedPanelsQuery.data as Array<{
                 id: string
@@ -345,7 +305,7 @@ export default function MissionControlPage() {
                   </div>
                 </Link>
               ))}
-          </div>
+          </PageGrid>
         </div>
       )}
     </div>

@@ -8,8 +8,14 @@
 
 import { useState } from 'react'
 
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { ActionBar } from '../../../components/ui/action-bar'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { FilterPills } from '../../../components/ui/filter-pills'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { PermissionGate } from '../../../components/ui/permission-gate'
+import type { StatusColor } from '../../../components/ui/status-badge'
+import { StatusBadge } from '../../../components/ui/status-badge'
 import { trpc } from '../../../utils/trpc'
 
 const SEVERITY_STYLE: Record<string, { dot: string; border: string }> = {
@@ -19,13 +25,21 @@ const SEVERITY_STYLE: Record<string, { dot: string; border: string }> = {
   low: { dot: 'bg-slate-400', border: 'border-slate-600' },
 }
 
-const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  triggered: { label: 'Triggered', cls: 'text-neon-red bg-neon-red/10' },
-  acknowledged: { label: 'Acknowledged', cls: 'text-neon-yellow bg-neon-yellow/10' },
-  resolved: { label: 'Resolved', cls: 'text-neon-green bg-neon-green/10' },
+const INCIDENT_STATUS_COLOR: Record<string, StatusColor> = {
+  triggered: 'red',
+  acknowledged: 'yellow',
+  resolved: 'green',
+}
+
+const INCIDENT_STATUS_LABEL: Record<string, string> = {
+  triggered: 'Triggered',
+  acknowledged: 'Acknowledged',
+  resolved: 'Resolved',
 }
 
 type StatusFilter = 'all' | 'triggered' | 'acknowledged' | 'resolved'
+
+const FILTER_OPTIONS = ['all', 'triggered', 'acknowledged', 'resolved'] as const
 
 export default function IncidentsPage() {
   const [filter, setFilter] = useState<StatusFilter>('all')
@@ -55,46 +69,29 @@ export default function IncidentsPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-xl font-orbitron text-white flex items-center gap-2">
-          Incidents <OrgBadge />
-        </h1>
-        {activeCount > 0 && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-neon-red/10 text-neon-red font-mono">
-            {activeCount} active
-          </span>
-        )}
-      </div>
+      <PageHeader
+        title="Incidents"
+        count={activeCount > 0 ? `${activeCount} active` : undefined}
+        className="mb-6"
+      />
 
       {/* Filters */}
-      <div className="flex items-center gap-1.5 mb-4">
-        {(['all', 'triggered', 'acknowledged', 'resolved'] as StatusFilter[]).map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`text-[10px] px-2.5 py-1 rounded transition-colors capitalize ${
-              filter === s
-                ? 'bg-neon-teal/10 text-neon-teal ring-1 ring-neon-teal/30'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
+      <FilterPills options={FILTER_OPTIONS} value={filter} onChange={setFilter} className="mb-4" />
 
       {/* Incident List */}
       {query.isLoading ? (
-        <div className="text-sm text-slate-500 py-12 text-center">Loading incidents...</div>
+        <LoadingState message="Loading incidents..." fullHeight={false} />
       ) : incidents.length === 0 ? (
-        <div className="text-sm text-slate-600 py-12 text-center">
-          {filter === 'all' ? 'No incidents recorded' : `No ${filter} incidents`}
-        </div>
+        <EmptyState
+          title={filter === 'all' ? 'No incidents recorded' : `No ${filter} incidents`}
+          message="When incidents occur, they will appear here."
+        />
       ) : (
         <div className="space-y-2">
           {incidents.map((inc) => {
             const sev = SEVERITY_STYLE[inc.severity] ?? SEVERITY_STYLE.low
-            const badge = STATUS_BADGE[inc.status] ?? STATUS_BADGE.triggered
+            const statusColor = INCIDENT_STATUS_COLOR[inc.status] ?? 'slate'
+            const statusLabel = INCIDENT_STATUS_LABEL[inc.status] ?? inc.status
             const isExpanded = expanded === inc.id
             return (
               <div key={inc.id} className={`cyber-card border ${sev.border} transition-colors`}>
@@ -109,9 +106,7 @@ export default function IncidentsPage() {
                         <span className="text-sm text-slate-200 font-medium">
                           {inc.serviceName}
                         </span>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded ${badge.cls}`}>
-                          {badge.label}
-                        </span>
+                        <StatusBadge label={statusLabel} color={statusColor} />
                         <span className="text-[9px] text-slate-600 font-mono">{inc.severity}</span>
                       </div>
                       <div className="text-[10px] text-slate-500 truncate">{inc.message}</div>
@@ -140,7 +135,7 @@ export default function IncidentsPage() {
                     )}
 
                     {/* Actions — operator+ only */}
-                    <div className="flex items-center gap-2 mt-2">
+                    <ActionBar className="mt-2">
                       <PermissionGate require="operator">
                         {inc.status === 'triggered' && (
                           <button
@@ -172,7 +167,7 @@ export default function IncidentsPage() {
                       >
                         View traces →
                       </a>
-                    </div>
+                    </ActionBar>
                   </div>
                 )}
               </div>

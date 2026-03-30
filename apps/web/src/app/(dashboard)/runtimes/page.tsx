@@ -9,7 +9,13 @@
 
 import { useState } from 'react'
 
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { ActionBar } from '../../../components/ui/action-bar'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { FilterPills } from '../../../components/ui/filter-pills'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
+import type { StatusColor } from '../../../components/ui/status-badge'
+import { StatusBadge } from '../../../components/ui/status-badge'
 import { useOrgRole } from '../../../hooks/use-org-role'
 import { trpc } from '../../../utils/trpc'
 
@@ -24,6 +30,17 @@ const STATUS_STYLE: Record<string, { label: string; dot: string }> = {
   retired: { label: 'Retired', dot: 'bg-slate-600' },
 }
 
+const STATUS_COLOR: Record<string, StatusColor> = {
+  active: 'green',
+  verified: 'blue',
+  deployed: 'yellow',
+  degraded: 'yellow',
+  suspended: 'red',
+  retired: 'slate',
+  provisioning: 'slate',
+  configured: 'blue',
+}
+
 const TIER_LABEL: Record<string, string> = {
   brain: 'Brain',
   mini_brain: 'Mini Brain',
@@ -31,6 +48,13 @@ const TIER_LABEL: Record<string, string> = {
 }
 
 type Filter = 'all' | 'mini_brain' | 'development'
+
+const FILTER_OPTIONS = ['all', 'mini_brain', 'development'] as const
+const FILTER_LABELS: Partial<Record<Filter, string>> = {
+  all: 'All',
+  mini_brain: 'Mini Brain',
+  development: 'Development',
+}
 
 const SECRET_STATUS_STYLE: Record<string, { label: string; color: string }> = {
   active: { label: 'Active', color: 'text-neon-green' },
@@ -191,61 +215,41 @@ export default function RuntimesPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-orbitron text-white mb-6 flex items-center gap-2">
-        Runtimes <OrgBadge />
-      </h1>
+      <PageHeader title="Runtimes" count={total > 0 ? total : undefined} className="mb-6" />
 
       {/* Summary */}
       <div className="flex items-center gap-4 mb-6 p-3 rounded-lg bg-bg-elevated/50 border border-border-dim">
         <div className="text-xs text-slate-400">
           <span className="text-white font-medium">{total}</span> runtimes
         </div>
-        {activeCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="w-2 h-2 rounded-full bg-neon-green" />
-            <span className="text-neon-green">{activeCount} active</span>
-          </div>
-        )}
+        {activeCount > 0 && <StatusBadge label={`${activeCount} active`} color="green" dot />}
         {degradedCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="w-2 h-2 rounded-full bg-neon-yellow" />
-            <span className="text-neon-yellow">{degradedCount} degraded</span>
-          </div>
+          <StatusBadge label={`${degradedCount} degraded`} color="yellow" dot pulse />
         )}
         {provisioningCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="w-2 h-2 rounded-full bg-slate-400" />
-            <span className="text-slate-400">{provisioningCount} pending</span>
-          </div>
+          <StatusBadge label={`${provisioningCount} pending`} color="slate" dot />
         )}
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-1.5 mb-4">
-        {(['all', 'mini_brain', 'development'] as Filter[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`text-[10px] px-2.5 py-1 rounded transition-colors ${
-              filter === f
-                ? 'bg-neon-teal/10 text-neon-teal ring-1 ring-neon-teal/30'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-            }`}
-          >
-            {f === 'all' ? 'All' : (TIER_LABEL[f] ?? f)}
-          </button>
-        ))}
-      </div>
+      <FilterPills
+        options={FILTER_OPTIONS}
+        value={filter}
+        onChange={setFilter}
+        labels={FILTER_LABELS}
+        className="mb-4"
+      />
 
       {/* Runtime list */}
       {query.isLoading ? (
-        <div className="text-sm text-slate-500 py-12 text-center">Loading runtimes...</div>
+        <LoadingState message="Loading runtimes..." fullHeight={false} />
       ) : runtimes.length === 0 ? (
-        <div className="text-sm text-slate-600 py-12 text-center">No runtimes found</div>
+        <EmptyState title="No runtimes found" message="No runtimes match the current filter." />
       ) : (
         <div className="space-y-2">
           {runtimes.map((rt) => {
             const style = STATUS_STYLE[rt.status] ?? STATUS_STYLE.provisioning
+            const badgeColor = STATUS_COLOR[rt.status] ?? 'slate'
             const isExpanded = expanded === rt.id
             return (
               <div key={rt.id} className="cyber-card transition-colors">
@@ -264,17 +268,7 @@ export default function RuntimesPage() {
                         {rt.domain && (
                           <span className="text-[9px] text-neon-blue">{rt.domain}</span>
                         )}
-                        <span
-                          className={`text-[8px] px-1.5 py-0.5 rounded ${
-                            rt.status === 'active'
-                              ? 'bg-neon-green/10 text-neon-green'
-                              : rt.status === 'suspended'
-                                ? 'bg-neon-red/10 text-neon-red'
-                                : 'bg-slate-700/50 text-slate-400'
-                          }`}
-                        >
-                          {style.label}
-                        </span>
+                        <StatusBadge label={style.label} color={badgeColor} />
                       </div>
                       <div className="text-[10px] text-slate-500 flex gap-3">
                         {rt.endpoint && (
@@ -331,7 +325,7 @@ export default function RuntimesPage() {
 
                     {/* Actions (operator+ only) */}
                     {isOperator && (
-                      <div className="flex items-center gap-2 mt-2">
+                      <ActionBar className="mt-2">
                         {rt.endpoint && rt.status !== 'active' && rt.status !== 'retired' && (
                           <button
                             onClick={(e) => {
@@ -383,7 +377,7 @@ export default function RuntimesPage() {
                         >
                           View status →
                         </a>
-                      </div>
+                      </ActionBar>
                     )}
                   </div>
                 )}
