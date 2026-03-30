@@ -9,6 +9,7 @@
 import { useState } from 'react'
 
 import { OrgBadge } from '../../../components/ui/org-badge'
+import { PermissionGate } from '../../../components/ui/permission-gate'
 import { trpc } from '../../../utils/trpc'
 
 const SEVERITY_STYLE: Record<string, { dot: string; border: string }> = {
@@ -138,30 +139,32 @@ export default function IncidentsPage() {
                       </div>
                     )}
 
-                    {/* Actions */}
+                    {/* Actions — operator+ only */}
                     <div className="flex items-center gap-2 mt-2">
-                      {inc.status === 'triggered' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            ack.mutate({ id: inc.id })
-                          }}
-                          className="text-[10px] px-2.5 py-1 rounded bg-neon-yellow/10 text-neon-yellow hover:bg-neon-yellow/20 transition-colors"
-                        >
-                          Acknowledge
-                        </button>
-                      )}
-                      {inc.status !== 'resolved' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            resolve.mutate({ id: inc.id })
-                          }}
-                          className="text-[10px] px-2.5 py-1 rounded bg-neon-green/10 text-neon-green hover:bg-neon-green/20 transition-colors"
-                        >
-                          Resolve
-                        </button>
-                      )}
+                      <PermissionGate require="operator">
+                        {inc.status === 'triggered' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              ack.mutate({ id: inc.id })
+                            }}
+                            className="text-[10px] px-2.5 py-1 rounded bg-neon-yellow/10 text-neon-yellow hover:bg-neon-yellow/20 transition-colors"
+                          >
+                            Acknowledge
+                          </button>
+                        )}
+                        {inc.status !== 'resolved' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              resolve.mutate({ id: inc.id })
+                            }}
+                            className="text-[10px] px-2.5 py-1 rounded bg-neon-green/10 text-neon-green hover:bg-neon-green/20 transition-colors"
+                          >
+                            Resolve
+                          </button>
+                        )}
+                      </PermissionGate>
                       <a
                         href={`/ops/traces?service=${encodeURIComponent(inc.serviceName)}`}
                         className="text-[10px] text-neon-teal hover:underline"

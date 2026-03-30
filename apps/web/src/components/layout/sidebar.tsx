@@ -1,14 +1,15 @@
 'use client'
 
 /**
- * Sidebar — 260px navigation with 24 tabs + Cmd+K spotlight search
+ * Sidebar — 260px navigation with Cmd+K spotlight search.
+ * Admin section shown only to platform_owner.
  */
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { memo, useEffect, useState } from 'react'
 
-import { trpc } from '../../utils/trpc'
+import { useActiveOrg } from '../../hooks/use-active-org'
 
 // ── Navigation Structure ────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ interface NavSection {
   items: NavItem[]
 }
 
-const NAV_SECTIONS: NavSection[] = [
+const BASE_NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { label: 'Mission Control', href: '/', icon: '⊞' },
@@ -41,6 +42,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Organization',
     items: [
+      { label: 'Org Dashboard', href: '/org/dashboard', icon: '◎' },
       { label: 'Org Settings', href: '/org', icon: '⊞' },
       { label: 'Members', href: '/org/members', icon: '◉' },
     ],
@@ -117,18 +119,28 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ]
 
+const ADMIN_SECTION: NavSection = {
+  title: 'Admin',
+  items: [
+    { label: 'All Organizations', href: '/admin/orgs', icon: '⊞' },
+    { label: 'All Users', href: '/admin/users', icon: '◉' },
+  ],
+}
+
 // ── Spotlight Search ────────────────────────────────────────────────────
 
 const SpotlightSearch = memo(function SpotlightSearch({
   open,
   onClose,
+  sections,
 }: {
   open: boolean
   onClose: () => void
+  sections: NavSection[]
 }) {
   const [query, setQuery] = useState('')
 
-  const allItems = NAV_SECTIONS.flatMap((s) => s.items)
+  const allItems = sections.flatMap((s) => s.items)
   const filtered = query
     ? allItems.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()))
     : allItems.slice(0, 8)
@@ -181,10 +193,9 @@ const SpotlightSearch = memo(function SpotlightSearch({
 // ── Org Name ──────────────────────────────────────────────────────────────
 
 function OrgNameLabel() {
-  const { data } = trpc.organizations.list.useQuery(undefined, { staleTime: 60_000 })
-  const active = data?.find((o) => o.isActive)
-  if (!active) return null
-  return <div className="text-[10px] text-neon-teal/50 mt-1 truncate ml-7">{active.name}</div>
+  const { activeOrg } = useActiveOrg()
+  if (!activeOrg) return null
+  return <div className="text-[10px] text-neon-teal/50 mt-1 truncate ml-7">{activeOrg.name}</div>
 }
 
 // ── Sidebar Component ───────────────────────────────────────────────────
@@ -192,6 +203,9 @@ function OrgNameLabel() {
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname()
   const [spotlightOpen, setSpotlightOpen] = useState(false)
+  const { isPlatformOwner } = useActiveOrg()
+
+  const navSections = isPlatformOwner ? [...BASE_NAV_SECTIONS, ADMIN_SECTION] : BASE_NAV_SECTIONS
 
   // Cmd+K / Ctrl+K shortcut
   useEffect(() => {
@@ -239,7 +253,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto space-y-0.5">
-          {NAV_SECTIONS.map((section, si) => (
+          {navSections.map((section, si) => (
             <div key={si}>
               {section.title && (
                 <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/20 px-2 pt-4 pb-1.5">
@@ -275,11 +289,15 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
           >
             Sign out
           </button>
-          <div className="text-[10px] font-mono text-white/10 mt-1">v0.1.0 · Phase 18</div>
+          <div className="text-[10px] font-mono text-white/10 mt-1">v0.1.0 · Phase 19</div>
         </div>
       </aside>
 
-      <SpotlightSearch open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
+      <SpotlightSearch
+        open={spotlightOpen}
+        onClose={() => setSpotlightOpen(false)}
+        sections={navSections}
+      />
     </>
   )
 }

@@ -7,6 +7,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 type Category = 'agents' | 'skills' | 'commands' | 'hooks' | 'mcps' | 'settings'
@@ -134,7 +135,10 @@ export default function AitmplPage() {
         </div>
       ) : (
         <div>
-          <h2 className="text-sm font-orbitron text-slate-400 mb-3">Pre-installed</h2>
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-sm font-orbitron text-slate-400 m-0 3">Pre-installed</h2>
+            <OrgBadge />
+          </div>
           <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {activeTab === 'agents' &&
               catalog?.agents.map((a) => (

@@ -7,6 +7,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 export default function VisualQAPage() {
@@ -54,7 +55,10 @@ export default function VisualQAPage() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-orbitron text-neon-teal">Visual QA</h1>
+        <div className="flex items-center gap-3 mb-4">
+          <h1 className="text-2xl font-orbitron text-neon-teal">Visual QA</h1>
+          <OrgBadge />
+        </div>
         <p className="text-sm text-slate-400 mt-1">
           Browser session recordings &amp; LLM-powered review &mdash; {recordings.length} recordings
         </p>

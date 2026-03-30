@@ -8,6 +8,7 @@
 import { useState } from 'react'
 
 import { OrgBadge } from '../../../components/ui/org-badge'
+import { PermissionGate } from '../../../components/ui/permission-gate'
 import { trpc } from '../../../utils/trpc'
 
 interface WorkflowStep {
@@ -330,36 +331,38 @@ export default function DeploymentsPage() {
                     </details>
                   )}
 
-                  {/* Actions */}
-                  <div className="flex gap-2 items-center">
-                    {wf.status === 'running' && !currentRunningStep?.manual && (
-                      <button
-                        className="cyber-btn-secondary text-[11px] px-3 py-1"
-                        onClick={() => advanceMut.mutate({ workflowId: wf.id })}
-                        disabled={advanceMut.isPending}
-                      >
-                        Advance
-                      </button>
-                    )}
-                    {(wf.status === 'running' || wf.status === 'pending') && (
-                      <button
-                        className="text-[11px] text-neon-red hover:text-neon-red/80 font-medium"
-                        onClick={() => cancelMut.mutate({ workflowId: wf.id })}
-                        disabled={cancelMut.isPending}
-                      >
-                        Cancel
-                      </button>
-                    )}
-                    <div className="flex-1" />
-                    <span className="text-[10px] text-slate-600 font-mono">
-                      {wf.id.slice(0, 8)}
-                    </span>
-                    {wf.createdAt && (
-                      <span className="text-[10px] text-slate-600">
-                        {new Date(wf.createdAt).toLocaleString()}
+                  {/* Actions — operator+ only */}
+                  <PermissionGate require="operator">
+                    <div className="flex gap-2 items-center">
+                      {wf.status === 'running' && !currentRunningStep?.manual && (
+                        <button
+                          className="cyber-btn-secondary text-[11px] px-3 py-1"
+                          onClick={() => advanceMut.mutate({ workflowId: wf.id })}
+                          disabled={advanceMut.isPending}
+                        >
+                          Advance
+                        </button>
+                      )}
+                      {(wf.status === 'running' || wf.status === 'pending') && (
+                        <button
+                          className="text-[11px] text-neon-red hover:text-neon-red/80 font-medium"
+                          onClick={() => cancelMut.mutate({ workflowId: wf.id })}
+                          disabled={cancelMut.isPending}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      <div className="flex-1" />
+                      <span className="text-[10px] text-slate-600 font-mono">
+                        {wf.id.slice(0, 8)}
                       </span>
-                    )}
-                  </div>
+                      {wf.createdAt && (
+                        <span className="text-[10px] text-slate-600">
+                          {new Date(wf.createdAt).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  </PermissionGate>
 
                   {(confirmMut.error || retryMut.error || advanceMut.error) && (
                     <div className="mt-2 text-[11px] text-neon-red">

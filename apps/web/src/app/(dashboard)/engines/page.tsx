@@ -7,6 +7,7 @@
 import Link from 'next/link'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 interface BrainEntity {
@@ -78,7 +79,10 @@ export default function EnginesPage() {
     <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Engines</h2>
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="m-0 text-[22px] font-bold font-orbitron">Engines</h2>
+            <OrgBadge />
+          </div>
           <Link
             href="/engines/manage"
             className="cyber-btn-primary text-xs font-semibold no-underline"

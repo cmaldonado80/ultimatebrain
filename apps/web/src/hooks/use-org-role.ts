@@ -1,18 +1,18 @@
-import { trpc } from '../utils/trpc'
-
 /**
  * useOrgRole — returns the current user's role in the active organization.
- * Used for permission-gated UI rendering.
+ * Delegates to useActiveOrg() from OrgProvider for a single network request.
  */
+import { useActiveOrg } from './use-active-org'
+
 export function useOrgRole() {
-  const { data } = trpc.organizations.list.useQuery(undefined, { staleTime: 60_000 })
-  const active = data?.find((o) => o.isActive)
+  const { activeOrg, role, isOwner, isAdmin, isOperator, isPlatformOwner } = useActiveOrg()
   return {
-    role: (active?.role as string) ?? 'viewer',
-    isOwner: active?.role === 'owner',
-    isAdmin: active?.role === 'owner' || active?.role === 'admin',
-    isOperator: ['owner', 'admin', 'operator'].includes((active?.role as string) ?? ''),
-    orgName: active?.name ?? '',
-    orgId: active?.id ?? '',
+    role,
+    isOwner,
+    isAdmin,
+    isOperator,
+    isPlatformOwner,
+    orgName: activeOrg?.name ?? '',
+    orgId: activeOrg?.id ?? '',
   }
 }

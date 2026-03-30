@@ -7,6 +7,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 interface AgentCard {
@@ -71,7 +72,10 @@ export default function A2APage() {
     <div className="p-6 text-slate-50">
       <div className="mb-5">
         <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Agent-to-Agent Protocol</h2>
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="m-0 text-[22px] font-bold font-orbitron">Agent-to-Agent Protocol</h2>
+            <OrgBadge />
+          </div>
           <div className="flex gap-2">
             <button
               className="cyber-btn-primary"

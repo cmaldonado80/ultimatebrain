@@ -8,6 +8,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../../components/db-error-banner'
+import { OrgBadge } from '../../../../components/ui/org-badge'
 import { trpc } from '../../../../utils/trpc'
 
 interface Engine {
@@ -99,7 +100,10 @@ export default function EngineRegistryPage() {
     <div className="p-6 font-sans text-neon-text">
       <div className="mb-5">
         <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Engine Registry</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="m-0 text-[22px] font-bold font-orbitron">Engine Registry</h2>
+            <OrgBadge />
+          </div>
           <button className="cyber-btn-primary" onClick={() => setShowRegister(!showRegister)}>
             {showRegister ? 'Cancel' : '+ Register Engine'}
           </button>

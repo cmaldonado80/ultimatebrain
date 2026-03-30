@@ -7,6 +7,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 export default function WorkshopPage() {
@@ -70,7 +71,10 @@ export default function WorkshopPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-orbitron text-neon-teal">Workshop</h1>
+          <div className="flex items-center gap-3 mb-4">
+            <h1 className="text-2xl font-orbitron text-neon-teal">Workshop</h1>
+            <OrgBadge />
+          </div>
           <p className="text-sm text-slate-400 mt-1">
             Automate with agents &mdash; {projects.length} projects
           </p>

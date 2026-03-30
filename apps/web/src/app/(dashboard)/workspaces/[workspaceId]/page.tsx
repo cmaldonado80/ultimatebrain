@@ -3,6 +3,7 @@
 import { useParams, useRouter } from 'next/navigation'
 
 import { DbErrorBanner } from '../../../../components/db-error-banner'
+import { OrgBadge } from '../../../../components/ui/org-badge'
 import { trpc } from '../../../../utils/trpc'
 
 const LIFECYCLE_COLORS: Record<string, string> = {
@@ -105,7 +106,10 @@ export default function WorkspaceDetailPage() {
       <div className="mb-6">
         <div className="flex items-center gap-3">
           <span className="text-2xl">{ws.icon || '📁'}</span>
-          <h2 className="m-0 text-[22px] font-bold">{ws.name}</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="m-0 text-[22px] font-bold">{ws.name}</h2>
+            <OrgBadge />
+          </div>
           {ws.type && <span className="cyber-badge bg-neon-blue/10 text-neon-blue">{ws.type}</span>}
           <span
             className="text-[10px] font-semibold px-2 py-0.5 rounded border uppercase"

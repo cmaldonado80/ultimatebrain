@@ -5,6 +5,7 @@
  */
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 interface ApprovalGate {
@@ -61,7 +62,10 @@ export default function ApprovalsPage() {
   return (
     <div className="p-6 text-slate-50">
       <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">Approvals</h2>
+        <div className="flex items-center gap-3 mb-6">
+          <h2 className="m-0 text-[22px] font-bold font-orbitron">Approvals</h2>
+          <OrgBadge />
+        </div>
         <p className="mt-1 mb-0 text-xs text-slate-500">
           Review and approve pending agent actions that require human-in-the-loop authorization.
         </p>

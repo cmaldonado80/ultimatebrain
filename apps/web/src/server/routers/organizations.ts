@@ -3,7 +3,7 @@
  *
  * CRUD for organizations, membership management, and org switching.
  */
-import { organizationMembers, organizations, users } from '@solarc/db'
+import { organizationMembers, organizations, userRoles, users } from '@solarc/db'
 import { TRPCError } from '@trpc/server'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
@@ -303,4 +303,15 @@ export const organizationsRouter = router({
       )
       return { removed: true }
     }),
+
+  /** Get the current user's global platform role */
+  getGlobalRole: protectedProcedure.query(async ({ ctx }) => {
+    const userRole = await ctx.db.query.userRoles.findFirst({
+      where: eq(userRoles.userId, ctx.session.userId),
+    })
+    return {
+      role: userRole?.role ?? 'viewer',
+      isPlatformOwner: userRole?.role === 'platform_owner',
+    }
+  }),
 })

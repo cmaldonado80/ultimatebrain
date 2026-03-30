@@ -1,6 +1,7 @@
 import { router } from '../trpc'
 import { a2aRouter } from './a2a'
 import { adaptiveRouter } from './adaptive'
+import { adminRouter } from './admin'
 import { agentsRouter } from './agents'
 import { aitmplRouter } from './aitmpl'
 import { alertingRouter } from './alerting'
@@ -91,6 +92,7 @@ export const appRouter = router({
   organizations: organizationsRouter,
   astrology: astrologyRouter,
   builder: builderRouter,
+  admin: adminRouter,
 })
 
 export type AppRouter = typeof appRouter

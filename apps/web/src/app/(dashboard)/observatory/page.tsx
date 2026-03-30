@@ -12,6 +12,7 @@ import { HealthPanel } from '../../../components/observatory/health-panel'
 import { InsightsPanel } from '../../../components/observatory/insights-panel'
 import { layoutTopology } from '../../../components/observatory/layout'
 import { mergeOverlayIntoFlowNodes } from '../../../components/observatory/merge'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 // ── Inspector ───────────────────────────────────────────────────────────
@@ -58,9 +59,12 @@ function Inspector({
   return (
     <div className="w-80 border-l border-border bg-bg-deep overflow-y-auto p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-orbitron text-xs text-neon-teal tracking-wide uppercase">
-          {isEdge ? 'Edge' : node!.type}
-        </h2>
+        <div className="flex items-center gap-3 mb-6">
+          <h2 className="font-orbitron text-xs text-neon-teal tracking-wide uppercase">
+            {isEdge ? 'Edge' : node!.type}
+          </h2>
+          <OrgBadge />
+        </div>
         <button onClick={onClose} className="text-slate-600 hover:text-slate-400 text-xs">
           &#x2715;
         </button>

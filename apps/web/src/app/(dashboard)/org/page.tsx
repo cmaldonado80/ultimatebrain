@@ -6,6 +6,8 @@
 
 import { useState } from 'react'
 
+import { OrgBadge } from '../../../components/ui/org-badge'
+import { PermissionGate } from '../../../components/ui/permission-gate'
 import { trpc } from '../../../utils/trpc'
 
 export default function OrgPage() {
@@ -41,7 +43,10 @@ export default function OrgPage() {
 
   return (
     <div className="p-6 text-slate-50 max-w-[800px]">
-      <h2 className="m-0 text-[22px] font-bold font-orbitron mb-6">Organization</h2>
+      <div className="flex items-center gap-3 mb-6">
+        <h2 className="m-0 text-[22px] font-bold font-orbitron">Organization</h2>
+        <OrgBadge />
+      </div>
 
       {/* Org Switcher */}
       {orgsQuery.data && orgsQuery.data.length > 0 && (
@@ -96,69 +101,78 @@ export default function OrgPage() {
               >
                 <span className="text-[12px] text-slate-300 flex-1">{m.email}</span>
                 {m.name && <span className="text-[11px] text-slate-500">{m.name}</span>}
-                <select
-                  className="cyber-select text-[10px] py-0.5 px-1.5 w-[90px]"
-                  value={m.role}
-                  onChange={(e) =>
-                    updateRoleMut.mutate({
-                      memberId: m.id,
-                      role: e.target.value as 'admin' | 'operator' | 'viewer',
-                    })
-                  }
-                  disabled={m.role === 'owner'}
+                <PermissionGate
+                  require="admin"
+                  fallback={<span className="text-[9px] text-neon-blue font-mono">{m.role}</span>}
                 >
-                  <option value="owner" disabled>
-                    owner
-                  </option>
-                  <option value="admin">admin</option>
-                  <option value="operator">operator</option>
-                  <option value="viewer">viewer</option>
-                </select>
-                {m.role !== 'owner' && (
-                  <button
-                    className="text-[10px] text-neon-red/50 hover:text-neon-red"
-                    onClick={() => removeMemberMut.mutate({ memberId: m.id })}
+                  <select
+                    className="cyber-select text-[10px] py-0.5 px-1.5 w-[90px]"
+                    value={m.role}
+                    onChange={(e) =>
+                      updateRoleMut.mutate({
+                        memberId: m.id,
+                        role: e.target.value as 'admin' | 'operator' | 'viewer',
+                      })
+                    }
+                    disabled={m.role === 'owner'}
                   >
-                    Remove
-                  </button>
-                )}
+                    <option value="owner" disabled>
+                      owner
+                    </option>
+                    <option value="admin">admin</option>
+                    <option value="operator">operator</option>
+                    <option value="viewer">viewer</option>
+                  </select>
+                </PermissionGate>
+                <PermissionGate require="admin">
+                  {m.role !== 'owner' && (
+                    <button
+                      className="text-[10px] text-neon-red/50 hover:text-neon-red"
+                      onClick={() => removeMemberMut.mutate({ memberId: m.id })}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </PermissionGate>
               </div>
             ))}
           </div>
 
-          {/* Add member form */}
-          <div className="flex gap-2 items-center">
-            <input
-              className="cyber-input flex-1 text-[12px]"
-              placeholder="Email address..."
-              value={addEmail}
-              onChange={(e) => setAddEmail(e.target.value)}
-            />
-            <select
-              className="cyber-select text-[11px] py-1.5 px-2 w-[100px]"
-              value={addRole}
-              onChange={(e) => setAddRole(e.target.value as 'admin' | 'operator' | 'viewer')}
-            >
-              <option value="admin">admin</option>
-              <option value="operator">operator</option>
-              <option value="viewer">viewer</option>
-            </select>
-            <button
-              className="cyber-btn-primary text-[11px] px-3 py-1.5"
-              onClick={() => {
-                if (addEmail.trim() && activeOrg) {
-                  addMemberMut.mutate({
-                    organizationId: activeOrg.id,
-                    email: addEmail.trim(),
-                    role: addRole,
-                  })
-                }
-              }}
-              disabled={addMemberMut.isPending || !addEmail.trim()}
-            >
-              Add
-            </button>
-          </div>
+          {/* Add member form — admin+ only */}
+          <PermissionGate require="admin">
+            <div className="flex gap-2 items-center">
+              <input
+                className="cyber-input flex-1 text-[12px]"
+                placeholder="Email address..."
+                value={addEmail}
+                onChange={(e) => setAddEmail(e.target.value)}
+              />
+              <select
+                className="cyber-select text-[11px] py-1.5 px-2 w-[100px]"
+                value={addRole}
+                onChange={(e) => setAddRole(e.target.value as 'admin' | 'operator' | 'viewer')}
+              >
+                <option value="admin">admin</option>
+                <option value="operator">operator</option>
+                <option value="viewer">viewer</option>
+              </select>
+              <button
+                className="cyber-btn-primary text-[11px] px-3 py-1.5"
+                onClick={() => {
+                  if (addEmail.trim() && activeOrg) {
+                    addMemberMut.mutate({
+                      organizationId: activeOrg.id,
+                      email: addEmail.trim(),
+                      role: addRole,
+                    })
+                  }
+                }}
+                disabled={addMemberMut.isPending || !addEmail.trim()}
+              >
+                Add
+              </button>
+            </div>
+          </PermissionGate>
 
           {(addMemberMut.error || updateRoleMut.error || removeMemberMut.error) && (
             <div className="text-[11px] text-neon-red mt-2">

@@ -1,12 +1,13 @@
 'use client'
 
 /**
- * Topbar — 64px bar with breadcrumb, health badge, presence avatars, and user menu
+ * Topbar — 64px bar with breadcrumb, org switcher, health badge, presence avatars, and user menu
  */
 
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 
+import { useActiveOrg } from '../../hooks/use-active-org'
 import { trpc } from '../../utils/trpc'
 import PresenceAvatars from './presence-avatars'
 
@@ -14,17 +15,9 @@ import PresenceAvatars from './presence-avatars'
 
 function OrgSwitcher() {
   const [open, setOpen] = useState(false)
-  const { data } = trpc.organizations.list.useQuery(undefined, { staleTime: 60_000 })
+  const { activeOrg, allOrgs, switchOrg } = useActiveOrg()
 
-  const active = data?.find((o) => o.isActive)
-  const orgs = data ?? []
-
-  if (!active) return null
-
-  const switchOrg = (orgId: string) => {
-    document.cookie = `active-org=${orgId}; path=/; max-age=31536000; samesite=lax`
-    window.location.reload()
-  }
+  if (!activeOrg) return null
 
   return (
     <div className="relative">
@@ -32,7 +25,7 @@ function OrgSwitcher() {
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-neon-teal/5 border border-neon-teal/20 text-xs text-neon-teal hover:bg-neon-teal/10 transition-colors cursor-pointer"
       >
-        <span className="font-medium truncate max-w-[120px]">{active.name}</span>
+        <span className="font-medium truncate max-w-[120px]">{activeOrg.name}</span>
         <span className="text-neon-teal/50 text-[9px]">{open ? '▴' : '▾'}</span>
       </button>
 
@@ -43,7 +36,7 @@ function OrgSwitcher() {
             <div className="text-[10px] text-slate-500 uppercase tracking-wide px-3 pt-2 pb-1">
               Organizations
             </div>
-            {orgs.map((org) => (
+            {allOrgs.map((org) => (
               <button
                 key={org.id}
                 className={`w-full text-left px-3 py-2 text-[12px] flex items-center gap-2 transition-colors cursor-pointer border-none ${
@@ -135,13 +128,16 @@ const SEGMENT_LABELS: Record<string, string> = {
   gateway: 'Gateway',
   guardrails: 'Guardrails',
   traces: 'Traces',
+  admin: 'Admin',
+  orgs: 'Organizations',
+  users: 'Users',
 }
 
 function OrgBreadcrumbLabel() {
-  const { data } = trpc.organizations.list.useQuery(undefined, { staleTime: 60_000 })
-  const active = data?.find((o) => o.isActive)
-  if (!active) return <span className="text-slate-500">Brain</span>
-  return <span className="text-neon-teal/70">{active.name}</span>
+  const { activeOrg, isLoading } = useActiveOrg()
+  if (isLoading) return <span className="text-slate-500">Brain</span>
+  if (!activeOrg) return <span className="text-slate-500">Brain</span>
+  return <span className="text-neon-teal/70">{activeOrg.name}</span>
 }
 
 function Breadcrumb() {

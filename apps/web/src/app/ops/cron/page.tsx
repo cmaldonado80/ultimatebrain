@@ -8,6 +8,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { OrgBadge } from '../../../components/ui/org-badge'
 import { trpc } from '../../../utils/trpc'
 
 const STATUS_CLASS: Record<string, string> = {
@@ -81,7 +82,12 @@ export default function CronJobsPage() {
     <div className="p-6 text-slate-50">
       <div className="flex justify-between items-center mb-5">
         <div>
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Cron Jobs ({allJobs.length})</h2>
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="m-0 text-[22px] font-bold font-orbitron">
+              Cron Jobs ({allJobs.length})
+            </h2>
+            <OrgBadge />
+          </div>
           <p className="mt-1 mb-0 text-[13px] text-slate-500">
             Scheduled background tasks — health sweeps, agent tasks, custom automation
           </p>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../../components/db-error-banner'
+import { OrgBadge } from '../../../../components/ui/org-badge'
 import { trpc } from '../../../../utils/trpc'
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
@@ -84,7 +85,10 @@ export default function BrainManagerPage() {
   return (
     <div className="p-6 text-slate-200">
       {/* Header */}
-      <h2 className="text-xl font-bold font-orbitron text-neon-teal mb-1">Brain Manager</h2>
+      <div className="flex items-center gap-3 mb-4">
+        <h2 className="text-xl font-bold font-orbitron text-neon-teal mb-1">Brain Manager</h2>
+        <OrgBadge />
+      </div>
       <p className="text-sm text-slate-500 mb-4">Brain &rarr; Mini-Brain &rarr; Development</p>
 
       {/* Stat bar */}
