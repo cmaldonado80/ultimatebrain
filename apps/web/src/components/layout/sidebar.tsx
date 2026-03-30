@@ -17,6 +17,7 @@ interface NavItem {
   label: string
   href: string
   icon: string
+  external?: boolean
 }
 
 interface NavSection {
@@ -115,6 +116,13 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Skills', href: '/skills', icon: '★' },
       { label: 'Integrations', href: '/integrations', icon: '⊕' },
       { label: 'Settings', href: '/settings', icon: '⚿' },
+    ],
+  },
+  {
+    title: 'Domain Apps',
+    items: [
+      { label: 'Astrology', href: 'http://localhost:3200', icon: '☉', external: true },
+      { label: 'Legal', href: 'http://localhost:3300', icon: '⚖', external: true },
     ],
   },
 ]
@@ -260,19 +268,36 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
                   {section.title}
                 </div>
               )}
-              {section.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`nav-item ${isActive(item.href) ? 'nav-item-active' : ''}`}
-                  onClick={onNavigate}
-                >
-                  <span className="w-[18px] text-center text-xs opacity-70 flex-shrink-0">
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                </Link>
-              ))}
+              {section.items.map((item) =>
+                item.external ? (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="nav-item"
+                    onClick={onNavigate}
+                  >
+                    <span className="w-[18px] text-center text-xs opacity-70 flex-shrink-0">
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                    <span className="ml-auto text-[9px] text-slate-600">↗</span>
+                  </a>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`nav-item ${isActive(item.href) ? 'nav-item-active' : ''}`}
+                    onClick={onNavigate}
+                  >
+                    <span className="w-[18px] text-center text-xs opacity-70 flex-shrink-0">
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                  </Link>
+                ),
+              )}
             </div>
           ))}
         </nav>
