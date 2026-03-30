@@ -554,4 +554,41 @@ export const ephemerisRouter = router({
         await import('../services/engines/swiss-ephemeris/report-generator')
       return generateNatalReport({ ...input, birthHour: input.birthHour } as any)
     }),
+
+  // ── Horary & Electional ────────────────────────────────────────────
+  horary: protectedProcedure
+    .input(
+      z.object({
+        year: z.number(),
+        month: z.number(),
+        day: z.number(),
+        hour: z.number(),
+        latitude: z.number(),
+        longitude: z.number(),
+        questionHouse: z.number().min(1).max(12),
+      }),
+    )
+    .query(async ({ input }) => {
+      const { assessHoraryChart } = await import('../services/engines/swiss-ephemeris/horary')
+      return assessHoraryChart(input as any)
+    }),
+
+  electional: protectedProcedure
+    .input(
+      z.object({
+        year: z.number(),
+        month: z.number(),
+        day: z.number(),
+        hour: z.number(),
+        latitude: z.number(),
+        longitude: z.number(),
+        activityType: z
+          .enum(['business', 'relationship', 'travel', 'medical', 'legal', 'creative', 'general'])
+          .default('general'),
+      }),
+    )
+    .query(async ({ input }) => {
+      const { scoreElection } = await import('../services/engines/swiss-ephemeris/electional')
+      return scoreElection(input as any)
+    }),
 })

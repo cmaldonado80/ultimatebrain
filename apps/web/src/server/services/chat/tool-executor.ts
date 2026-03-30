@@ -11,6 +11,16 @@ import { assignHouses, calcAllPlanets, calcHouses, julianDay } from '@solarc/eph
 import { moonPhase } from '@solarc/ephemeris'
 import { annualProfections, solarReturn, transitCalendar } from '@solarc/ephemeris'
 import { panchanga, vimshottariDasha } from '@solarc/ephemeris'
+import { secondaryProgressions } from '@solarc/ephemeris'
+import { calcArabicParts } from '@solarc/ephemeris'
+import { findAspectPatterns } from '@solarc/ephemeris'
+import { firdaria } from '@solarc/ephemeris'
+import { calcFixedStars, fixedStarConjunctions } from '@solarc/ephemeris'
+import { dispositorChain } from '@solarc/ephemeris'
+import { calcAllMidpoints } from '@solarc/ephemeris'
+import { lunarReturn } from '@solarc/ephemeris'
+import { medicalAstrology } from '@solarc/ephemeris'
+import { generateNatalReport } from '@solarc/ephemeris'
 
 import { MemoryService } from '../memory/memory-service'
 
@@ -175,6 +185,235 @@ export const AGENT_TOOLS = [
         ascendantSign: { type: 'string', description: 'Ascendant zodiac sign name' },
       },
       required: ['birthYear', 'currentYear', 'ascendantSign'],
+    },
+  },
+  {
+    name: 'ephemeris_lunar_return',
+    description: 'Compute a Lunar Return chart (Moon returns to natal position).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        birthYear: { type: 'number' },
+        birthMonth: { type: 'number' },
+        birthDay: { type: 'number' },
+        birthHour: { type: 'number' },
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
+        targetYear: { type: 'number' },
+        targetMonth: { type: 'number' },
+      },
+      required: [
+        'birthYear',
+        'birthMonth',
+        'birthDay',
+        'birthHour',
+        'latitude',
+        'longitude',
+        'targetYear',
+        'targetMonth',
+      ],
+    },
+  },
+  {
+    name: 'ephemeris_progressions',
+    description: 'Calculate secondary progressions to a target date.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        birthYear: { type: 'number' },
+        birthMonth: { type: 'number' },
+        birthDay: { type: 'number' },
+        birthHour: { type: 'number' },
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
+        targetYear: { type: 'number' },
+        targetMonth: { type: 'number' },
+        targetDay: { type: 'number' },
+      },
+      required: [
+        'birthYear',
+        'birthMonth',
+        'birthDay',
+        'birthHour',
+        'latitude',
+        'longitude',
+        'targetYear',
+        'targetMonth',
+        'targetDay',
+      ],
+    },
+  },
+  {
+    name: 'ephemeris_arabic_parts',
+    description: 'Calculate 50+ Arabic Parts (Fortune, Spirit, Eros, etc.) from birth data.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        birthYear: { type: 'number' },
+        birthMonth: { type: 'number' },
+        birthDay: { type: 'number' },
+        birthHour: { type: 'number' },
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
+      },
+      required: ['birthYear', 'birthMonth', 'birthDay', 'birthHour', 'latitude', 'longitude'],
+    },
+  },
+  {
+    name: 'ephemeris_patterns',
+    description:
+      'Find aspect patterns in a natal chart (Grand Trine, T-Square, Yod, Grand Cross, Kite, etc.).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        birthYear: { type: 'number' },
+        birthMonth: { type: 'number' },
+        birthDay: { type: 'number' },
+        birthHour: { type: 'number' },
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
+      },
+      required: ['birthYear', 'birthMonth', 'birthDay', 'birthHour', 'latitude', 'longitude'],
+    },
+  },
+  {
+    name: 'ephemeris_firdaria',
+    description: 'Calculate Firdaria time lord periods (planetary years) for birth data.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        birthYear: { type: 'number' },
+        birthMonth: { type: 'number' },
+        birthDay: { type: 'number' },
+        birthHour: { type: 'number' },
+        maxAge: { type: 'number', description: 'Maximum age to calculate (default 75)' },
+      },
+      required: ['birthYear', 'birthMonth', 'birthDay', 'birthHour'],
+    },
+  },
+  {
+    name: 'ephemeris_fixed_stars',
+    description: 'Find fixed star conjunctions to natal planets.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        birthYear: { type: 'number' },
+        birthMonth: { type: 'number' },
+        birthDay: { type: 'number' },
+        birthHour: { type: 'number' },
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
+      },
+      required: ['birthYear', 'birthMonth', 'birthDay', 'birthHour', 'latitude', 'longitude'],
+    },
+  },
+  {
+    name: 'ephemeris_dispositors',
+    description: 'Calculate dispositor chains and mutual receptions in a natal chart.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        birthYear: { type: 'number' },
+        birthMonth: { type: 'number' },
+        birthDay: { type: 'number' },
+        birthHour: { type: 'number' },
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
+      },
+      required: ['birthYear', 'birthMonth', 'birthDay', 'birthHour', 'latitude', 'longitude'],
+    },
+  },
+  {
+    name: 'ephemeris_midpoints',
+    description: 'Calculate all planetary midpoints in a natal chart.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        birthYear: { type: 'number' },
+        birthMonth: { type: 'number' },
+        birthDay: { type: 'number' },
+        birthHour: { type: 'number' },
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
+      },
+      required: ['birthYear', 'birthMonth', 'birthDay', 'birthHour', 'latitude', 'longitude'],
+    },
+  },
+  {
+    name: 'ephemeris_medical',
+    description:
+      'Medical astrology analysis — body part vulnerabilities by sign and planet placement.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        birthYear: { type: 'number' },
+        birthMonth: { type: 'number' },
+        birthDay: { type: 'number' },
+        birthHour: { type: 'number' },
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
+      },
+      required: ['birthYear', 'birthMonth', 'birthDay', 'birthHour', 'latitude', 'longitude'],
+    },
+  },
+  {
+    name: 'ephemeris_report',
+    description:
+      'Generate a comprehensive natal report with 15 sections (overview, planets, houses, aspects, patterns, dignities, etc.).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        birthYear: { type: 'number' },
+        birthMonth: { type: 'number' },
+        birthDay: { type: 'number' },
+        birthHour: { type: 'number' },
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
+        name: { type: 'string', description: 'Name for the report (optional)' },
+      },
+      required: ['birthYear', 'birthMonth', 'birthDay', 'birthHour', 'latitude', 'longitude'],
+    },
+  },
+  {
+    name: 'ephemeris_horary',
+    description:
+      'Assess a horary chart for a question asked at a specific time. Returns strictures, significators, and judgment.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        year: { type: 'number' },
+        month: { type: 'number' },
+        day: { type: 'number' },
+        hour: { type: 'number' },
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
+        questionHouse: {
+          type: 'number',
+          description: 'House ruling the matter (1-12). E.g., 7 for relationships, 10 for career.',
+        },
+      },
+      required: ['year', 'month', 'day', 'hour', 'latitude', 'longitude', 'questionHouse'],
+    },
+  },
+  {
+    name: 'ephemeris_electional',
+    description:
+      'Score a candidate date/time for starting an activity (0-100). Checks Moon condition, planetary hours, aspects, dignities.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        year: { type: 'number' },
+        month: { type: 'number' },
+        day: { type: 'number' },
+        hour: { type: 'number' },
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
+        activityType: {
+          type: 'string',
+          description: 'Type: business, relationship, travel, medical, legal, creative, general',
+        },
+      },
+      required: ['year', 'month', 'day', 'hour', 'latitude', 'longitude'],
     },
   },
   {
@@ -377,6 +616,201 @@ export async function executeTool(
           ...(workspaceId ? { workspaceId } : {}),
         })
         return JSON.stringify({ id: stored.id, key: stored.key })
+      }
+
+      case 'ephemeris_lunar_return': {
+        const i = toolInput as {
+          birthYear: number
+          birthMonth: number
+          birthDay: number
+          birthHour: number
+          latitude: number
+          longitude: number
+          targetYear: number
+          targetMonth: number
+        }
+        const birthJd = julianDay(i.birthYear, i.birthMonth, i.birthDay, i.birthHour)
+        const birthPlanets = calcAllPlanets(birthJd)
+        const targetJd = julianDay(i.targetYear, i.targetMonth, 1, 12)
+        const result = await lunarReturn(
+          birthPlanets.Moon.longitude,
+          targetJd,
+          i.latitude,
+          i.longitude,
+        )
+        return JSON.stringify(result)
+      }
+
+      case 'ephemeris_progressions': {
+        const i = toolInput as {
+          birthYear: number
+          birthMonth: number
+          birthDay: number
+          birthHour: number
+          latitude: number
+          longitude: number
+          targetYear: number
+          targetMonth: number
+          targetDay: number
+        }
+        const bJd = julianDay(i.birthYear, i.birthMonth, i.birthDay, i.birthHour)
+        const tJd = julianDay(i.targetYear, i.targetMonth, i.targetDay, 12)
+        const result = await secondaryProgressions(bJd, tJd, i.latitude, i.longitude)
+        return JSON.stringify(result)
+      }
+
+      case 'ephemeris_arabic_parts': {
+        const i = toolInput as {
+          birthYear: number
+          birthMonth: number
+          birthDay: number
+          birthHour: number
+          latitude: number
+          longitude: number
+        }
+        const chart = (await ephemerisRun(i)).data
+        const parts = calcArabicParts(chart.planets, chart.houses)
+        return JSON.stringify(parts)
+      }
+
+      case 'ephemeris_patterns': {
+        const i = toolInput as {
+          birthYear: number
+          birthMonth: number
+          birthDay: number
+          birthHour: number
+          latitude: number
+          longitude: number
+        }
+        const chart = (await ephemerisRun(i)).data
+        const patterns = findAspectPatterns(chart.aspects, chart.planets)
+        return JSON.stringify(patterns)
+      }
+
+      case 'ephemeris_firdaria': {
+        const i = toolInput as {
+          birthYear: number
+          birthMonth: number
+          birthDay: number
+          birthHour: number
+          maxAge?: number
+        }
+        // Determine day/night chart: hour < 6 or > 18 = night
+        const isDiurnal = i.birthHour >= 6 && i.birthHour < 18
+        const result = firdaria(isDiurnal, i.maxAge ?? 75)
+        return JSON.stringify(result)
+      }
+
+      case 'ephemeris_fixed_stars': {
+        const i = toolInput as {
+          birthYear: number
+          birthMonth: number
+          birthDay: number
+          birthHour: number
+          latitude: number
+          longitude: number
+        }
+        const chart = (await ephemerisRun(i)).data
+        const jdStar = julianDay(i.birthYear, i.birthMonth, i.birthDay, i.birthHour)
+        const stars = calcFixedStars(jdStar)
+        const conj = fixedStarConjunctions(stars, chart.planets)
+        return JSON.stringify(conj)
+      }
+
+      case 'ephemeris_dispositors': {
+        const i = toolInput as {
+          birthYear: number
+          birthMonth: number
+          birthDay: number
+          birthHour: number
+          latitude: number
+          longitude: number
+        }
+        const chart = (await ephemerisRun(i)).data
+        const result = dispositorChain(chart.planets)
+        return JSON.stringify(result)
+      }
+
+      case 'ephemeris_midpoints': {
+        const i = toolInput as {
+          birthYear: number
+          birthMonth: number
+          birthDay: number
+          birthHour: number
+          latitude: number
+          longitude: number
+        }
+        const chart = (await ephemerisRun(i)).data
+        const result = calcAllMidpoints(chart.planets)
+        return JSON.stringify(result)
+      }
+
+      case 'ephemeris_medical': {
+        const i = toolInput as {
+          birthYear: number
+          birthMonth: number
+          birthDay: number
+          birthHour: number
+          latitude: number
+          longitude: number
+        }
+        const chart = (await ephemerisRun(i)).data
+        const result = medicalAstrology(chart.planets)
+        return JSON.stringify(result)
+      }
+
+      case 'ephemeris_report': {
+        const i = toolInput as {
+          birthYear: number
+          birthMonth: number
+          birthDay: number
+          birthHour: number
+          latitude: number
+          longitude: number
+          name?: string
+        }
+        const result = await generateNatalReport(i as Parameters<typeof generateNatalReport>[0])
+        return JSON.stringify(result)
+      }
+
+      case 'ephemeris_horary': {
+        const i = toolInput as {
+          year: number
+          month: number
+          day: number
+          hour: number
+          latitude: number
+          longitude: number
+          questionHouse: number
+        }
+        const { assessHoraryChart } = await import('../engines/swiss-ephemeris/horary')
+        const result = await assessHoraryChart(i)
+        return JSON.stringify(result)
+      }
+
+      case 'ephemeris_electional': {
+        const i = toolInput as {
+          year: number
+          month: number
+          day: number
+          hour: number
+          latitude: number
+          longitude: number
+          activityType?: string
+        }
+        const { scoreElection } = await import('../engines/swiss-ephemeris/electional')
+        const result = await scoreElection({
+          ...i,
+          activityType: (i.activityType ?? 'general') as
+            | 'business'
+            | 'relationship'
+            | 'travel'
+            | 'medical'
+            | 'legal'
+            | 'creative'
+            | 'general',
+        })
+        return JSON.stringify(result)
       }
 
       default:
