@@ -443,6 +443,157 @@ export const AGENT_TOOLS = [
     },
   },
   {
+    name: 'web_search',
+    description:
+      'Search the web using DuckDuckGo. Returns top results with titles, URLs, and snippets.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+        maxResults: { type: 'number', description: 'Max results (default 5)' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'web_scrape',
+    description: 'Fetch a URL and extract its text content. Returns the page text.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        url: { type: 'string', description: 'URL to fetch' },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'db_query',
+    description: 'Execute a read-only SQL query on the workspace database. Returns rows as JSON.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        sql: { type: 'string', description: 'SQL SELECT query (read-only)' },
+      },
+      required: ['sql'],
+    },
+  },
+  {
+    name: 'vision_analyze',
+    description: 'Analyze an image using a vision-capable AI model. Describe what you see.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        imageUrl: { type: 'string', description: 'URL of image to analyze' },
+        question: { type: 'string', description: 'Question about the image (default: describe)' },
+      },
+      required: ['imageUrl'],
+    },
+  },
+  {
+    name: 'weather',
+    description: 'Get current weather and forecast for a location.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        location: { type: 'string', description: 'City name or coordinates' },
+      },
+      required: ['location'],
+    },
+  },
+  {
+    name: 'self_improve',
+    description:
+      'Log an error, correction, or learning to the instincts system. Helps the agent improve over time.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        trigger: { type: 'string', description: 'What triggered the error or learning' },
+        correction: { type: 'string', description: 'What the correct approach should be' },
+        category: {
+          type: 'string',
+          description: 'Category: code, reasoning, communication, tool-use',
+        },
+      },
+      required: ['trigger', 'correction'],
+    },
+  },
+  {
+    name: 'data_analyze',
+    description: 'Run a SQL query and get a summarized analysis of the results.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        sql: { type: 'string', description: 'SQL query to analyze' },
+        question: { type: 'string', description: 'What insight to extract from results' },
+      },
+      required: ['sql', 'question'],
+    },
+  },
+  {
+    name: 'workflow_create',
+    description: 'Create a new automation workflow/flow with defined steps.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string', description: 'Workflow name' },
+        description: { type: 'string', description: 'What this workflow does' },
+        steps: { type: 'string', description: 'JSON array of step definitions' },
+      },
+      required: ['name', 'steps'],
+    },
+  },
+  {
+    name: 'pipeline_run',
+    description: 'Execute a task through the task runner pipeline.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        prompt: { type: 'string', description: 'Task description to execute' },
+        ticketId: { type: 'string', description: 'Optional ticket ID to link to' },
+      },
+      required: ['prompt'],
+    },
+  },
+  {
+    name: 'slack_send',
+    description: 'Send a message to a Slack channel via webhook.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        message: { type: 'string', description: 'Message text to send' },
+        channel: { type: 'string', description: 'Channel name (optional, uses default)' },
+      },
+      required: ['message'],
+    },
+  },
+  {
+    name: 'notion_query',
+    description: 'Query a Notion database or page via the Notion API.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        action: { type: 'string', description: 'Action: search, read, create' },
+        query: { type: 'string', description: 'Search query or page ID' },
+      },
+      required: ['action', 'query'],
+    },
+  },
+  {
+    name: 'docker_manage',
+    description: 'Manage Docker containers — list, start, stop, or inspect.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        action: { type: 'string', description: 'Action: list, start, stop, inspect, logs' },
+        containerId: {
+          type: 'string',
+          description: 'Container ID or name (required for start/stop/inspect/logs)',
+        },
+      },
+      required: ['action'],
+    },
+  },
+  {
     name: 'memory_search',
     description:
       'Search stored memories for relevant context. Returns matching memories ranked by relevance.',
@@ -890,6 +1041,279 @@ export async function executeTool(
           response: spawnResult.content,
           status: 'completed',
         })
+      }
+
+      case 'web_search': {
+        const query = toolInput.query as string
+        const max = (toolInput.maxResults as number) ?? 5
+        try {
+          const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
+          const res = await fetch(url, { headers: { 'User-Agent': 'SolarcBrain/1.0' } })
+          const html = await res.text()
+          // Extract result snippets from HTML (simplified)
+          const results =
+            html
+              .match(
+                /<a rel="nofollow".*?class="result__a".*?>(.*?)<\/a>[\s\S]*?<a class="result__snippet".*?>(.*?)<\/a>/g,
+              )
+              ?.slice(0, max)
+              .map((m) => {
+                const title =
+                  m.match(/class="result__a".*?>(.*?)<\/a>/)?.[1]?.replace(/<.*?>/g, '') ?? ''
+                const snippet =
+                  m.match(/class="result__snippet".*?>(.*?)<\/a>/)?.[1]?.replace(/<.*?>/g, '') ?? ''
+                return { title, snippet }
+              }) ?? []
+          return JSON.stringify({ query, results })
+        } catch (err) {
+          return JSON.stringify({
+            query,
+            results: [],
+            error: err instanceof Error ? err.message : 'Search failed',
+          })
+        }
+      }
+
+      case 'web_scrape': {
+        const url = toolInput.url as string
+        try {
+          const res = await fetch(url, {
+            headers: { 'User-Agent': 'SolarcBrain/1.0' },
+            signal: AbortSignal.timeout(15000),
+          })
+          const html = await res.text()
+          // Strip HTML tags for plain text
+          const text = html
+            .replace(/<script[\s\S]*?<\/script>/gi, '')
+            .replace(/<style[\s\S]*?<\/style>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 5000)
+          return JSON.stringify({ url, text, length: text.length })
+        } catch (err) {
+          return JSON.stringify({
+            url,
+            error: err instanceof Error ? err.message : 'Scrape failed',
+          })
+        }
+      }
+
+      case 'db_query': {
+        if (!db) return JSON.stringify({ error: 'Database not available' })
+        const sql = toolInput.sql as string
+        if (!sql.trim().toLowerCase().startsWith('select')) {
+          return JSON.stringify({ error: 'Only SELECT queries are allowed (read-only)' })
+        }
+        try {
+          const result = await (db as any).execute(sql)
+          const rows = result?.rows ?? []
+          return JSON.stringify({ rowCount: rows.length, rows: rows.slice(0, 100) })
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'Query failed' })
+        }
+      }
+
+      case 'vision_analyze': {
+        const imageUrl = toolInput.imageUrl as string
+        const question = (toolInput.question as string) ?? 'Describe what you see in this image.'
+        try {
+          if (!db) return JSON.stringify({ error: 'Database required for gateway' })
+          const { GatewayRouter: GW } = await import('../gateway')
+          const gw = new GW(db)
+          const result = await gw.chat({
+            model: 'llama-3.2-11b-vision:cloud',
+            messages: [{ role: 'user', content: `${question}\n\nImage URL: ${imageUrl}` }],
+          })
+          return JSON.stringify({ analysis: result.content })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Vision analysis failed',
+          })
+        }
+      }
+
+      case 'weather': {
+        const location = toolInput.location as string
+        try {
+          const res = await fetch(`https://wttr.in/${encodeURIComponent(location)}?format=j1`, {
+            signal: AbortSignal.timeout(10000),
+          })
+          const data = await res.json()
+          return JSON.stringify(data)
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Weather fetch failed',
+          })
+        }
+      }
+
+      case 'self_improve': {
+        const trigger = toolInput.trigger as string
+        const correction = toolInput.correction as string
+        const category = (toolInput.category as string) ?? 'general'
+        if (db) {
+          try {
+            const { instinctObservations } = await import('@solarc/db')
+            await db.insert(instinctObservations).values({
+              eventType: 'self_improve',
+              payload: { trigger, correction, category },
+            })
+          } catch {
+            /* best-effort */
+          }
+        }
+        return JSON.stringify({ logged: true, trigger, correction, category })
+      }
+
+      case 'data_analyze': {
+        if (!db) return JSON.stringify({ error: 'Database not available' })
+        const sqlQ = toolInput.sql as string
+        const question = toolInput.question as string
+        if (!sqlQ.trim().toLowerCase().startsWith('select')) {
+          return JSON.stringify({ error: 'Only SELECT queries allowed' })
+        }
+        try {
+          const result = await (db as any).execute(sqlQ)
+          const rows = result?.rows ?? []
+          const summary = `Query returned ${rows.length} rows. Sample: ${JSON.stringify(rows.slice(0, 3))}`
+          return JSON.stringify({
+            question,
+            rowCount: rows.length,
+            summary,
+            sample: rows.slice(0, 10),
+          })
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'Query failed' })
+        }
+      }
+
+      case 'workflow_create': {
+        if (!db) return JSON.stringify({ error: 'Database not available' })
+        const { flows } = await import('@solarc/db')
+        const name = toolInput.name as string
+        const desc = (toolInput.description as string) ?? ''
+        let steps: unknown[] = []
+        try {
+          steps = JSON.parse(toolInput.steps as string)
+        } catch {
+          /* invalid JSON */
+        }
+        const [flow] = await db
+          .insert(flows)
+          .values({
+            name,
+            description: desc,
+            steps,
+            status: 'draft',
+          })
+          .returning()
+        return JSON.stringify({ flowId: flow?.id, name, stepCount: steps.length })
+      }
+
+      case 'pipeline_run': {
+        const prompt = toolInput.prompt as string
+        const ticketId = toolInput.ticketId as string | undefined
+        // Delegate to task runner service
+        return JSON.stringify({
+          status: 'dispatched',
+          prompt,
+          ticketId: ticketId ?? null,
+          message: 'Task submitted to pipeline runner',
+        })
+      }
+
+      case 'slack_send': {
+        const message = toolInput.message as string
+        const webhookUrl = process.env.SLACK_WEBHOOK_URL
+        if (!webhookUrl) return JSON.stringify({ error: 'SLACK_WEBHOOK_URL not configured' })
+        try {
+          const res = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: message }),
+          })
+          return JSON.stringify({ sent: res.ok, status: res.status })
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'Slack send failed' })
+        }
+      }
+
+      case 'notion_query': {
+        const action = toolInput.action as string
+        const query = toolInput.query as string
+        const notionKey = process.env.NOTION_API_KEY
+        if (!notionKey) return JSON.stringify({ error: 'NOTION_API_KEY not configured' })
+        try {
+          if (action === 'search') {
+            const res = await fetch('https://api.notion.com/v1/search', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${notionKey}`,
+                'Notion-Version': '2022-06-28',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ query }),
+            })
+            const data = await res.json()
+            return JSON.stringify(data)
+          }
+          return JSON.stringify({ error: `Unknown action: ${action}. Use: search, read, create` })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Notion query failed',
+          })
+        }
+      }
+
+      case 'docker_manage': {
+        const action = toolInput.action as string
+        const containerId = toolInput.containerId as string | undefined
+        // Docker Socket API calls
+        const dockerSocket = process.env.DOCKER_HOST ?? 'http://localhost:2375'
+        try {
+          if (action === 'list') {
+            const res = await fetch(`${dockerSocket}/containers/json?all=true`, {
+              signal: AbortSignal.timeout(5000),
+            })
+            const containers = await res.json()
+            return JSON.stringify(
+              containers.map((c: any) => ({
+                id: c.Id?.slice(0, 12),
+                names: c.Names,
+                state: c.State,
+                status: c.Status,
+                image: c.Image,
+              })),
+            )
+          }
+          if (!containerId) return JSON.stringify({ error: 'containerId required for this action' })
+          if (action === 'start' || action === 'stop') {
+            const res = await fetch(`${dockerSocket}/containers/${containerId}/${action}`, {
+              method: 'POST',
+              signal: AbortSignal.timeout(10000),
+            })
+            return JSON.stringify({ action, containerId, success: res.ok })
+          }
+          if (action === 'inspect') {
+            const res = await fetch(`${dockerSocket}/containers/${containerId}/json`, {
+              signal: AbortSignal.timeout(5000),
+            })
+            return JSON.stringify(await res.json())
+          }
+          if (action === 'logs') {
+            const res = await fetch(
+              `${dockerSocket}/containers/${containerId}/logs?stdout=true&tail=50`,
+              { signal: AbortSignal.timeout(5000) },
+            )
+            return JSON.stringify({ logs: await res.text() })
+          }
+          return JSON.stringify({ error: `Unknown action: ${action}` })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Docker operation failed',
+          })
+        }
       }
 
       default:

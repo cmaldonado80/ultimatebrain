@@ -5,11 +5,10 @@
  * Fetches skills from clawhub.dev API.
  */
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { EmptyState } from '../../../components/ui/empty-state'
 import { FilterPills } from '../../../components/ui/filter-pills'
-import { LoadingState } from '../../../components/ui/loading-state'
 import { PageHeader } from '../../../components/ui/page-header'
 import { SectionCard } from '../../../components/ui/section-card'
 
@@ -23,8 +22,6 @@ interface ClawHubSkill {
 }
 
 export default function ClawHubPage() {
-  const [skills, setSkills] = useState<ClawHubSkill[]>([])
-  const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<string>('all')
 
