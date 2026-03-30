@@ -121,7 +121,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
   {
     title: 'Domain Apps',
     items: [
-      { label: 'Astrology', href: 'http://localhost:3200', icon: '☉', external: true },
+      { label: 'Astrology', href: '/astrology', icon: '☉' },
       { label: 'Legal', href: 'http://localhost:3300', icon: '⚖', external: true },
     ],
   },
