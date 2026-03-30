@@ -10,7 +10,7 @@ import { useRef, useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import ConfirmDialog from '../../../components/ui/confirm-dialog'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface Agent {
@@ -211,12 +211,12 @@ export default function AgentsPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron flex items-center gap-2">
-            Agents ({allAgents.length}) <OrgBadge />
-          </h2>
-          <div className="flex gap-2">
+      <PageHeader
+        title="Agents"
+        subtitle="Portable AI agents — define by capability, deploy on any provider."
+        count={allAgents.length}
+        actions={
+          <div className="flex gap-2 items-center">
             <button
               className="cyber-btn-secondary"
               onClick={() => bulkModelsMut.mutate()}
@@ -250,11 +250,8 @@ export default function AgentsPage() {
               {showForm ? 'Cancel' : '+ New Agent'}
             </button>
           </div>
-        </div>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Portable AI agents — define by capability, deploy on any provider.
-        </p>
-      </div>
+        }
+      />
 
       <div className="flex gap-2 mb-4">
         <input

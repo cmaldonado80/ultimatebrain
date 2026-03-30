@@ -7,7 +7,11 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
+import type { StatusColor } from '../../../components/ui/status-badge'
+import { StatusBadge } from '../../../components/ui/status-badge'
 import { trpc } from '../../../utils/trpc'
 
 interface Flow {
@@ -22,18 +26,11 @@ interface Flow {
   updatedAt: Date
 }
 
-const STATUS_DOT: Record<string, string> = {
-  draft: 'neon-dot neon-dot-blue',
-  active: 'neon-dot neon-dot-green',
-  archived: 'neon-dot neon-dot-red',
-  paused: 'neon-dot neon-dot-yellow',
-}
-
-const STATUS_TEXT: Record<string, string> = {
-  draft: 'text-neon-blue',
-  active: 'text-neon-green',
-  archived: 'text-neon-red',
-  paused: 'text-neon-yellow',
+const FLOW_STATUS_COLOR: Record<string, StatusColor> = {
+  draft: 'slate',
+  active: 'green',
+  archived: 'slate',
+  paused: 'yellow',
 }
 
 export default function FlowsPage() {
@@ -71,11 +68,8 @@ export default function FlowsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2 font-orbitron">Loading...</div>
-          <div className="text-xs">Fetching flows</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading flows..." />
       </div>
     )
   }
@@ -84,22 +78,19 @@ export default function FlowsPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron text-neon-purple">
-            Flows <OrgBadge />
-          </h2>
+      <PageHeader
+        title="Flows"
+        subtitle="Define and monitor multi-step agent workflows, crew runs, and recall chains."
+        count={flows.length}
+        actions={
           <button
             className={showRun ? 'cyber-btn-secondary' : 'cyber-btn-primary'}
             onClick={() => setShowRun(!showRun)}
           >
             {showRun ? 'Cancel' : 'Run Crew'}
           </button>
-        </div>
-        <p className="mt-1 mb-0 text-xs text-slate-500">
-          Define and monitor multi-step agent workflows, crew runs, and recall chains.
-        </p>
-      </div>
+        }
+      />
 
       {showRun && (
         <div className="cyber-card mb-4">
@@ -164,9 +155,10 @@ export default function FlowsPage() {
         </div>
       )}
       {flows.length === 0 ? (
-        <div className="text-center text-slate-500 py-10 text-sm">
-          No flows defined yet. Create a flow to orchestrate agent workflows.
-        </div>
+        <EmptyState
+          title="No flows defined"
+          message="Create a flow to orchestrate agent workflows."
+        />
       ) : (
         <div className="cyber-grid">
           {flows.map((f) => (
@@ -174,14 +166,11 @@ export default function FlowsPage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[15px] font-bold font-orbitron">{f.name}</span>
                 <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1.5">
-                    <span className={STATUS_DOT[f.status] || 'neon-dot neon-dot-blue'} />
-                    <span
-                      className={`text-[10px] font-semibold uppercase ${STATUS_TEXT[f.status] || 'text-slate-500'}`}
-                    >
-                      {f.status}
-                    </span>
-                  </span>
+                  <StatusBadge
+                    label={f.status}
+                    color={FLOW_STATUS_COLOR[f.status] ?? 'slate'}
+                    dot
+                  />
                   <button
                     className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
                       deleteConfirm === f.id

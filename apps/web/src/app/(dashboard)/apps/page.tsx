@@ -8,7 +8,9 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface DisplayApp {
@@ -88,11 +90,8 @@ export default function AppsPage() {
 
   if (isLoading) {
     return (
-      <div className="text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2 font-orbitron">Loading...</div>
-          <div className="text-[13px]">Fetching apps</div>
-        </div>
+      <div className="text-slate-50 p-6">
+        <LoadingState message="Loading apps..." />
       </div>
     )
   }
@@ -124,16 +123,7 @@ export default function AppsPage() {
 
   return (
     <div className="text-slate-50 p-6">
-      <div className="mb-4">
-        <div>
-          <h1 className="m-0 text-[22px] font-bold font-orbitron text-neon-purple flex items-center gap-2">
-            Connected Apps <OrgBadge />
-          </h1>
-          <p className="mt-1 mb-0 text-[13px] text-slate-500">
-            {apps.length} agent{apps.length !== 1 ? 's' : ''} registered
-          </p>
-        </div>
-      </div>
+      <PageHeader title="Connected Apps" count={apps.length} />
       <div className="flex gap-1 mb-4">
         <button
           className={
@@ -162,7 +152,7 @@ export default function AppsPage() {
 
       <div className="flex flex-col gap-2.5">
         {filtered.length === 0 ? (
-          <div className="text-slate-500 text-[13px] text-center p-10">No apps found</div>
+          <EmptyState title="No apps found" />
         ) : (
           filtered.map((app) => <AppCard key={app.id} app={app} />)
         )}

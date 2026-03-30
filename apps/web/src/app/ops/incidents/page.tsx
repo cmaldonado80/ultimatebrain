@@ -69,11 +69,7 @@ export default function IncidentsPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <PageHeader
-        title="Incidents"
-        count={activeCount > 0 ? `${activeCount} active` : undefined}
-        className="mb-6"
-      />
+      <PageHeader title="Incidents" count={activeCount > 0 ? `${activeCount} active` : undefined} />
 
       {/* Filters */}
       <FilterPills options={FILTER_OPTIONS} value={filter} onChange={setFilter} className="mb-4" />

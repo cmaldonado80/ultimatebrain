@@ -4,6 +4,9 @@ import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../../components/db-error-banner'
+import { LoadingState } from '../../../../components/ui/loading-state'
+import { PageHeader } from '../../../../components/ui/page-header'
+import { SectionCard } from '../../../../components/ui/section-card'
 import { trpc } from '../../../../utils/trpc'
 
 export default function AgentDetailPage() {
@@ -40,8 +43,8 @@ export default function AgentDetailPage() {
 
   if (isLoading || !data) {
     return (
-      <div className="p-6 text-slate-50 max-w-[800px] flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">Loading agent...</div>
+      <div className="p-6 text-slate-50 max-w-[800px]">
+        <LoadingState message="Loading agent..." />
       </div>
     )
   }
@@ -81,47 +84,46 @@ export default function AgentDetailPage() {
         &larr; Back to Agents
       </button>
 
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">{agent.name}</h2>
-          {agent.type && (
-            <span className="cyber-badge text-neon-blue bg-neon-blue/10 border-neon-blue/20">
-              {agent.type}
-            </span>
-          )}
-          {agent.requiredModelType && (
-            <span className="cyber-badge text-neon-purple bg-neon-purple/10 border-neon-purple/20">
-              {agent.requiredModelType}
-            </span>
-          )}
-          <span
-            className={`neon-dot ${
-              agent.status === 'idle'
-                ? 'neon-dot-green'
-                : agent.status === 'error'
-                  ? 'neon-dot-red'
-                  : 'neon-dot-purple'
-            }`}
-          />
-          <span className="text-[11px] text-slate-500">{agent.status}</span>
-        </div>
-        <p className="mt-1 mb-0 text-[13px] text-slate-400">
-          {agent.description || 'No description'}
-        </p>
-        <div className="flex gap-2 mt-2">
-          <span className="text-[11px] text-slate-600 font-mono">
-            Model: {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
-          </span>
-          <span className="text-[11px] text-slate-600">|</span>
-          <span className="text-[11px] text-slate-600 font-mono">
-            Temp: {agent.temperature ?? 1.0} | Max tokens: {agent.maxTokens ?? 4096}
-          </span>
-        </div>
+      <PageHeader
+        title={agent.name}
+        subtitle={agent.description || 'No description'}
+        actions={
+          <div className="flex items-center gap-2">
+            {agent.type && (
+              <span className="cyber-badge text-neon-blue bg-neon-blue/10 border-neon-blue/20">
+                {agent.type}
+              </span>
+            )}
+            {agent.requiredModelType && (
+              <span className="cyber-badge text-neon-purple bg-neon-purple/10 border-neon-purple/20">
+                {agent.requiredModelType}
+              </span>
+            )}
+            <span
+              className={`neon-dot ${
+                agent.status === 'idle'
+                  ? 'neon-dot-green'
+                  : agent.status === 'error'
+                    ? 'neon-dot-red'
+                    : 'neon-dot-purple'
+              }`}
+            />
+            <span className="text-[11px] text-slate-500">{agent.status}</span>
+          </div>
+        }
+      />
+      <div className="flex gap-2 mb-4">
+        <span className="text-[11px] text-slate-600 font-mono">
+          Model: {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
+        </span>
+        <span className="text-[11px] text-slate-600">|</span>
+        <span className="text-[11px] text-slate-600 font-mono">
+          Temp: {agent.temperature ?? 1.0} | Max tokens: {agent.maxTokens ?? 4096}
+        </span>
       </div>
 
       {/* Soul / System Prompt */}
-      <div className="cyber-card p-4 mb-4">
+      <SectionCard className="mb-4">
         <div className="flex justify-between items-center mb-2">
           <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron">
             Soul (System Prompt)
@@ -176,10 +178,10 @@ export default function AgentDetailPage() {
             )}
           </div>
         )}
-      </div>
+      </SectionCard>
 
       {/* Configuration */}
-      <div className="cyber-card p-4 mb-4">
+      <SectionCard className="mb-4">
         <div className="flex justify-between items-center mb-2">
           <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron">
             Configuration
@@ -273,7 +275,7 @@ export default function AgentDetailPage() {
             </span>
           </div>
         </div>
-      </div>
+      </SectionCard>
 
       {/* Skills & Tags */}
       <div className="cyber-card p-4 mb-4">

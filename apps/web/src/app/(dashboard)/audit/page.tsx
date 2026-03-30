@@ -10,7 +10,10 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
+import { SectionCard } from '../../../components/ui/section-card'
 import { trpc } from '../../../utils/trpc'
 
 const ACTION_LABELS: Record<string, string> = {
@@ -46,9 +49,7 @@ export default function AuditPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-orbitron text-white mb-6 flex items-center gap-2">
-        Audit Log <OrgBadge />
-      </h1>
+      <PageHeader title="Audit Log" />
 
       {query.error && <DbErrorBanner error={{ message: query.error.message }} />}
 
@@ -102,45 +103,50 @@ export default function AuditPage() {
 
       {/* Event List */}
       {query.isLoading ? (
-        <div className="text-sm text-slate-500 py-8 text-center">Loading audit events...</div>
+        <LoadingState message="Loading audit events..." fullHeight={false} />
       ) : (query.data ?? []).length === 0 ? (
-        <div className="text-sm text-slate-600 py-8 text-center">No audit events found</div>
+        <EmptyState title="No audit events found" />
       ) : (
-        <div className="space-y-1">
-          {(query.data ?? []).map((event) => (
-            <div key={event.id} className="cyber-card hover:border-neon-teal/20 transition-colors">
-              <button
-                onClick={() => setExpanded(expanded === event.id ? null : event.id)}
-                className="w-full text-left p-3"
+        <SectionCard padding="sm">
+          <div className="space-y-1">
+            {(query.data ?? []).map((event) => (
+              <div
+                key={event.id}
+                className="cyber-card hover:border-neon-teal/20 transition-colors"
               >
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="text-slate-600 font-mono w-36 flex-shrink-0">
-                    {new Date(event.createdAt).toLocaleString()}
-                  </span>
-                  <span className="text-slate-400 w-32 truncate">{event.userEmail}</span>
-                  <span className="text-neon-teal font-medium">
-                    {ACTION_LABELS[event.action] ?? event.action}
-                  </span>
-                  <span className="text-slate-500">
-                    {event.resourceType}
-                    {event.resourceId ? ` ${event.resourceId.slice(0, 8)}...` : ''}
-                  </span>
-                  <span className="ml-auto text-slate-700">
-                    {expanded === event.id ? '▾' : '▸'}
-                  </span>
-                </div>
-              </button>
+                <button
+                  onClick={() => setExpanded(expanded === event.id ? null : event.id)}
+                  className="w-full text-left p-3"
+                >
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-slate-600 font-mono w-36 flex-shrink-0">
+                      {new Date(event.createdAt).toLocaleString()}
+                    </span>
+                    <span className="text-slate-400 w-32 truncate">{event.userEmail}</span>
+                    <span className="text-neon-teal font-medium">
+                      {ACTION_LABELS[event.action] ?? event.action}
+                    </span>
+                    <span className="text-slate-500">
+                      {event.resourceType}
+                      {event.resourceId ? ` ${event.resourceId.slice(0, 8)}...` : ''}
+                    </span>
+                    <span className="ml-auto text-slate-700">
+                      {expanded === event.id ? '▾' : '▸'}
+                    </span>
+                  </div>
+                </button>
 
-              {expanded === event.id && event.metadata != null && (
-                <div className="px-3 pb-3 border-t border-border-dim">
-                  <pre className="text-[10px] text-slate-500 font-mono mt-2 overflow-x-auto">
-                    {JSON.stringify(event.metadata as Record<string, unknown>, null, 2)}
-                  </pre>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+                {expanded === event.id && event.metadata != null && (
+                  <div className="px-3 pb-3 border-t border-border-dim">
+                    <pre className="text-[10px] text-slate-500 font-mono mt-2 overflow-x-auto">
+                      {JSON.stringify(event.metadata as Record<string, unknown>, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </SectionCard>
       )}
 
       {/* Pagination */}

@@ -22,7 +22,7 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={className}>
+    <div className={`mb-6 ${className ?? ''}`}>
       <div className="flex items-center gap-3 mb-1">
         <h1 className="text-[22px] font-bold font-orbitron text-white m-0">{title}</h1>
 

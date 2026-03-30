@@ -1,4 +1,4 @@
-type StatusColor = 'green' | 'blue' | 'red' | 'yellow' | 'purple' | 'slate'
+type StatusColor = 'green' | 'blue' | 'red' | 'yellow' | 'purple' | 'slate' | 'teal'
 
 interface StatusBadgeProps {
   label: string
@@ -45,6 +45,12 @@ const COLOR_MAP: Record<StatusColor, { text: string; bg: string; border: string;
       bg: 'bg-slate-700/50',
       border: 'border-slate-600',
       dotBg: 'bg-slate-400',
+    },
+    teal: {
+      text: 'text-neon-teal',
+      bg: 'bg-neon-teal/10',
+      border: 'border-neon-teal/20',
+      dotBg: 'bg-neon-teal',
     },
   }
 

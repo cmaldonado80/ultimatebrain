@@ -7,7 +7,11 @@
 import Link from 'next/link'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageGrid } from '../../../components/ui/page-grid'
+import { PageHeader } from '../../../components/ui/page-header'
+import { SectionCard } from '../../../components/ui/section-card'
+import { StatCard } from '../../../components/ui/stat-card'
 import { trpc } from '../../../utils/trpc'
 
 export default function IntelligencePage() {
@@ -26,11 +30,7 @@ export default function IntelligencePage() {
 
   const isLoading = sessionsQuery.isLoading
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-lg font-orbitron text-slate-500">Loading Intelligence Hub...</div>
-      </div>
-    )
+    return <LoadingState message="Loading Intelligence Hub..." />
   }
 
   const sessions = (sessionsQuery.data ?? []) as Array<{
@@ -63,42 +63,22 @@ export default function IntelligencePage() {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <h1 className="text-2xl font-orbitron text-neon-teal">Intelligence Hub</h1>
-          <OrgBadge />
-        </div>
-        <p className="text-sm text-slate-400 mt-1">
-          Knowledge, conversations, and agent capabilities
-        </p>
-      </div>
+      <PageHeader
+        title="Intelligence Hub"
+        subtitle="Knowledge, conversations, and agent capabilities"
+      />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="cyber-card p-4 text-center">
-          <div className="text-2xl font-bold font-orbitron text-neon-blue">{sessions.length}</div>
-          <div className="text-[10px] text-slate-500">Chat Sessions</div>
-        </div>
-        <div className="cyber-card p-4 text-center">
-          <div className="text-2xl font-bold font-orbitron text-neon-purple">
-            {memories.length}+
-          </div>
-          <div className="text-[10px] text-slate-500">Memory Entries</div>
-        </div>
-        <div className="cyber-card p-4 text-center">
-          <div className="text-2xl font-bold font-orbitron text-neon-green">{agents.length}</div>
-          <div className="text-[10px] text-slate-500">Total Agents</div>
-        </div>
-        <div className="cyber-card p-4 text-center">
-          <div className="text-2xl font-bold font-orbitron text-neon-teal">{agentsWithSouls}</div>
-          <div className="text-[10px] text-slate-500">Agents with Souls</div>
-        </div>
-      </div>
+      <PageGrid cols="4">
+        <StatCard label="Chat Sessions" value={sessions.length} color="blue" />
+        <StatCard label="Memory Entries" value={`${memories.length}+`} color="purple" />
+        <StatCard label="Total Agents" value={agents.length} color="green" />
+        <StatCard label="Agents with Souls" value={agentsWithSouls} color="blue" />
+      </PageGrid>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <PageGrid cols="2">
         {/* The Hub — Recent Sessions */}
-        <div className="cyber-card p-4">
+        <SectionCard variant="intelligence">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-orbitron text-white">The Hub</h3>
             <Link href="/chat" className="cyber-btn-primary cyber-btn-xs no-underline">
@@ -133,10 +113,10 @@ export default function IntelligencePage() {
               })}
             </div>
           )}
-        </div>
+        </SectionCard>
 
         {/* The Architect — Agent Capabilities */}
-        <div className="cyber-card p-4">
+        <SectionCard variant="intelligence">
           <h3 className="text-sm font-orbitron text-white mb-3">The Architect</h3>
           <p className="text-xs text-slate-400 mb-3">
             Agent fleet by type &mdash; {agents.length} total agents
@@ -162,11 +142,11 @@ export default function IntelligencePage() {
                 </div>
               ))}
           </div>
-        </div>
-      </div>
+        </SectionCard>
+      </PageGrid>
 
       {/* Memory Timeline */}
-      <div className="cyber-card p-4">
+      <SectionCard variant="intelligence">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-orbitron text-white">Recent Memory</h3>
           <Link
@@ -200,7 +180,7 @@ export default function IntelligencePage() {
             ))}
           </div>
         )}
-      </div>
+      </SectionCard>
 
       {/* Document Upload Placeholder */}
       <div className="cyber-card p-6 text-center border-dashed">

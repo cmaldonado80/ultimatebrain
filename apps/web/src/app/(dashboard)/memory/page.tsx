@@ -7,7 +7,13 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { FilterPills } from '../../../components/ui/filter-pills'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageGrid } from '../../../components/ui/page-grid'
+import { PageHeader } from '../../../components/ui/page-header'
+import { SectionCard } from '../../../components/ui/section-card'
+import { StatCard } from '../../../components/ui/stat-card'
 import { trpc } from '../../../utils/trpc'
 
 interface Memory {
@@ -64,11 +70,8 @@ export default function MemoryPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching memory data</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading memory data..." />
       </div>
     )
   }
@@ -85,22 +88,18 @@ export default function MemoryPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">
-            Memory Graph <OrgBadge />
-          </h2>
+      <PageHeader
+        title="Memory Graph"
+        subtitle="Explore the brain's memory tiers — core, recall, and archival — with vector search."
+        actions={
           <button
             className="cyber-btn-primary text-xs font-semibold"
             onClick={() => setShowForm(!showForm)}
           >
             {showForm ? 'Cancel' : '+ Store Memory'}
           </button>
-        </div>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Explore the brain's memory tiers — core, recall, and archival — with vector search.
-        </p>
-      </div>
+        }
+      />
 
       {showForm && (
         <div className="cyber-card mb-4">
@@ -146,16 +145,16 @@ export default function MemoryPage() {
         </div>
       )}
       {stats && (
-        <div className="grid grid-cols-3 gap-2.5 mb-4">
+        <PageGrid cols="3" className="mb-4">
           {Object.entries(stats).map(([tier, count]) => (
-            <div key={tier} className="cyber-card text-center">
-              <div className={`text-[22px] font-bold ${TIER_COLORS[tier] || 'text-slate-50'}`}>
-                {String(count)}
-              </div>
-              <div className="text-[11px] text-slate-500 mt-0.5 capitalize">{tier}</div>
-            </div>
+            <StatCard
+              key={tier}
+              label={tier}
+              value={count}
+              color={tier === 'core' ? 'purple' : tier === 'recall' ? 'green' : 'slate'}
+            />
           ))}
-        </div>
+        </PageGrid>
       )}
 
       <input
@@ -165,40 +164,19 @@ export default function MemoryPage() {
         onChange={(e) => setSearchQuery(e.target.value)}
       />
 
-      <div className="flex gap-1.5 mb-4">
-        <button
-          className={
-            filterTier === undefined
-              ? 'cyber-btn-primary text-xs font-semibold'
-              : 'cyber-btn-secondary text-xs'
-          }
-          onClick={() => setFilterTier(undefined)}
-        >
-          All
-        </button>
-        {['core', 'recall', 'archival'].map((t) => (
-          <button
-            key={t}
-            className={
-              filterTier === t
-                ? 'cyber-btn-primary text-xs font-semibold'
-                : 'cyber-btn-secondary text-xs'
-            }
-            onClick={() => setFilterTier(t)}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      <FilterPills
+        options={['all', 'core', 'recall', 'archival'] as const}
+        value={filterTier ?? 'all'}
+        onChange={(v) => setFilterTier(v === 'all' ? undefined : v)}
+        className="mb-4"
+      />
 
       {memories.length === 0 ? (
-        <div className="text-center text-slate-500 py-10 text-sm">
-          No memories found in this tier.
-        </div>
+        <EmptyState title="No memories found" message="No memories found in this tier." />
       ) : (
         <div className="flex flex-col gap-2">
           {memories.map((m) => (
-            <div key={m.id} className="cyber-card">
+            <SectionCard key={m.id} variant="intelligence" padding="md">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="text-[13px] font-bold font-mono flex-1">{m.key}</span>
                 <span
@@ -217,7 +195,7 @@ export default function MemoryPage() {
                 <span>ID: {m.id.slice(0, 8)}</span>
                 {m.source && <span>Source: {m.source.slice(0, 8)}</span>}
               </div>
-            </div>
+            </SectionCard>
           ))}
         </div>
       )}

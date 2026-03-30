@@ -215,7 +215,7 @@ export default function RuntimesPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <PageHeader title="Runtimes" count={total > 0 ? total : undefined} className="mb-6" />
+      <PageHeader title="Runtimes" count={total > 0 ? total : undefined} />
 
       {/* Summary */}
       <div className="flex items-center gap-4 mb-6 p-3 rounded-lg bg-bg-elevated/50 border border-border-dim">

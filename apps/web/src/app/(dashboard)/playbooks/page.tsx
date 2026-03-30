@@ -12,7 +12,9 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import type { PlaybookStep, SavedPlaybook } from '../../../server/services/playbooks/recorder'
 import { trpc } from '../../../utils/trpc'
 
@@ -186,11 +188,8 @@ export default function PlaybooksPage() {
 
   if (isLoading) {
     return (
-      <div className="text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching playbooks</div>
-        </div>
+      <div className="text-slate-50 p-6">
+        <LoadingState message="Loading playbooks..." />
       </div>
     )
   }
@@ -251,18 +250,12 @@ export default function PlaybooksPage() {
     <div
       className={`text-slate-50 p-6 ${recording ? 'outline outline-3 -outline-offset-[3px] outline-orange-500' : ''}`}
     >
-      {/* Header */}
-      <div className="flex justify-between items-start mb-5">
-        <div>
-          <h1 className="m-0 text-[22px] font-bold font-orbitron">
-            Playbooks <OrgBadge />
-          </h1>
-          <p className="mt-1 text-[13px] text-slate-500">
-            Teach the brain by recording your actions. Replay anytime.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {recording ? (
+      <PageHeader
+        title="Playbooks"
+        subtitle="Teach the brain by recording your actions. Replay anytime."
+        count={playbookList.length}
+        actions={
+          recording ? (
             <button
               className="bg-slate-700 border-2 border-orange-500 rounded-md text-orange-500 px-4 py-2 text-[13px] font-bold cursor-pointer"
               onClick={handleStopRecording}
@@ -273,9 +266,9 @@ export default function PlaybooksPage() {
             <button className="cyber-btn-danger" onClick={handleStartRecording}>
               ⏺ Record
             </button>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
       {recording && (
         <div className="bg-orange-950 border border-orange-500 rounded-md px-4 py-2 mb-4 text-[13px] text-orange-200">
           ⏺ Recording in progress — your actions are being captured
@@ -292,9 +285,10 @@ export default function PlaybooksPage() {
       {!selectedPlaybook ? (
         <div className="flex flex-col gap-3">
           {playbookList.length === 0 ? (
-            <div className="text-slate-500 text-[13px] text-center p-10">
-              No playbooks yet. Click &quot;Record&quot; to create your first one.
-            </div>
+            <EmptyState
+              title="No playbooks yet"
+              message='Click "Record" to create your first one.'
+            />
           ) : (
             playbookList.map((pb) => (
               <PlaybookRow

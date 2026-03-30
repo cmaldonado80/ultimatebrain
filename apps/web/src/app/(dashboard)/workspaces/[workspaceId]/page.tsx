@@ -3,14 +3,18 @@
 import { useParams, useRouter } from 'next/navigation'
 
 import { DbErrorBanner } from '../../../../components/db-error-banner'
-import { OrgBadge } from '../../../../components/ui/org-badge'
+import { LoadingState } from '../../../../components/ui/loading-state'
+import { PageHeader } from '../../../../components/ui/page-header'
+import { SectionCard } from '../../../../components/ui/section-card'
+import type { StatusColor } from '../../../../components/ui/status-badge'
+import { StatusBadge } from '../../../../components/ui/status-badge'
 import { trpc } from '../../../../utils/trpc'
 
-const LIFECYCLE_COLORS: Record<string, string> = {
-  draft: '#6b7280',
-  active: 'var(--color-neon-green)',
-  paused: 'var(--color-neon-yellow)',
-  retired: 'var(--color-neon-red)',
+const LIFECYCLE_BADGE_COLOR: Record<string, StatusColor> = {
+  draft: 'slate',
+  active: 'green',
+  paused: 'yellow',
+  retired: 'red',
 }
 
 interface Agent {
@@ -60,8 +64,8 @@ export default function WorkspaceDetailPage() {
 
   if (wsQuery.isLoading || !wsQuery.data) {
     return (
-      <div className="p-6 text-slate-50 max-w-[900px] flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">Loading workspace...</div>
+      <div className="p-6 text-slate-50 max-w-[900px]">
+        <LoadingState message="Loading workspace..." />
       </div>
     )
   }
@@ -91,8 +95,6 @@ export default function WorkspaceDetailPage() {
     priority: number
   }>
 
-  const lifecycleColor = LIFECYCLE_COLORS[ws.lifecycleState] ?? '#6b7280'
-
   return (
     <div className="p-6 text-slate-50 max-w-[900px]">
       <button
@@ -103,21 +105,21 @@ export default function WorkspaceDetailPage() {
       </button>
 
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">{ws.icon || '📁'}</span>
-          <div className="flex items-center gap-3 mb-4">
-            <h2 className="m-0 text-[22px] font-bold">{ws.name}</h2>
-            <OrgBadge />
+      <PageHeader
+        title={`${ws.icon || '📁'} ${ws.name}`}
+        actions={
+          <div className="flex items-center gap-2">
+            {ws.type && (
+              <span className="cyber-badge bg-neon-blue/10 text-neon-blue">{ws.type}</span>
+            )}
+            <StatusBadge
+              label={ws.lifecycleState}
+              color={LIFECYCLE_BADGE_COLOR[ws.lifecycleState] ?? 'slate'}
+            />
           </div>
-          {ws.type && <span className="cyber-badge bg-neon-blue/10 text-neon-blue">{ws.type}</span>}
-          <span
-            className="text-[10px] font-semibold px-2 py-0.5 rounded border uppercase"
-            style={{ color: lifecycleColor, borderColor: lifecycleColor }}
-          >
-            {ws.lifecycleState}
-          </span>
-        </div>
+        }
+      />
+      <div className="mb-6">
         <div className="flex gap-2 mt-2">
           {ws.lifecycleState === 'draft' && (
             <button
@@ -170,10 +172,7 @@ export default function WorkspaceDetailPage() {
 
       {/* Performance Summary */}
       {summaryQuery.data && (
-        <div className="cyber-card p-4 mb-4">
-          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
-            Performance
-          </div>
+        <SectionCard title="Performance" className="mb-4">
           <div className="grid grid-cols-4 gap-4 text-center">
             <div>
               <div className="text-lg font-mono text-slate-200">{summaryQuery.data.totalRuns}</div>
@@ -214,15 +213,12 @@ export default function WorkspaceDetailPage() {
               <div className="text-[10px] text-slate-500">Trend</div>
             </div>
           </div>
-        </div>
+        </SectionCard>
       )}
 
       {/* Workspace Policy */}
       {policyQuery.data && (
-        <div className="cyber-card p-4 mb-4">
-          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
-            Policy
-          </div>
+        <SectionCard title="Policy" className="mb-4">
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-[12px]">
             <div className="text-slate-500">Decision Mode</div>
             <div className="text-slate-300 capitalize">{policyQuery.data.decisionMode}</div>
@@ -233,15 +229,12 @@ export default function WorkspaceDetailPage() {
             <div className="text-slate-500">Guardrails</div>
             <div className="text-slate-300 capitalize">{policyQuery.data.guardrailLevel}</div>
           </div>
-        </div>
+        </SectionCard>
       )}
 
       {/* Workforce Intelligence */}
       {workforceQuery.data && workforceQuery.data.agentsWithData > 0 && (
-        <div className="cyber-card p-4 mb-4">
-          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
-            Workforce Intelligence
-          </div>
+        <SectionCard title="Workforce Intelligence" variant="intelligence" className="mb-4">
           <div className="text-[11px] text-slate-500 mb-3">{workforceQuery.data.summary}</div>
 
           {/* Top Agents */}
@@ -319,14 +312,11 @@ export default function WorkspaceDetailPage() {
               </div>
             </div>
           )}
-        </div>
+        </SectionCard>
       )}
 
       {/* Orchestrator */}
-      <div className="cyber-card p-4 mb-4">
-        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
-          Orchestrator
-        </div>
+      <SectionCard title="Orchestrator" className="mb-4">
         {orchestrator ? (
           <div className="bg-bg-elevated rounded-md p-3 border border-border">
             <div className="flex items-center gap-2">
@@ -364,13 +354,10 @@ export default function WorkspaceDetailPage() {
         ) : (
           <div className="text-neon-red text-[13px]">No orchestrator found!</div>
         )}
-      </div>
+      </SectionCard>
 
       {/* Agents */}
-      <div className="cyber-card p-4 mb-4">
-        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
-          Agents ({regularAgents.length})
-        </div>
+      <SectionCard title={`Agents (${regularAgents.length})`} className="mb-4">
         {regularAgents.length === 0 ? (
           <div className="text-slate-600 text-[13px] p-3 text-center">
             No agents in this workspace yet.
@@ -429,14 +416,11 @@ export default function WorkspaceDetailPage() {
             ))}
           </div>
         )}
-      </div>
+      </SectionCard>
 
       {/* Bindings */}
       {bindings.length > 0 && (
-        <div className="cyber-card p-4 mb-4">
-          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
-            Bindings ({bindings.length})
-          </div>
+        <SectionCard title={`Bindings (${bindings.length})`} className="mb-4">
           <div className="flex flex-wrap gap-1.5">
             {bindings.map((b) => (
               <span
@@ -450,15 +434,12 @@ export default function WorkspaceDetailPage() {
               </span>
             ))}
           </div>
-        </div>
+        </SectionCard>
       )}
 
       {/* Goals */}
       {goals.length > 0 && (
-        <div className="cyber-card p-4 mb-4">
-          <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
-            Goals ({goals.length})
-          </div>
+        <SectionCard title={`Goals (${goals.length})`} className="mb-4">
           {goals.map((g) => (
             <div key={g.id} className="flex justify-between py-1 text-[13px]">
               <span className="text-slate-300">{g.title}</span>
@@ -471,7 +452,7 @@ export default function WorkspaceDetailPage() {
               </span>
             </div>
           ))}
-        </div>
+        </SectionCard>
       )}
     </div>
   )

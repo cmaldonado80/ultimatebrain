@@ -9,7 +9,11 @@ import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import ConfirmDialog from '../../../components/ui/confirm-dialog'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
+import type { StatusColor } from '../../../components/ui/status-badge'
+import { StatusBadge } from '../../../components/ui/status-badge'
 import { trpc } from '../../../utils/trpc'
 
 interface Workspace {
@@ -44,11 +48,11 @@ interface Goal {
   currentValue: number | null
 }
 
-const LIFECYCLE_COLORS: Record<string, string> = {
-  draft: '#6b7280',
-  active: '#00ff88',
-  paused: '#ffd200',
-  retired: '#ff3a5c',
+const LIFECYCLE_BADGE_COLOR: Record<string, StatusColor> = {
+  draft: 'slate',
+  active: 'green',
+  paused: 'yellow',
+  retired: 'red',
 }
 
 const BINDING_ICONS: Record<string, string> = {
@@ -94,11 +98,8 @@ export default function WorkspacesPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching workspaces</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading workspaces..." />
       </div>
     )
   }
@@ -110,11 +111,11 @@ export default function WorkspacesPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron flex items-center gap-2">
-            Workspaces ({allWorkspaces.length}) <OrgBadge />
-          </h2>
+      <PageHeader
+        title="Workspaces"
+        subtitle="Lifecycle-managed organizational units with bindings, goals, and execution boundaries."
+        count={allWorkspaces.length}
+        actions={
           <div className="flex gap-2">
             <button
               className="cyber-btn-primary"
@@ -127,11 +128,8 @@ export default function WorkspacesPage() {
               {showForm ? 'Cancel' : '+ New Workspace'}
             </button>
           </div>
-        </div>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Lifecycle-managed organizational units with bindings, goals, and execution boundaries.
-        </p>
-      </div>
+        }
+      />
 
       <input
         className="cyber-input w-full mb-4"
@@ -203,10 +201,10 @@ export default function WorkspacesPage() {
       )}
 
       {workspaces.length === 0 ? (
-        <div className="text-center text-slate-500 py-10 text-sm">
-          No workspaces found. Click &quot;Initialize Brain&quot; to create 10 category workspaces
-          with 30+ agents.
-        </div>
+        <EmptyState
+          title="No workspaces found"
+          message='Click "Initialize Brain" to create 10 category workspaces with 30+ agents.'
+        />
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-3">
           {workspaces.map((ws) => (
@@ -244,7 +242,6 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
   const bindings: Binding[] = (bindingsQuery.data as Binding[]) ?? []
   const goals: Goal[] = (goalsQuery.data as Goal[]) ?? []
   const agentCount = (agentsQuery.data as unknown[] | undefined)?.length ?? 0
-  const lifecycleColor = LIFECYCLE_COLORS[ws.lifecycleState] || '#6b7280'
 
   return (
     <div className="cyber-card p-4">
@@ -256,12 +253,10 @@ function WorkspaceCard({ workspace: ws }: { workspace: Workspace }) {
             SYSTEM
           </span>
         )}
-        <span
-          className="text-[10px] font-semibold px-2 py-0.5 rounded border uppercase"
-          style={{ color: lifecycleColor, borderColor: lifecycleColor }}
-        >
-          {ws.lifecycleState}
-        </span>
+        <StatusBadge
+          label={ws.lifecycleState}
+          color={LIFECYCLE_BADGE_COLOR[ws.lifecycleState] ?? 'slate'}
+        />
       </div>
 
       {ws.goal && <div className="text-xs text-slate-400 mb-2 leading-relaxed">{ws.goal}</div>}

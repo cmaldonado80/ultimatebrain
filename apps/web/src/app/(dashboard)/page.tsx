@@ -116,7 +116,6 @@ export default function MissionControlPage() {
             </span>
           ) : undefined
         }
-        className="mb-6"
       />
 
       {/* Stats Grid */}
