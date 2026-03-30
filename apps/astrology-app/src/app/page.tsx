@@ -1,9 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
-import { AstrologyBrainError, fetchNatalSummary, saveChart } from '@/lib/astrology-client'
+import OnboardingWizard from '@/components/onboarding-wizard'
+import {
+  AstrologyBrainError,
+  fetchNatalSummary,
+  listCharts,
+  saveChart,
+} from '@/lib/astrology-client'
 import type { BirthData, NatalSummaryResponse } from '@/lib/types'
 
 // ── Sign Symbols ──────────────────────────────────────────────────────
@@ -37,6 +43,36 @@ export default function Home() {
   } | null>(null)
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true)
+
+  useEffect(() => {
+    // Check if user needs onboarding
+    const onboarded = document.cookie.includes('astro-onboarded=1')
+    if (onboarded) {
+      setCheckingOnboarding(false)
+      return
+    }
+    // Check if user has any saved charts
+    listCharts()
+      .then((charts) => {
+        if (charts.length === 0) setShowOnboarding(true)
+      })
+      .catch(() => {})
+      .finally(() => setCheckingOnboarding(false))
+  }, [])
+
+  if (checkingOnboarding) {
+    return (
+      <main className="min-h-screen bg-[#06090f] text-slate-200 flex items-center justify-center">
+        <div className="text-slate-500 text-sm">Loading...</div>
+      </main>
+    )
+  }
+
+  if (showOnboarding) {
+    return <OnboardingWizard onComplete={() => setShowOnboarding(false)} />
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()

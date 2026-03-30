@@ -217,19 +217,23 @@ export default function ReportsPage() {
 
             {!loadingHistory && savedReports.length === 0 && !showGenerate && (
               <div className="text-center py-16">
-                <div className="text-3xl mb-3 opacity-30">&#x2606;</div>
-                <div className="text-slate-500 mb-2">No reports saved yet</div>
+                <div className="text-4xl mb-4 opacity-30">&#x2606;</div>
+                <div className="text-slate-400 mb-2">No reports generated yet</div>
+                <p className="text-xs text-slate-600 mb-4 max-w-sm mx-auto">
+                  Reports analyze your chart across 15 dimensions including personality, career,
+                  relationships, and life themes.
+                </p>
                 {profile ? (
                   <button
                     onClick={() => setShowGenerate(true)}
-                    className="text-sm text-purple-400 hover:text-purple-300 bg-transparent border-none cursor-pointer"
+                    className="bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors border-none cursor-pointer"
                   >
-                    Generate your first report
+                    Generate Your First Report
                   </button>
                 ) : (
                   <Link
                     href="/"
-                    className="text-sm text-purple-400 hover:text-purple-300 no-underline"
+                    className="bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors no-underline"
                   >
                     Create a chart first
                   </Link>

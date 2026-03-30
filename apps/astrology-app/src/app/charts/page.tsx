@@ -56,10 +56,17 @@ export default function ChartsPage() {
 
         {!loading && charts.length === 0 && (
           <div className="text-center py-16">
-            <div className="text-3xl mb-3 opacity-30">&#x2609;</div>
-            <div className="text-slate-500 mb-2">No saved charts yet</div>
-            <Link href="/" className="text-sm text-purple-400 hover:text-purple-300 no-underline">
-              Generate your first chart
+            <div className="text-4xl mb-4 opacity-30">&#x2609;</div>
+            <div className="text-slate-400 mb-2">Your chart library is empty</div>
+            <p className="text-xs text-slate-600 mb-4 max-w-sm mx-auto">
+              Charts store your natal positions and serve as the foundation for reports, transits,
+              and compatibility analysis.
+            </p>
+            <Link
+              href="/"
+              className="bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors no-underline"
+            >
+              Create Your First Chart
             </Link>
           </div>
         )}

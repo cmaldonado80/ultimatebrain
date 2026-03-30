@@ -282,19 +282,22 @@ export default function RelationshipsPage() {
 
             {!loadingHistory && savedRels.length === 0 && (
               <div className="text-center py-16">
-                <div className="text-3xl mb-3 opacity-30">&#x2661;</div>
-                <div className="text-slate-500 mb-2">No relationships saved yet</div>
+                <div className="text-4xl mb-4 opacity-30">&#x2661;</div>
+                <div className="text-slate-400 mb-2">No compatibility analyses yet</div>
+                <p className="text-xs text-slate-600 mb-4 max-w-sm mx-auto">
+                  Compare two charts to discover relationship dynamics, strengths, and growth areas.
+                </p>
                 {profile ? (
                   <button
                     onClick={() => setShowForm(true)}
-                    className="text-sm text-purple-400 hover:text-purple-300 bg-transparent border-none cursor-pointer"
+                    className="bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors border-none cursor-pointer"
                   >
-                    Analyze your first compatibility
+                    Analyze Your First Compatibility
                   </button>
                 ) : (
                   <Link
                     href="/"
-                    className="text-sm text-purple-400 hover:text-purple-300 no-underline"
+                    className="bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors no-underline"
                   >
                     Create a chart first
                   </Link>

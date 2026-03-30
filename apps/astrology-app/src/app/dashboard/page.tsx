@@ -151,16 +151,24 @@ export default function DashboardPage() {
   if (!profile) {
     return (
       <main className="min-h-screen bg-[#06090f] text-slate-200 flex items-center justify-center p-6">
-        <div className="text-center">
+        <div className="text-center max-w-md">
+          <div className="text-4xl mb-4 opacity-40">&#x2609;</div>
           <h1 className="text-2xl font-bold mb-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-            Welcome
+            Your Astrology Dashboard
           </h1>
-          <p className="text-slate-500 mb-6">Create your profile to get started</p>
+          <p className="text-slate-400 mb-2">
+            Create your first chart to unlock daily insights, transit tracking, and personality
+            analysis.
+          </p>
+          <p className="text-xs text-slate-600 mb-6">
+            Your natal chart is computed with Swiss Ephemeris precision and serves as the foundation
+            for all features.
+          </p>
           <Link
             href="/"
-            className="bg-purple-600 hover:bg-purple-500 text-white rounded px-6 py-2.5 text-sm font-medium transition-colors no-underline"
+            className="bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-8 py-3 text-sm font-medium transition-colors no-underline"
           >
-            Create Chart
+            Create Your Chart
           </Link>
         </div>
       </main>
