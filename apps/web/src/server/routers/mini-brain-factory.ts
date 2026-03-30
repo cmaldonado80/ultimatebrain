@@ -193,7 +193,7 @@ export const miniBrainFactoryRouter = router({
                 role: 'primary',
               })
             } catch (linkErr) {
-              console.warn(
+              console.error(
                 `[smartCreate] Failed to link agent ${agent.id} to entity ${entity.id}:`,
                 linkErr,
               )
@@ -416,7 +416,7 @@ export const miniBrainFactoryRouter = router({
                 .insert(brainEntityAgents)
                 .values({ entityId: entity.id, agentId: agent.id, role: 'primary' })
             } catch (linkErr) {
-              console.warn(
+              console.error(
                 `[smartCreateDev] Failed to link agent ${agent.id} to entity ${entity.id}:`,
                 linkErr,
               )
@@ -452,7 +452,7 @@ export const miniBrainFactoryRouter = router({
         )
         await advanceWorkflow(ctx.db, workflowId, ctx.session.userId)
       } catch (err) {
-        console.warn(`[smartCreateDev] Deployment workflow failed for ${txResult.entity.id}:`, err)
+        console.error(`[smartCreateDev] Deployment workflow failed for ${txResult.entity.id}:`, err)
       }
 
       return {
@@ -680,7 +680,7 @@ export const miniBrainFactoryRouter = router({
             enabled: true,
           })
         } catch (bindErr) {
-          console.warn(`[reprovision] Failed to create binding:`, bindErr)
+          console.error(`[reprovision] Failed to create binding:`, bindErr)
         }
       }
 
@@ -753,7 +753,7 @@ export const miniBrainFactoryRouter = router({
               .insert(brainEntityAgents)
               .values({ entityId: input.entityId, agentId: orch.id, role: 'primary' })
           } catch (linkErr) {
-            console.warn(`[reprovision] Failed to link orchestrator:`, linkErr)
+            console.error(`[reprovision] Failed to link orchestrator:`, linkErr)
           }
           added++
         }
@@ -790,7 +790,7 @@ export const miniBrainFactoryRouter = router({
               .insert(brainEntityAgents)
               .values({ entityId: input.entityId, agentId: agent.id, role: 'primary' })
           } catch (linkErr) {
-            console.warn(
+            console.error(
               `[reprovision] Failed to link agent ${agent.id} to entity ${input.entityId}:`,
               linkErr,
             )
