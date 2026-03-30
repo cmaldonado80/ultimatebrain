@@ -25,13 +25,7 @@ import {
 // pg is dynamically imported in setupDatabase to avoid compile-time module resolution
 import { and, eq } from 'drizzle-orm'
 
-export type MiniBrainTemplate =
-  | 'astrology'
-  | 'hospitality'
-  | 'healthcare'
-  | 'legal'
-  | 'marketing'
-  | 'soc-ops'
+export type MiniBrainTemplate = 'astrology' | 'hospitality' | 'healthcare' | 'marketing' | 'soc-ops'
 
 export type DevelopmentTemplate = string // e.g. 'sports-astrology', 'luxury-hotel'
 
@@ -254,44 +248,6 @@ Be practical and actionable. Translate astrological insights into clear business
     ],
     dbTables: ['patients', 'protocols', 'compliance_logs', 'clinical_trials'],
     developmentTemplates: ['clinic-management', 'clinical-trials', 'telemedicine', 'pharmacy'],
-  },
-  {
-    id: 'legal',
-    domain: 'Law',
-    engines: ['Case Law Search', 'Contract Parser', 'Compliance Check'],
-    agents: [
-      {
-        name: 'Chief Legal Officer',
-        role: 'Legal strategy',
-        capabilities: ['litigation', 'corporate-law', 'risk-assessment'],
-        soul: 'You are the Chief Legal Officer providing strategic legal counsel. You assess litigation risk, advise on corporate governance, review M&A deals, and set legal policy. Prioritize risk mitigation and provide clear, actionable legal opinions with confidence levels.',
-      },
-      {
-        name: 'IP Counsel',
-        role: 'Intellectual property',
-        capabilities: ['patents', 'trademarks', 'copyright'],
-        soul: 'You are an IP Counsel managing intellectual property portfolios. You evaluate patentability, conduct prior art searches, manage trademark filings, and advise on copyright protection. Track filing deadlines and maintenance fees. Be thorough in jurisdictional analysis.',
-      },
-      {
-        name: 'Paralegal',
-        role: 'Legal research',
-        capabilities: ['case-research', 'document-prep', 'filing'],
-        soul: 'You are a Paralegal conducting legal research and document preparation. You find relevant case law, prepare briefs, manage filing deadlines, organize discovery documents, and maintain case files. Be meticulous with citations and formatting requirements.',
-      },
-      {
-        name: 'Compliance Auditor',
-        role: 'Regulatory compliance',
-        capabilities: ['audit', 'policy', 'reporting'],
-        soul: 'You are a Compliance Auditor ensuring regulatory adherence. You conduct internal audits, review policies against current regulations, produce compliance reports, and track remediation items. Flag high-risk findings immediately and track resolution timelines.',
-      },
-    ],
-    dbTables: ['cases', 'contracts', 'regulations', 'filings', 'ip_portfolio'],
-    developmentTemplates: [
-      'ip-portfolio',
-      'contract-review',
-      'compliance-audit',
-      'litigation-support',
-    ],
   },
   {
     id: 'marketing',
@@ -665,76 +621,6 @@ Follow traditional horary rules strictly. State whether the chart is radical (fi
         role: 'Drug formulary',
         capabilities: ['formulary-review', 'cost-analysis', 'therapeutic-substitution'],
         soul: 'You are a Formulary Manager overseeing the drug formulary. You evaluate new drug additions, analyze cost-effectiveness, recommend therapeutic substitutions, and maintain the Pharmacy & Therapeutics committee documentation.',
-      },
-    ],
-  },
-
-  // ── Legal Developments ──
-  {
-    id: 'ip-portfolio',
-    parentTemplate: 'legal',
-    domain: 'IP Portfolio Management',
-    description: 'Intellectual property portfolio strategy and maintenance',
-    agents: [
-      {
-        name: 'Patent Strategist',
-        role: 'Patent portfolio',
-        capabilities: ['portfolio-analysis', 'filing-strategy', 'landscape-mapping'],
-        soul: 'You are a Patent Strategist managing an IP portfolio. You analyze patent landscapes, develop filing strategies, identify white space opportunities, and prioritize prosecution budgets. Track portfolio strength metrics and competitive positioning.',
-      },
-      {
-        name: 'Licensing Negotiator',
-        role: 'IP licensing',
-        capabilities: ['licensing', 'royalty-analysis', 'deal-structuring'],
-        soul: 'You are a Licensing Negotiator handling IP licensing deals. You evaluate licensing opportunities, structure royalty agreements, conduct valuation analysis, and negotiate terms. Track active licenses, royalty streams, and renewal dates.',
-      },
-    ],
-  },
-  {
-    id: 'contract-review',
-    parentTemplate: 'legal',
-    domain: 'Contract Review',
-    description: 'Automated contract analysis and risk assessment',
-    agents: [
-      {
-        name: 'Contract Analyst',
-        role: 'Contract review',
-        capabilities: ['clause-analysis', 'risk-scoring', 'redlining'],
-        soul: 'You are a Contract Analyst reviewing commercial agreements. You identify risk clauses, score overall contract risk, suggest redline edits, and compare against standard templates. Flag indemnification, liability caps, termination, and IP assignment clauses.',
-      },
-    ],
-  },
-  {
-    id: 'compliance-audit',
-    parentTemplate: 'legal',
-    domain: 'Compliance Audit',
-    description: 'Regulatory compliance assessment and remediation tracking',
-    agents: [
-      {
-        name: 'Audit Lead',
-        role: 'Compliance auditing',
-        capabilities: ['audit-planning', 'evidence-collection', 'remediation-tracking'],
-        soul: 'You are an Audit Lead conducting compliance assessments. You plan audit scope, collect and evaluate evidence, document findings with severity ratings, and track remediation progress. Produce executive summaries with risk heat maps.',
-      },
-    ],
-  },
-  {
-    id: 'litigation-support',
-    parentTemplate: 'legal',
-    domain: 'Litigation Support',
-    description: 'Case preparation, discovery, and trial support',
-    agents: [
-      {
-        name: 'Discovery Manager',
-        role: 'E-discovery',
-        capabilities: ['document-review', 'privilege-log', 'production'],
-        soul: 'You are a Discovery Manager handling e-discovery workflows. You manage document collection, coordinate review teams, maintain privilege logs, and oversee production sets. Track review rates, responsiveness ratios, and production deadlines.',
-      },
-      {
-        name: 'Case Strategist',
-        role: 'Litigation strategy',
-        capabilities: ['case-analysis', 'motion-drafting', 'deposition-prep'],
-        soul: 'You are a Case Strategist developing litigation strategy. You analyze case strengths/weaknesses, draft motion outlines, prepare deposition questions, and develop trial themes. Provide risk assessments with probability ranges.',
       },
     ],
   },

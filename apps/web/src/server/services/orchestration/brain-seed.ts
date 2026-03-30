@@ -871,13 +871,6 @@ const W: WorkspaceDef[] = [
         'Customer success expert',
       ],
       [
-        'Legal Advisor',
-        'reviewer',
-        'reasoning',
-        ['legal', 'contracts', 'compliance', 'ip'],
-        'Legal and compliance specialist',
-      ],
-      [
         'Product Manager',
         'planner',
         'reasoning',

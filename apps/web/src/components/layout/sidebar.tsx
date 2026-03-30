@@ -221,7 +221,6 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
 
   const DOMAIN_ICONS: Record<string, string> = {
     astrology: '☉',
-    legal: '⚖',
     hospitality: '🏨',
     healthcare: '🏥',
     marketing: '📣',

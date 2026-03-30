@@ -53,7 +53,7 @@ const EXEC_TYPE_COLOR: Record<string, StatusColor> = {
   informational: 'slate',
 }
 
-const QUICK_DOMAINS = ['astrology', 'legal', 'hospitality', 'healthcare', 'marketing', 'soc-ops']
+const QUICK_DOMAINS = ['astrology', 'hospitality', 'healthcare', 'marketing', 'soc-ops']
 
 // ── Main Page ────────────────────────────────────────────────────────────
 
@@ -157,7 +157,7 @@ export default function BuilderPage() {
         <div className="flex gap-2">
           <input
             className="cyber-input flex-1"
-            placeholder="Domain name (e.g. astrology, legal, hospitality)"
+            placeholder="Domain name (e.g. astrology, hospitality, healthcare)"
             value={domain}
             onChange={(e) => setDomain(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}

@@ -368,7 +368,6 @@ function CreationPanel({ brains, onDone }: { brains: Entity[]; onDone: () => voi
                 | 'astrology'
                 | 'hospitality'
                 | 'healthcare'
-                | 'legal'
                 | 'marketing'
                 | 'soc-ops',
               name: name.trim(),
