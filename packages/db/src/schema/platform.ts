@@ -42,7 +42,8 @@ export const brainEntities = pgTable(
     domainEngines: jsonb('domain_engines'),
     apiKeyHash: text('api_key_hash'),
     endpoint: text('endpoint'),
-    databaseUrl: text('database_url'),
+    databaseUrl: text('database_url'), // legacy — prefer encryptedDatabaseUrl
+    encryptedDatabaseUrl: text('encrypted_database_url'),
     healthEndpoint: text('health_endpoint'),
     status: entityStatusEnum('status').default('provisioning').notNull(),
     config: jsonb('config'),

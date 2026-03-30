@@ -91,6 +91,7 @@ export const chatRunSteps = pgTable(
     index('chat_run_steps_run_idx').on(t.runId),
     index('chat_run_steps_sequence_idx').on(t.runId, t.sequence),
     index('chat_run_steps_group_idx').on(t.groupId),
+    index('chat_run_steps_agent_idx').on(t.agentId),
   ],
 )
 

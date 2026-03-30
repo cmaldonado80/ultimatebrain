@@ -239,7 +239,15 @@ export const miniBrainFactoryRouter = router({
         // Auto-advance provision_db and configure steps
         await advanceWorkflow(ctx.db, workflowId, ctx.session.userId)
       } catch (err) {
-        console.warn(`[smartCreate] Deployment workflow failed for ${txResult.entity.id}:`, err)
+        // Deployment failed — rollback entity to failed state so it's visible in UI
+        console.error(
+          `[smartCreate] Deployment workflow failed for ${txResult.entity.id}, marking as failed:`,
+          err,
+        )
+        await ctx.db
+          .update(brainEntities)
+          .set({ status: 'suspended' })
+          .where(eq(brainEntities.id, txResult.entity.id))
       }
 
       // Audit: log Mini Brain creation

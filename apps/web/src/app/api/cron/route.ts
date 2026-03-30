@@ -49,7 +49,7 @@ export async function GET(req: Request) {
         rebalanceMoves = await orchestrator.rebalanceAgents()
       }
     } catch (err) {
-      console.warn('[Cron] rebalance failed:', err)
+      console.error('[Cron] rebalance failed:', err)
     }
 
     // 4. Execute due user-defined cron jobs
@@ -86,7 +86,7 @@ export async function GET(req: Request) {
         }
       }
     } catch (err) {
-      console.warn('[Cron] job execution failed:', err)
+      console.error('[Cron] job execution failed:', err)
     }
 
     // 5. ATLAS freshness scan — run weekly (every ~2016 cron ticks at 5min intervals)
@@ -105,7 +105,7 @@ export async function GET(req: Request) {
         }
       }
     } catch (err) {
-      console.warn('[Cron] ATLAS freshness scan failed:', err)
+      console.error('[Cron] ATLAS freshness scan failed:', err)
     }
 
     // 6. Instinct pipeline — detect patterns, score confidence, promote
@@ -113,7 +113,7 @@ export async function GET(req: Request) {
     try {
       instinctResult = await runInstinctPipeline(db)
     } catch (err) {
-      console.warn('[Cron] instinct pipeline failed:', err)
+      console.error('[Cron] instinct pipeline failed:', err)
     }
 
     return Response.json({

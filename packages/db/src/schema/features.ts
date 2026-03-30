@@ -73,7 +73,10 @@ export const guardrailLogs = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },
-  (t) => [index('guardrail_logs_agent_id_idx').on(t.agentId)],
+  (t) => [
+    index('guardrail_logs_agent_id_idx').on(t.agentId),
+    index('guardrail_logs_ticket_id_idx').on(t.ticketId),
+  ],
 )
 
 // Feature #5: Evals
