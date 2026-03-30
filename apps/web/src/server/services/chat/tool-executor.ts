@@ -594,6 +594,20 @@ export const AGENT_TOOLS = [
     },
   },
   {
+    name: 'workspace_files',
+    description:
+      'Manage shared workspace files — list, read, or write files that all agents in the workspace can access.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        action: { type: 'string', description: 'Action: list, read, write' },
+        filename: { type: 'string', description: 'File name (required for read/write)' },
+        content: { type: 'string', description: 'File content (required for write)' },
+      },
+      required: ['action'],
+    },
+  },
+  {
     name: 'memory_search',
     description:
       'Search stored memories for relevant context. Returns matching memories ranked by relevance.',
@@ -1314,6 +1328,45 @@ export async function executeTool(
             error: err instanceof Error ? err.message : 'Docker operation failed',
           })
         }
+      }
+
+      case 'workspace_files': {
+        if (!db) return JSON.stringify({ error: 'Database not available' })
+        const action = toolInput.action as string
+        const filename = toolInput.filename as string | undefined
+        const content = toolInput.content as string | undefined
+        const { artifacts } = await import('@solarc/db')
+        const { eq: eqOp } = await import('drizzle-orm')
+
+        if (action === 'list') {
+          const files = await db.query.artifacts.findMany({
+            ...(workspaceId ? { where: eqOp(artifacts.agentId, workspaceId) } : {}),
+            limit: 50,
+          })
+          return JSON.stringify(
+            files.map((f) => ({ id: f.id, name: f.name, type: f.type, createdAt: f.createdAt })),
+          )
+        }
+        if (action === 'write' && filename && content) {
+          const [file] = await db
+            .insert(artifacts)
+            .values({
+              name: filename,
+              content,
+              type: 'workspace_file',
+            })
+            .returning()
+          return JSON.stringify({ id: file?.id, filename, written: true })
+        }
+        if (action === 'read' && filename) {
+          const file = await db.query.artifacts.findFirst({
+            where: eqOp(artifacts.name, filename),
+          })
+          return JSON.stringify(
+            file ? { filename, content: file.content } : { error: 'File not found' },
+          )
+        }
+        return JSON.stringify({ error: 'Invalid action. Use: list, read, write' })
       }
 
       default:

@@ -12,7 +12,7 @@ import {
   chatSessions,
   instincts,
 } from '@solarc/db'
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 
 import { auth } from '../../../../server/auth'
 import { buildAtlasContext } from '../../../../server/services/atlas'
@@ -188,6 +188,20 @@ export async function POST(req: Request) {
     .set({ updatedAt: new Date() })
     .where(eq(chatSessions.id, body.sessionId))
 
+  // @mention agent delegation — parse @agentname from message
+  let mentionedAgentId: string | null = null
+  const userText = body.text
+  const mentionMatch = userText.match(/@(\w[\w-]*\w)/)
+  if (mentionMatch) {
+    const mentionName = mentionMatch[1]
+    const mentionedAgent = await db.query.agents.findFirst({
+      where: sql`lower(name) = lower(${mentionName})`,
+    })
+    if (mentionedAgent) {
+      mentionedAgentId = mentionedAgent.id
+    }
+  }
+
   // 2. Determine which agents to use
   const agentConfigs: Array<{
     id: string
@@ -210,12 +224,13 @@ export async function POST(req: Request) {
       if (config) agentConfigs.push(config)
     }
   } else {
-    // Single-agent mode: load from session
-    const session = await db.query.chatSessions.findFirst({
+    // Single-agent mode: load from session (with @mention override)
+    const chatSession = await db.query.chatSessions.findFirst({
       where: eq(chatSessions.id, body.sessionId),
     })
-    if (session?.agentId) {
-      const config = await loadAgentConfig(db, gateway, session.agentId)
+    const effectiveAgentId = mentionedAgentId ?? chatSession?.agentId
+    if (effectiveAgentId) {
+      const config = await loadAgentConfig(db, gateway, effectiveAgentId)
       if (config) agentConfigs.push(config)
     }
   }

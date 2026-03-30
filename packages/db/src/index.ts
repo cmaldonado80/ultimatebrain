@@ -897,6 +897,7 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `ALTER TABLE agents ADD COLUMN IF NOT EXISTS tool_access text[]`,
       `ALTER TABLE agents ADD COLUMN IF NOT EXISTS parent_orchestrator_id uuid`,
       `ALTER TABLE agents ADD COLUMN IF NOT EXISTS required_model_type model_type`,
+      `ALTER TABLE agents ADD COLUMN IF NOT EXISTS verification_level integer DEFAULT 0`,
       `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS is_system_protected boolean DEFAULT false`,
       `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS lifecycle_state workspace_lifecycle DEFAULT 'draft' NOT NULL`,
       `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS icon text`,

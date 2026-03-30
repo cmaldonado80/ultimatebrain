@@ -182,6 +182,7 @@ export const agents = pgTable(
     temperature: real('temperature').default(1.0),
     maxTokens: integer('max_tokens').default(4096),
     toolAccess: text('tool_access').array(),
+    verificationLevel: integer('verification_level').default(0), // 0=anonymous, 1=api_key, 2=oauth, 3=did
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
