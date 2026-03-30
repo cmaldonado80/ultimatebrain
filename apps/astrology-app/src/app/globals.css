@@ -1,3 +1,34 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&display=swap");
+
+/* ── Design Tokens ────────────────────────────────────────────────────── */
+
+:root {
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-orbitron: 'Orbitron', sans-serif;
+
+  /* Neon Color Palette (matches Brain app) */
+  --color-neon-blue: #00d4ff;
+  --color-neon-teal: #00c4cc;
+  --color-neon-purple: #8b5cf6;
+  --color-neon-green: #00ff88;
+  --color-neon-yellow: #ffd200;
+  --color-neon-red: #ff3a5c;
+
+  /* Background & Surface Hierarchy */
+  --color-bg-deep: #06090f;
+  --color-bg-surface: #0a0f1a;
+  --color-bg-elevated: #111827;
+  --color-bg-card: rgba(255, 255, 255, 0.03);
+
+  /* Borders */
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-dim: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Base Reset ───────────────────────────────────────────────────────── */
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -5,14 +36,190 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
-  background: #06090f;
+  font-family: var(--font-sans);
+  background: var(--color-bg-deep);
   color: #e2e8f0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-image:
+    radial-gradient(circle at 50% -20%, rgba(139, 92, 246, 0.05), transparent 40%),
+    radial-gradient(circle at 0% 100%, rgba(0, 212, 255, 0.03), transparent 30%);
+  background-attachment: fixed;
 }
 
-/* Date/time input fix for dark theme */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-orbitron);
+  letter-spacing: -0.02em;
+  color: white;
+}
+
+/* Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+/* ── Card ─────────────────────────────────────────────────────────────── */
+
+.astro-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  transition: all 0.3s ease;
+  padding: 16px;
+}
+.astro-card:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.05);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+
+.astro-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(139, 92, 246, 0.2);
+  color: var(--color-neon-purple);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+.astro-btn-primary:hover {
+  background: rgba(139, 92, 246, 0.3);
+}
+.astro-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.astro-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+.astro-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.astro-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255, 58, 92, 0.1);
+  color: var(--color-neon-red);
+  border: 1px solid rgba(255, 58, 92, 0.3);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+.astro-btn-danger:hover {
+  background: rgba(255, 58, 92, 0.2);
+}
+
+.astro-btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* ── Input ────────────────────────────────────────────────────────────── */
+
+.astro-input {
+  width: 100%;
+  background: var(--color-bg-elevated);
+  color: #f1f5f9;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.astro-input:focus {
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
+}
+.astro-input::placeholder {
+  color: #64748b;
+}
+
+.astro-select {
+  background: var(--color-bg-elevated);
+  color: #f1f5f9;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.astro-select:focus {
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+/* ── Badge ────────────────────────────────────────────────────────────── */
+
+.astro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ── Neon Status Dots ─────────────────────────────────────────────────── */
+
+.astro-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.astro-dot-purple { background: var(--color-neon-purple); box-shadow: 0 0 8px var(--color-neon-purple); }
+.astro-dot-green { background: var(--color-neon-green); box-shadow: 0 0 8px var(--color-neon-green); }
+.astro-dot-red { background: var(--color-neon-red); box-shadow: 0 0 8px var(--color-neon-red); }
+.astro-dot-blue { background: var(--color-neon-blue); box-shadow: 0 0 8px var(--color-neon-blue); }
+
+/* ── Date/time input fix for dark theme ───────────────────────────────── */
+
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(0.7);

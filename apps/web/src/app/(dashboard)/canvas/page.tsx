@@ -5,7 +5,9 @@
  */
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 export default function CanvasPage() {
@@ -33,11 +35,8 @@ export default function CanvasPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching canvas data</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading canvas..." />
       </div>
     )
   }
@@ -47,15 +46,7 @@ export default function CanvasPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex items-center gap-3 mb-6">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Canvas</h2>
-          <OrgBadge />
-        </div>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Visual workspace for orchestrating agent workflows and viewing execution graphs.
-        </p>
-      </div>
+      <PageHeader title="Canvas" />
 
       <div className="mb-6">
         <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
@@ -81,9 +72,7 @@ export default function CanvasPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center text-slate-500 py-5 text-[13px]">
-            No feature flags configured.
-          </div>
+          <EmptyState message="No feature flags configured." />
         )}
       </div>
 
@@ -106,9 +95,7 @@ export default function CanvasPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center text-slate-500 py-5 text-[13px]">
-            No system policies defined.
-          </div>
+          <EmptyState message="No system policies defined." />
         )}
       </div>
     </div>

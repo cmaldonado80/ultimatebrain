@@ -80,12 +80,12 @@ export default function SharedResourcePage() {
     return (
       <main className="min-h-screen bg-[#06090f] text-slate-200 p-6 print:bg-white print:text-black">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+          <h1 className="text-2xl font-bold mb-1">
             {reportType === 'natal' ? 'Natal Report' : reportType}
           </h1>
 
           {summary && (
-            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-4 print:bg-gray-50 print:border-gray-200">
+            <div className="astro-card mb-4 print:bg-gray-50 print:border-gray-200">
               <div className="text-sm text-slate-300 font-mono print:text-black">{summary}</div>
               <div className="text-xs text-slate-600 mt-1">
                 {data.createdAt ? new Date(data.createdAt as string).toLocaleString() : ''}
@@ -97,7 +97,7 @@ export default function SharedResourcePage() {
             {sections.map((section, i) => (
               <div
                 key={i}
-                className="bg-[#0a0f1a] border border-white/10 rounded-lg overflow-hidden print:bg-gray-50 print:border-gray-200"
+                className="astro-card overflow-hidden p-0 print:bg-gray-50 print:border-gray-200"
               >
                 <button
                   onClick={() => setExpanded(expanded === i ? null : i)}
@@ -150,20 +150,20 @@ export default function SharedResourcePage() {
     return (
       <main className="min-h-screen bg-[#06090f] text-slate-200 p-6 print:bg-white print:text-black">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-6 text-center mb-6 print:bg-gray-50">
+          <div className="astro-card p-6 text-center mb-6 print:bg-gray-50">
             {score != null && (
               <div className="text-4xl font-bold text-purple-400 mb-1 print:text-purple-700">
                 {score}
               </div>
             )}
             <div className="text-xs text-slate-500 mb-2">Compatibility Score</div>
-            <h1 className="text-lg font-bold" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            <h1 className="text-lg font-bold">
               {personA} + {personB}
             </h1>
           </div>
 
           {aspects.length > 0 && (
-            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6 print:bg-gray-50">
+            <div className="astro-card mb-6 print:bg-gray-50">
               <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
                 Synastry Aspects
               </h2>
@@ -183,7 +183,7 @@ export default function SharedResourcePage() {
           )}
 
           {narrative && (
-            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6 print:bg-gray-50">
+            <div className="astro-card mb-6 print:bg-gray-50">
               <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-2">
                 Interpretation
               </h2>

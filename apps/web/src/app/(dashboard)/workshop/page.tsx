@@ -7,7 +7,9 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 export default function WorkshopPage() {
@@ -69,23 +71,17 @@ export default function WorkshopPage() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-4">
-            <h1 className="text-2xl font-orbitron text-neon-teal">Workshop</h1>
-            <OrgBadge />
-          </div>
-          <p className="text-sm text-slate-400 mt-1">
-            Automate with agents &mdash; {projects.length} projects
-          </p>
-        </div>
-        <button
-          className="cyber-btn-primary text-sm px-3 py-1.5"
-          onClick={() => setShowCreate(!showCreate)}
-        >
-          {showCreate ? 'Cancel' : '+ New Project'}
-        </button>
-      </div>
+      <PageHeader
+        title="Workshop"
+        actions={
+          <button
+            className="cyber-btn-primary text-sm px-3 py-1.5"
+            onClick={() => setShowCreate(!showCreate)}
+          >
+            {showCreate ? 'Cancel' : '+ New Project'}
+          </button>
+        }
+      />
 
       {/* Create form */}
       {showCreate && (
@@ -139,13 +135,12 @@ export default function WorkshopPage() {
 
       {/* Active Projects */}
       {projectsQuery.isLoading ? (
-        <div className="flex items-center justify-center min-h-[40vh]">
-          <div className="text-lg font-orbitron text-slate-500">Loading projects...</div>
-        </div>
+        <LoadingState message="Loading projects..." />
       ) : activeProjects.length === 0 && completedProjects.length === 0 ? (
-        <div className="cyber-card p-8 text-center text-slate-500">
-          No projects yet. Create one to start building with your agents.
-        </div>
+        <EmptyState
+          title="No projects yet"
+          message="Create one to start building with your agents."
+        />
       ) : (
         <div className="space-y-3">
           {activeProjects.map((project) => {

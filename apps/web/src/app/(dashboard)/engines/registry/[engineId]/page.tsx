@@ -8,6 +8,8 @@
 import Link from 'next/link'
 import { use, useState } from 'react'
 
+import { PageHeader } from '../../../../../components/ui/page-header'
+
 // ─── Module definitions for Swiss Ephemeris ──────────────────────────────────
 
 interface EngineModule {
@@ -291,21 +293,23 @@ export default function EngineDetailPage({ params }: { params: Promise<{ engineI
     <div className="p-6 font-sans text-slate-50 max-w-[900px]">
       {/* Header */}
       <div className="mb-5">
-        <div className="flex items-center gap-3">
-          <Link href="/engines/registry" className="text-slate-500 text-[13px] no-underline">
-            ← Engine Registry
-          </Link>
-          <span className="text-slate-700">/</span>
-          <h2 className="m-0 text-xl font-bold inline">{doc?.title ?? engineId}</h2>
-          {engineId === 'swiss-ephemeris' && (
-            <span className="text-[10px] bg-green-500/[0.13] text-green-500 py-0.5 px-2 rounded font-semibold">
-              Astrology
-            </span>
-          )}
-        </div>
-        <p className="mt-1.5 mb-0 text-[13px] text-slate-500">
-          {doc?.description ?? 'Engine details'}
-        </p>
+        <Link
+          href="/engines/registry"
+          className="text-slate-500 text-[13px] no-underline block mb-2"
+        >
+          ← Engine Registry
+        </Link>
+        <PageHeader
+          title={doc?.title ?? engineId}
+          subtitle={doc?.description ?? 'Engine details'}
+          actions={
+            engineId === 'swiss-ephemeris' ? (
+              <span className="text-[10px] bg-green-500/[0.13] text-green-500 py-0.5 px-2 rounded font-semibold">
+                Astrology
+              </span>
+            ) : undefined
+          }
+        />
         {engineId === 'swiss-ephemeris' && (
           <div className="flex items-center gap-2 mt-2">
             <span className="text-[11px] text-neon-purple font-semibold">22 modules</span>

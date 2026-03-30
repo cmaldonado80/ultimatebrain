@@ -7,7 +7,9 @@
 import Link from 'next/link'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface BrainEntity {
@@ -61,11 +63,8 @@ export default function EnginesPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2 font-orbitron">Loading...</div>
-          <div className="text-[13px]">Fetching engine data</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading engines..." />
       </div>
     )
   }
@@ -77,24 +76,18 @@ export default function EnginesPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3 mb-6">
-            <h2 className="m-0 text-[22px] font-bold font-orbitron">Engines</h2>
-            <OrgBadge />
-          </div>
+      <PageHeader
+        title="Engines"
+        subtitle="Monitor the brain's core engines — LLM Gateway, Memory, Orchestration, Guardrails, and more."
+        actions={
           <Link
             href="/engines/manage"
             className="cyber-btn-primary text-xs font-semibold no-underline"
           >
             Manage Brain
           </Link>
-        </div>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Monitor the brain&apos;s core engines — LLM Gateway, Memory, Orchestration, Guardrails,
-          and more.
-        </p>
-      </div>
+        }
+      />
       {topo && (
         <div className="grid grid-cols-3 gap-2.5 mb-5">
           <div className="cyber-card text-center p-3.5">
@@ -119,9 +112,7 @@ export default function EnginesPage() {
       )}
 
       {entities.length === 0 ? (
-        <div className="text-center text-slate-500 py-10 text-sm">
-          No brain entities registered.
-        </div>
+        <EmptyState title="No brain entities registered" />
       ) : (
         <div className="cyber-grid">
           {entities.map((e) => (

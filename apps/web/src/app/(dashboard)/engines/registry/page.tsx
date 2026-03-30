@@ -8,7 +8,9 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../../components/db-error-banner'
-import { OrgBadge } from '../../../../components/ui/org-badge'
+import { EmptyState } from '../../../../components/ui/empty-state'
+import { LoadingState } from '../../../../components/ui/loading-state'
+import { PageHeader } from '../../../../components/ui/page-header'
 import { trpc } from '../../../../utils/trpc'
 
 interface Engine {
@@ -69,8 +71,8 @@ export default function EngineRegistryPage() {
 
   if (enginesQuery.isLoading) {
     return (
-      <div className="p-6 font-sans text-neon-text flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">Loading engines...</div>
+      <div className="p-6 font-sans text-neon-text">
+        <LoadingState message="Loading engines..." />
       </div>
     )
   }
@@ -98,20 +100,15 @@ export default function EngineRegistryPage() {
 
   return (
     <div className="p-6 font-sans text-neon-text">
-      <div className="mb-5">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3 mb-4">
-            <h2 className="m-0 text-[22px] font-bold font-orbitron">Engine Registry</h2>
-            <OrgBadge />
-          </div>
+      <PageHeader
+        title="Engine Registry"
+        subtitle="Browse and manage brain engines — system, domain, and custom."
+        actions={
           <button className="cyber-btn-primary" onClick={() => setShowRegister(!showRegister)}>
             {showRegister ? 'Cancel' : '+ Register Engine'}
           </button>
-        </div>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Browse and manage brain engines — system, domain, and custom.
-        </p>
-      </div>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-2.5 mb-4">
@@ -243,11 +240,7 @@ export default function EngineRegistryPage() {
         })}
       </div>
 
-      {engines.length === 0 && (
-        <div className="text-center text-slate-500 p-10 text-sm">
-          No engines found for this filter.
-        </div>
-      )}
+      {engines.length === 0 && <EmptyState title="No engines found for this filter" />}
     </div>
   )
 }

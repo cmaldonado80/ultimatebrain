@@ -77,12 +77,12 @@ export default function RelationshipDetailPage() {
         </Link>
 
         {/* Header with score */}
-        <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-6 text-center mb-6">
+        <div className="astro-card p-6 text-center mb-6">
           {rel.compatibilityScore != null && (
             <div className="text-4xl font-bold text-purple-400 mb-1">{rel.compatibilityScore}</div>
           )}
           <div className="text-xs text-slate-500 mb-2">Compatibility Score</div>
-          <h1 className="text-lg font-bold" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+          <h1 className="text-lg font-bold">
             {rel.personAName} + {rel.personBName}
           </h1>
           <div className="text-xs text-slate-600 mt-1">
@@ -109,7 +109,7 @@ export default function RelationshipDetailPage() {
               }
             }}
             disabled={sharing}
-            className="text-xs px-3 py-1.5 rounded bg-purple-600/80 hover:bg-purple-500 text-white border-none cursor-pointer disabled:opacity-50"
+            className="astro-btn-primary astro-btn-sm disabled:opacity-50"
           >
             {sharing ? 'Creating...' : shareUrl ? 'Reshare' : 'Share'}
           </button>
@@ -121,7 +121,7 @@ export default function RelationshipDetailPage() {
                 setCopied('summary')
                 setTimeout(() => setCopied(null), 2000)
               }}
-              className="text-xs px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 cursor-pointer"
+              className="astro-btn-secondary astro-btn-sm"
             >
               {copied === 'summary' ? 'Copied!' : 'Copy Summary'}
             </button>
@@ -130,7 +130,7 @@ export default function RelationshipDetailPage() {
         </div>
 
         {shareUrl && (
-          <div className="bg-[#0a0f1a] border border-purple-500/20 rounded-lg px-3 py-2 mb-4 flex items-center gap-2">
+          <div className="astro-card border-purple-500/20 px-3 py-2 mb-4 flex items-center gap-2">
             <input
               readOnly
               value={shareUrl}
@@ -157,10 +157,7 @@ export default function RelationshipDetailPage() {
               { label: 'Composite Moon', sign: composite.moonSign },
               { label: 'Composite ASC', sign: composite.ascendantSign },
             ].map(({ label, sign }) => (
-              <div
-                key={label}
-                className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center"
-              >
+              <div key={label} className="astro-card p-3 text-center">
                 <div className="text-xs text-slate-400">{sign ?? '—'}</div>
                 <div className="text-[10px] text-slate-600">{label}</div>
               </div>
@@ -170,7 +167,7 @@ export default function RelationshipDetailPage() {
 
         {/* Synastry aspects */}
         {aspects.length > 0 && (
-          <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+          <div className="astro-card mb-6">
             <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
               Synastry Aspects
             </h2>
@@ -191,7 +188,7 @@ export default function RelationshipDetailPage() {
 
         {/* Narrative */}
         {rel.narrative && (
-          <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+          <div className="astro-card mb-6">
             <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-2">
               Interpretation
             </h2>

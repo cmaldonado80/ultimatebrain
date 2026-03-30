@@ -12,7 +12,8 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import type {
   SkillCapability,
   SkillCategory,
@@ -261,11 +262,8 @@ export default function SkillsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching skills</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading skills..." />
       </div>
     )
   }
@@ -311,16 +309,7 @@ export default function SkillsPage() {
   return (
     <div className="p-6 text-slate-50">
       {/* Header */}
-      <div className="mb-4">
-        <div>
-          <h1 className="m-0 text-[22px] font-bold font-orbitron">
-            Skill Store <OrgBadge />
-          </h1>
-          <p className="mt-1 mb-0 text-[13px] text-slate-500">
-            Browse, install, and manage agent skills
-          </p>
-        </div>
-      </div>
+      <PageHeader title="Skill Store" />
       {/* Tabs */}
       <div className="flex gap-1 mb-4">
         <button

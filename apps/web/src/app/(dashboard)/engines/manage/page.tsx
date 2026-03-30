@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../../components/db-error-banner'
-import { OrgBadge } from '../../../../components/ui/org-badge'
+import { LoadingState } from '../../../../components/ui/loading-state'
+import { PageHeader } from '../../../../components/ui/page-header'
 import { trpc } from '../../../../utils/trpc'
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
@@ -65,8 +66,8 @@ export default function BrainManagerPage() {
   const isLoading = brainsQ.isLoading || miniBrainsQ.isLoading
   if (isLoading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[60vh]">
-        <span className="text-slate-500">Loading brain hierarchy...</span>
+      <div className="p-6">
+        <LoadingState message="Loading brain manager..." />
       </div>
     )
   }
@@ -85,11 +86,7 @@ export default function BrainManagerPage() {
   return (
     <div className="p-6 text-slate-200">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-xl font-bold font-orbitron text-neon-teal mb-1">Brain Manager</h2>
-        <OrgBadge />
-      </div>
-      <p className="text-sm text-slate-500 mb-4">Brain &rarr; Mini-Brain &rarr; Development</p>
+      <PageHeader title="Brain Manager" subtitle="Brain → Mini-Brain → Development" />
 
       {/* Stat bar */}
       <div className="flex gap-3 mb-5">

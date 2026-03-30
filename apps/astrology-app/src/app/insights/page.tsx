@@ -75,9 +75,7 @@ export default function InsightsPage() {
           &larr; Dashboard
         </Link>
 
-        <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-          Insights
-        </h1>
+        <h1 className="text-2xl font-bold mb-1">Insights</h1>
         <p className="text-xs text-slate-500 mb-4">Transits, timeline & lunar intelligence</p>
 
         {/* Period toggle */}
@@ -109,7 +107,7 @@ export default function InsightsPage() {
           <>
             {/* Moon & Profection */}
             <div className="grid grid-cols-2 gap-3 mb-6">
-              <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4">
+              <div className="astro-card">
                 <div className="text-xs text-purple-400 uppercase tracking-wider mb-1">Moon</div>
                 <div className="text-sm text-slate-300">{transits.moonPhase.phaseName}</div>
                 <div className="text-xs text-slate-500">
@@ -119,7 +117,7 @@ export default function InsightsPage() {
                   <div className="text-xs text-slate-600 mt-1">{transits.lunarMansion.name}</div>
                 )}
               </div>
-              <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4">
+              <div className="astro-card">
                 <div className="text-xs text-purple-400 uppercase tracking-wider mb-1">
                   Year Theme
                 </div>
@@ -134,7 +132,7 @@ export default function InsightsPage() {
 
             {/* Timeline Events */}
             {timeline && timeline.events.length > 0 && (
-              <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+              <div className="astro-card mb-6">
                 <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
                   Significant Events
                 </h2>
@@ -158,7 +156,7 @@ export default function InsightsPage() {
             )}
 
             {/* Full Transit List */}
-            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4">
+            <div className="astro-card">
               <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
                 All Transits ({transits.transits.length})
               </h2>

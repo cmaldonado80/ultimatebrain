@@ -153,9 +153,7 @@ export default function DashboardPage() {
       <main className="min-h-screen bg-[#06090f] text-slate-200 flex items-center justify-center p-6">
         <div className="text-center max-w-md">
           <div className="text-4xl mb-4 opacity-40">&#x2609;</div>
-          <h1 className="text-2xl font-bold mb-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-            Your Astrology Dashboard
-          </h1>
+          <h1 className="text-2xl font-bold mb-2">Your Astrology Dashboard</h1>
           <p className="text-slate-400 mb-2">
             Create your first chart to unlock daily insights, transit tracking, and personality
             analysis.
@@ -164,10 +162,7 @@ export default function DashboardPage() {
             Your natal chart is computed with Swiss Ephemeris precision and serves as the foundation
             for all features.
           </p>
-          <Link
-            href="/"
-            className="bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-8 py-3 text-sm font-medium transition-colors no-underline"
-          >
+          <Link href="/" className="astro-btn-primary no-underline">
             Create Your Chart
           </Link>
         </div>
@@ -178,9 +173,7 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-[#06090f] text-slate-200 p-6">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-          {profile.name ?? 'Your Cosmos'}
-        </h1>
+        <h1 className="text-2xl font-bold mb-1">{profile.name ?? 'Your Cosmos'}</h1>
         <p className="text-xs text-slate-500 mb-6">Personal astrology intelligence</p>
 
         {/* Big Three */}
@@ -191,10 +184,7 @@ export default function DashboardPage() {
               { label: 'Moon', sign: chart.highlights.moonSign },
               { label: 'Rising', sign: chart.highlights.ascendantSign },
             ].map(({ label, sign }) => (
-              <div
-                key={label}
-                className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 text-center"
-              >
+              <div key={label} className="astro-card text-center">
                 <div className="text-3xl mb-1">{sign ? (SIGN_SYMBOL[sign] ?? '') : '?'}</div>
                 <div className="text-sm font-medium text-slate-300">{sign ?? 'Unknown'}</div>
                 <div className="text-xs text-slate-500">{label}</div>
@@ -204,7 +194,7 @@ export default function DashboardPage() {
         )}
 
         {/* What Changed */}
-        <div className="bg-[#0a0f1a] border border-purple-500/20 rounded-lg p-4 mb-6">
+        <div className="astro-card border-purple-500/20 mb-6">
           <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-2">
             {isFirstVisit ? 'Welcome' : 'What Changed'}
           </h2>
@@ -273,7 +263,7 @@ export default function DashboardPage() {
         {/* Today */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           {transits?.moonPhase && (
-            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4">
+            <div className="astro-card">
               <div className="text-xs text-purple-400 uppercase tracking-wider mb-1">Moon</div>
               <div className="text-sm text-slate-300">{transits.moonPhase.phaseName}</div>
               <div className="text-xs text-slate-500">
@@ -285,7 +275,7 @@ export default function DashboardPage() {
             </div>
           )}
           {transits?.profection && (
-            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4">
+            <div className="astro-card">
               <div className="text-xs text-purple-400 uppercase tracking-wider mb-1">
                 Year Theme
               </div>
@@ -301,7 +291,7 @@ export default function DashboardPage() {
 
         {/* This Week */}
         {transits && transits.transits.length > 0 && (
-          <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+          <div className="astro-card mb-6">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider">
                 This Week
@@ -336,28 +326,28 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/charts"
-            className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 hover:border-purple-500/30 transition-colors no-underline"
+            className="astro-card hover:border-purple-500/30 transition-colors no-underline"
           >
             <div className="text-sm font-medium text-purple-400 mb-1">My Charts</div>
             <div className="text-xs text-slate-500">Saved natal charts</div>
           </Link>
           <Link
             href="/reports"
-            className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 hover:border-purple-500/30 transition-colors no-underline"
+            className="astro-card hover:border-purple-500/30 transition-colors no-underline"
           >
             <div className="text-sm font-medium text-purple-400 mb-1">Reports</div>
             <div className="text-xs text-slate-500">15-section analysis</div>
           </Link>
           <Link
             href="/insights"
-            className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 hover:border-purple-500/30 transition-colors no-underline"
+            className="astro-card hover:border-purple-500/30 transition-colors no-underline"
           >
             <div className="text-sm font-medium text-purple-400 mb-1">Insights</div>
             <div className="text-xs text-slate-500">Transits & timeline</div>
           </Link>
           <Link
             href="/relationships"
-            className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 hover:border-purple-500/30 transition-colors no-underline"
+            className="astro-card hover:border-purple-500/30 transition-colors no-underline"
           >
             <div className="text-sm font-medium text-purple-400 mb-1">Relationships</div>
             <div className="text-xs text-slate-500">Synastry & compatibility</div>

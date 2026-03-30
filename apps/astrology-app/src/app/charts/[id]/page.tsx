@@ -91,9 +91,7 @@ export default function ChartDetailPage() {
           &larr; My Charts
         </Link>
 
-        <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-          {chart.name}
-        </h1>
+        <h1 className="text-2xl font-bold mb-1">{chart.name}</h1>
         <p className="text-xs text-slate-500 mb-6">
           {chart.birthDate} {chart.birthTime} &middot; ({chart.latitude.toFixed(2)},{' '}
           {chart.longitude.toFixed(2)})
@@ -107,10 +105,7 @@ export default function ChartDetailPage() {
               { label: 'Moon', sign: h.moonSign as string | null },
               { label: 'Ascendant', sign: h.ascendantSign as string | null },
             ].map(({ label, sign }) => (
-              <div
-                key={label}
-                className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 text-center"
-              >
+              <div key={label} className="astro-card text-center">
                 <div className="text-3xl mb-1">{sign ? (SIGN_SYMBOL[sign] ?? '') : '?'}</div>
                 <div className="text-sm font-medium text-slate-300">{sign ?? 'Unknown'}</div>
                 <div className="text-xs text-slate-500">{label}</div>
@@ -120,7 +115,7 @@ export default function ChartDetailPage() {
         )}
 
         {chart.summary && (
-          <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+          <div className="astro-card mb-6">
             <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-2">
               Summary
             </h2>
@@ -130,7 +125,7 @@ export default function ChartDetailPage() {
 
         {/* Planets */}
         {Object.keys(planets).length > 0 && (
-          <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+          <div className="astro-card mb-6">
             <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
               Planets
             </h2>
@@ -166,7 +161,7 @@ export default function ChartDetailPage() {
 
         {/* Aspects */}
         {aspects.length > 0 && (
-          <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+          <div className="astro-card mb-6">
             <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
               Aspects
             </h2>
@@ -184,7 +179,7 @@ export default function ChartDetailPage() {
 
         {/* Saved Reports for this chart */}
         {reports.length > 0 && (
-          <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+          <div className="astro-card mb-6">
             <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
               Reports ({reports.length})
             </h2>
@@ -211,21 +206,21 @@ export default function ChartDetailPage() {
         <div className="grid grid-cols-3 gap-3">
           <Link
             href="/reports"
-            className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center hover:border-purple-500/30 transition-colors no-underline"
+            className="astro-card p-3 text-center hover:border-purple-500/30 transition-colors no-underline"
           >
             <div className="text-sm text-purple-400">Report</div>
             <div className="text-xs text-slate-600">15 sections</div>
           </Link>
           <Link
             href="/insights"
-            className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center hover:border-purple-500/30 transition-colors no-underline"
+            className="astro-card p-3 text-center hover:border-purple-500/30 transition-colors no-underline"
           >
             <div className="text-sm text-purple-400">Transits</div>
             <div className="text-xs text-slate-600">Daily insights</div>
           </Link>
           <Link
             href="/relationships"
-            className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center hover:border-purple-500/30 transition-colors no-underline"
+            className="astro-card p-3 text-center hover:border-purple-500/30 transition-colors no-underline"
           >
             <div className="text-sm text-purple-400">Synastry</div>
             <div className="text-xs text-slate-600">Relationships</div>

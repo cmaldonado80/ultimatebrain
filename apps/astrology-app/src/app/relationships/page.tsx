@@ -125,16 +125,11 @@ export default function RelationshipsPage() {
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-              Relationships
-            </h1>
+            <h1 className="text-2xl font-bold">Relationships</h1>
             <p className="text-xs text-slate-500 mt-1">Synastry & compatibility</p>
           </div>
           {profile && !showForm && !result && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="text-sm text-purple-400 hover:text-purple-300 bg-transparent border border-purple-500/30 rounded px-3 py-1.5 cursor-pointer"
-            >
+            <button onClick={() => setShowForm(true)} className="astro-btn-secondary astro-btn-sm">
               + New Analysis
             </button>
           )}
@@ -142,30 +137,16 @@ export default function RelationshipsPage() {
 
         {/* Partner form */}
         {showForm && !result && (
-          <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-6 mb-6">
+          <div className="astro-card p-6 mb-6">
             <p className="text-sm text-slate-400 mb-4">
               Enter partner birth data for compatibility analysis
             </p>
             {error && <div className="text-red-400 text-sm mb-3">{error}</div>}
             <form onSubmit={handleSubmit} className="space-y-3">
-              <input
-                name="name"
-                placeholder="Name"
-                className="w-full bg-[#111827] border border-white/10 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500/50"
-              />
+              <input name="name" placeholder="Name" className="astro-input" />
               <div className="grid grid-cols-2 gap-3">
-                <input
-                  name="birthDate"
-                  type="date"
-                  required
-                  className="w-full bg-[#111827] border border-white/10 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500/50"
-                />
-                <input
-                  name="birthTime"
-                  type="time"
-                  required
-                  className="w-full bg-[#111827] border border-white/10 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500/50"
-                />
+                <input name="birthDate" type="date" required className="astro-input" />
+                <input name="birthTime" type="time" required className="astro-input" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <input
@@ -174,7 +155,7 @@ export default function RelationshipsPage() {
                   step="any"
                   required
                   placeholder="Latitude"
-                  className="w-full bg-[#111827] border border-white/10 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500/50"
+                  className="astro-input"
                 />
                 <input
                   name="longitude"
@@ -182,14 +163,14 @@ export default function RelationshipsPage() {
                   step="any"
                   required
                   placeholder="Longitude"
-                  className="w-full bg-[#111827] border border-white/10 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500/50"
+                  className="astro-input"
                 />
               </div>
               <div className="flex gap-2">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white rounded py-2.5 text-sm font-medium transition-colors border-none cursor-pointer"
+                  className="astro-btn-primary flex-1 disabled:bg-purple-800"
                 >
                   {loading ? 'Computing...' : 'Analyze'}
                 </button>
@@ -208,7 +189,7 @@ export default function RelationshipsPage() {
         {/* Result with save */}
         {result && (
           <div className="mb-6">
-            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-6 text-center mb-4">
+            <div className="astro-card p-6 text-center mb-4">
               <div className="text-4xl font-bold text-purple-400 mb-1">
                 {result.compatibilityScore}
               </div>
@@ -221,7 +202,7 @@ export default function RelationshipsPage() {
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="text-xs px-3 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50 border-none cursor-pointer"
+                    className="astro-btn-primary astro-btn-sm disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save Relationship'}
                   </button>
@@ -232,7 +213,7 @@ export default function RelationshipsPage() {
 
             {/* Aspects */}
             {result.synastryAspects.length > 0 && (
-              <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-4">
+              <div className="astro-card mb-4">
                 <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
                   Synastry Aspects
                 </h2>
@@ -252,7 +233,7 @@ export default function RelationshipsPage() {
             )}
 
             {result.narrative && (
-              <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-4">
+              <div className="astro-card mb-4">
                 <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-2">
                   Interpretation
                 </h2>
@@ -288,17 +269,11 @@ export default function RelationshipsPage() {
                   Compare two charts to discover relationship dynamics, strengths, and growth areas.
                 </p>
                 {profile ? (
-                  <button
-                    onClick={() => setShowForm(true)}
-                    className="bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors border-none cursor-pointer"
-                  >
+                  <button onClick={() => setShowForm(true)} className="astro-btn-primary">
                     Analyze Your First Compatibility
                   </button>
                 ) : (
-                  <Link
-                    href="/"
-                    className="bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors no-underline"
-                  >
+                  <Link href="/" className="astro-btn-primary no-underline">
                     Create a chart first
                   </Link>
                 )}
@@ -311,7 +286,7 @@ export default function RelationshipsPage() {
                   <Link
                     key={r.id}
                     href={`/relationships/${r.id}`}
-                    className="block bg-[#0a0f1a] border border-white/10 rounded-lg p-4 hover:border-purple-500/30 transition-colors no-underline"
+                    className="block astro-card hover:border-purple-500/30 transition-colors no-underline"
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium text-slate-200">

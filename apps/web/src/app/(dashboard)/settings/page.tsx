@@ -7,7 +7,8 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 export default function SettingsPage() {
@@ -77,11 +78,8 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching settings</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading settings..." />
       </div>
     )
   }
@@ -95,14 +93,7 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">
-          Settings <OrgBadge />
-        </h2>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Configure brain identity, API keys, LLM providers, and system preferences.
-        </p>
-      </div>
+      <PageHeader title="Settings" showOrgBadge={false} />
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2.5">
           <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron">

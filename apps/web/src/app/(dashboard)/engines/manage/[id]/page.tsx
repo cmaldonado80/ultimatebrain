@@ -9,6 +9,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../../../components/db-error-banner'
+import { LoadingState } from '../../../../../components/ui/loading-state'
+import { PageHeader } from '../../../../../components/ui/page-header'
 import { trpc } from '../../../../../utils/trpc'
 
 const TIER_BADGE: Record<string, string> = {
@@ -99,13 +101,7 @@ export default function EntityDetailPage() {
   }
 
   if (entityQuery.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-lg font-orbitron">Loading entity...</div>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Loading entity..." />
   }
 
   const entity = entityQuery.data as {
@@ -168,16 +164,20 @@ export default function EntityDetailPage() {
         >
           ← Back to Brain Manager
         </button>
-        <div className="flex items-center gap-3 mb-2">
-          <h2 className="m-0 text-2xl font-bold font-orbitron">{entity.name}</h2>
-          <span
-            className={`cyber-badge text-[10px] uppercase ${TIER_BADGE[entity.tier] ?? 'text-slate-400 border-slate-400/20'}`}
-          >
-            {entity.tier.replace('_', ' ')}
-          </span>
-          <span className={`neon-dot ${STATUS_DOT[entity.status] ?? 'neon-dot-blue'}`} />
-          <span className="text-xs text-slate-400 uppercase">{entity.status}</span>
-        </div>
+        <PageHeader
+          title={entity.name}
+          actions={
+            <div className="flex items-center gap-2">
+              <span
+                className={`cyber-badge text-[10px] uppercase ${TIER_BADGE[entity.tier] ?? 'text-slate-400 border-slate-400/20'}`}
+              >
+                {entity.tier.replace('_', ' ')}
+              </span>
+              <span className={`neon-dot ${STATUS_DOT[entity.status] ?? 'neon-dot-blue'}`} />
+              <span className="text-xs text-slate-400 uppercase">{entity.status}</span>
+            </div>
+          }
+        />
         <div className="flex gap-2">
           {entity.status !== 'active' && (
             <button

@@ -147,7 +147,7 @@ export default function Home() {
             </button>
             {!saved && lastBirthData && (
               <button
-                className="text-sm px-3 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50 border-none cursor-pointer"
+                className="astro-btn-primary astro-btn-sm disabled:opacity-50"
                 disabled={saving}
                 onClick={async () => {
                   setSaving(true)
@@ -183,9 +183,7 @@ export default function Home() {
             )}
           </div>
 
-          <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-            {result.name}
-          </h1>
+          <h1 className="text-2xl font-bold mb-1">{result.name}</h1>
           <p className="text-xs text-slate-500 mb-6">
             Computed {new Date(result.computedAt).toLocaleString()}
           </p>
@@ -197,10 +195,7 @@ export default function Home() {
               { label: 'Moon', sign: result.highlights.moonSign },
               { label: 'Ascendant', sign: result.highlights.ascendantSign },
             ].map(({ label, sign }) => (
-              <div
-                key={label}
-                className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 text-center"
-              >
+              <div key={label} className="astro-card text-center">
                 <div className="text-3xl mb-1">{sign ? (SIGN_SYMBOL[sign] ?? '') : '?'}</div>
                 <div className="text-sm font-medium text-slate-300">{sign ?? 'Unknown'}</div>
                 <div className="text-xs text-slate-500">{label}</div>
@@ -210,7 +205,7 @@ export default function Home() {
 
           {/* Summary */}
           {result.summary && (
-            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+            <div className="astro-card mb-6">
               <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-2">
                 Summary
               </h2>
@@ -221,7 +216,7 @@ export default function Home() {
           )}
 
           {/* Planet Table */}
-          <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+          <div className="astro-card mb-6">
             <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
               Planetary Positions
             </h2>
@@ -258,7 +253,7 @@ export default function Home() {
 
           {/* Aspects */}
           {result.aspects.length > 0 && (
-            <div className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 mb-6">
+            <div className="astro-card mb-6">
               <h2 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">
                 Key Aspects
               </h2>
@@ -278,28 +273,28 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-3">
             <Link
               href="/reports"
-              className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center hover:border-purple-500/30 transition-colors"
+              className="astro-card p-3 text-center hover:border-purple-500/30 transition-colors"
             >
               <div className="text-sm text-purple-400">Full Report</div>
               <div className="text-xs text-slate-600">15 sections</div>
             </Link>
             <Link
               href="/insights"
-              className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center hover:border-purple-500/30 transition-colors"
+              className="astro-card p-3 text-center hover:border-purple-500/30 transition-colors"
             >
               <div className="text-sm text-purple-400">Daily Insights</div>
               <div className="text-xs text-slate-600">Transits & timeline</div>
             </Link>
             <Link
               href="/relationships"
-              className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center hover:border-purple-500/30 transition-colors"
+              className="astro-card p-3 text-center hover:border-purple-500/30 transition-colors"
             >
               <div className="text-sm text-purple-400">Relationships</div>
               <div className="text-xs text-slate-600">Synastry</div>
             </Link>
             <Link
               href="/dashboard"
-              className="bg-[#0a0f1a] border border-white/10 rounded-lg p-3 text-center hover:border-purple-500/30 transition-colors"
+              className="astro-card p-3 text-center hover:border-purple-500/30 transition-colors"
             >
               <div className="text-sm text-purple-400">Dashboard</div>
               <div className="text-xs text-slate-600">Your cosmos</div>
@@ -315,12 +310,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#06090f] text-slate-200 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
-        <h1
-          className="text-2xl font-bold text-center mb-1"
-          style={{ fontFamily: "'Orbitron', sans-serif" }}
-        >
-          Natal Chart
-        </h1>
+        <h1 className="text-2xl font-bold text-center mb-1">Natal Chart</h1>
         <p className="text-sm text-slate-500 text-center mb-8">
           Enter birth details to generate your chart
         </p>
@@ -334,32 +324,17 @@ export default function Home() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs text-slate-400 mb-1">Name (optional)</label>
-            <input
-              name="name"
-              type="text"
-              placeholder="e.g., John"
-              className="w-full bg-[#111827] border border-white/10 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500/50"
-            />
+            <input name="name" type="text" placeholder="e.g., John" className="astro-input" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Birth Date *</label>
-              <input
-                name="birthDate"
-                type="date"
-                required
-                className="w-full bg-[#111827] border border-white/10 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500/50"
-              />
+              <input name="birthDate" type="date" required className="astro-input" />
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">Birth Time *</label>
-              <input
-                name="birthTime"
-                type="time"
-                required
-                className="w-full bg-[#111827] border border-white/10 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-purple-500/50"
-              />
+              <input name="birthTime" type="time" required className="astro-input" />
             </div>
           </div>
 
@@ -372,7 +347,7 @@ export default function Home() {
                 step="any"
                 required
                 placeholder="e.g., 40.7128"
-                className="w-full bg-[#111827] border border-white/10 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500/50"
+                className="astro-input"
               />
             </div>
             <div>
@@ -383,7 +358,7 @@ export default function Home() {
                 step="any"
                 required
                 placeholder="e.g., -74.0060"
-                className="w-full bg-[#111827] border border-white/10 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500/50"
+                className="astro-input"
               />
             </div>
           </div>
@@ -391,7 +366,7 @@ export default function Home() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 disabled:text-slate-400 text-white rounded py-2.5 text-sm font-medium transition-colors"
+            className="astro-btn-primary w-full disabled:bg-purple-800 disabled:text-slate-400"
           >
             {loading ? 'Computing chart...' : 'Generate Chart'}
           </button>

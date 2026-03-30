@@ -44,9 +44,7 @@ export default function ChartsPage() {
     <main className="min-h-screen bg-[#06090f] text-slate-200 p-6">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-            My Charts
-          </h1>
+          <h1 className="text-2xl font-bold">My Charts</h1>
           <Link href="/" className="text-sm text-purple-400 hover:text-purple-300 no-underline">
             + New Chart
           </Link>
@@ -62,10 +60,7 @@ export default function ChartsPage() {
               Charts store your natal positions and serve as the foundation for reports, transits,
               and compatibility analysis.
             </p>
-            <Link
-              href="/"
-              className="bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-6 py-2.5 text-sm font-medium transition-colors no-underline"
-            >
+            <Link href="/" className="astro-btn-primary no-underline">
               Create Your First Chart
             </Link>
           </div>
@@ -77,7 +72,7 @@ export default function ChartsPage() {
             return (
               <div
                 key={chart.id}
-                className="bg-[#0a0f1a] border border-white/10 rounded-lg p-4 hover:border-purple-500/30 transition-colors"
+                className="astro-card hover:border-purple-500/30 transition-colors"
               >
                 <div className="flex items-center gap-3 mb-2">
                   <Link
