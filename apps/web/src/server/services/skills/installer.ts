@@ -59,7 +59,8 @@ export function validateSkillMd(content: string): ValidationResult {
   }
 
   // Extract version
-  const versionMatch = content.match(/\*\*Version\*\*:\s*(.+)/i) ?? content.match(/version:\s*(.+)/i)
+  const versionMatch =
+    content.match(/\*\*Version\*\*:\s*(.+)/i) ?? content.match(/version:\s*(.+)/i)
   if (!versionMatch) warnings.push('No version specified, defaulting to 1.0.0')
 
   // Extract author
@@ -84,7 +85,10 @@ export function validateSkillMd(content: string): ValidationResult {
   // Validate handler doesn't use dangerous patterns
   const dangerousPatterns = [
     { pattern: /process\.exit/g, msg: 'process.exit() is not allowed in skills' },
-    { pattern: /require\s*\(\s*['"]child_process/g, msg: 'Direct child_process access is not allowed' },
+    {
+      pattern: /require\s*\(\s*['"]child_process/g,
+      msg: 'Direct child_process access is not allowed',
+    },
     { pattern: /eval\s*\(/g, msg: 'eval() is not allowed in skills' },
     { pattern: /Function\s*\(/g, msg: 'Function constructor is not allowed' },
   ]
@@ -143,16 +147,13 @@ export interface SandboxResult {
  */
 export async function executeSandboxed(
   handler: string,
-  context: SandboxContext
+  context: SandboxContext,
 ): Promise<SandboxResult> {
   const start = Date.now()
   const capabilitiesUsed: SkillCapability[] = []
 
   // Build capability proxies that track usage
-  const capabilities = buildCapabilityProxies(
-    context.approvedCapabilities,
-    capabilitiesUsed
-  )
+  const capabilities = buildCapabilityProxies(context.approvedCapabilities, capabilitiesUsed)
 
   try {
     // In production: use Node.js vm module or worker_threads with
@@ -185,7 +186,7 @@ export async function executeSandboxed(
  */
 export function checkPermissions(
   requested: SkillCapability[],
-  approved: SkillCapability[]
+  approved: SkillCapability[],
 ): { allowed: boolean; denied: SkillCapability[] } {
   const approvedSet = new Set(approved)
   const denied = requested.filter((r) => !approvedSet.has(r))
@@ -195,9 +196,11 @@ export function checkPermissions(
 /**
  * Categorize permissions by risk level.
  */
-export function categorizePermissions(
-  permissions: SkillPermission[]
-): { low: SkillPermission[]; medium: SkillPermission[]; high: SkillPermission[] } {
+export function categorizePermissions(permissions: SkillPermission[]): {
+  low: SkillPermission[]
+  medium: SkillPermission[]
+  high: SkillPermission[]
+} {
   const low: SkillPermission[] = []
   const medium: SkillPermission[] = []
   const high: SkillPermission[] = []
@@ -261,7 +264,7 @@ function extractTriggers(content: string): string[] {
 
 function buildCapabilityProxies(
   approved: Set<SkillCapability>,
-  used: SkillCapability[]
+  used: SkillCapability[],
 ): Record<string, (...args: unknown[]) => Promise<unknown>> {
   const proxies: Record<string, (...args: unknown[]) => Promise<unknown>> = {}
 
@@ -282,8 +285,32 @@ function buildCapabilityProxies(
         throw new Error(`Permission denied: ${capability}`)
       }
       if (!used.includes(capability)) used.push(capability)
-      // Stub — real impl delegates to actual capability handlers
-      return { capability, args, result: 'stub' }
+
+      // Real capability delegation
+      switch (capability) {
+        case 'file:read': {
+          const fs = await import('node:fs/promises')
+          return fs.readFile(String(args[0] ?? ''), 'utf-8')
+        }
+        case 'file:write': {
+          const fs = await import('node:fs/promises')
+          return fs.writeFile(String(args[0] ?? ''), String(args[1] ?? ''))
+        }
+        case 'network:fetch': {
+          const res = await fetch(String(args[0] ?? ''), (args[1] as RequestInit) ?? {})
+          return { status: res.status, body: await res.text() }
+        }
+        case 'shell:execute': {
+          const { execSync } = await import('node:child_process')
+          return execSync(String(args[0] ?? ''), { timeout: 10_000, encoding: 'utf-8' })
+        }
+        case 'llm:invoke': {
+          // Delegate to gateway if available — caller should inject
+          return { result: 'LLM invoke requires gateway injection', prompt: args[0] }
+        }
+        default:
+          return { capability, args, result: 'not-implemented' }
+      }
     }
   }
 
@@ -291,16 +318,33 @@ function buildCapabilityProxies(
 }
 
 async function executeHandler(
-  _handler: string,
+  handler: string,
   input: Record<string, unknown>,
-  _capabilities: Record<string, (...args: unknown[]) => Promise<unknown>>
+  capabilities: Record<string, (...args: unknown[]) => Promise<unknown>>,
 ): Promise<unknown> {
-  // Stub — real impl uses vm.runInNewContext or worker_threads
-  return { executed: true, input }
+  // Execute skill handler in a sandboxed vm context
+  const vm = await import('node:vm')
+  const sandbox = vm.createContext({
+    ...capabilities,
+    input,
+    console: { log: () => {}, warn: () => {}, error: () => {} },
+    JSON,
+    Date,
+    Math,
+    Promise,
+    setTimeout: undefined,
+    setInterval: undefined,
+  })
+  try {
+    const script = new vm.Script(`(async () => { ${handler} })()`)
+    return await script.runInContext(sandbox, { timeout: 30_000 })
+  } catch (err) {
+    return { executed: false, error: err instanceof Error ? err.message : String(err) }
+  }
 }
 
 function timeoutPromise(ms: number): Promise<never> {
   return new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Skill execution timed out after ${ms}ms`)), ms)
+    setTimeout(() => reject(new Error(`Skill execution timed out after ${ms}ms`)), ms),
   )
 }

@@ -165,18 +165,17 @@ export class InstinctEvolver {
     let skillMdContent: string
     if (this.gateway) {
       try {
-        const triggers = cluster.instincts.map((i) => `- ${i.trigger}`).join('\n')
-        const actions = cluster.instincts.map((i) => `- ${i.action}`).join('\n')
         const result = await this.gateway.chat({
+          model: 'qwen3.5:cloud',
           messages: [
             {
               role: 'system',
               content:
-                'You are a skill document generator. Given a cluster of instinct triggers and actions, produce a valid SKILL.md document with sections: Skill name, version, domain, Trigger Conditions, Steps, and Notes.',
+                'You are a skill synthesis engine. Given a cluster of behavioral instincts, produce a formal SKILL.md document. Include: name, description, triggers, parameters, steps, and permissions sections.',
             },
             {
               role: 'user',
-              content: `Generate a SKILL.md for skill "${cluster.label}" (id: ${skillId}) in domain "${cluster.domain}".\n\nTrigger conditions:\n${triggers}\n\nActions:\n${actions}\n\nTotal evidence: ${totalEvidence}, avg confidence: ${avgConfidence.toFixed(2)}.`,
+              content: `Synthesize these ${cluster.instincts.length} related instincts into a SKILL:\n\nDomain: ${cluster.domain}\nLabel: ${cluster.label}\n\nInstincts:\n${cluster.instincts.map((i) => `- trigger: "${i.trigger}" → action: "${i.action}" (confidence: ${i.confidence})`).join('\n')}`,
             },
           ],
         })
@@ -223,18 +222,17 @@ export class InstinctEvolver {
     let content: string
     if (this.gateway) {
       try {
-        const triggers = cluster.instincts.map((i) => `- ${i.trigger}`).join('\n')
-        const actions = cluster.instincts.map((i) => `- ${i.action}`).join('\n')
         const result = await this.gateway.chat({
+          model: 'qwen3.5:cloud',
           messages: [
             {
               role: 'system',
               content:
-                'You are a command schema generator. Given a cluster of instinct triggers and actions, produce a JSON command definition with fields: id, name, description, domain, trigger, actions, parameters.',
+                'You are a command synthesis engine. Given a cluster of behavioral instincts, produce a formal command definition as JSON. Include: id, name, description, domain, trigger, handler, parameters, and permissions.',
             },
             {
               role: 'user',
-              content: `Generate a command definition for command "${cluster.label}" (id: ${commandId}) in domain "${cluster.domain}".\n\nTrigger conditions:\n${triggers}\n\nActions:\n${actions}`,
+              content: `Synthesize these ${cluster.instincts.length} related instincts into a COMMAND:\n\nDomain: ${cluster.domain}\nLabel: ${cluster.label}\nCommand ID: ${commandId}\n\nInstincts:\n${cluster.instincts.map((i) => `- trigger: "${i.trigger}" → action: "${i.action}" (confidence: ${i.confidence})`).join('\n')}`,
             },
           ],
         })
