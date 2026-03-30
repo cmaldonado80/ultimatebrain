@@ -78,28 +78,28 @@ const MODEL_EQUIVALENTS: Record<string, Record<ProviderName, string>> = {
     anthropic: 'claude-sonnet-4-6',
     openai: 'gpt-4o',
     google: 'gemini-2.5-pro',
-    ollama: 'qwen3:8b',
+    ollama: 'qwen3.5:cloud',
     openclaw: 'claude-sonnet-4-6',
   },
   'claude-opus-4-6': {
     anthropic: 'claude-opus-4-6',
     openai: 'gpt-4.1',
     google: 'gemini-2.5-pro',
-    ollama: 'qwen3:32b',
+    ollama: 'deepseek-v3.2:cloud',
     openclaw: 'claude-opus-4-6',
   },
   'claude-haiku-4-5': {
     anthropic: 'claude-haiku-4-5',
     openai: 'gpt-4o-mini',
     google: 'gemini-2.5-flash',
-    ollama: 'qwen3:4b',
+    ollama: 'qwen3.5:cloud',
     openclaw: 'claude-haiku-4-5',
   },
   'gpt-4o': {
     anthropic: 'claude-sonnet-4-6',
     openai: 'gpt-4o',
     google: 'gemini-2.5-pro',
-    ollama: 'qwen3:8b',
+    ollama: 'qwen3.5:cloud',
     openclaw: 'gpt-4o',
   },
 }
@@ -628,6 +628,7 @@ class OllamaAdapter implements ProviderAdapter {
     model: string
     messages: Array<{ role: string; content: string }>
     tools?: unknown[]
+    format?: unknown
     apiKey?: string
     temperature?: number
     maxTokens?: number
@@ -643,6 +644,24 @@ class OllamaAdapter implements ProviderAdapter {
     }
     if (params.temperature != null) body.temperature = params.temperature
     if (params.maxTokens != null) body.num_predict = params.maxTokens
+
+    // Tool calling support — Ollama uses OpenAI-compatible format
+    if (params.tools && params.tools.length > 0) {
+      body.tools = (
+        params.tools as Array<{ name: string; description?: string; input_schema: unknown }>
+      ).map((t) => ({
+        type: 'function' as const,
+        function: {
+          name: t.name,
+          description: t.description ?? '',
+          parameters: t.input_schema,
+        },
+      }))
+    }
+
+    // Structured output — pass JSON schema via format parameter
+    if (params.format) body.format = params.format
+
     const res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
       headers: this.buildHeaders(params.apiKey),
@@ -653,30 +672,63 @@ class OllamaAdapter implements ProviderAdapter {
       throw new Error(`Ollama API error ${res.status}: ${err}`)
     }
     const data = (await res.json()) as {
-      message: { content: string }
+      message: {
+        content: string
+        tool_calls?: Array<{
+          function: { name: string; arguments: Record<string, unknown> }
+        }>
+      }
       prompt_eval_count?: number
       eval_count?: number
     }
+
+    // Parse tool call response if present
+    let toolUse: { id: string; name: string; input: Record<string, unknown> } | undefined
+    if (data.message.tool_calls?.[0]) {
+      const tc = data.message.tool_calls[0]
+      toolUse = {
+        id: `ollama-${Date.now()}`,
+        name: tc.function.name,
+        input: tc.function.arguments,
+      }
+    }
+
     return {
       content: data.message.content,
       tokensIn: data.prompt_eval_count ?? 0,
       tokensOut: data.eval_count ?? 0,
+      toolUse,
     }
   }
 
   async *chatStream(params: {
     model: string
     messages: Array<{ role: string; content: string }>
+    tools?: unknown[]
     apiKey?: string
   }): AsyncGenerator<string, void, unknown> {
     const baseUrl = this.getBaseUrl()
-    const body = {
+    const body: Record<string, unknown> = {
       model: params.model.replace('ollama/', ''),
       messages: params.messages.map((m) => ({
         role: m.role === 'agent' ? 'assistant' : m.role,
         content: m.content,
       })),
       stream: true,
+    }
+
+    // Tool calling support in streaming mode
+    if (params.tools && params.tools.length > 0) {
+      body.tools = (
+        params.tools as Array<{ name: string; description?: string; input_schema: unknown }>
+      ).map((t) => ({
+        type: 'function' as const,
+        function: {
+          name: t.name,
+          description: t.description ?? '',
+          parameters: t.input_schema,
+        },
+      }))
     }
     const res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
@@ -791,16 +843,22 @@ export class GatewayRouter {
   ): Promise<{ model: string; provider: string } | null> {
     // Capability → preferred model chain (best first)
     const CAPABILITY_CHAINS: Record<string, string[]> = {
-      reasoning: ['claude-opus-4-6', 'gpt-4o', 'gemini-2.5-pro', 'claude-sonnet-4-6'],
-      agentic: ['claude-sonnet-4-6', 'gpt-4o', 'gemini-2.5-pro'],
-      coder: ['claude-sonnet-4-6', 'gpt-4.1', 'gemini-2.5-pro'],
-      vision: ['claude-sonnet-4-6', 'gpt-4o', 'gemini-2.5-pro'],
-      flash: ['claude-haiku-4-5', 'gpt-4o-mini', 'gemini-2.5-flash'],
+      reasoning: [
+        'claude-opus-4-6',
+        'gpt-4o',
+        'gemini-2.5-pro',
+        'claude-sonnet-4-6',
+        'deepseek-v3.2:cloud',
+      ],
+      agentic: ['claude-sonnet-4-6', 'gpt-4o', 'gemini-2.5-pro', 'qwen3.5:cloud'],
+      coder: ['claude-sonnet-4-6', 'gpt-4.1', 'gemini-2.5-pro', 'qwen3.5:cloud'],
+      vision: ['claude-sonnet-4-6', 'gpt-4o', 'gemini-2.5-pro', 'llama-3.2-11b-vision:cloud'],
+      flash: ['claude-haiku-4-5', 'gpt-4o-mini', 'gemini-2.5-flash', 'qwen3.5:cloud'],
       embedding: ['text-embedding-3-small', 'text-embedding-3-large'],
-      guard: ['claude-haiku-4-5', 'gpt-4o-mini'],
-      judge: ['claude-opus-4-6', 'gpt-4o'],
-      router: ['claude-haiku-4-5', 'gpt-4o-mini', 'gemini-2.5-flash'],
-      multimodal: ['claude-sonnet-4-6', 'gpt-4o', 'gemini-2.5-pro'],
+      guard: ['claude-haiku-4-5', 'gpt-4o-mini', 'llama-guard-3:cloud'],
+      judge: ['claude-opus-4-6', 'gpt-4o', 'deepseek-v3.2:cloud'],
+      router: ['claude-haiku-4-5', 'gpt-4o-mini', 'gemini-2.5-flash', 'qwen3.5:cloud'],
+      multimodal: ['claude-sonnet-4-6', 'gpt-4o', 'gemini-2.5-pro', 'llama-3.2-11b-vision:cloud'],
     }
 
     const chain = CAPABILITY_CHAINS[capability] ?? CAPABILITY_CHAINS['agentic']!
