@@ -4,9 +4,7 @@ import { userRoles, users } from '@solarc/db'
 import { eq, sql } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 
-import { createSession } from '../../../../server/auth'
-
-const COOKIE_NAME = 'session-token'
+import { COOKIE_NAMES, createSession } from '../../../../server/auth'
 
 let _db: Database | undefined
 function getDb(): Database {
@@ -50,16 +48,24 @@ export async function POST(req: Request) {
       await db.update(users).set({ updatedAt: new Date() }).where(eq(users.id, user.id))
     }
 
-    // Create JWT with user UUID as subject (not email)
-    const token = await createSession(email, user.id)
+    // Create JWT pair with user UUID as subject (not email)
+    const { accessToken, refreshToken } = await createSession(email, user.id)
 
     const res = NextResponse.json({ ok: true })
-    res.cookies.set(COOKIE_NAME, token, {
+    const secure = process.env.NODE_ENV === 'production'
+    res.cookies.set(COOKIE_NAMES.access, accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure,
       sameSite: 'lax',
       path: '/',
-      maxAge: 30 * 24 * 60 * 60,
+      maxAge: 15 * 60, // 15 minutes
+    })
+    res.cookies.set(COOKIE_NAMES.refresh, refreshToken, {
+      httpOnly: true,
+      secure,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
     })
     return res
   } catch (err) {

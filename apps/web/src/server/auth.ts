@@ -1,7 +1,8 @@
 import { jwtVerify, SignJWT } from 'jose'
 import { cookies } from 'next/headers'
 
-const COOKIE_NAME = 'session-token'
+const ACCESS_COOKIE = 'session-token'
+const REFRESH_COOKIE = 'refresh-token'
 const AUTH_SECRET = process.env.AUTH_SECRET
 if (!AUTH_SECRET && process.env.NODE_ENV === 'production') {
   throw new Error('AUTH_SECRET environment variable is required in production')
@@ -13,18 +14,48 @@ export interface Session {
 }
 
 /**
- * Create a signed JWT.
- * If userId is provided (UUID), it becomes the subject.
- * Otherwise falls back to email as subject (backward compat).
+ * Create signed access + refresh tokens.
+ * Access token: 15 minutes. Refresh token: 7 days.
  */
-export async function createSession(email: string, userId?: string): Promise<string> {
+export async function createSession(
+  email: string,
+  userId?: string,
+): Promise<{ accessToken: string; refreshToken: string }> {
   const name = email.split('@')[0]
-  const token = await new SignJWT({ email, name, sub: userId ?? email, userId })
+  const sub = userId ?? email
+
+  const accessToken = await new SignJWT({ email, name, sub, userId, type: 'access' })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('30d')
+    .setExpirationTime('15m')
     .sign(SECRET)
-  return token
+
+  const refreshToken = await new SignJWT({ email, sub, userId, type: 'refresh' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(SECRET)
+
+  return { accessToken, refreshToken }
+}
+
+/**
+ * Verify a refresh token and issue new access + refresh pair.
+ * Returns null if the refresh token is invalid or expired.
+ */
+export async function refreshSession(
+  refreshToken: string,
+): Promise<{ accessToken: string; refreshToken: string } | null> {
+  try {
+    const { payload } = await jwtVerify(refreshToken, SECRET)
+    if (payload.type !== 'refresh') return null
+    const email = payload.email as string
+    const userId = payload.userId as string | undefined
+    if (!email) return null
+    return createSession(email, userId)
+  } catch {
+    return null
+  }
 }
 
 /** Read and verify the session cookie. Returns null if invalid/missing. */
@@ -36,7 +67,7 @@ export async function auth(): Promise<Session | null> {
   }
 
   const cookieStore = await cookies()
-  const token = cookieStore.get(COOKIE_NAME)?.value
+  const token = cookieStore.get(ACCESS_COOKIE)?.value
   if (!token) return null
   try {
     const { payload } = await jwtVerify(token, SECRET)
@@ -55,3 +86,6 @@ export async function auth(): Promise<Session | null> {
     return null
   }
 }
+
+/** Cookie names for external consumers (signin/signout routes). */
+export const COOKIE_NAMES = { access: ACCESS_COOKIE, refresh: REFRESH_COOKIE } as const

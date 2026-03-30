@@ -970,8 +970,46 @@ export class MiniBrainFactory {
     // Step 8: Assign healer
     await this.assignHealer(id)
 
-    // Step 9: Start service (stub)
+    // Step 9: Start Mini Brain service
     const url = `http://localhost:${port}`
+    try {
+      const { spawn } = await import('node:child_process')
+      const entryPoint = (await import('node:path')).join(targetDir, 'dist', 'index.js')
+      const proc = spawn('node', [entryPoint], {
+        cwd: targetDir,
+        env: {
+          ...process.env,
+          PORT: String(port),
+          DATABASE_URL: databaseUrl,
+          BRAIN_URL: config.brainEndpoint,
+          BRAIN_API_KEY: config.brainApiKey,
+          NODE_ENV: process.env.NODE_ENV ?? 'development',
+        },
+        detached: true,
+        stdio: 'ignore',
+      })
+      proc.unref()
+
+      // Wait for health check (up to 15s)
+      let healthy = false
+      for (let attempt = 0; attempt < 15; attempt++) {
+        try {
+          const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(1000) })
+          if (res.ok) {
+            healthy = true
+            break
+          }
+        } catch {
+          /* retry */
+        }
+        await new Promise((r) => setTimeout(r, 1000))
+      }
+      if (!healthy) {
+        console.warn(`[MiniBrainFactory] Service at ${url} did not become healthy in 15s`)
+      }
+    } catch (startErr) {
+      console.error(`[MiniBrainFactory] Failed to start service for ${config.name}:`, startErr)
+    }
 
     return {
       id,

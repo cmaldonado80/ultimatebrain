@@ -2,6 +2,7 @@ import type { Database } from '@solarc/db'
 import { initTRPC, TRPCError } from '@trpc/server'
 import superjson from 'superjson'
 
+import { sanitizeInput } from './middleware/sanitize'
 import { can } from './services/platform/permissions'
 
 export interface TRPCContext {
@@ -16,13 +17,25 @@ const t = initTRPC.context<TRPCContext>().create({
 
 export const router = t.router
 export const publicProcedure = t.procedure
-/** protectedProcedure — enforces authentication via JWT session. */
-export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
-  if (!ctx.session) {
-    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' })
+/** Input sanitization — escapes HTML in string inputs to prevent stored XSS. */
+const inputSanitization = t.middleware(async ({ next, getRawInput }) => {
+  const rawInput = await getRawInput()
+  if (rawInput && typeof rawInput === 'object') {
+    // Sanitize in-place — tRPC will re-parse through Zod, but strings are now safe
+    sanitizeInput(rawInput)
   }
-  return next({ ctx: { ...ctx, session: ctx.session } })
+  return next()
 })
+
+/** protectedProcedure — enforces authentication + input sanitization. */
+export const protectedProcedure = t.procedure
+  .use(async ({ ctx, next }) => {
+    if (!ctx.session) {
+      throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' })
+    }
+    return next({ ctx: { ...ctx, session: ctx.session } })
+  })
+  .use(inputSanitization)
 export const middleware = t.middleware
 
 /**
