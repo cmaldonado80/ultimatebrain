@@ -57,6 +57,7 @@ export interface NatalSummaryResponse {
   }
   planets: PlanetPlacement[]
   aspects: AspectInfo[]
+  houses?: number[]
   summary: string
   computedAt: string
 }

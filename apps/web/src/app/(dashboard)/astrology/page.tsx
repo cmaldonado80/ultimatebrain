@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
+import { ChartWheel } from '../../../components/astrology/chart-wheel'
 import OnboardingWizard from '../../../components/astrology/onboarding-wizard'
 import {
   AstrologyBrainError,
@@ -202,6 +203,45 @@ export default function Home() {
               </div>
             ))}
           </div>
+
+          {/* Chart Wheel */}
+          {result.planets.length > 0 && (
+            <div className="flex justify-center mb-6">
+              <ChartWheel
+                planets={result.planets.map((p) => ({
+                  name: p.name,
+                  longitude:
+                    (p.degree ?? 0) +
+                    [
+                      'Aries',
+                      'Taurus',
+                      'Gemini',
+                      'Cancer',
+                      'Leo',
+                      'Virgo',
+                      'Libra',
+                      'Scorpio',
+                      'Sagittarius',
+                      'Capricorn',
+                      'Aquarius',
+                      'Pisces',
+                    ].indexOf(p.sign) *
+                      30,
+                  retrograde: p.retrograde,
+                  house: p.house ?? 1,
+                }))}
+                houses={(result as unknown as { houses?: number[] }).houses ?? []}
+                aspects={(result.aspects ?? []).map((a) => ({
+                  planet1: a.planet1,
+                  planet2: a.planet2,
+                  type: a.type,
+                  orb: a.orb ?? 0,
+                }))}
+                ascendant={result.highlights?.ascendantDegree ?? 0}
+                size={420}
+              />
+            </div>
+          )}
 
           {/* Summary */}
           {result.summary && (

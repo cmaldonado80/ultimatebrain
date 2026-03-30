@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
+import { ChartWheel } from '../../../../../components/astrology/chart-wheel'
 import {
   getChart,
   listReports,
@@ -116,6 +117,46 @@ export default function ChartDetailPage() {
                 <div className="text-xs text-slate-500">{label}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Chart Wheel */}
+        {Object.keys(planets).length > 0 && (
+          <div className="flex justify-center mb-6">
+            <ChartWheel
+              planets={Object.entries(planets).map(([name, p]) => ({
+                name,
+                longitude:
+                  (p.degree ?? 0) +
+                  [
+                    'Aries',
+                    'Taurus',
+                    'Gemini',
+                    'Cancer',
+                    'Leo',
+                    'Virgo',
+                    'Libra',
+                    'Scorpio',
+                    'Sagittarius',
+                    'Capricorn',
+                    'Aquarius',
+                    'Pisces',
+                  ].indexOf(p.sign) *
+                    30 +
+                  (p.minutes ?? 0) / 60,
+                retrograde: p.retrograde ?? false,
+                house: p.house ?? 1,
+              }))}
+              houses={(chart.chartData as { houses?: number[] })?.houses ?? []}
+              aspects={aspects.map((a) => ({
+                planet1: a.planet1,
+                planet2: a.planet2,
+                type: a.type,
+                orb: a.orb ?? 0,
+              }))}
+              ascendant={(h?.ascendantDegree as number) ?? 0}
+              size={420}
+            />
           </div>
         )}
 
