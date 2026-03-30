@@ -25,6 +25,10 @@ export default function BuilderPage() {
   const [domain, setDomain] = useState('')
   const [activeDomain, setActiveDomain] = useState<string | null>(null)
 
+  const [executionResults, setExecutionResults] = useState<
+    Record<string, { status: string; result?: string; error?: string }>
+  >({})
+
   const blueprintQuery = trpc.builder.generateBlueprint.useQuery(
     { domain: activeDomain! },
     { enabled: !!activeDomain },
@@ -37,9 +41,33 @@ export default function BuilderPage() {
     { domain: activeDomain! },
     { enabled: !!activeDomain },
   )
+  const execPlanQuery = trpc.builder.getExecutionPlan.useQuery(
+    { domain: activeDomain! },
+    { enabled: !!activeDomain },
+  )
+  const executeMut = trpc.builder.executeStep.useMutation()
+  const utils = trpc.useUtils()
 
   const handleAnalyze = () => {
-    if (domain.trim()) setActiveDomain(domain.trim().toLowerCase())
+    if (domain.trim()) {
+      setActiveDomain(domain.trim().toLowerCase())
+      setExecutionResults({})
+    }
+  }
+
+  const handleExecuteStep = async (action: Record<string, unknown>) => {
+    if (!activeDomain) return
+    const result = await executeMut.mutateAsync({
+      domain: activeDomain,
+      action: action as Parameters<typeof executeMut.mutateAsync>[0]['action'],
+    })
+    setExecutionResults((prev) => ({
+      ...prev,
+      [result.id]: { status: result.status, result: result.result, error: result.error },
+    }))
+    // Refresh state + gaps after execution
+    utils.builder.inspectDomain.invalidate({ domain: activeDomain })
+    utils.builder.getGapReport.invalidate({ domain: activeDomain })
   }
 
   const loading = blueprintQuery.isLoading || stateQuery.isLoading || gapQuery.isLoading
@@ -268,6 +296,80 @@ export default function BuilderPage() {
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Execution Plan */}
+          {execPlanQuery.data && execPlanQuery.data.actions.length > 0 && (
+            <div className="cyber-card p-4 mb-4">
+              <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
+                Execution Plan ({execPlanQuery.data.actions.length} actions)
+              </div>
+              <div className="space-y-1.5">
+                {execPlanQuery.data.actions.map((action) => {
+                  const execResult = executionResults[action.id]
+                  const status = execResult?.status ?? action.status
+                  return (
+                    <div
+                      key={action.id}
+                      className="flex items-center gap-2 bg-bg-elevated rounded px-3 py-2"
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          status === 'completed'
+                            ? 'bg-neon-green'
+                            : status === 'failed'
+                              ? 'bg-neon-red'
+                              : status === 'skipped'
+                                ? 'bg-slate-600'
+                                : 'bg-slate-500'
+                        }`}
+                      />
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded shrink-0 ${
+                          action.type === 'create_table'
+                            ? 'bg-neon-teal/10 text-neon-teal'
+                            : action.type === 'create_entity'
+                              ? 'bg-neon-purple/10 text-neon-purple'
+                              : action.type === 'informational'
+                                ? 'bg-slate-700 text-slate-400'
+                                : 'bg-neon-blue/10 text-neon-blue'
+                        }`}
+                      >
+                        {action.type}
+                      </span>
+                      <span className="text-[11px] text-slate-300 flex-1">
+                        {action.description}
+                      </span>
+                      {action.autoExecutable && status === 'pending' && (
+                        <button
+                          onClick={() =>
+                            handleExecuteStep(action as unknown as Record<string, unknown>)
+                          }
+                          disabled={executeMut.isPending}
+                          className="text-[10px] px-2 py-0.5 rounded bg-neon-teal/20 text-neon-teal hover:bg-neon-teal/30 border-none cursor-pointer disabled:opacity-50"
+                        >
+                          Execute
+                        </button>
+                      )}
+                      {!action.autoExecutable && status === 'pending' && (
+                        <span className="text-[9px] text-slate-600">manual</span>
+                      )}
+                      {status === 'completed' && (
+                        <span className="text-[9px] text-neon-green">done</span>
+                      )}
+                      {status === 'failed' && (
+                        <span className="text-[9px] text-neon-red" title={execResult?.error}>
+                          failed
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {executeMut.error && (
+                <div className="text-[11px] text-neon-red mt-2">{executeMut.error.message}</div>
+              )}
             </div>
           )}
         </>
