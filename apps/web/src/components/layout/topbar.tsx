@@ -131,6 +131,13 @@ const SEGMENT_LABELS: Record<string, string> = {
   admin: 'Admin',
   orgs: 'Organizations',
   users: 'Users',
+  domain: 'Domain',
+  developments: 'Developments',
+  astrology: 'Astrology',
+  insights: 'Insights',
+  relationships: 'Relationships',
+  reports: 'Reports',
+  charts: 'Charts',
 }
 
 function OrgBreadcrumbLabel() {

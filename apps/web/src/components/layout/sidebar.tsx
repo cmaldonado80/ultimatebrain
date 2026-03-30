@@ -10,6 +10,7 @@ import { usePathname } from 'next/navigation'
 import { memo, useEffect, useState } from 'react'
 
 import { useActiveOrg } from '../../hooks/use-active-org'
+import { trpc } from '../../utils/trpc'
 
 // ── Navigation Structure ────────────────────────────────────────────────
 
@@ -118,14 +119,9 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Settings', href: '/settings', icon: '⚿' },
     ],
   },
-  {
-    title: 'Domain Apps',
-    items: [
-      { label: 'Astrology', href: '/astrology', icon: '☉' },
-      { label: 'Legal', href: 'http://localhost:3300', icon: '⚖', external: true },
-    ],
-  },
 ]
+
+// Domain Apps section is built dynamically from brainEntities (see Sidebar component)
 
 const ADMIN_SECTION: NavSection = {
   title: 'Admin',
@@ -213,7 +209,40 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
   const [spotlightOpen, setSpotlightOpen] = useState(false)
   const { isPlatformOwner } = useActiveOrg()
 
-  const navSections = isPlatformOwner ? [...BASE_NAV_SECTIONS, ADMIN_SECTION] : BASE_NAV_SECTIONS
+  // Build dynamic Domain Apps section from DB
+  const topologyQuery = trpc.entities.topology.useQuery(undefined, { staleTime: 60_000 })
+  const miniBrains = (topologyQuery.data?.miniBrains ?? []) as Array<{
+    id: string
+    name: string
+    domain: string | null
+    status: string
+  }>
+
+  const DOMAIN_ICONS: Record<string, string> = {
+    astrology: '☉',
+    legal: '⚖',
+    hospitality: '🏨',
+    healthcare: '🏥',
+    marketing: '📣',
+    'soc-ops': '🛡',
+  }
+
+  const domainSection: NavSection | null =
+    miniBrains.length > 0
+      ? {
+          title: 'Domain Apps',
+          items: miniBrains.map((mb) => ({
+            label: mb.name,
+            href: `/domain/${mb.domain ?? mb.id}`,
+            icon: DOMAIN_ICONS[mb.domain ?? ''] ?? '◆',
+          })),
+        }
+      : null
+
+  const sections = [...BASE_NAV_SECTIONS]
+  if (domainSection) sections.push(domainSection)
+  if (isPlatformOwner) sections.push(ADMIN_SECTION)
+  const navSections = sections
 
   // Cmd+K / Ctrl+K shortcut
   useEffect(() => {
