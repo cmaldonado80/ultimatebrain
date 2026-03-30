@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 
-import { OrgBadge } from '../../../../components/ui/org-badge'
+import { PageHeader } from '../../../../components/ui/page-header'
 import { useOrgRole } from '../../../../hooks/use-org-role'
 import { trpc } from '../../../../utils/trpc'
 
@@ -38,11 +38,7 @@ export default function OrgMembersPage() {
 
   return (
     <div className="p-6 text-slate-50 max-w-[800px]">
-      <div className="flex items-center gap-2 mb-6">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">Members</h2>
-        <OrgBadge />
-        <span className="text-[12px] text-slate-500 ml-auto">{members.length} members</span>
-      </div>
+      <PageHeader title="Members" count={members.length} />
 
       {/* Add member form (admin+ only) */}
       {isAdmin && (

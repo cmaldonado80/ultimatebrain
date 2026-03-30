@@ -7,7 +7,7 @@
 
 import Link from 'next/link'
 
-import { OrgBadge } from '../../../../components/ui/org-badge'
+import { PageHeader } from '../../../../components/ui/page-header'
 import { PermissionGate } from '../../../../components/ui/permission-gate'
 import { useActiveOrg } from '../../../../hooks/use-active-org'
 import { trpc } from '../../../../utils/trpc'
@@ -89,11 +89,7 @@ export default function OrgDashboardPage() {
   return (
     <div className="p-6 max-w-[1100px] text-slate-50">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">{activeOrg.name}</h2>
-        <OrgBadge />
-        <span className="text-[10px] text-slate-500 font-mono ml-1">/{activeOrg.slug}</span>
-      </div>
+      <PageHeader title={activeOrg.name} subtitle={`/${activeOrg.slug}`} />
 
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

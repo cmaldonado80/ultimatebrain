@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 
-import { OrgBadge } from '../../../components/ui/org-badge'
+import { PageHeader } from '../../../components/ui/page-header'
 import { PermissionGate } from '../../../components/ui/permission-gate'
 import { trpc } from '../../../utils/trpc'
 
@@ -43,10 +43,7 @@ export default function OrgPage() {
 
   return (
     <div className="p-6 text-slate-50 max-w-[800px]">
-      <div className="flex items-center gap-3 mb-6">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">Organization</h2>
-        <OrgBadge />
-      </div>
+      <PageHeader title="Organization" />
 
       {/* Org Switcher */}
       {orgsQuery.data && orgsQuery.data.length > 0 && (

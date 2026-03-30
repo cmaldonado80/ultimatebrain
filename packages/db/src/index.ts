@@ -857,7 +857,11 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
     ]
 
     for (const sql of tables) {
-      await client.query(sql).catch(() => {})
+      await client.query(sql).catch((err) => {
+        // Log but continue — table may already exist or enum may conflict
+        const snippet = typeof sql === 'string' ? sql.substring(0, 60) : 'unknown'
+        console.warn(`[Schema] DDL statement skipped: ${snippet}...`, err?.message ?? err)
+      })
     }
 
     // ── Step 2b: Add missing columns to existing tables ──
