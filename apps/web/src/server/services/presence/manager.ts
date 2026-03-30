@@ -43,10 +43,10 @@ export interface PresenceEntry {
 export type PresenceEventType =
   | 'join'
   | 'leave'
-  | 'move'        // location/tab change
-  | 'cursor'      // cursor position update
+  | 'move' // location/tab change
+  | 'cursor' // cursor position update
   | 'heartbeat'
-  | 'status'      // agent started/stopped executing
+  | 'status' // agent started/stopped executing
 
 export interface PresenceEvent {
   type: PresenceEventType
@@ -70,12 +70,107 @@ export class PresenceManager {
   private entries = new Map<string, PresenceEntry>()
   private listeners = new Set<PresenceListener>()
   private cleanupInterval: ReturnType<typeof setInterval> | null = null
+  private db: unknown = null // Optional DB reference for persistence
 
-  constructor() {
+  constructor(db?: unknown) {
+    this.db = db ?? null
     // Start periodic cleanup of stale entries
     this.cleanupInterval = setInterval(() => {
-      try { this.cleanStale() } catch (err) { console.warn('[PresenceManager] Stale cleanup error:', err) }
+      try {
+        this.cleanStale()
+      } catch (err) {
+        console.warn('[PresenceManager] Stale cleanup error:', err)
+      }
     }, DISCONNECT_TIMEOUT_MS)
+    // Load existing entries from DB if available
+    if (this.db) {
+      this.loadFromDb().catch((err) => {
+        console.error('[PresenceManager] Failed to load from DB:', err)
+      })
+    }
+  }
+
+  /** Inject database reference after construction */
+  setDb(db: unknown): void {
+    this.db = db
+  }
+
+  /** Load active presence entries from database on startup */
+  private async loadFromDb(): Promise<void> {
+    if (!this.db) return
+    try {
+      const { presenceEntries } = await import('@solarc/db')
+      const { gt } = await import('drizzle-orm')
+      const db = this.db as import('@solarc/db').Database
+      const cutoff = new Date(Date.now() - DISCONNECT_TIMEOUT_MS)
+      const rows = await db.query.presenceEntries.findMany({
+        where: gt(presenceEntries.lastHeartbeat, cutoff),
+      })
+      for (const row of rows) {
+        this.entries.set(row.id, {
+          id: row.id,
+          type: row.type as EntityType,
+          name: row.userId ?? 'unknown',
+          location: row.location ?? '/',
+          workspaceId: row.workspaceId ?? undefined,
+          cursor: row.cursor as CursorPosition | undefined,
+          lastSeen: row.lastHeartbeat,
+          connectedAt: row.connectedAt,
+        })
+      }
+    } catch (err) {
+      console.warn('[PresenceManager] DB load failed, continuing in-memory only:', err)
+    }
+  }
+
+  /** Persist a presence entry to DB (fire-and-forget) */
+  private persistEntry(entry: PresenceEntry): void {
+    if (!this.db) return
+    import('@solarc/db')
+      .then(async ({ presenceEntries }) => {
+        const db = this.db as import('@solarc/db').Database
+        await db
+          .insert(presenceEntries)
+          .values({
+            id: entry.id,
+            userId: entry.name,
+            type: entry.type,
+            location: entry.location,
+            workspaceId: entry.workspaceId ?? null,
+            cursor: (entry.cursor as unknown as Record<string, unknown> | null) ?? null,
+            status:
+              entry.isExecuting != null
+                ? { isExecuting: entry.isExecuting, ticketId: entry.ticketId }
+                : null,
+            lastHeartbeat: entry.lastSeen,
+            connectedAt: entry.connectedAt,
+          })
+          .onConflictDoUpdate({
+            target: presenceEntries.id,
+            set: {
+              location: entry.location,
+              cursor: (entry.cursor as unknown as Record<string, unknown> | null) ?? null,
+              lastHeartbeat: entry.lastSeen,
+            },
+          })
+      })
+      .catch((err) => {
+        console.error('[PresenceManager] DB persist failed:', err)
+      })
+  }
+
+  /** Remove a presence entry from DB */
+  private removeFromDb(entityId: string): void {
+    if (!this.db) return
+    import('@solarc/db')
+      .then(async ({ presenceEntries }) => {
+        const { eq } = await import('drizzle-orm')
+        const db = this.db as import('@solarc/db').Database
+        await db.delete(presenceEntries).where(eq(presenceEntries.id, entityId))
+      })
+      .catch((err) => {
+        console.error('[PresenceManager] DB remove failed:', err)
+      })
   }
 
   /** Shut down the manager */
@@ -95,6 +190,7 @@ export class PresenceManager {
     const now = new Date()
     const full: PresenceEntry = { ...entry, lastSeen: now, connectedAt: now }
     this.entries.set(entry.id, full)
+    this.persistEntry(full)
 
     this.broadcast({
       type: 'join',
@@ -110,6 +206,7 @@ export class PresenceManager {
     const entry = this.entries.get(entityId)
     if (!entry) return
     this.entries.delete(entityId)
+    this.removeFromDb(entityId)
 
     this.broadcast({
       type: 'leave',
@@ -172,11 +269,7 @@ export class PresenceManager {
   }
 
   /** Update agent execution status */
-  updateAgentStatus(
-    agentId: string,
-    isExecuting: boolean,
-    ticketId?: string
-  ): void {
+  updateAgentStatus(agentId: string, isExecuting: boolean, ticketId?: string): void {
     const entry = this.entries.get(agentId)
     if (!entry || entry.type !== 'agent') return
 
@@ -259,8 +352,9 @@ export class PresenceManager {
 
 let _instance: PresenceManager | null = null
 
-export function getPresenceManager(): PresenceManager {
-  if (!_instance) _instance = new PresenceManager()
+export function getPresenceManager(db?: unknown): PresenceManager {
+  if (!_instance) _instance = new PresenceManager(db)
+  else if (db && !_instance['db']) _instance.setDb(db)
   return _instance
 }
 

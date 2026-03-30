@@ -1,20 +1,16 @@
 /**
  * Presence Router — real-time user and agent presence tracking.
+ * DB-backed via presence_entries table for persistence across restarts.
  */
 import { z } from 'zod'
 
-import { PresenceManager } from '../services/presence/manager'
+import { getPresenceManager } from '../services/presence/manager'
 import { protectedProcedure, router } from '../trpc'
-
-let _manager: PresenceManager | null = null
-function getManager() {
-  return (_manager ??= new PresenceManager())
-}
 
 export const presenceRouter = router({
   /** Get all currently active entries */
-  getActive: protectedProcedure.query(() => {
-    return getManager().getAll()
+  getActive: protectedProcedure.query(({ ctx }) => {
+    return getPresenceManager(ctx.db).getAll()
   }),
 
   /** Join presence (register as active) */
@@ -29,20 +25,20 @@ export const presenceRouter = router({
         ticketId: z.string().uuid().optional(),
       }),
     )
-    .mutation(({ input }) => {
-      getManager().join(input)
+    .mutation(({ ctx, input }) => {
+      getPresenceManager(ctx.db).join(input)
       return { joined: true }
     }),
 
   /** Leave presence */
-  leave: protectedProcedure.input(z.object({ id: z.string() })).mutation(({ input }) => {
-    getManager().leave(input.id)
+  leave: protectedProcedure.input(z.object({ id: z.string() })).mutation(({ ctx, input }) => {
+    getPresenceManager(ctx.db).leave(input.id)
     return { left: true }
   }),
 
   /** Heartbeat to stay active */
-  heartbeat: protectedProcedure.input(z.object({ id: z.string() })).mutation(({ input }) => {
-    getManager().heartbeat(input.id)
+  heartbeat: protectedProcedure.input(z.object({ id: z.string() })).mutation(({ ctx, input }) => {
+    getPresenceManager(ctx.db).heartbeat(input.id)
     return { ok: true }
   }),
 })
