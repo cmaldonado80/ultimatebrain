@@ -19,7 +19,19 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
     // ── Step 1: Create all enum types ──
     const enums: [string, string[]][] = [
       ['entity_tier', ['brain', 'mini_brain', 'development']],
-      ['entity_status', ['active', 'suspended', 'degraded', 'provisioning']],
+      [
+        'entity_status',
+        [
+          'provisioning',
+          'configured',
+          'deployed',
+          'verified',
+          'active',
+          'degraded',
+          'suspended',
+          'retired',
+        ],
+      ],
       [
         'ticket_status',
         ['backlog', 'queued', 'in_progress', 'review', 'done', 'failed', 'cancelled'],
@@ -73,6 +85,19 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
           CREATE TYPE ${name} AS ENUM (${values.map((v) => `'${v}'`).join(', ')});
         EXCEPTION WHEN duplicate_object THEN NULL; END $$;
       `)
+    }
+
+    // ── Step 1a: Add missing enum values to existing types ──
+    const enumAdditions: [string, string[]][] = [
+      ['entity_status', ['configured', 'deployed', 'verified', 'retired']],
+      ['approval_status', ['expired']],
+    ]
+    for (const [enumName, newValues] of enumAdditions) {
+      for (const val of newValues) {
+        await client
+          .query(`ALTER TYPE ${enumName} ADD VALUE IF NOT EXISTS '${val}'`)
+          .catch(() => {})
+      }
     }
 
     // ── Step 1b: Enable pgvector extension for memory embeddings ──
