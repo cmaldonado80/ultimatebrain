@@ -881,6 +881,13 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS source_agent_id uuid`,
       `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS database_url text`,
       `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS encrypted_database_url text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS health_endpoint text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS environment text DEFAULT 'local'`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS deployment_provider text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS deployment_ref text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS version text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS last_deployed_at timestamp`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS owner_user_id uuid`,
       `ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL`,
       `ALTER TABLE chat_run_steps ADD COLUMN IF NOT EXISTS group_id text`,
       `CREATE TABLE IF NOT EXISTS run_memory_usage (
