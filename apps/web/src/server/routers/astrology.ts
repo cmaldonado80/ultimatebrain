@@ -52,8 +52,9 @@ export const astrologyRouter = router({
   listCharts: protectedProcedure
     .input(z.object({ limit: z.number().min(1).max(100).default(50) }).optional())
     .query(async ({ ctx, input }) => {
+      const orgId = ctx.session.organizationId
       return ctx.db.query.astrologyCharts.findMany({
-        where: eq(astrologyCharts.organizationId, ctx.session.organizationId),
+        where: orgId ? eq(astrologyCharts.organizationId, orgId) : undefined,
         orderBy: desc(astrologyCharts.createdAt),
         limit: input?.limit ?? 50,
       })
@@ -63,11 +64,11 @@ export const astrologyRouter = router({
   getChart: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      const orgId = ctx.session.organizationId
       const chart = await ctx.db.query.astrologyCharts.findFirst({
-        where: and(
-          eq(astrologyCharts.id, input.id),
-          eq(astrologyCharts.organizationId, ctx.session.organizationId),
-        ),
+        where: orgId
+          ? and(eq(astrologyCharts.id, input.id), eq(astrologyCharts.organizationId, orgId))
+          : eq(astrologyCharts.id, input.id),
       })
       if (!chart) throw new TRPCError({ code: 'NOT_FOUND' })
       return chart
@@ -77,11 +78,11 @@ export const astrologyRouter = router({
   deleteChart: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.session.organizationId
       const chart = await ctx.db.query.astrologyCharts.findFirst({
-        where: and(
-          eq(astrologyCharts.id, input.id),
-          eq(astrologyCharts.organizationId, ctx.session.organizationId),
-        ),
+        where: orgId
+          ? and(eq(astrologyCharts.id, input.id), eq(astrologyCharts.organizationId, orgId))
+          : eq(astrologyCharts.id, input.id),
       })
       if (!chart) throw new TRPCError({ code: 'NOT_FOUND' })
       await ctx.db.delete(astrologyCharts).where(eq(astrologyCharts.id, input.id))
@@ -128,11 +129,13 @@ export const astrologyRouter = router({
   listReports: protectedProcedure
     .input(z.object({ chartId: z.string().uuid().optional() }).optional())
     .query(async ({ ctx, input }) => {
-      const conditions = [eq(astrologyReports.organizationId, ctx.session.organizationId)]
+      const orgId = ctx.session.organizationId
+      const conditions = []
+      if (orgId) conditions.push(eq(astrologyReports.organizationId, orgId))
       if (input?.chartId) conditions.push(eq(astrologyReports.chartId, input.chartId))
 
       return ctx.db.query.astrologyReports.findMany({
-        where: conditions.length > 1 ? and(...conditions) : conditions[0],
+        where: conditions.length > 1 ? and(...conditions) : (conditions[0] ?? undefined),
         orderBy: desc(astrologyReports.createdAt),
         limit: 50,
       })
@@ -142,11 +145,11 @@ export const astrologyRouter = router({
   getReport: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      const orgId = ctx.session.organizationId
       const report = await ctx.db.query.astrologyReports.findFirst({
-        where: and(
-          eq(astrologyReports.id, input.id),
-          eq(astrologyReports.organizationId, ctx.session.organizationId),
-        ),
+        where: orgId
+          ? and(eq(astrologyReports.id, input.id), eq(astrologyReports.organizationId, orgId))
+          : eq(astrologyReports.id, input.id),
       })
       if (!report) throw new TRPCError({ code: 'NOT_FOUND' })
       return report
@@ -182,8 +185,9 @@ export const astrologyRouter = router({
 
   /** List relationships for current org */
   listRelationships: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.session.organizationId
     return ctx.db.query.astrologyRelationships.findMany({
-      where: eq(astrologyRelationships.organizationId, ctx.session.organizationId),
+      where: orgId ? eq(astrologyRelationships.organizationId, orgId) : undefined,
       orderBy: desc(astrologyRelationships.createdAt),
       limit: 50,
     })
@@ -193,11 +197,14 @@ export const astrologyRouter = router({
   getRelationship: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      const orgId = ctx.session.organizationId
       const rel = await ctx.db.query.astrologyRelationships.findFirst({
-        where: and(
-          eq(astrologyRelationships.id, input.id),
-          eq(astrologyRelationships.organizationId, ctx.session.organizationId),
-        ),
+        where: orgId
+          ? and(
+              eq(astrologyRelationships.id, input.id),
+              eq(astrologyRelationships.organizationId, orgId),
+            )
+          : eq(astrologyRelationships.id, input.id),
       })
       if (!rel) throw new TRPCError({ code: 'NOT_FOUND' })
       return rel

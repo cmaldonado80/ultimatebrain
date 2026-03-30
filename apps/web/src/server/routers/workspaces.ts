@@ -38,8 +38,9 @@ export const workspacesRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
+      const orgId = ctx.session.organizationId
       return ctx.db.query.workspaces.findMany({
-        where: eq(workspaces.organizationId, ctx.session.organizationId),
+        where: orgId ? eq(workspaces.organizationId, orgId) : undefined,
         limit: input.limit,
         offset: input.offset,
       })

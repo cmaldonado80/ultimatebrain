@@ -29,11 +29,12 @@ export const deploymentsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const orgId = ctx.session.organizationId
-      const conditions = [eq(deploymentWorkflows.organizationId, orgId)]
+      const conditions = []
+      if (orgId) conditions.push(eq(deploymentWorkflows.organizationId, orgId))
       if (input.status) conditions.push(eq(deploymentWorkflows.status, input.status))
 
       const workflows = await ctx.db.query.deploymentWorkflows.findMany({
-        where: conditions.length > 1 ? and(...conditions) : conditions[0],
+        where: conditions.length > 1 ? and(...conditions) : (conditions[0] ?? undefined),
         orderBy: desc(deploymentWorkflows.createdAt),
         limit: input.limit,
       })

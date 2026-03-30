@@ -83,7 +83,8 @@ export const alertingRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const orgId = ctx.session.organizationId
-      const conditions = [eq(incidents.organizationId, orgId)]
+      const conditions = []
+      if (orgId) conditions.push(eq(incidents.organizationId, orgId))
       if (input?.status) conditions.push(eq(incidents.status, input.status))
       if (input?.severity)
         conditions.push(
@@ -91,7 +92,7 @@ export const alertingRouter = router({
         )
 
       return ctx.db.query.incidents.findMany({
-        where: and(...conditions),
+        where: conditions.length > 0 ? and(...conditions) : undefined,
         orderBy: desc(incidents.triggeredAt),
         limit: input?.limit ?? 20,
       })
@@ -101,7 +102,9 @@ export const alertingRouter = router({
   getActiveIncidents: protectedProcedure.query(async ({ ctx }) => {
     const orgId = ctx.session.organizationId
     return ctx.db.query.incidents.findMany({
-      where: and(eq(incidents.organizationId, orgId), ne(incidents.status, 'resolved')),
+      where: orgId
+        ? and(eq(incidents.organizationId, orgId), ne(incidents.status, 'resolved'))
+        : ne(incidents.status, 'resolved'),
       orderBy: desc(incidents.triggeredAt),
       limit: 50,
     })

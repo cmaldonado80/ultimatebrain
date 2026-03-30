@@ -31,10 +31,11 @@ export const runtimesRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const orgId = ctx.session.organizationId
-      const conditions = [eq(brainEntities.organizationId, orgId)]
+      const conditions = []
+      if (orgId) conditions.push(eq(brainEntities.organizationId, orgId))
       if (input?.tier) conditions.push(eq(brainEntities.tier, input.tier))
       return ctx.db.query.brainEntities.findMany({
-        where: conditions.length > 1 ? and(...conditions) : conditions[0],
+        where: conditions.length > 1 ? and(...conditions) : (conditions[0] ?? undefined),
         orderBy: desc(brainEntities.updatedAt),
         limit: input?.limit ?? 50,
       })
