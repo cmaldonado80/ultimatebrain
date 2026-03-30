@@ -359,6 +359,88 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+      {/* OpenClaw Gateway Status */}
+      <div className="mb-6">
+        <div className="text-[13px] font-bold text-slate-400 mb-2.5 uppercase tracking-wide font-orbitron">
+          OpenClaw Gateway
+        </div>
+        <OpenClawStatus />
+      </div>
+    </div>
+  )
+}
+
+function OpenClawStatus() {
+  const statusQuery = trpc.entities.openclawHealth.useQuery(undefined, {
+    staleTime: 30_000,
+    retry: false,
+  })
+  const status = statusQuery.data as {
+    connected: boolean
+    version?: string | null
+    lastSeen?: string | null
+    capabilities?: {
+      providers?: number
+      channels?: number
+      skills?: number
+      mcpServers?: number
+    }
+  } | null
+
+  if (statusQuery.isLoading) {
+    return <div className="cyber-card p-3.5 text-[12px] text-slate-500">Checking OpenClaw...</div>
+  }
+
+  if (!status || !status.connected) {
+    return (
+      <div className="cyber-card p-3.5 border-neon-yellow/20">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="w-2 h-2 rounded-full bg-slate-500" />
+          <span className="text-[12px] text-slate-400">Not connected</span>
+        </div>
+        <div className="text-[10px] text-slate-600">
+          Set <code className="text-slate-500">OPENCLAW_WS</code> environment variable to enable.
+          Install with: <code className="text-slate-500">npm install -g openclaw@latest</code>
+        </div>
+      </div>
+    )
+  }
+
+  const caps = status.capabilities
+  return (
+    <div className="cyber-card p-3.5 border-neon-green/20">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="w-2 h-2 rounded-full bg-neon-green" />
+        <span className="text-[12px] text-neon-green font-medium">Connected</span>
+        {status.version && (
+          <span className="text-[10px] text-slate-500 ml-auto">v{status.version}</span>
+        )}
+      </div>
+      {caps && (
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <div>
+            <div className="text-[14px] font-bold text-neon-blue">{caps.providers ?? 0}</div>
+            <div className="text-[9px] text-slate-500">Providers</div>
+          </div>
+          <div>
+            <div className="text-[14px] font-bold text-neon-purple">{caps.channels ?? 0}</div>
+            <div className="text-[9px] text-slate-500">Channels</div>
+          </div>
+          <div>
+            <div className="text-[14px] font-bold text-neon-teal">{caps.skills ?? 0}</div>
+            <div className="text-[9px] text-slate-500">Skills</div>
+          </div>
+          <div>
+            <div className="text-[14px] font-bold text-neon-green">{caps.mcpServers ?? 0}</div>
+            <div className="text-[9px] text-slate-500">MCP Servers</div>
+          </div>
+        </div>
+      )}
+      {status.lastSeen && (
+        <div className="text-[10px] text-slate-600 mt-2">
+          Last seen: {new Date(status.lastSeen).toLocaleString()}
+        </div>
+      )}
     </div>
   )
 }
