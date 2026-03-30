@@ -9,8 +9,8 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 
-import type { CursorPosition, PresenceEntry } from '../../server/services/presence/manager'
-import { PRESENCE_CONFIG } from '../../server/services/presence/manager'
+import type { CursorPosition, PresenceEntry } from '../../server/services/presence/types'
+import { PRESENCE_CONFIG } from '../../server/services/presence/types'
 import { trpc } from '../../utils/trpc'
 
 // ── Types ─────────────────────────────────────────────────────────────────

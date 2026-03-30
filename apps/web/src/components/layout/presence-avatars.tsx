@@ -10,7 +10,7 @@
 
 import { useState } from 'react'
 
-import type { PresenceEntry } from '../../server/services/presence/manager'
+import type { PresenceEntry } from '../../server/services/presence/types'
 import { trpc } from '../../utils/trpc'
 
 // ── Mock data ─────────────────────────────────────────────────────────────

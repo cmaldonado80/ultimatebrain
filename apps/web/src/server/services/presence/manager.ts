@@ -1,68 +1,27 @@
 /**
- * Multiplayer Presence Manager
+ * Multiplayer Presence Manager (server-only)
  *
- * Tracks real-time presence for users and agents:
- * - Which users are online, which tab/view, cursor position
- * - Which agents are executing, which ticket/workspace
- * - Broadcasts state via SSE to all connected clients
- * - Heartbeat: 5s from client, 10s timeout for disconnect
+ * Tracks real-time presence for users and agents.
+ * DB-backed for persistence across restarts.
+ *
+ * CLIENT COMPONENTS: import types/constants from './types' instead.
  */
 
-export type EntityType = 'user' | 'agent'
+import type {
+  CursorPosition,
+  EntityType,
+  PresenceEntry,
+  PresenceEvent,
+  PresenceListener,
+} from './types'
 
-export interface CursorPosition {
-  x: number
-  y: number
-  /** Element or area the cursor is over */
-  target?: string
-}
-
-export interface PresenceEntry {
-  id: string
-  type: EntityType
-  name: string
-  avatarUrl?: string
-  /** Current view/tab the entity is on */
-  location: string
-  /** For agents: workspace they belong to */
-  workspaceId?: string
-  /** For agents: ticket they're working on */
-  ticketId?: string
-  /** Cursor position on shared views */
-  cursor?: CursorPosition
-  /** Agent-specific: is it actively executing? */
-  isExecuting?: boolean
-  /** Last heartbeat timestamp */
-  lastSeen: Date
-  /** When this entity connected */
-  connectedAt: Date
-  /** Arbitrary metadata */
-  meta?: Record<string, unknown>
-}
-
-export type PresenceEventType =
-  | 'join'
-  | 'leave'
-  | 'move' // location/tab change
-  | 'cursor' // cursor position update
-  | 'heartbeat'
-  | 'status' // agent started/stopped executing
-
-export interface PresenceEvent {
-  type: PresenceEventType
-  entityId: string
-  entityType: EntityType
-  timestamp: Date
-  data: Partial<PresenceEntry>
-}
-
-export type PresenceListener = (event: PresenceEvent) => void
+// Re-export types for backward compatibility (server-side consumers)
+export type { CursorPosition, EntityType, PresenceEntry, PresenceEvent, PresenceListener }
+export { PRESENCE_CONFIG } from './types'
 
 // ── Configuration ───────────────────────────────────────────────────────
 
-const HEARTBEAT_INTERVAL_MS = 5_000
 const DISCONNECT_TIMEOUT_MS = 10_000
-const CURSOR_THROTTLE_MS = 50
 
 // ── Manager ─────────────────────────────────────────────────────────────
 
@@ -358,10 +317,4 @@ export function getPresenceManager(db?: unknown): PresenceManager {
   return _instance
 }
 
-// ── Constants (exported for client use) ─────────────────────────────────
-
-export const PRESENCE_CONFIG = {
-  heartbeatIntervalMs: HEARTBEAT_INTERVAL_MS,
-  disconnectTimeoutMs: DISCONNECT_TIMEOUT_MS,
-  cursorThrottleMs: CURSOR_THROTTLE_MS,
-} as const
+// PRESENCE_CONFIG re-exported from ./types at top of file
