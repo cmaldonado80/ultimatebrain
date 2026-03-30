@@ -608,6 +608,48 @@ export const AGENT_TOOLS = [
     },
   },
   {
+    name: 'deep_interview',
+    description:
+      'Run a Socratic deep interview to clarify requirements before execution. First call with task returns clarifying questions. Second call with answers returns a refined PRD.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        task: { type: 'string', description: 'Task or idea to clarify' },
+        answers: {
+          type: 'string',
+          description: 'Answers to previous clarifying questions (for second pass)',
+        },
+      },
+      required: ['task'],
+    },
+  },
+  {
+    name: 'staged_pipeline',
+    description:
+      'Execute a task through a staged pipeline: Plan → Execute → Verify → Fix loop. Returns results from each stage.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        task: { type: 'string', description: 'Task to execute through the pipeline' },
+        maxFixLoops: { type: 'number', description: 'Max verify→fix iterations (default 2)' },
+      },
+      required: ['task'],
+    },
+  },
+  {
+    name: 'multi_provider_synthesis',
+    description:
+      'Ask multiple AI providers the same question in parallel, then synthesize the best answer from all responses.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        question: { type: 'string', description: 'Question to ask multiple providers' },
+        context: { type: 'string', description: 'Additional context (optional)' },
+      },
+      required: ['question'],
+    },
+  },
+  {
     name: 'memory_search',
     description:
       'Search stored memories for relevant context. Returns matching memories ranked by relevance.',
@@ -1367,6 +1409,205 @@ export async function executeTool(
           )
         }
         return JSON.stringify({ error: 'Invalid action. Use: list, read, write' })
+      }
+
+      case 'deep_interview': {
+        if (!db) return JSON.stringify({ error: 'Database required for deep interview' })
+        const task = toolInput.task as string
+        const answers = toolInput.answers as string | undefined
+        const { GatewayRouter: GW } = await import('../gateway')
+        const gw = new GW(db)
+
+        if (!answers) {
+          // Phase 1: Generate clarifying questions
+          const result = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'You are a requirements analyst. Given a task description, generate exactly 5 clarifying questions that expose hidden assumptions, ambiguities, and edge cases. Format: numbered list. Be specific and actionable.',
+              },
+              { role: 'user', content: `Task: ${task}` },
+            ],
+          })
+          return JSON.stringify({
+            phase: 'questions',
+            task,
+            questions: result.content,
+            instruction:
+              'Answer these questions, then call deep_interview again with the task AND your answers.',
+          })
+        }
+
+        // Phase 2: Synthesize PRD from task + answers
+        const result = await gw.chat({
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a product requirements writer. Given a task and answered clarifying questions, produce a clear, structured PRD (Product Requirements Document). Include: Goal, Requirements (numbered), Constraints, Acceptance Criteria, Out of Scope.',
+            },
+            { role: 'user', content: `Task: ${task}\n\nClarifying Answers:\n${answers}` },
+          ],
+        })
+        return JSON.stringify({ phase: 'prd', task, prd: result.content })
+      }
+
+      case 'staged_pipeline': {
+        if (!db) return JSON.stringify({ error: 'Database required for staged pipeline' })
+        const task = toolInput.task as string
+        const maxLoops = (toolInput.maxFixLoops as number) ?? 2
+        const { GatewayRouter: GW } = await import('../gateway')
+        const gw = new GW(db)
+
+        // Stage 1: Plan
+        const planResult = await gw.chat({
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a planner. Break this task into clear, numbered steps. Be specific about what each step produces.',
+            },
+            { role: 'user', content: task },
+          ],
+        })
+        const plan = planResult.content
+
+        // Stage 2: Execute
+        const execResult = await gw.chat({
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an executor. Follow this plan step by step. For each step, describe what you would do and the expected output.',
+            },
+            { role: 'user', content: `Task: ${task}\n\nPlan:\n${plan}` },
+          ],
+        })
+        const execution = execResult.content
+
+        // Stage 3+4: Verify → Fix loop
+        let verification = ''
+        const fixes: string[] = []
+        let currentExecution = execution
+        let passed = false
+
+        for (let i = 0; i < maxLoops; i++) {
+          const verifyResult = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'You are a reviewer. Check this execution against the original task. If everything is correct, respond with exactly "PASS". Otherwise, list specific issues that need fixing.',
+              },
+              { role: 'user', content: `Task: ${task}\n\nExecution:\n${currentExecution}` },
+            ],
+          })
+          verification = verifyResult.content
+
+          if (verification.trim().toUpperCase().startsWith('PASS')) {
+            passed = true
+            break
+          }
+
+          // Fix
+          const fixResult = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'You are a fixer. Address each issue listed in the review. Provide the corrected execution.',
+              },
+              {
+                role: 'user',
+                content: `Issues:\n${verification}\n\nOriginal execution:\n${currentExecution}`,
+              },
+            ],
+          })
+          fixes.push(fixResult.content)
+          currentExecution = fixResult.content
+        }
+
+        return JSON.stringify({
+          task,
+          stages: {
+            plan,
+            execution,
+            verification,
+            fixes,
+            finalExecution: currentExecution,
+          },
+          passed,
+          loopsUsed: fixes.length,
+        })
+      }
+
+      case 'multi_provider_synthesis': {
+        if (!db) return JSON.stringify({ error: 'Database required for synthesis' })
+        const question = toolInput.question as string
+        const context = (toolInput.context as string) ?? ''
+        const { GatewayRouter: GW } = await import('../gateway')
+        const gw = new GW(db)
+
+        const prompt = context ? `${question}\n\nContext: ${context}` : question
+
+        // Query 3 providers in parallel
+        const [responseA, responseB, responseC] = await Promise.all([
+          gw
+            .chat({
+              model: 'deepseek-v3.2:cloud',
+              messages: [{ role: 'user', content: prompt }],
+            })
+            .catch((err) => ({
+              content: `[DeepSeek unavailable: ${err instanceof Error ? err.message : 'error'}]`,
+              tokensIn: 0,
+              tokensOut: 0,
+            })),
+          gw
+            .chat({
+              model: 'qwen3.5:cloud',
+              messages: [{ role: 'user', content: prompt }],
+            })
+            .catch((err) => ({
+              content: `[Qwen unavailable: ${err instanceof Error ? err.message : 'error'}]`,
+              tokensIn: 0,
+              tokensOut: 0,
+            })),
+          gw
+            .chat({
+              messages: [{ role: 'user', content: prompt }],
+            })
+            .catch((err) => ({
+              content: `[Default unavailable: ${err instanceof Error ? err.message : 'error'}]`,
+              tokensIn: 0,
+              tokensOut: 0,
+            })),
+        ])
+
+        // Synthesize
+        const synthesisResult = await gw.chat({
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a synthesis expert. Given responses from 3 different AI models to the same question, produce the best possible answer by combining insights, resolving contradictions, and highlighting consensus.',
+            },
+            {
+              role: 'user',
+              content: `Question: ${question}\n\nModel A (DeepSeek):\n${responseA.content}\n\nModel B (Qwen):\n${responseB.content}\n\nModel C (Default):\n${responseC.content}`,
+            },
+          ],
+        })
+
+        return JSON.stringify({
+          question,
+          responses: [
+            { provider: 'deepseek-v3.2:cloud', content: responseA.content },
+            { provider: 'qwen3.5:cloud', content: responseB.content },
+            { provider: 'default', content: responseC.content },
+          ],
+          synthesis: synthesisResult.content,
+        })
       }
 
       default:
