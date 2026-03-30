@@ -12,15 +12,43 @@ function getBaseUrl() {
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000'
 }
 
+/** Attempt to refresh the session via /api/auth/refresh. Returns true if successful. */
+async function tryRefreshSession(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/auth/refresh', { method: 'POST' })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+let refreshAttempted = false
+
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
         queryCache: new QueryCache({
-          onError: (error) => {
+          onError: async (error) => {
             const trpcError = error as { data?: { code?: string } }
-            if (trpcError?.data?.code === 'UNAUTHORIZED' || error.message === 'Not authenticated') {
-              if (typeof window !== 'undefined') window.location.href = '/auth/signin'
+            const isUnauth =
+              trpcError?.data?.code === 'UNAUTHORIZED' || error.message === 'Not authenticated'
+
+            if (isUnauth && typeof window !== 'undefined') {
+              // Try refreshing the token once before redirecting to signin
+              if (!refreshAttempted) {
+                refreshAttempted = true
+                const refreshed = await tryRefreshSession()
+                if (refreshed) {
+                  // Token refreshed — retry all failed queries
+                  refreshAttempted = false
+                  queryClient.invalidateQueries()
+                  return
+                }
+              }
+              // Refresh failed or already attempted — redirect to signin
+              refreshAttempted = false
+              window.location.href = '/auth/signin'
             }
           },
         }),
