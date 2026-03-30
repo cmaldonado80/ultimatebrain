@@ -15,6 +15,76 @@ import { sql } from 'drizzle-orm'
 import type { DomainBlueprint } from './blueprint-generator'
 import type { GapReport } from './gap-detector'
 
+// ── Inline Templates ─────────────────────────────────────────────────
+
+const ROUTE_TEMPLATE = `/**
+ * {{PURPOSE}}
+ *
+ * POST {{ROUTE_PATH}}
+ */
+
+import type { BrainClient } from '@solarc/brain-sdk'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type HonoContext = any
+
+export const route = {
+  method: 'post' as const,
+  path: '{{ROUTE_PATH}}',
+  handler: async (c: HonoContext, brain: BrainClient): Promise<Response> => {
+    try {
+      const input = await c.req.json()
+
+      // TODO: Implement {{DOMAIN}} domain logic for {{PURPOSE}}
+      // Examples:
+      //   const memory = await brain.memory.search({ query: '...' })
+      //   const llm = await brain.llm.chat({ messages: [...] })
+
+      return c.json({
+        domain: '{{DOMAIN}}',
+        input,
+        result: 'Replace with real computation',
+        computedAt: new Date().toISOString(),
+      })
+    } catch (err) {
+      return c.json(
+        { error: err instanceof Error ? err.message : 'Request failed' },
+        500,
+      )
+    }
+  },
+}
+`
+
+const PROXY_ROUTE_TEMPLATE = `/**
+ * Server-Side Proxy — {{PURPOSE}}
+ */
+
+const BRAIN_URL = process.env.{{ENV_PREFIX}}_BRAIN_URL ?? 'http://localhost:3100'
+const BRAIN_SECRET = process.env.{{ENV_PREFIX}}_BRAIN_SECRET ?? ''
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json()
+    const res = await fetch(\`\${BRAIN_URL}{{ROUTE_PATH}}\`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(BRAIN_SECRET ? { Authorization: \`Bearer \${BRAIN_SECRET}\` } : {}),
+      },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json()
+    return Response.json(data, { status: res.status })
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : 'Service unavailable' },
+      { status: 502 },
+    )
+  }
+}
+`
+
 // ── Types ─────────────────────────────────────────────────────────────
 
 export type ActionType =
@@ -22,6 +92,7 @@ export type ActionType =
   | 'create_entity'
   | 'create_workspace'
   | 'scaffold_files'
+  | 'generate_file'
   | 'add_route'
   | 'add_page'
   | 'informational'
@@ -75,14 +146,22 @@ export function generateExecutionPlan(
           autoExecutable: false,
         })
         for (const route of blueprint.miniBrainRoutes) {
+          const routeName = route.path.split('/').pop() ?? 'example'
+          const routeTemplate = ROUTE_TEMPLATE.replace(/\{\{ROUTE_PATH\}\}/g, route.path)
+            .replace(/\{\{DOMAIN\}\}/g, domainLower)
+            .replace(/\{\{PURPOSE\}\}/g, route.purpose)
           actions.push({
             id: randomUUID(),
-            type: 'add_route',
+            type: 'generate_file',
             layer: 'computation',
-            description: `Add route: ${route.method} ${route.path} — ${route.purpose}`,
-            payload: { method: route.method, path: route.path, purpose: route.purpose },
+            description: `Generate route: ${route.method} ${route.path} — ${route.purpose}`,
+            payload: {
+              template: routeTemplate,
+              tokens: { '{{DOMAIN}}': domainLower },
+              targetPath: `apps/${domainLower}-brain/src/routes/${routeName}.ts`,
+            },
             status: 'pending',
-            autoExecutable: false,
+            autoExecutable: true,
           })
         }
         break
@@ -110,6 +189,26 @@ export function generateExecutionPlan(
       }
 
       case 'list_views': {
+        const envPrefix = domainLower.toUpperCase()
+        for (const route of blueprint.miniBrainRoutes.slice(0, 3)) {
+          const routeName = route.path.split('/').pop() ?? 'api'
+          const proxyContent = PROXY_ROUTE_TEMPLATE.replace(/\{\{PURPOSE\}\}/g, route.purpose)
+            .replace(/\{\{ENV_PREFIX\}\}/g, envPrefix)
+            .replace(/\{\{ROUTE_PATH\}\}/g, route.path)
+          actions.push({
+            id: randomUUID(),
+            type: 'generate_file',
+            layer: 'list_views',
+            description: `Generate proxy route: /api/${routeName} → ${route.path}`,
+            payload: {
+              template: proxyContent,
+              tokens: {},
+              targetPath: `apps/${domainLower}-app/src/app/api/${routeName}/route.ts`,
+            },
+            status: 'pending',
+            autoExecutable: true,
+          })
+        }
         for (const page of blueprint.appPages.filter(
           (p) => !p.route.includes('[') && p.route !== '/' && p.route !== '/dashboard',
         )) {
@@ -279,6 +378,30 @@ export async function executeAction(
         status: 'failed',
         error: err instanceof Error ? err.message : 'SQL execution failed',
       }
+    }
+  }
+
+  if (action.type === 'generate_file') {
+    const template = action.payload.template as string
+    const tokens = action.payload.tokens as Record<string, string>
+    const targetPath = action.payload.targetPath as string
+
+    if (!template) {
+      return { ...action, status: 'failed', error: 'No template content in payload' }
+    }
+
+    // Apply token replacement
+    let content = template
+    if (tokens) {
+      for (const [token, value] of Object.entries(tokens)) {
+        content = content.split(token).join(value)
+      }
+    }
+
+    return {
+      ...action,
+      status: 'completed',
+      result: `Generated file for ${targetPath}:\n\n${content}`,
     }
   }
 

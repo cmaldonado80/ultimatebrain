@@ -293,3 +293,49 @@ export const entitySecrets = pgTable(
     index('entity_secrets_type_status_idx').on(t.type, t.status),
   ],
 )
+
+// ── Product Events ───────────────────────────────────────────────────
+
+export const productEvents = pgTable(
+  'product_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id'),
+    userId: uuid('user_id'),
+    domain: text('domain').notNull(),
+    resourceType: text('resource_type'),
+    action: text('action').notNull(),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('product_events_domain_idx').on(t.domain),
+    index('product_events_action_idx').on(t.action),
+    index('product_events_created_idx').on(t.createdAt),
+  ],
+)
+
+// ── Improvement Proposals ────────────────────────────────────────────
+
+export const improvementProposals = pgTable(
+  'improvement_proposals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    domain: text('domain').notNull(),
+    organizationId: uuid('organization_id'),
+    layer: text('layer').notNull(),
+    title: text('title').notNull(),
+    description: text('description').notNull(),
+    expectedImpact: text('expected_impact'),
+    confidence: real('confidence'),
+    status: text('status').default('pending').notNull(),
+    executionPlan: jsonb('execution_plan'),
+    proposedAt: timestamp('proposed_at').defaultNow().notNull(),
+    resolvedAt: timestamp('resolved_at'),
+    resolvedBy: uuid('resolved_by'),
+  },
+  (t) => [
+    index('improvement_proposals_domain_idx').on(t.domain),
+    index('improvement_proposals_status_idx').on(t.status),
+  ],
+)

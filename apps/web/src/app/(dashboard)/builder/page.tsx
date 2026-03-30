@@ -28,6 +28,7 @@ export default function BuilderPage() {
   const [executionResults, setExecutionResults] = useState<
     Record<string, { status: string; result?: string; error?: string }>
   >({})
+  const [previewContent, setPreviewContent] = useState<string | null>(null)
 
   const blueprintQuery = trpc.builder.generateBlueprint.useQuery(
     { domain: activeDomain! },
@@ -45,7 +46,21 @@ export default function BuilderPage() {
     { domain: activeDomain! },
     { enabled: !!activeDomain },
   )
+  const insightsQuery = trpc.builder.getProductInsights.useQuery(
+    { domain: activeDomain! },
+    { enabled: !!activeDomain },
+  )
+  const proposalsQuery = trpc.builder.getProposals.useQuery(
+    { domain: activeDomain! },
+    { enabled: !!activeDomain },
+  )
   const executeMut = trpc.builder.executeStep.useMutation()
+  const approveMut = trpc.builder.approveProposal.useMutation({
+    onSuccess: () => utils.builder.getProposals.invalidate(),
+  })
+  const rejectMut = trpc.builder.rejectProposal.useMutation({
+    onSuccess: () => utils.builder.getProposals.invalidate(),
+  })
   const utils = trpc.useUtils()
 
   const handleAnalyze = () => {
@@ -65,6 +80,10 @@ export default function BuilderPage() {
       ...prev,
       [result.id]: { status: result.status, result: result.result, error: result.error },
     }))
+    // Show preview for generated files
+    if ((action.type as string) === 'generate_file' && result.result) {
+      setPreviewContent(result.result)
+    }
     // Refresh state + gaps after execution
     utils.builder.inspectDomain.invalidate({ domain: activeDomain })
     utils.builder.getGapReport.invalidate({ domain: activeDomain })
@@ -299,6 +318,103 @@ export default function BuilderPage() {
             </div>
           )}
 
+          {/* Usage Insights */}
+          {insightsQuery.data && insightsQuery.data.totalEvents > 0 && (
+            <div className="cyber-card p-4 mb-4">
+              <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
+                Product Usage
+              </div>
+              <div className="grid grid-cols-3 gap-4 text-center mb-3">
+                <div>
+                  <div className="text-lg font-mono text-slate-200">
+                    {insightsQuery.data.totalEvents}
+                  </div>
+                  <div className="text-[10px] text-slate-500">Events</div>
+                </div>
+                <div>
+                  <div className="text-lg font-mono text-neon-teal">
+                    {insightsQuery.data.dailyActiveCount}
+                  </div>
+                  <div className="text-[10px] text-slate-500">Active Users</div>
+                </div>
+                <div>
+                  <div className="text-lg font-mono text-neon-blue">
+                    {Math.round(insightsQuery.data.shareRate * 100)}%
+                  </div>
+                  <div className="text-[10px] text-slate-500">Share Rate</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {Object.entries(insightsQuery.data.actionCounts)
+                  .sort(([, a], [, b]) => (b as number) - (a as number))
+                  .slice(0, 8)
+                  .map(([action, count]) => (
+                    <span
+                      key={action}
+                      className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-slate-400"
+                    >
+                      {action}: {String(count)}
+                    </span>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Improvement Proposals */}
+          {proposalsQuery.data && proposalsQuery.data.length > 0 && (
+            <div className="cyber-card p-4 mb-4">
+              <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide mb-2.5">
+                Improvement Proposals ({proposalsQuery.data.length})
+              </div>
+              <div className="space-y-1.5">
+                {proposalsQuery.data.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-2 bg-bg-elevated rounded px-3 py-2"
+                  >
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-neon-purple/10 text-neon-purple shrink-0">
+                      {String(p.layer)}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] text-slate-200">{String(p.title)}</div>
+                      <div className="text-[10px] text-slate-500 truncate">
+                        {String(p.description)}
+                      </div>
+                    </div>
+                    {p.confidence != null && (
+                      <span className="text-[9px] text-slate-600 shrink-0">
+                        {Math.round(Number(p.confidence) * 100)}%
+                      </span>
+                    )}
+                    {p.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => approveMut.mutate({ id: p.id })}
+                          className="text-[10px] text-neon-green hover:text-neon-green/80 bg-transparent border-none cursor-pointer"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => rejectMut.mutate({ id: p.id })}
+                          className="text-[10px] text-neon-red/50 hover:text-neon-red bg-transparent border-none cursor-pointer"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {p.status !== 'pending' && (
+                      <span
+                        className={`text-[9px] ${p.status === 'approved' ? 'text-neon-green' : 'text-slate-600'}`}
+                      >
+                        {String(p.status)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Execution Plan */}
           {execPlanQuery.data && execPlanQuery.data.actions.length > 0 && (
             <div className="cyber-card p-4 mb-4">
@@ -373,6 +489,42 @@ export default function BuilderPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* File Preview Modal */}
+      {previewContent && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6"
+          onClick={() => setPreviewContent(null)}
+        >
+          <div
+            className="cyber-card w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="text-[13px] font-bold text-slate-400">Generated File</div>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(previewContent)
+                  }}
+                  className="text-[11px] px-3 py-1 rounded bg-neon-teal/20 text-neon-teal hover:bg-neon-teal/30 border-none cursor-pointer"
+                >
+                  Copy
+                </button>
+                <button
+                  onClick={() => setPreviewContent(null)}
+                  className="text-[11px] px-3 py-1 rounded bg-white/5 text-slate-400 hover:text-slate-200 border-none cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <pre className="p-4 overflow-auto flex-1 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
+              {previewContent}
+            </pre>
+          </div>
+        </div>
       )}
     </div>
   )

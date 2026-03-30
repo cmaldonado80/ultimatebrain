@@ -974,6 +974,35 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         last_seen_at timestamp NOT NULL DEFAULT now()
       )`,
       `CREATE INDEX IF NOT EXISTS engagement_user_chart_idx ON astrology_engagement(user_id, chart_id)`,
+      // Product events + improvement proposals
+      `CREATE TABLE IF NOT EXISTS product_events (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid,
+        user_id uuid,
+        domain text NOT NULL,
+        resource_type text,
+        action text NOT NULL,
+        metadata jsonb,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS product_events_domain_idx ON product_events(domain)`,
+      `CREATE INDEX IF NOT EXISTS product_events_action_idx ON product_events(action)`,
+      `CREATE TABLE IF NOT EXISTS improvement_proposals (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        domain text NOT NULL,
+        organization_id uuid,
+        layer text NOT NULL,
+        title text NOT NULL,
+        description text NOT NULL,
+        expected_impact text,
+        confidence real,
+        status text NOT NULL DEFAULT 'pending',
+        execution_plan jsonb,
+        proposed_at timestamp NOT NULL DEFAULT now(),
+        resolved_at timestamp,
+        resolved_by uuid
+      )`,
+      `CREATE INDEX IF NOT EXISTS improvement_proposals_domain_idx ON improvement_proposals(domain)`,
     ]
     for (const stmt of alterStatements) {
       await client.query(stmt).catch(() => {})
