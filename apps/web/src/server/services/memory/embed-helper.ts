@@ -24,7 +24,7 @@ export function createEmbedFn(db: Database): (text: string) => Promise<number[]>
       const result = await getGateway(db).embed(text)
       return result.embedding
     } catch (err) {
-      console.warn('[EmbedHelper] Embedding failed, using zero vector:', err)
+      console.error('[EmbedHelper] Embedding failed, using zero vector:', err)
       return Array(1536).fill(0)
     }
   }
