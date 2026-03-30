@@ -965,6 +965,53 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `CREATE INDEX IF NOT EXISTS brain_entities_org_idx ON brain_entities(organization_id)`,
       `CREATE INDEX IF NOT EXISTS deployment_workflows_org_idx ON deployment_workflows(organization_id)`,
       `CREATE INDEX IF NOT EXISTS incidents_org_idx ON incidents(organization_id)`,
+
+      // Missing columns found in DDL audit
+      `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS created_by uuid`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS retry_type text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS retry_scope text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS retry_target_id text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS retry_reason text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS workflow_id uuid`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS workflow_name text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS autonomy_level text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS auto_actions_count integer DEFAULT 0`,
+      `ALTER TABLE instincts ADD COLUMN IF NOT EXISTS status text DEFAULT 'observed'`,
+
+      // alert_rules table (was entirely missing from DDL)
+      `CREATE TABLE IF NOT EXISTS alert_rules (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        name text NOT NULL,
+        service_scope text,
+        condition text NOT NULL,
+        threshold real,
+        window_minutes integer DEFAULT 5,
+        severity text DEFAULT 'medium',
+        enabled boolean DEFAULT true,
+        created_by uuid,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+
+      // incidents table (was entirely missing from DDL)
+      `CREATE TABLE IF NOT EXISTS incidents (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        rule_id uuid REFERENCES alert_rules(id) ON DELETE SET NULL,
+        service_id text,
+        service_name text NOT NULL,
+        severity text NOT NULL DEFAULT 'medium',
+        status text NOT NULL DEFAULT 'triggered',
+        message text,
+        organization_id uuid,
+        triggered_at timestamp NOT NULL DEFAULT now(),
+        acknowledged_at timestamp,
+        acknowledged_by uuid,
+        resolved_at timestamp,
+        resolved_by uuid,
+        metadata jsonb,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS incidents_status_idx ON incidents(status)`,
+      `CREATE INDEX IF NOT EXISTS incidents_service_idx ON incidents(service_name)`,
       // Astrology domain tables
       `CREATE TABLE IF NOT EXISTS astrology_charts (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
