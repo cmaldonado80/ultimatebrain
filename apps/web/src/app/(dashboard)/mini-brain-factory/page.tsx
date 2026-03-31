@@ -23,10 +23,11 @@ const TEMPLATE_ICONS: Record<string, string> = {
 function DatabaseStatusPanel({ entityId }: { entityId: string }) {
   const utils = trpc.useUtils()
   const dbStatusQuery = trpc.factory.databaseStatus.useQuery({ entityId })
+  const provisionMutation = trpc.factory.provisionDatabase.useMutation({
+    onSuccess: () => utils.factory.databaseStatus.invalidate({ entityId }),
+  })
   const deprovisionMutation = trpc.factory.deprovisionDatabase.useMutation({
-    onSuccess: () => {
-      utils.factory.databaseStatus.invalidate({ entityId })
-    },
+    onSuccess: () => utils.factory.databaseStatus.invalidate({ entityId }),
   })
   const [confirmDeprovision, setConfirmDeprovision] = useState(false)
 
@@ -62,6 +63,29 @@ function DatabaseStatusPanel({ entityId }: { entityId: string }) {
           <span className="text-[9px] text-slate-600">(Neon not configured)</span>
         )}
       </div>
+
+      {/* Not provisioned — show provision button only when Neon is available */}
+      {!status.provisioned && status.neonAvailable && (
+        <div className="mt-1">
+          <button
+            onClick={() => provisionMutation.mutate({ entityId })}
+            disabled={provisionMutation.isPending}
+            className="text-[9px] text-neon-blue hover:underline"
+          >
+            {provisionMutation.isPending ? 'Provisioning...' : 'Provision Database'}
+          </button>
+          {provisionMutation.isError && (
+            <div className="text-[9px] text-neon-red mt-1">
+              Failed: {provisionMutation.error.message}
+            </div>
+          )}
+          {provisionMutation.isSuccess && (
+            <div className="text-[9px] text-neon-green mt-1">Database provisioned</div>
+          )}
+        </div>
+      )}
+
+      {/* Provisioned — show details and deprovision option */}
       {status.provisioned && status.host && (
         <div className="mt-1 space-y-1">
           <div className="text-[10px] text-slate-400">
@@ -562,11 +586,6 @@ export default function MiniBrainFactoryPage() {
     },
   })
 
-  // Database provisioning
-  const provisionDbMutation = trpc.factory.provisionDatabase.useMutation({
-    onSuccess: () => utils.entities.topology.invalidate(),
-  })
-
   // Delete entity
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const deleteEntityMutation = trpc.entities.delete.useMutation({
@@ -850,14 +869,6 @@ export default function MiniBrainFactoryPage() {
                       >
                         {regenKeyMutation.isPending ? '...' : 'Regen Key'}
                       </button>
-                      <button
-                        onClick={() => provisionDbMutation.mutate({ entityId: mb.id })}
-                        disabled={provisionDbMutation.isPending}
-                        className="cyber-btn-secondary text-[9px] px-2 py-0.5 text-neon-blue"
-                        title="Provision Neon database branch"
-                      >
-                        {provisionDbMutation.isPending ? '...' : 'Provision DB'}
-                      </button>
                       {/* Delete with confirmation */}
                       {deleteConfirm === mb.id ? (
                         <div className="flex gap-1">
@@ -910,18 +921,6 @@ export default function MiniBrainFactoryPage() {
                       >
                         Dismiss
                       </button>
-                    </div>
-                  )}
-
-                  {/* Provision DB feedback */}
-                  {provisionDbMutation.isError && (
-                    <div className="text-[10px] text-neon-red ml-8 mb-2">
-                      DB provisioning failed: {provisionDbMutation.error.message}
-                    </div>
-                  )}
-                  {provisionDbMutation.isSuccess && (
-                    <div className="text-[10px] text-neon-green ml-8 mb-2">
-                      Database provisioned successfully
                     </div>
                   )}
 
