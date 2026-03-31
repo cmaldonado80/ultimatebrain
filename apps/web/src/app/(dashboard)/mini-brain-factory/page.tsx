@@ -115,6 +115,344 @@ function DatabaseStatusPanel({ entityId }: { entityId: string }) {
   )
 }
 
+/** Entity agents panel — shows agents linked to this entity */
+function EntityAgentsPanel({ entityId }: { entityId: string }) {
+  const utils = trpc.useUtils()
+  const agentsQuery = trpc.platform.entityAgents.useQuery({ entityId })
+  const removeAgentMutation = trpc.platform.removeEntityAgent.useMutation({
+    onSuccess: () => utils.platform.entityAgents.invalidate({ entityId }),
+  })
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+
+  const agents = (agentsQuery.data ?? []) as Array<{
+    agentId: string
+    agentName: string
+    role: string
+  }>
+
+  if (agentsQuery.isLoading) {
+    return <div className="ml-8 mt-2 text-[10px] text-slate-600">Loading agents...</div>
+  }
+  if (agents.length === 0) return null
+
+  const roleColors: Record<string, string> = {
+    primary: 'green',
+    monitor: 'blue',
+    healer: 'yellow',
+    specialist: 'purple',
+  }
+
+  return (
+    <div className="ml-8 mt-2 bg-bg-deep rounded px-3 py-2">
+      <div className="text-[10px] text-slate-500 uppercase mb-1">
+        Linked Agents ({agents.length})
+      </div>
+      <div className="space-y-1">
+        {agents.map((a) => (
+          <div key={a.agentId} className="flex items-center gap-2 text-[10px]">
+            <span className="text-slate-300">{a.agentName}</span>
+            <StatusBadge label={a.role} color={roleColors[a.role] ?? 'slate'} />
+            {confirmRemove === a.agentId ? (
+              <div className="flex gap-1 ml-auto">
+                <button
+                  onClick={() => {
+                    removeAgentMutation.mutate({ entityId, agentId: a.agentId })
+                    setConfirmRemove(null)
+                  }}
+                  className="text-[9px] text-neon-red hover:underline"
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setConfirmRemove(null)}
+                  className="text-[9px] text-slate-500 hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmRemove(a.agentId)}
+                className="text-[9px] text-slate-600 hover:text-neon-red ml-auto"
+              >
+                Unlink
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Entity health panel */
+function EntityHealthPanel({ entityId }: { entityId: string }) {
+  const healthQuery = trpc.platform.entityHealth.useQuery({ id: entityId })
+
+  const health = healthQuery.data as {
+    status: string
+    lastCheckAt: string | null
+    details: Record<string, unknown> | null
+  } | null
+
+  if (healthQuery.isLoading || !health) return null
+
+  const statusColor =
+    health.status === 'healthy'
+      ? 'green'
+      : health.status === 'degraded'
+        ? 'yellow'
+        : health.status === 'unhealthy'
+          ? 'red'
+          : 'slate'
+
+  return (
+    <div className="ml-8 mt-2 bg-bg-deep rounded px-3 py-2">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-slate-500 uppercase">Health</span>
+        <StatusBadge label={health.status} color={statusColor} />
+        {health.lastCheckAt && (
+          <span className="text-[9px] text-slate-600">
+            Last check: {new Date(health.lastCheckAt).toLocaleString()}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Token budget and usage panel */
+function TokenBudgetPanel({ entityId }: { entityId: string }) {
+  const utils = trpc.useUtils()
+  const budgetQuery = trpc.platform.checkBudget.useQuery({ entityId })
+  const usageQuery = trpc.platform.usageSummary.useQuery({ entityId })
+  const costTrendQuery = trpc.platform.dailyCostTrend.useQuery({ entityId, days: 7 })
+  const setBudgetMutation = trpc.platform.setBudget.useMutation({
+    onSuccess: () => utils.platform.checkBudget.invalidate({ entityId }),
+  })
+
+  const [editBudget, setEditBudget] = useState(false)
+  const [dailyLimit, setDailyLimit] = useState('')
+  const [monthlyLimit, setMonthlyLimit] = useState('')
+
+  const budget = budgetQuery.data as {
+    withinBudget: boolean
+    dailySpent: number
+    monthlySpent: number
+    dailyLimit: number | null
+    monthlyLimit: number | null
+  } | null
+
+  const usage = usageQuery.data as {
+    totalTokens: number
+    totalCostUsd: number
+    requestCount: number
+  } | null
+
+  const trend = (costTrendQuery.data ?? []) as Array<{
+    date: string
+    costUsd: number
+  }>
+
+  if (budgetQuery.isLoading && usageQuery.isLoading) return null
+
+  return (
+    <div className="ml-8 mt-2 bg-bg-deep rounded px-3 py-2">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] text-slate-500 uppercase">Token Budget & Usage</span>
+        {budget && !budget.withinBudget && (
+          <span className="text-[9px] text-neon-red font-medium">OVER BUDGET</span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-4 gap-2 text-[10px]">
+        {usage && (
+          <>
+            <div>
+              <span className="text-slate-500">Requests:</span>{' '}
+              <span className="text-slate-300">{usage.requestCount}</span>
+            </div>
+            <div>
+              <span className="text-slate-500">Tokens:</span>{' '}
+              <span className="text-slate-300">{usage.totalTokens.toLocaleString()}</span>
+            </div>
+            <div>
+              <span className="text-slate-500">Cost:</span>{' '}
+              <span className="text-neon-yellow">${usage.totalCostUsd.toFixed(4)}</span>
+            </div>
+          </>
+        )}
+        {budget && (
+          <div>
+            <span className="text-slate-500">Daily:</span>{' '}
+            <span className="text-slate-300">
+              ${budget.dailySpent.toFixed(2)}
+              {budget.dailyLimit != null && ` / $${budget.dailyLimit.toFixed(2)}`}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* 7-day cost sparkline */}
+      {trend.length > 0 && (
+        <div className="flex items-end gap-px mt-2 h-6">
+          {trend.map((d) => {
+            const max = Math.max(...trend.map((t) => t.costUsd), 0.01)
+            const h = Math.max((d.costUsd / max) * 100, 4)
+            return (
+              <div
+                key={d.date}
+                className="flex-1 bg-neon-teal/40 rounded-t"
+                style={{ height: `${h}%` }}
+                title={`${d.date}: $${d.costUsd.toFixed(4)}`}
+              />
+            )
+          })}
+        </div>
+      )}
+
+      {/* Budget editor */}
+      {editBudget ? (
+        <div className="mt-2 flex gap-2 items-center">
+          <input
+            type="number"
+            placeholder="Daily $"
+            value={dailyLimit}
+            onChange={(e) => setDailyLimit(e.target.value)}
+            className="w-20 bg-bg-elevated border border-border-dim rounded px-1.5 py-0.5 text-[10px] text-slate-200"
+          />
+          <input
+            type="number"
+            placeholder="Monthly $"
+            value={monthlyLimit}
+            onChange={(e) => setMonthlyLimit(e.target.value)}
+            className="w-20 bg-bg-elevated border border-border-dim rounded px-1.5 py-0.5 text-[10px] text-slate-200"
+          />
+          <button
+            onClick={() => {
+              setBudgetMutation.mutate({
+                entityId,
+                dailyLimitUsd: dailyLimit ? Number(dailyLimit) : undefined,
+                monthlyLimitUsd: monthlyLimit ? Number(monthlyLimit) : undefined,
+              })
+              setEditBudget(false)
+            }}
+            className="text-[9px] text-neon-green hover:underline"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => setEditBudget(false)}
+            className="text-[9px] text-slate-500 hover:underline"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setEditBudget(true)}
+          className="text-[9px] text-slate-500 hover:text-neon-teal mt-1"
+        >
+          Set Budget
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Deployment workflow panel */
+function DeploymentPanel({ entityId }: { entityId: string }) {
+  const utils = trpc.useUtils()
+  const deploymentsQuery = trpc.deployments.list.useQuery({ limit: 5 })
+  const advanceMutation = trpc.deployments.advance.useMutation({
+    onSuccess: () => utils.deployments.list.invalidate(),
+  })
+  const cancelMutation = trpc.deployments.cancel.useMutation({
+    onSuccess: () => utils.deployments.list.invalidate(),
+  })
+
+  const workflows = (deploymentsQuery.data ?? []) as Array<{
+    id: string
+    entityId: string
+    entityName: string
+    status: string
+    currentStep: string | null
+    steps: Array<{ name: string; status: string }>
+    createdAt: string
+  }>
+
+  // Filter to this entity's workflows
+  const entityWorkflows = workflows.filter((w) => w.entityId === entityId)
+
+  if (deploymentsQuery.isLoading || entityWorkflows.length === 0) return null
+
+  const statusColors: Record<string, string> = {
+    pending: 'yellow',
+    running: 'blue',
+    completed: 'green',
+    failed: 'red',
+    cancelled: 'slate',
+  }
+
+  return (
+    <div className="ml-8 mt-2 bg-bg-deep rounded px-3 py-2">
+      <div className="text-[10px] text-slate-500 uppercase mb-1">Deployment Workflows</div>
+      {entityWorkflows.map((wf) => (
+        <div key={wf.id} className="mb-2 last:mb-0">
+          <div className="flex items-center gap-2">
+            <StatusBadge label={wf.status} color={statusColors[wf.status] ?? 'slate'} />
+            {wf.currentStep && (
+              <span className="text-[9px] text-slate-400">Step: {wf.currentStep}</span>
+            )}
+            <span className="text-[9px] text-slate-600 ml-auto">
+              {new Date(wf.createdAt).toLocaleDateString()}
+            </span>
+          </div>
+          {/* Step progress */}
+          {wf.steps && wf.steps.length > 0 && (
+            <div className="flex gap-1 mt-1">
+              {wf.steps.map((step) => (
+                <div
+                  key={step.name}
+                  className={`flex-1 h-1.5 rounded ${
+                    step.status === 'completed'
+                      ? 'bg-neon-green'
+                      : step.status === 'running'
+                        ? 'bg-neon-blue animate-pulse'
+                        : step.status === 'failed'
+                          ? 'bg-neon-red'
+                          : 'bg-slate-700'
+                  }`}
+                  title={`${step.name}: ${step.status}`}
+                />
+              ))}
+            </div>
+          )}
+          {/* Actions */}
+          {(wf.status === 'pending' || wf.status === 'running') && (
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => advanceMutation.mutate({ workflowId: wf.id })}
+                disabled={advanceMutation.isPending}
+                className="text-[9px] text-neon-teal hover:underline"
+              >
+                {advanceMutation.isPending ? '...' : 'Advance'}
+              </button>
+              <button
+                onClick={() => cancelMutation.mutate({ workflowId: wf.id })}
+                disabled={cancelMutation.isPending}
+                className="text-[9px] text-slate-500 hover:text-neon-red"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function MiniBrainFactoryPage() {
   const utils = trpc.useUtils()
   const topologyQuery = trpc.entities.topology.useQuery()
@@ -589,6 +927,18 @@ export default function MiniBrainFactoryPage() {
 
                   {/* Database Status */}
                   <DatabaseStatusPanel entityId={mb.id} />
+
+                  {/* Entity Agents */}
+                  <EntityAgentsPanel entityId={mb.id} />
+
+                  {/* Health Status */}
+                  <EntityHealthPanel entityId={mb.id} />
+
+                  {/* Token Budget & Usage */}
+                  <TokenBudgetPanel entityId={mb.id} />
+
+                  {/* Deployment Workflows */}
+                  <DeploymentPanel entityId={mb.id} />
 
                   {/* Development Apps for this Mini Brain */}
                   {mbDevs.length > 0 && (
