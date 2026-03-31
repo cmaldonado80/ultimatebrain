@@ -800,9 +800,48 @@ export const AGENT_TOOLS = [
       required: ['agentId'],
     },
   },
+  {
+    name: 'verify_claim',
+    description:
+      'Verify a completion claim with evidence. Runs a command and checks if the output supports the claim. Use BEFORE claiming work is done — evidence before assertions.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        claim: {
+          type: 'string',
+          description: 'The claim to verify (e.g., "all tests pass", "build succeeds")',
+        },
+        command: {
+          type: 'string',
+          description: 'Shell command that produces evidence (e.g., "npm test", "npm run build")',
+        },
+        successPattern: {
+          type: 'string',
+          description:
+            'Regex pattern that must appear in output for claim to be verified (optional)',
+        },
+      },
+      required: ['claim', 'command'],
+    },
+  },
+  {
+    name: 'compact_context',
+    description:
+      'Compact a conversation by dropping middle messages to fit token limits. Preserves system messages and recent messages.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        sessionId: { type: 'string', description: 'Chat session UUID to compact' },
+        maxTokens: { type: 'number', description: 'Max token budget (default: 100000)' },
+        preserveRecent: {
+          type: 'number',
+          description: 'Number of recent messages to keep (default: 10)',
+        },
+      },
+      required: ['sessionId'],
+    },
+  },
 ]
-
-// ─── Shared Helpers ─────────────────────────────────────────────────────────
 
 const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)',
@@ -996,7 +1035,76 @@ async function scrapeUrl(
  * Execute a tool call by name, dispatching to the appropriate engine function.
  * Returns the result as a JSON string (or error message).
  */
+// ─── Loop Detection State ───────────────────────────────────────────────────
+
+import {
+  DEFAULT_LOOP_CONFIG,
+  detectToolLoop,
+  recordToolCall,
+  recordToolOutcome,
+  type ToolCallRecord,
+} from './loop-detection'
+
+/** Per-session tool call history for loop detection */
+const sessionHistories = new Map<string, ToolCallRecord[]>()
+
+/** Get or create a tool call history for a session/workspace */
+function getHistory(sessionKey: string): ToolCallRecord[] {
+  let history = sessionHistories.get(sessionKey)
+  if (!history) {
+    history = []
+    sessionHistories.set(sessionKey, history)
+  }
+  return history
+}
+
 export async function executeTool(
+  toolName: string,
+  toolInput: Record<string, unknown>,
+  db?: Database,
+  workspaceId?: string,
+): Promise<string> {
+  try {
+    // Loop detection check (before execution)
+    const sessionKey = workspaceId ?? 'default'
+    const history = getHistory(sessionKey)
+    const loopCheck = detectToolLoop(history, toolName, toolInput, DEFAULT_LOOP_CONFIG)
+
+    if (loopCheck.stuck && loopCheck.level === 'critical') {
+      recordToolCall(history, toolName, toolInput, DEFAULT_LOOP_CONFIG)
+      return JSON.stringify({
+        error: 'Tool loop detected — execution blocked',
+        loopDetection: loopCheck,
+      })
+    }
+
+    // Record the call (even if warning — we still execute but warn)
+    recordToolCall(history, toolName, toolInput, DEFAULT_LOOP_CONFIG)
+
+    // Execute the tool
+    const result = await executeToolInner(toolName, toolInput, db, workspaceId)
+
+    // Record the outcome for no-progress detection
+    recordToolOutcome(history, toolName, toolInput, result)
+
+    // Prepend warning if loop was detected at warning level
+    if (loopCheck.stuck && loopCheck.level === 'warning') {
+      try {
+        const parsed = JSON.parse(result)
+        return JSON.stringify({ ...parsed, _loopWarning: loopCheck.message })
+      } catch {
+        return result
+      }
+    }
+
+    return result
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return JSON.stringify({ error: `Tool execution failed: ${message}` })
+  }
+}
+
+async function executeToolInner(
   toolName: string,
   toolInput: Record<string, unknown>,
   db?: Database,
@@ -2407,6 +2515,113 @@ export async function executeTool(
         } catch (err) {
           return JSON.stringify({
             error: err instanceof Error ? err.message : 'History fetch failed',
+          })
+        }
+      }
+
+      case 'verify_claim': {
+        const claim = toolInput.claim as string
+        const command = toolInput.command as string
+        const successPattern = toolInput.successPattern as string | undefined
+
+        // Block dangerous commands
+        const cmdNormalized = command.trim().toLowerCase()
+        const dangerousCmd = /\b(rm\s+-rf|drop\s+|delete\s+|truncate|shutdown|kill\s+-9|mkfs)\b/i
+        if (dangerousCmd.test(cmdNormalized)) {
+          return JSON.stringify({
+            verified: false,
+            claim,
+            error: 'Command blocked — contains dangerous operations',
+          })
+        }
+
+        try {
+          const { execSync } = await import('child_process')
+          const output = execSync(command, {
+            encoding: 'utf8',
+            timeout: 60000,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            cwd: process.cwd(),
+          }).trim()
+
+          let verified = true
+          let reason = 'Command executed successfully (exit code 0)'
+
+          // Check success pattern if provided
+          if (successPattern) {
+            const regex = new RegExp(successPattern, 'i')
+            if (!regex.test(output)) {
+              verified = false
+              reason = `Output does not match expected pattern: ${successPattern}`
+            }
+          }
+
+          // Check for common failure indicators
+          const failureIndicators = /\b(FAIL|ERROR|FAILED|failing|exception|panic)\b/i
+          if (verified && failureIndicators.test(output)) {
+            verified = false
+            reason = 'Output contains failure indicators'
+          }
+
+          return JSON.stringify({
+            verified,
+            claim,
+            reason,
+            evidence: output.slice(0, 3000),
+          })
+        } catch (err: unknown) {
+          const execErr = err as { status?: number; stderr?: string; stdout?: string }
+          return JSON.stringify({
+            verified: false,
+            claim,
+            reason: `Command failed with exit code ${execErr.status ?? 'unknown'}`,
+            evidence: (execErr.stderr ?? execErr.stdout ?? '').slice(0, 3000),
+          })
+        }
+      }
+
+      case 'compact_context': {
+        if (!db) return JSON.stringify({ error: 'Database required for context compaction' })
+        const sessionId = toolInput.sessionId as string
+        const maxTokens = (toolInput.maxTokens as number) ?? 100000
+        const preserveRecent = (toolInput.preserveRecent as number) ?? 10
+        try {
+          const { chatMessages } = await import('@solarc/db')
+          const { eq, asc } = await import('drizzle-orm')
+          const { compact, needsCompaction } = await import('./context-compactor')
+
+          const messages = await db
+            .select({ role: chatMessages.role, content: chatMessages.text })
+            .from(chatMessages)
+            .where(eq(chatMessages.sessionId, sessionId))
+            .orderBy(asc(chatMessages.createdAt))
+
+          const mapped = messages.map((m) => ({
+            role: m.role ?? 'user',
+            content: m.content ?? '',
+          }))
+
+          if (!needsCompaction(mapped, { maxTokens, preserveRecent, preserveSystem: true })) {
+            return JSON.stringify({
+              compacted: false,
+              messageCount: mapped.length,
+              reason: 'Context within token limits — no compaction needed',
+            })
+          }
+
+          const result = compact(mapped, { maxTokens, preserveRecent, preserveSystem: true })
+          return JSON.stringify({
+            compacted: result.compacted,
+            originalMessages: result.originalCount,
+            keptMessages: result.compactedCount,
+            droppedMessages: result.droppedCount,
+            originalTokens: result.originalTokens,
+            compactedTokens: result.compactedTokens,
+            savedTokens: result.originalTokens - result.compactedTokens,
+          })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Compaction failed',
           })
         }
       }
