@@ -899,6 +899,54 @@ export const AGENT_TOOLS = [
       required: [],
     },
   },
+  {
+    name: 'session_summary',
+    description:
+      'Generate an intelligent session summary: detected topics, key decisions, open questions, and proactive memory suggestions based on conversation analysis.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        sessionId: { type: 'string', description: 'Chat session UUID to summarize' },
+      },
+      required: ['sessionId'],
+    },
+  },
+  {
+    name: 'recommend_model',
+    description:
+      'Recommend the best LLM model for an agent based on historical quality and cost data. Returns quality scores, latency, cost-per-run, and efficiency rankings for each model the agent has used.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        agentId: { type: 'string', description: 'UUID of the agent to recommend model for' },
+      },
+      required: ['agentId'],
+    },
+  },
+  {
+    name: 'agent_capabilities',
+    description:
+      "Profile an agent's capabilities: strong/weak tools, quality trend, inferred strengths and weaknesses from historical performance data.",
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        agentId: { type: 'string', description: 'UUID of the agent to profile' },
+      },
+      required: ['agentId'],
+    },
+  },
+  {
+    name: 'tool_analytics',
+    description:
+      'Get tool usage analytics: success/failure rates, average latency, and call counts per tool. Identifies underperforming tools and optimization opportunities.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        workspaceId: { type: 'string', description: 'Filter by workspace (optional)' },
+      },
+      required: [],
+    },
+  },
 ]
 
 const BROWSER_HEADERS = {
@@ -1106,6 +1154,76 @@ import {
 /** Per-session tool call history for loop detection */
 const sessionHistories = new Map<string, ToolCallRecord[]>()
 
+// ─── Tool Analytics ─────────────────────────────────────────────────────────
+
+interface ToolStats {
+  successCount: number
+  failureCount: number
+  totalDurationMs: number
+  lastUsed: number
+}
+
+/** In-memory tool analytics: Map<"toolName:agentWorkspaceId", ToolStats> */
+const toolAnalytics = new Map<string, ToolStats>()
+
+function recordToolAnalytics(
+  toolName: string,
+  workspaceId: string,
+  success: boolean,
+  durationMs: number,
+): void {
+  const key = `${toolName}:${workspaceId}`
+  const stats = toolAnalytics.get(key) ?? {
+    successCount: 0,
+    failureCount: 0,
+    totalDurationMs: 0,
+    lastUsed: 0,
+  }
+  if (success) stats.successCount++
+  else stats.failureCount++
+  stats.totalDurationMs += durationMs
+  stats.lastUsed = Date.now()
+  toolAnalytics.set(key, stats)
+}
+
+/** Get tool analytics for reporting */
+export function getToolAnalytics(workspaceId?: string): Array<{
+  tool: string
+  workspace: string
+  successCount: number
+  failureCount: number
+  successRate: number
+  avgDurationMs: number
+  totalCalls: number
+}> {
+  const results: Array<{
+    tool: string
+    workspace: string
+    successCount: number
+    failureCount: number
+    successRate: number
+    avgDurationMs: number
+    totalCalls: number
+  }> = []
+
+  for (const [key, stats] of toolAnalytics) {
+    const [tool, ws] = key.split(':')
+    if (workspaceId && ws !== workspaceId) continue
+    const total = stats.successCount + stats.failureCount
+    results.push({
+      tool: tool!,
+      workspace: ws!,
+      successCount: stats.successCount,
+      failureCount: stats.failureCount,
+      successRate: total > 0 ? stats.successCount / total : 0,
+      avgDurationMs: total > 0 ? Math.round(stats.totalDurationMs / total) : 0,
+      totalCalls: total,
+    })
+  }
+
+  return results.sort((a, b) => b.totalCalls - a.totalCalls)
+}
+
 /** Get or create a tool call history for a session/workspace */
 function getHistory(sessionKey: string): ToolCallRecord[] {
   let history = sessionHistories.get(sessionKey)
@@ -1139,11 +1257,17 @@ export async function executeTool(
     // Record the call (even if warning — we still execute but warn)
     recordToolCall(history, toolName, toolInput, DEFAULT_LOOP_CONFIG)
 
-    // Execute the tool
+    // Execute the tool with analytics tracking
+    const execStart = Date.now()
     const result = await executeToolInner(toolName, toolInput, db, workspaceId)
+    const execDuration = Date.now() - execStart
 
     // Record the outcome for no-progress detection
     recordToolOutcome(history, toolName, toolInput, result)
+
+    // Track tool analytics (success = no error in result)
+    const isError = result.includes('"error"') && result.includes('failed')
+    recordToolAnalytics(toolName, sessionKey, !isError, execDuration)
 
     // Prepend warning if loop was detected at warning level
     if (loopCheck.stuck && loopCheck.level === 'warning') {
@@ -2738,6 +2862,73 @@ async function executeToolInner(
             error: err instanceof Error ? err.message : 'Consolidation failed',
           })
         }
+      }
+
+      case 'session_summary': {
+        if (!db) return JSON.stringify({ error: 'Database required for session summary' })
+        const sumSessionId = toolInput.sessionId as string
+        try {
+          const { GatewayRouter: GW } = await import('../gateway')
+          const gw = new GW(db)
+          const { generateSessionSummary } = await import('../intelligence/session-intelligence')
+          const result = await generateSessionSummary(db, gw, sumSessionId)
+          return JSON.stringify(result)
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Session summary failed',
+          })
+        }
+      }
+
+      case 'recommend_model': {
+        if (!db) return JSON.stringify({ error: 'Database required for model recommendation' })
+        const rmAgentId = toolInput.agentId as string
+        try {
+          const { recommendModel } = await import('../intelligence/adaptive-router')
+          const result = await recommendModel(db, rmAgentId)
+          return JSON.stringify(result)
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Model recommendation failed',
+          })
+        }
+      }
+
+      case 'agent_capabilities': {
+        if (!db) return JSON.stringify({ error: 'Database required for capability profiling' })
+        const capAgentId = toolInput.agentId as string
+        try {
+          const { profileAgentCapabilities } = await import('../intelligence/adaptive-router')
+          const result = await profileAgentCapabilities(db, capAgentId)
+          if (!result) return JSON.stringify({ error: `Agent ${capAgentId} not found` })
+          return JSON.stringify(result)
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Capability profiling failed',
+          })
+        }
+      }
+
+      case 'tool_analytics': {
+        const analyticsWs = (toolInput.workspaceId as string) ?? workspaceId
+        const analytics = getToolAnalytics(analyticsWs)
+        const failing = analytics.filter((a) => a.totalCalls >= 3 && a.successRate < 0.5)
+        const unused = AGENT_TOOLS.map((t) => t.name).filter(
+          (name) => !analytics.some((a) => a.tool === name),
+        )
+        return JSON.stringify({
+          tools: analytics,
+          insights: {
+            totalTools: AGENT_TOOLS.length,
+            usedTools: analytics.length,
+            unusedTools: unused.length,
+            failingTools: failing.map(
+              (f) =>
+                `${f.tool}: ${(f.successRate * 100).toFixed(0)}% success (${f.totalCalls} calls)`,
+            ),
+            unusedToolNames: unused.slice(0, 20),
+          },
+        })
       }
 
       case 'auto_evolve_all': {

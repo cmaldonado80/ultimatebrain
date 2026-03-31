@@ -19,6 +19,7 @@ import { buildAtlasContext } from '../../../../server/services/atlas'
 import { compact, needsCompaction } from '../../../../server/services/chat/context-compactor'
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
 import { GatewayRouter } from '../../../../server/services/gateway'
+import { GuardrailEngine } from '../../../../server/services/guardrails'
 import { InstinctInjector } from '../../../../server/services/instincts/injector'
 import { observeRunCompletion } from '../../../../server/services/instincts/run-observer'
 import type { Instinct } from '../../../../server/services/instincts/types'
@@ -861,6 +862,30 @@ export async function POST(req: Request) {
                   ),
                 )
               }
+            }
+
+            // Output guardrail check — flag PII, rationalization, safety issues
+            try {
+              const guardrailEngine = new GuardrailEngine(db)
+              const guardrailResult = await guardrailEngine.check(fullContent, 'output' as const, {
+                agentId: agentConfig.id || undefined,
+              })
+              if (guardrailResult.violations.length > 0) {
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: 'guardrail_warning',
+                      violations: guardrailResult.violations.map((v) => ({
+                        rule: v.rule,
+                        detail: v.detail,
+                        severity: v.severity,
+                      })),
+                    })}\n\n`,
+                  ),
+                )
+              }
+            } catch {
+              // Guardrails are best-effort — never block responses
             }
 
             // Store this agent's response

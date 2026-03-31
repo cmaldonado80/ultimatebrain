@@ -36,12 +36,28 @@ export interface GuardrailRule {
 const PII_PATTERNS: Array<{ name: string; pattern: RegExp; severity: Severity }> = [
   { name: 'ssn', pattern: /\b\d{3}-\d{2}-\d{4}\b/g, severity: 'critical' },
   { name: 'credit_card', pattern: /\b(?:\d{4}[-\s]?){3}\d{4}\b/g, severity: 'critical' },
-  { name: 'email', pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, severity: 'high' },
-  { name: 'phone_us', pattern: /\b(?:\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, severity: 'medium' },
+  {
+    name: 'email',
+    pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+    severity: 'high',
+  },
+  {
+    name: 'phone_us',
+    pattern: /\b(?:\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
+    severity: 'medium',
+  },
   { name: 'ip_address', pattern: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, severity: 'medium' },
-  { name: 'api_key_generic', pattern: /\b(?:sk|pk|api|key|token|secret|password)[-_]?[A-Za-z0-9]{20,}\b/gi, severity: 'critical' },
+  {
+    name: 'api_key_generic',
+    pattern: /\b(?:sk|pk|api|key|token|secret|password)[-_]?[A-Za-z0-9]{20,}\b/gi,
+    severity: 'critical',
+  },
   { name: 'aws_key', pattern: /\bAKIA[0-9A-Z]{16}\b/g, severity: 'critical' },
-  { name: 'jwt', pattern: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g, severity: 'high' },
+  {
+    name: 'jwt',
+    pattern: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g,
+    severity: 'high',
+  },
 ]
 
 export const piiDetector: GuardrailRule = {
@@ -76,12 +92,39 @@ export const piiDetector: GuardrailRule = {
 // === Prompt Injection Shield ===
 
 const INJECTION_PATTERNS: Array<{ name: string; pattern: RegExp; severity: Severity }> = [
-  { name: 'ignore_instructions', pattern: /\b(?:ignore|disregard|forget)\s+(?:all\s+)?(?:previous|above|prior|earlier)\s+(?:instructions|prompts|rules|context)/gi, severity: 'critical' },
-  { name: 'system_override', pattern: /\b(?:you\s+are\s+now|new\s+instructions?|override\s+system|act\s+as\s+if|pretend\s+(?:you(?:'re|\s+are)))/gi, severity: 'critical' },
-  { name: 'role_hijack', pattern: /\b(?:you\s+are\s+(?:a|an)\s+(?:different|new|evil|unrestricted))\b/gi, severity: 'high' },
-  { name: 'jailbreak_dan', pattern: /\b(?:DAN|do\s+anything\s+now|developer\s+mode|jailbreak)\b/gi, severity: 'critical' },
-  { name: 'encoding_attack', pattern: /(?:base64|rot13|hex|unicode)\s*(?:decode|encode|convert)/gi, severity: 'high' },
-  { name: 'delimiter_injection', pattern: /(?:<\/?system>|<\/?user>|<\/?assistant>|\[INST\]|\[\/INST\]|###\s*(?:System|User|Assistant))/gi, severity: 'critical' },
+  {
+    name: 'ignore_instructions',
+    pattern:
+      /\b(?:ignore|disregard|forget)\s+(?:all\s+)?(?:previous|above|prior|earlier)\s+(?:instructions|prompts|rules|context)/gi,
+    severity: 'critical',
+  },
+  {
+    name: 'system_override',
+    pattern:
+      /\b(?:you\s+are\s+now|new\s+instructions?|override\s+system|act\s+as\s+if|pretend\s+(?:you(?:'re|\s+are)))/gi,
+    severity: 'critical',
+  },
+  {
+    name: 'role_hijack',
+    pattern: /\b(?:you\s+are\s+(?:a|an)\s+(?:different|new|evil|unrestricted))\b/gi,
+    severity: 'high',
+  },
+  {
+    name: 'jailbreak_dan',
+    pattern: /\b(?:DAN|do\s+anything\s+now|developer\s+mode|jailbreak)\b/gi,
+    severity: 'critical',
+  },
+  {
+    name: 'encoding_attack',
+    pattern: /(?:base64|rot13|hex|unicode)\s*(?:decode|encode|convert)/gi,
+    severity: 'high',
+  },
+  {
+    name: 'delimiter_injection',
+    pattern:
+      /(?:<\/?system>|<\/?user>|<\/?assistant>|\[INST\]|\[\/INST\]|###\s*(?:System|User|Assistant))/gi,
+    severity: 'critical',
+  },
   { name: 'markdown_escape', pattern: /```(?:system|prompt|instruction)/gi, severity: 'high' },
 ]
 
@@ -107,10 +150,22 @@ export const promptInjectionShield: GuardrailRule = {
 // === Content Safety ===
 
 const UNSAFE_PATTERNS: Array<{ name: string; pattern: RegExp; severity: Severity }> = [
-  { name: 'sql_injection', pattern: /(?:'\s*(?:OR|AND)\s+[\d'"]|;\s*(?:DROP|DELETE|UPDATE|INSERT|ALTER)\s)/gi, severity: 'critical' },
-  { name: 'command_injection', pattern: /(?:;\s*(?:rm|cat|curl|wget|chmod|eval)\s|`[^`]*`|\$\([^)]*\))/gi, severity: 'critical' },
+  {
+    name: 'sql_injection',
+    pattern: /(?:'\s*(?:OR|AND)\s+[\d'"]|;\s*(?:DROP|DELETE|UPDATE|INSERT|ALTER)\s)/gi,
+    severity: 'critical',
+  },
+  {
+    name: 'command_injection',
+    pattern: /(?:;\s*(?:rm|cat|curl|wget|chmod|eval)\s|`[^`]*`|\$\([^)]*\))/gi,
+    severity: 'critical',
+  },
   { name: 'path_traversal', pattern: /(?:\.\.\/|\.\.\\){2,}/g, severity: 'high' },
-  { name: 'xss_attempt', pattern: /<script[^>]*>|javascript:|on(?:error|load|click)\s*=/gi, severity: 'high' },
+  {
+    name: 'xss_attempt',
+    pattern: /<script[^>]*>|javascript:|on(?:error|load|click)\s*=/gi,
+    severity: 'high',
+  },
 ]
 
 export const contentSafetyRule: GuardrailRule = {
@@ -140,11 +195,13 @@ export const outputLengthRule: GuardrailRule = {
   check(content: string): Violation[] {
     const MAX_OUTPUT_CHARS = 100_000
     if (content.length > MAX_OUTPUT_CHARS) {
-      return [{
-        rule: 'output.too_long',
-        detail: `Output exceeds ${MAX_OUTPUT_CHARS} characters (got ${content.length})`,
-        severity: 'medium',
-      }]
+      return [
+        {
+          rule: 'output.too_long',
+          detail: `Output exceeds ${MAX_OUTPUT_CHARS} characters (got ${content.length})`,
+          severity: 'medium',
+        },
+      ]
     }
     return []
   },
@@ -160,8 +217,13 @@ export const outputLengthRule: GuardrailRule = {
 // === Tool Call Validator ===
 
 const BLOCKED_TOOLS = new Set([
-  'exec', 'shell', 'run_command', 'system',
-  'delete_database', 'drop_table', 'format_disk',
+  'exec',
+  'shell',
+  'run_command',
+  'system',
+  'delete_database',
+  'drop_table',
+  'format_disk',
 ])
 
 export const toolCallValidator: GuardrailRule = {
@@ -186,6 +248,47 @@ export const toolCallValidator: GuardrailRule = {
   },
 }
 
+/**
+ * Anti-rationalization detector (inspired by Superpowers' verification-before-completion).
+ * Flags when agents make unverified completion claims using weasel words.
+ */
+export const antiRationalizationRule: GuardrailRule = {
+  name: 'anti_rationalization',
+  layers: ['output'],
+  check(content: string): Violation[] {
+    const violations: Violation[] = []
+    const lower = content.toLowerCase()
+
+    // Completion claims without evidence
+    const claimPatterns = [
+      /\b(should\s+(?:work|pass|be\s+fine|be\s+correct))\b/gi,
+      /\b(probably\s+(?:works?|fine|correct|pass(?:es|ing)?))\b/gi,
+      /\b(i(?:'m| am)\s+confident)\b/gi,
+      /\b(seems?\s+to\s+(?:work|be\s+(?:fine|correct|working)))\b/gi,
+      /\b(i\s+(?:think|believe)\s+(?:it|this|that)\s+(?:works?|is\s+(?:correct|fine)))\b/gi,
+    ]
+
+    // Only flag if the content also contains completion-like language
+    const hasCompletionClaim =
+      /\b(done|complete|finished|fixed|resolved|pass(?:es|ing)?|success|ready)\b/i.test(lower)
+
+    if (hasCompletionClaim) {
+      for (const pattern of claimPatterns) {
+        const matches = content.match(pattern)
+        if (matches) {
+          violations.push({
+            rule: 'anti_rationalization',
+            detail: `Unverified claim detected: "${matches[0]}". Use verify_claim tool to provide evidence before asserting completion.`,
+            severity: 'medium',
+          })
+        }
+      }
+    }
+
+    return violations
+  },
+}
+
 /** All built-in rules */
 export const BUILTIN_RULES: GuardrailRule[] = [
   piiDetector,
@@ -193,4 +296,5 @@ export const BUILTIN_RULES: GuardrailRule[] = [
   contentSafetyRule,
   outputLengthRule,
   toolCallValidator,
+  antiRationalizationRule,
 ]
