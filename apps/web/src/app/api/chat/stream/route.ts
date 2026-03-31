@@ -16,6 +16,7 @@ import { desc, eq, sql } from 'drizzle-orm'
 
 import { auth } from '../../../../server/auth'
 import { buildAtlasContext } from '../../../../server/services/atlas'
+import { compact, needsCompaction } from '../../../../server/services/chat/context-compactor'
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
 import { GatewayRouter } from '../../../../server/services/gateway'
 import { InstinctInjector } from '../../../../server/services/instincts/injector'
@@ -27,6 +28,10 @@ import {
 } from '../../../../server/services/intelligence/recommendation-engine'
 import { ContextPipeline } from '../../../../server/services/memory/context-pipeline'
 import { createEmbedFn } from '../../../../server/services/memory/embed-helper'
+import {
+  consolidateMemories,
+  smartMemoryAdd,
+} from '../../../../server/services/memory/memory-intelligence'
 import { MemoryService } from '../../../../server/services/memory/memory-service'
 import { eventBus } from '../../../../server/services/orchestration/event-bus'
 import { TokenLedgerService } from '../../../../server/services/platform/token-ledger'
@@ -318,13 +323,23 @@ export async function POST(req: Request) {
       ]
     : []
 
-  // 4. Load conversation history
+  // 4. Load conversation history (with automatic compaction for long conversations)
   const msgs = await db.query.chatMessages.findMany({
     where: eq(chatMessages.sessionId, body.sessionId),
     orderBy: desc(chatMessages.createdAt),
     limit: CONTEXT_WINDOW,
   })
-  const history = msgs.reverse().map((m) => ({ role: m.role, content: m.text }))
+  let history = msgs.reverse().map((m) => ({ role: m.role, content: m.text }))
+
+  // Auto-compact if conversation exceeds token budget
+  if (needsCompaction(history, { maxTokens: 80000, preserveRecent: 10, preserveSystem: true })) {
+    const compacted = compact(history, {
+      maxTokens: 80000,
+      preserveRecent: 10,
+      preserveSystem: true,
+    })
+    history = compacted.messages
+  }
 
   // 5. Create execution run record
   const runStartTime = Date.now()
@@ -565,7 +580,6 @@ export async function POST(req: Request) {
           // 7. Downstream recomputation — agent continues with tool loop
           let fullContent = ''
           let usedTools = false
-          const recentToolCalls: string[] = [] // Loop detection
           for (let toolIter = 0; toolIter < 5; toolIter++) {
             const toolResult = await gateway.chat({
               model: targetAgentConfig.model,
@@ -578,15 +592,6 @@ export async function POST(req: Request) {
             if (!toolResult.toolUse) {
               fullContent = toolResult.content
               usedTools = true
-              break
-            }
-
-            // Loop detection: break if same tool+input called 3+ times
-            const callSig = `${toolResult.toolUse.name}:${JSON.stringify(toolResult.toolUse.input).slice(0, 100)}`
-            recentToolCalls.push(callSig)
-            const repeatCount = recentToolCalls.filter((c) => c === callSig).length
-            if (repeatCount >= 3) {
-              fullContent = `[Tool loop detected: ${toolResult.toolUse.name} called ${repeatCount} times with same input. Breaking loop.]`
               break
             }
 
@@ -731,9 +736,9 @@ export async function POST(req: Request) {
             ]
 
             // Tool use loop (non-streaming, max 5 iterations)
+            // Loop detection is now handled inside executeTool() via loop-detection.ts
             let toolMessages = [...baseMessages]
             let usedTools = false
-            const mainToolCalls: string[] = [] // Loop detection
             for (let toolIter = 0; toolIter < 5; toolIter++) {
               const toolResult = await gateway.chat({
                 model: agentConfig.model,
@@ -747,15 +752,6 @@ export async function POST(req: Request) {
                 // No tool call — use this as the final content
                 fullContent = toolResult.content
                 usedTools = true
-                break
-              }
-
-              // Loop detection: break if same tool+input called 3+ times
-              const mainCallSig = `${toolResult.toolUse.name}:${JSON.stringify(toolResult.toolUse.input).slice(0, 100)}`
-              mainToolCalls.push(mainCallSig)
-              const mainRepeatCount = mainToolCalls.filter((c) => c === mainCallSig).length
-              if (mainRepeatCount >= 3) {
-                fullContent = `[Tool loop detected: ${toolResult.toolUse.name} called ${mainRepeatCount} times with same input. Breaking loop.]`
                 break
               }
 
@@ -900,6 +896,25 @@ export async function POST(req: Request) {
           computeRunQualityScore(db, runRecord.id).catch(() => {})
           refreshInsights(db, runRecord.id ? undefined : undefined).catch(() => {})
           observeRunCompletion(db, runRecord.id).catch(() => {})
+
+          // Fire-and-forget: auto-extract facts from this conversation (mem0 pattern)
+          // and consolidate into observations (Hindsight pattern)
+          const autoMemoryMessages = history
+            .filter((m) => m.role === 'user' || m.role === 'assistant')
+            .slice(-10) // Last 10 messages from this interaction
+          if (autoMemoryMessages.length >= 2) {
+            smartMemoryAdd(db, gateway, autoMemoryMessages, {
+              workspaceId: primaryWorkspaceId ?? undefined,
+              sourceAgentId: agentConfigs[0]?.id || undefined,
+            })
+              .then(() =>
+                consolidateMemories(db, gateway, {
+                  workspaceId: primaryWorkspaceId ?? undefined,
+                  limit: 20,
+                }),
+              )
+              .catch(() => {}) // Best-effort — never block chat
+          }
         }
 
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
