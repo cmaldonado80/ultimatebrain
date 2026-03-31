@@ -270,15 +270,15 @@ function TokenBudgetPanel({ entityId }: { entityId: string }) {
           <>
             <div>
               <span className="text-slate-500">Requests:</span>{' '}
-              <span className="text-slate-300">{usage.requestCount}</span>
+              <span className="text-slate-300">{usage.requestCount ?? 0}</span>
             </div>
             <div>
               <span className="text-slate-500">Tokens:</span>{' '}
-              <span className="text-slate-300">{usage.totalTokens.toLocaleString()}</span>
+              <span className="text-slate-300">{(usage.totalTokens ?? 0).toLocaleString()}</span>
             </div>
             <div>
               <span className="text-slate-500">Cost:</span>{' '}
-              <span className="text-neon-yellow">${usage.totalCostUsd.toFixed(4)}</span>
+              <span className="text-neon-yellow">${(usage.totalCostUsd ?? 0).toFixed(4)}</span>
             </div>
           </>
         )}
@@ -286,7 +286,7 @@ function TokenBudgetPanel({ entityId }: { entityId: string }) {
           <div>
             <span className="text-slate-500">Daily:</span>{' '}
             <span className="text-slate-300">
-              ${budget.dailySpent.toFixed(2)}
+              ${(budget.dailySpent ?? 0).toFixed(2)}
               {budget.dailyLimit != null && ` / $${budget.dailyLimit.toFixed(2)}`}
             </span>
           </div>
@@ -294,7 +294,7 @@ function TokenBudgetPanel({ entityId }: { entityId: string }) {
       </div>
 
       {/* 7-day cost sparkline */}
-      {trend.length > 0 && (
+      {Array.isArray(trend) && trend.length > 0 && (
         <div className="flex items-end gap-px mt-2 h-6">
           {trend.map((d) => {
             const max = Math.max(...trend.map((t) => t.costUsd), 0.01)
