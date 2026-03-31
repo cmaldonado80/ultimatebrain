@@ -135,7 +135,7 @@ function EntityAgentsPanel({ entityId }: { entityId: string }) {
   }
   if (agents.length === 0) return null
 
-  const roleColors: Record<string, string> = {
+  const roleColors: Record<string, 'green' | 'blue' | 'yellow' | 'purple' | 'slate'> = {
     primary: 'green',
     monitor: 'blue',
     healer: 'yellow',
@@ -197,7 +197,7 @@ function EntityHealthPanel({ entityId }: { entityId: string }) {
 
   if (healthQuery.isLoading || !health) return null
 
-  const statusColor =
+  const statusColor: 'green' | 'yellow' | 'red' | 'slate' =
     health.status === 'healthy'
       ? 'green'
       : health.status === 'degraded'
@@ -235,7 +235,7 @@ function TokenBudgetPanel({ entityId }: { entityId: string }) {
   const [dailyLimit, setDailyLimit] = useState('')
   const [monthlyLimit, setMonthlyLimit] = useState('')
 
-  const budget = budgetQuery.data as {
+  const budget = budgetQuery.data as unknown as {
     withinBudget: boolean
     dailySpent: number
     monthlySpent: number
@@ -243,13 +243,13 @@ function TokenBudgetPanel({ entityId }: { entityId: string }) {
     monthlyLimit: number | null
   } | null
 
-  const usage = usageQuery.data as {
+  const usage = usageQuery.data as unknown as {
     totalTokens: number
     totalCostUsd: number
     requestCount: number
   } | null
 
-  const trend = (costTrendQuery.data ?? []) as Array<{
+  const trend = (costTrendQuery.data ?? []) as unknown as Array<{
     date: string
     costUsd: number
   }>
@@ -371,13 +371,13 @@ function DeploymentPanel({ entityId }: { entityId: string }) {
     onSuccess: () => utils.deployments.list.invalidate(),
   })
 
-  const workflows = (deploymentsQuery.data ?? []) as Array<{
+  const workflows = (deploymentsQuery.data ?? []) as unknown as Array<{
     id: string
     entityId: string
-    entityName: string
+    entity: { id: string; name: string } | null
     status: string
     currentStep: string | null
-    steps: Array<{ name: string; status: string }>
+    steps: Array<{ name: string; status: string }> | null
     createdAt: string
   }>
 
@@ -386,7 +386,7 @@ function DeploymentPanel({ entityId }: { entityId: string }) {
 
   if (deploymentsQuery.isLoading || entityWorkflows.length === 0) return null
 
-  const statusColors: Record<string, string> = {
+  const statusColors: Record<string, 'green' | 'blue' | 'yellow' | 'red' | 'slate'> = {
     pending: 'yellow',
     running: 'blue',
     completed: 'green',
@@ -409,7 +409,7 @@ function DeploymentPanel({ entityId }: { entityId: string }) {
             </span>
           </div>
           {/* Step progress */}
-          {wf.steps && wf.steps.length > 0 && (
+          {Array.isArray(wf.steps) && wf.steps.length > 0 && (
             <div className="flex gap-1 mt-1">
               {wf.steps.map((step) => (
                 <div
