@@ -864,6 +864,22 @@ export const AGENT_TOOLS = [
       required: ['messages'],
     },
   },
+  {
+    name: 'memory_consolidate',
+    description:
+      'Consolidate raw memory facts into higher-order observations. Scans unconsolidated facts, identifies patterns, and creates/updates observations with proof counts. Observations with higher proof counts are more reliable. Call periodically to promote raw facts into learned knowledge.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        workspaceId: { type: 'string', description: 'Workspace UUID to scope consolidation' },
+        limit: {
+          type: 'number',
+          description: 'Max raw facts to process per batch (default: 50)',
+        },
+      },
+      required: [],
+    },
+  },
 ]
 
 const BROWSER_HEADERS = {
@@ -2678,6 +2694,29 @@ async function executeToolInner(
         } catch (err) {
           return JSON.stringify({
             error: err instanceof Error ? err.message : 'Smart memory add failed',
+          })
+        }
+      }
+
+      case 'memory_consolidate': {
+        if (!db) return JSON.stringify({ error: 'Database required for consolidation' })
+        const consWsId = (toolInput.workspaceId as string) ?? workspaceId
+        const consLimit = (toolInput.limit as number) ?? 50
+        try {
+          const { GatewayRouter: GW } = await import('../gateway')
+          const gw = new GW(db)
+          const { consolidateMemories } = await import('../memory')
+          const result = await consolidateMemories(db, gw, {
+            workspaceId: consWsId,
+            limit: consLimit,
+          })
+          return JSON.stringify({
+            ...result,
+            summary: `Processed ${result.factsProcessed} raw facts → ${result.observationsCreated} new observations, ${result.observationsUpdated} updated, ${result.observationsDeleted} removed`,
+          })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Consolidation failed',
           })
         }
       }

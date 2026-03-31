@@ -11,7 +11,7 @@
 
 import type { Database } from '@solarc/db'
 import { memories } from '@solarc/db'
-import { eq } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 
 import type { GatewayRouter } from '../gateway'
 import { MemoryService } from './memory-service'
@@ -318,5 +318,232 @@ export async function smartMemoryAdd(
     updated,
     deleted,
     unchanged,
+  }
+}
+
+// ── Consolidation Engine (Hindsight-inspired) ─────────────────────────
+
+export interface ConsolidationResult {
+  observationsCreated: number
+  observationsUpdated: number
+  observationsDeleted: number
+  factsProcessed: number
+}
+
+const CONSOLIDATION_PROMPT = `You are a memory consolidation system. You form observations from raw facts.
+
+## MISSION
+Track patterns, preferences, and recurring themes. Prefer specifics over abstractions.
+
+## RULES
+- REDUNDANT: same info worded differently → UPDATE existing observation, increment proof
+- CONTRADICTION: capture both states with temporal markers ("Previously X, now Y")
+- NOVEL: genuinely new pattern → CREATE observation
+- Reference resolution: when a new fact provides a concrete value for a vague reference, UPDATE
+- NEVER merge observations about different people or unrelated topics
+
+## RAW FACTS (not yet consolidated)
+{factsText}
+
+## EXISTING OBSERVATIONS (already consolidated)
+{observationsText}
+
+## OUTPUT
+Return ONLY valid JSON:
+{"creates": [{"text": "observation text", "source_fact_ids": ["uuid1", "uuid2"]}],
+ "updates": [{"text": "updated observation text", "observation_id": "uuid", "source_fact_ids": ["uuid"]}],
+ "deletes": [{"observation_id": "uuid"}]}
+
+Rules:
+- source_fact_ids: use EXACT UUIDs from RAW FACTS
+- observation_id: use EXACT IDs from EXISTING OBSERVATIONS
+- Write clean prose — no metadata, no UUIDs in observation text
+- Return {"creates": [], "updates": [], "deletes": []} if nothing to consolidate
+`
+
+/**
+ * Consolidate raw facts into observations.
+ *
+ * Hindsight-inspired: raw memories (factType='raw') are promoted to
+ * observations (factType='observation') with proof_count tracking.
+ * Runs as a batch job — call periodically or after smart_memory_add.
+ */
+export async function consolidateMemories(
+  db: Database,
+  gw: GatewayRouter,
+  opts?: {
+    workspaceId?: string
+    limit?: number
+    model?: string
+  },
+): Promise<ConsolidationResult> {
+  const limit = opts?.limit ?? 50
+
+  // Get unconsolidated raw facts
+  const conditions = [eq(memories.factType, 'raw')]
+  if (opts?.workspaceId) conditions.push(eq(memories.workspaceId, opts.workspaceId))
+
+  const rawFacts = await db
+    .select({ id: memories.id, content: memories.content, createdAt: memories.createdAt })
+    .from(memories)
+    .where(and(...conditions))
+    .orderBy(desc(memories.createdAt))
+    .limit(limit)
+
+  if (rawFacts.length === 0) {
+    return {
+      observationsCreated: 0,
+      observationsUpdated: 0,
+      observationsDeleted: 0,
+      factsProcessed: 0,
+    }
+  }
+
+  // Get existing observations
+  const obsConditions = [eq(memories.factType, 'observation')]
+  if (opts?.workspaceId) obsConditions.push(eq(memories.workspaceId, opts.workspaceId))
+
+  const existingObs = await db
+    .select({
+      id: memories.id,
+      content: memories.content,
+      proofCount: memories.proofCount,
+      sourceMemoryIds: memories.sourceMemoryIds,
+    })
+    .from(memories)
+    .where(and(...obsConditions))
+    .orderBy(desc(memories.proofCount))
+    .limit(100)
+
+  // Build prompt
+  const factsText = rawFacts.map((f) => `[${f.id}] ${f.content}`).join('\n')
+
+  const observationsText =
+    existingObs.length > 0
+      ? JSON.stringify(
+          existingObs.map((o) => ({
+            id: o.id,
+            text: o.content,
+            proof_count: o.proofCount,
+          })),
+        )
+      : '[]'
+
+  const prompt = CONSOLIDATION_PROMPT.replace('{factsText}', factsText).replace(
+    '{observationsText}',
+    observationsText,
+  )
+
+  const response = await gw.chat({
+    model: opts?.model,
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.1,
+    maxTokens: 4096,
+  })
+
+  let creates: Array<{ text: string; source_fact_ids: string[] }> = []
+  let updates: Array<{ text: string; observation_id: string; source_fact_ids: string[] }> = []
+  let deletes: Array<{ observation_id: string }> = []
+
+  try {
+    const cleaned = response.content
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim()
+    const parsed = JSON.parse(cleaned)
+    creates = parsed.creates ?? []
+    updates = parsed.updates ?? []
+    deletes = parsed.deletes ?? []
+  } catch {
+    return {
+      observationsCreated: 0,
+      observationsUpdated: 0,
+      observationsDeleted: 0,
+      factsProcessed: rawFacts.length,
+    }
+  }
+
+  let observationsCreated = 0
+  let observationsUpdated = 0
+  let observationsDeleted = 0
+
+  // Execute creates — new observations
+  for (const c of creates) {
+    try {
+      // Validate source_fact_ids exist in our raw facts
+      const validIds = c.source_fact_ids.filter((id) => rawFacts.some((f) => f.id === id))
+      if (validIds.length === 0) continue
+
+      await db.insert(memories).values({
+        key: c.text.slice(0, 100),
+        content: c.text,
+        factType: 'observation',
+        proofCount: validIds.length,
+        sourceMemoryIds: validIds,
+        tier: 'recall',
+        workspaceId: opts?.workspaceId,
+        confidence: Math.min(0.3 + validIds.length * 0.1, 0.95),
+      })
+      observationsCreated++
+    } catch (err) {
+      console.error('[Consolidation] CREATE failed:', err)
+    }
+  }
+
+  // Execute updates — strengthen existing observations
+  for (const u of updates) {
+    try {
+      const existing = existingObs.find((o) => o.id === u.observation_id)
+      if (!existing) continue
+
+      const validIds = u.source_fact_ids.filter((id) => rawFacts.some((f) => f.id === id))
+      const existingSourceIds = existing.sourceMemoryIds ?? []
+      const mergedSourceIds = [...new Set([...existingSourceIds, ...validIds])]
+      const newProofCount = mergedSourceIds.length
+
+      await db
+        .update(memories)
+        .set({
+          content: u.text,
+          key: u.text.slice(0, 100),
+          proofCount: newProofCount,
+          sourceMemoryIds: mergedSourceIds,
+          confidence: Math.min(0.3 + newProofCount * 0.1, 0.95),
+          updatedAt: new Date(),
+        })
+        .where(eq(memories.id, u.observation_id))
+      observationsUpdated++
+    } catch (err) {
+      console.error('[Consolidation] UPDATE failed:', err)
+    }
+  }
+
+  // Execute deletes — superseded observations
+  for (const d of deletes) {
+    try {
+      const existing = existingObs.find((o) => o.id === d.observation_id)
+      if (!existing) continue
+
+      await db.delete(memories).where(eq(memories.id, d.observation_id))
+      observationsDeleted++
+    } catch (err) {
+      console.error('[Consolidation] DELETE failed:', err)
+    }
+  }
+
+  // Mark processed raw facts as consolidated (change factType to 'consolidated')
+  const processedIds = rawFacts.map((f) => f.id)
+  if (processedIds.length > 0) {
+    await db
+      .update(memories)
+      .set({ factType: 'consolidated' })
+      .where(sql`${memories.id} = ANY(${processedIds})`)
+  }
+
+  return {
+    observationsCreated,
+    observationsUpdated,
+    observationsDeleted,
+    factsProcessed: rawFacts.length,
   }
 }

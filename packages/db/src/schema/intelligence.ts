@@ -124,6 +124,13 @@ export const memories = pgTable(
     tier: memoryTierEnum('tier').default('recall').notNull(),
     accessCount: integer('access_count').default(0).notNull(),
     lastAccessedAt: timestamp('last_accessed_at'),
+    // Observation layer (Hindsight-inspired)
+    factType: text('fact_type').default('raw'), // 'raw' | 'observation'
+    proofCount: integer('proof_count').default(1).notNull(),
+    sourceMemoryIds: uuid('source_memory_ids').array(),
+    occurredStart: timestamp('occurred_start'),
+    occurredEnd: timestamp('occurred_end'),
+    supersedes: uuid('supersedes'), // ID of memory this one replaced (temporal contradiction)
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },
@@ -131,6 +138,8 @@ export const memories = pgTable(
     index('memories_key_idx').on(table.key),
     index('memories_tier_idx').on(table.tier),
     index('memories_workspace_id_idx').on(table.workspaceId),
+    index('memories_fact_type_idx').on(table.factType),
+    index('memories_proof_count_idx').on(table.proofCount),
   ],
 )
 

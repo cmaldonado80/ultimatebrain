@@ -1,4 +1,6 @@
 export {
+  consolidateMemories,
+  type ConsolidationResult,
   type ExtractedFact,
   extractFacts,
   type MemoryAction,
