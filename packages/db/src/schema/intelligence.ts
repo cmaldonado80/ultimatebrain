@@ -125,7 +125,7 @@ export const memories = pgTable(
     accessCount: integer('access_count').default(0).notNull(),
     lastAccessedAt: timestamp('last_accessed_at'),
     // Observation layer (Hindsight-inspired)
-    factType: text('fact_type').default('raw'), // 'raw' | 'observation'
+    factType: text('fact_type').default('raw'), // 'raw' | 'observation' | 'consolidated'
     proofCount: integer('proof_count').default(1).notNull(),
     sourceMemoryIds: uuid('source_memory_ids').array(),
     occurredStart: timestamp('occurred_start'),
