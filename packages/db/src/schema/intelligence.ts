@@ -350,3 +350,92 @@ export const runQuality = pgTable(
   },
   (t) => [index('run_quality_score_idx').on(t.score)],
 )
+
+// ── Agent Evolution (A-Evolve inspired) ─────────────────────────────
+
+export const evolutionStatusEnum = pgEnum('evolution_status', [
+  'running',
+  'accepted',
+  'rejected',
+  'rolled_back',
+])
+
+/**
+ * Versioned snapshots of agent soul/config — every mutation is tracked.
+ * Enables rollback to any prior version.
+ */
+export const agentSoulVersions = pgTable(
+  'agent_soul_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: uuid('agent_id')
+      .references(() => agents.id, { onDelete: 'cascade' })
+      .notNull(),
+    version: integer('version').notNull(),
+    soul: text('soul').notNull(),
+    model: text('model'),
+    temperature: real('temperature'),
+    maxTokens: integer('max_tokens'),
+    toolAccess: text('tool_access').array(),
+    // Performance at this version (populated after runs)
+    avgQualityScore: real('avg_quality_score'),
+    successRate: real('success_rate'),
+    totalRuns: integer('total_runs').default(0),
+    // Lineage
+    parentVersionId: uuid('parent_version_id'),
+    cycleId: uuid('cycle_id'),
+    mutationSummary: text('mutation_summary'),
+    isActive: boolean('is_active').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('soul_versions_agent_idx').on(t.agentId),
+    index('soul_versions_active_idx').on(t.agentId, t.isActive),
+    index('soul_versions_agent_version_idx').on(t.agentId, t.version),
+  ],
+)
+
+/**
+ * Evolution cycles — each run of the Observe→Analyze→Mutate→Gate→Apply loop.
+ * Tracks what changed, why, and whether it helped.
+ */
+export const evolutionCycles = pgTable(
+  'evolution_cycles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: uuid('agent_id')
+      .references(() => agents.id, { onDelete: 'cascade' })
+      .notNull(),
+    cycleNumber: integer('cycle_number').notNull(),
+    status: evolutionStatusEnum('status').notNull().default('running'),
+    // Observation phase
+    observedRuns: integer('observed_runs').default(0),
+    preScore: real('pre_score'),
+    // Analysis
+    failurePatterns: jsonb('failure_patterns'), // Array<{pattern, count, severity}>
+    analysisPrompt: text('analysis_prompt'),
+    analysisSummary: text('analysis_summary'),
+    // Mutation
+    proposedSoul: text('proposed_soul'),
+    mutationDiff: text('mutation_diff'), // Summary of changes
+    // Gating
+    gateScore: real('gate_score'),
+    gateThreshold: real('gate_threshold'),
+    gatePassed: boolean('gate_passed'),
+    // Result
+    postScore: real('post_score'),
+    scoreDelta: real('score_delta'),
+    fromVersionId: uuid('from_version_id'),
+    toVersionId: uuid('to_version_id'),
+    // Metadata
+    costUsd: real('cost_usd'),
+    durationMs: integer('duration_ms'),
+    startedAt: timestamp('started_at').defaultNow().notNull(),
+    completedAt: timestamp('completed_at'),
+  },
+  (t) => [
+    index('evo_cycles_agent_idx').on(t.agentId),
+    index('evo_cycles_status_idx').on(t.status),
+    index('evo_cycles_agent_cycle_idx').on(t.agentId, t.cycleNumber),
+  ],
+)

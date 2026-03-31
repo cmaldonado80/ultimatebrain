@@ -742,6 +742,64 @@ export const AGENT_TOOLS = [
       required: ['url'],
     },
   },
+  {
+    name: 'agent_evolve',
+    description:
+      'Trigger an evolution cycle for an agent: observe performance → analyze failures → synthesize improved soul → gate → apply. Uses real run data to self-improve.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        agentId: { type: 'string', description: 'UUID of the agent to evolve' },
+        windowDays: {
+          type: 'number',
+          description: 'Days of run history to analyze (default: 7)',
+        },
+      },
+      required: ['agentId'],
+    },
+  },
+  {
+    name: 'agent_rollback',
+    description:
+      'Rollback an agent to a previous soul version. Restores the soul, model, temperature, and tool access from the specified version number.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        agentId: { type: 'string', description: 'UUID of the agent to rollback' },
+        version: { type: 'number', description: 'Version number to restore (e.g. 2)' },
+      },
+      required: ['agentId', 'version'],
+    },
+  },
+  {
+    name: 'agent_analyze',
+    description:
+      "Analyze an agent's recent performance: failure patterns, strengths, weaknesses, quality scores, and learned instincts. Returns an evolution recommendation.",
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        agentId: { type: 'string', description: 'UUID of the agent to analyze' },
+        windowDays: {
+          type: 'number',
+          description: 'Days of history to analyze (default: 7)',
+        },
+      },
+      required: ['agentId'],
+    },
+  },
+  {
+    name: 'agent_evolution_history',
+    description:
+      'Get the evolution history of an agent: past soul versions, evolution cycles, scores, and mutation summaries.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        agentId: { type: 'string', description: 'UUID of the agent' },
+        limit: { type: 'number', description: 'Max records to return (default: 10)' },
+      },
+      required: ['agentId'],
+    },
+  },
 ]
 
 // ─── Shared Helpers ─────────────────────────────────────────────────────────
@@ -2273,6 +2331,82 @@ export async function executeTool(
           return JSON.stringify({
             url: metaUrl,
             error: err instanceof Error ? err.message : 'Metadata extraction failed',
+          })
+        }
+      }
+
+      case 'agent_evolve': {
+        if (!db) return JSON.stringify({ error: 'Database required for agent evolution' })
+        const targetAgentId = toolInput.agentId as string
+        const windowDays = (toolInput.windowDays as number) ?? 7
+        try {
+          const { evolveAgent } = await import('../evolution')
+          const result = await evolveAgent(db, targetAgentId, { windowDays })
+          return JSON.stringify(result)
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Evolution failed',
+          })
+        }
+      }
+
+      case 'agent_rollback': {
+        if (!db) return JSON.stringify({ error: 'Database required for agent rollback' })
+        const rbAgentId = toolInput.agentId as string
+        const rbVersion = toolInput.version as number
+        try {
+          const { rollbackToVersion } = await import('../evolution')
+          const result = await rollbackToVersion(db, rbAgentId, rbVersion)
+          return JSON.stringify(result)
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Rollback failed',
+          })
+        }
+      }
+
+      case 'agent_analyze': {
+        if (!db) return JSON.stringify({ error: 'Database required for agent analysis' })
+        const analyzeId = toolInput.agentId as string
+        const analyzeWindow = (toolInput.windowDays as number) ?? 7
+        try {
+          const { analyzeAgentPerformance } = await import('../evolution')
+          const result = await analyzeAgentPerformance(db, analyzeId, analyzeWindow)
+          if (!result) return JSON.stringify({ error: `Agent ${analyzeId} not found` })
+          return JSON.stringify(result)
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Analysis failed',
+          })
+        }
+      }
+
+      case 'agent_evolution_history': {
+        if (!db) return JSON.stringify({ error: 'Database required for evolution history' })
+        const histAgentId = toolInput.agentId as string
+        const histLimit = (toolInput.limit as number) ?? 10
+        try {
+          const { getEvolutionHistory } = await import('../evolution')
+          const result = await getEvolutionHistory(db, histAgentId, histLimit)
+          return JSON.stringify({
+            agentId: histAgentId,
+            totalCycles: result.cycles.length,
+            totalVersions: result.versions.length,
+            cycles: result.cycles,
+            versions: result.versions.map((v) => ({
+              id: v.id,
+              version: v.version,
+              isActive: v.isActive,
+              avgQualityScore: v.avgQualityScore,
+              successRate: v.successRate,
+              totalRuns: v.totalRuns,
+              mutationSummary: v.mutationSummary,
+              createdAt: v.createdAt,
+            })),
+          })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'History fetch failed',
           })
         }
       }
