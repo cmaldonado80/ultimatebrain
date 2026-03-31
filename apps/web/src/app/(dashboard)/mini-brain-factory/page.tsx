@@ -19,6 +19,102 @@ const TEMPLATE_ICONS: Record<string, string> = {
   'soc-ops': '🛡',
 }
 
+/** Database status panel per mini brain — separate component so hook runs per entity */
+function DatabaseStatusPanel({ entityId }: { entityId: string }) {
+  const utils = trpc.useUtils()
+  const dbStatusQuery = trpc.factory.databaseStatus.useQuery({ entityId })
+  const deprovisionMutation = trpc.factory.deprovisionDatabase.useMutation({
+    onSuccess: () => {
+      utils.factory.databaseStatus.invalidate({ entityId })
+    },
+  })
+  const [confirmDeprovision, setConfirmDeprovision] = useState(false)
+
+  const status = dbStatusQuery.data as {
+    provisioned: boolean
+    host: string | null
+    branchId: string | null
+    neonAvailable: boolean
+  } | null
+
+  if (dbStatusQuery.isLoading) {
+    return <div className="ml-8 mt-2 text-[10px] text-slate-600">Checking database status...</div>
+  }
+
+  if (!status) return null
+
+  return (
+    <div className="ml-8 mt-2 bg-bg-deep rounded px-3 py-2">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-slate-500 uppercase">Database</span>
+        {status.provisioned ? (
+          <>
+            <span className="neon-dot neon-dot-green" />
+            <span className="text-[10px] text-neon-green">Provisioned</span>
+          </>
+        ) : (
+          <>
+            <span className="neon-dot neon-dot-yellow" />
+            <span className="text-[10px] text-slate-400">Not provisioned</span>
+          </>
+        )}
+        {!status.neonAvailable && (
+          <span className="text-[9px] text-slate-600">(Neon not configured)</span>
+        )}
+      </div>
+      {status.provisioned && status.host && (
+        <div className="mt-1 space-y-1">
+          <div className="text-[10px] text-slate-400">
+            <span className="text-slate-500">Host:</span>{' '}
+            <code className="text-[9px] font-mono">{status.host}</code>
+          </div>
+          {status.branchId && (
+            <div className="text-[10px] text-slate-400">
+              <span className="text-slate-500">Branch:</span>{' '}
+              <code className="text-[9px] font-mono">{status.branchId}</code>
+            </div>
+          )}
+          <div className="mt-1">
+            {confirmDeprovision ? (
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-neon-red">Delete database branch?</span>
+                <button
+                  onClick={() => {
+                    deprovisionMutation.mutate({ entityId })
+                    setConfirmDeprovision(false)
+                  }}
+                  disabled={deprovisionMutation.isPending}
+                  className="text-[9px] text-neon-red hover:underline"
+                >
+                  {deprovisionMutation.isPending ? '...' : 'Yes, delete'}
+                </button>
+                <button
+                  onClick={() => setConfirmDeprovision(false)}
+                  className="text-[9px] text-slate-500 hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDeprovision(true)}
+                className="text-[9px] text-slate-500 hover:text-neon-red"
+              >
+                Deprovision DB
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {deprovisionMutation.isError && (
+        <div className="text-[9px] text-neon-red mt-1">
+          Failed: {deprovisionMutation.error.message}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function MiniBrainFactoryPage() {
   const utils = trpc.useUtils()
   const topologyQuery = trpc.entities.topology.useQuery()
@@ -28,7 +124,7 @@ export default function MiniBrainFactoryPage() {
     id: string
     domain: string
     engines: string[]
-    agents: Array<{ name: string; role: string }>
+    agents: Array<{ name: string; role: string; capabilities: string[]; soul?: string }>
     dbTables: string[]
     developmentTemplates: string[]
   }>
@@ -47,6 +143,9 @@ export default function MiniBrainFactoryPage() {
     status: string
     parentId: string | null
   }>
+
+  // Template detail expansion
+  const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null)
 
   // Create Mini Brain
   const [createName, setCreateName] = useState('')
@@ -258,37 +357,84 @@ export default function MiniBrainFactoryPage() {
       {/* Templates from backend */}
       <SectionCard title="Available Templates" className="mb-6">
         <PageGrid cols="3">
-          {templates.map((t) => (
-            <div
-              key={t.id}
-              className={`cyber-card p-3 cursor-pointer transition-colors ${createTemplate === t.id ? 'border-neon-teal' : ''}`}
-              onClick={() => setCreateTemplate(t.id)}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-2xl">{TEMPLATE_ICONS[t.id] ?? '◆'}</span>
-                <div>
-                  <div className="text-sm font-medium capitalize">{t.id}</div>
-                  <div className="text-[10px] text-slate-500">{t.domain}</div>
+          {templates.map((t) => {
+            const isExpanded = expandedTemplate === t.id
+            return (
+              <div
+                key={t.id}
+                className={`cyber-card p-3 cursor-pointer transition-colors ${createTemplate === t.id ? 'border-neon-teal' : ''}`}
+                onClick={() => setCreateTemplate(t.id)}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-2xl">{TEMPLATE_ICONS[t.id] ?? '◆'}</span>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium capitalize">{t.id}</div>
+                    <div className="text-[10px] text-slate-500">{t.domain}</div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setExpandedTemplate(isExpanded ? null : t.id)
+                    }}
+                    className="text-[9px] text-slate-500 hover:text-neon-teal"
+                  >
+                    {isExpanded ? '▾ Less' : '▸ Details'}
+                  </button>
                 </div>
+                <div className="text-[10px] text-slate-400 mt-2 space-y-0.5">
+                  <div>
+                    <span className="text-slate-500">Agents:</span> {t.agents.length} —{' '}
+                    {t.agents.map((a) => a.role).join(', ')}
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Engines:</span> {t.engines.join(', ')}
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Dev Templates:</span>{' '}
+                    {t.developmentTemplates.length} — {t.developmentTemplates.join(', ')}
+                  </div>
+                  <div>
+                    <span className="text-slate-500">DB Tables:</span> {t.dbTables.length} —{' '}
+                    {t.dbTables.join(', ')}
+                  </div>
+                </div>
+
+                {/* Expanded agent details */}
+                {isExpanded && (
+                  <div className="mt-3 pt-2 border-t border-border-dim space-y-2">
+                    <div className="text-[10px] text-slate-500 uppercase">Agent Roster</div>
+                    {t.agents.map((agent) => (
+                      <div key={agent.name} className="bg-bg-deep rounded px-2 py-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-medium text-slate-200">
+                            {agent.name}
+                          </span>
+                          <span className="text-[9px] text-neon-teal">{agent.role}</span>
+                        </div>
+                        {agent.capabilities.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {agent.capabilities.map((cap) => (
+                              <span
+                                key={cap}
+                                className="text-[8px] px-1 py-0.5 bg-neon-purple/10 text-neon-purple rounded"
+                              >
+                                {cap}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {agent.soul && (
+                          <div className="text-[9px] text-slate-500 mt-1 line-clamp-2">
+                            {agent.soul}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="text-[10px] text-slate-400 mt-2 space-y-0.5">
-                <div>
-                  <span className="text-slate-500">Agents:</span> {t.agents.length} —{' '}
-                  {t.agents.map((a) => a.role).join(', ')}
-                </div>
-                <div>
-                  <span className="text-slate-500">Engines:</span> {t.engines.join(', ')}
-                </div>
-                <div>
-                  <span className="text-slate-500">Dev Templates:</span>{' '}
-                  {t.developmentTemplates.length}
-                </div>
-                <div>
-                  <span className="text-slate-500">DB Tables:</span> {t.dbTables.length}
-                </div>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </PageGrid>
       </SectionCard>
 
@@ -440,6 +586,9 @@ export default function MiniBrainFactoryPage() {
                       Database provisioned successfully
                     </div>
                   )}
+
+                  {/* Database Status */}
+                  <DatabaseStatusPanel entityId={mb.id} />
 
                   {/* Development Apps for this Mini Brain */}
                   {mbDevs.length > 0 && (
