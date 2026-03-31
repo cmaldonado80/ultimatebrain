@@ -841,6 +841,29 @@ export const AGENT_TOOLS = [
       required: ['sessionId'],
     },
   },
+  {
+    name: 'memory_smart_add',
+    description:
+      'Intelligently extract facts from a conversation and merge them with existing memories. Uses LLM to: (1) extract atomic facts from messages, (2) compare against existing memories, (3) decide per-fact: ADD new, UPDATE existing, DELETE contradicted, or NONE (already known). Prevents memory bloat and resolves contradictions.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        messages: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              role: { type: 'string' },
+              content: { type: 'string' },
+            },
+          },
+          description: 'Conversation messages to extract facts from',
+        },
+        workspaceId: { type: 'string', description: 'Workspace UUID to scope memories' },
+      },
+      required: ['messages'],
+    },
+  },
 ]
 
 const BROWSER_HEADERS = {
@@ -2622,6 +2645,39 @@ async function executeToolInner(
         } catch (err) {
           return JSON.stringify({
             error: err instanceof Error ? err.message : 'Compaction failed',
+          })
+        }
+      }
+
+      case 'memory_smart_add': {
+        if (!db) return JSON.stringify({ error: 'Database required for smart memory' })
+        const msgs = toolInput.messages as Array<{ role: string; content: string }>
+        const wsId = toolInput.workspaceId as string | undefined
+        try {
+          const { GatewayRouter: GW } = await import('../gateway')
+          const gw = new GW(db)
+          const { smartMemoryAdd } = await import('../memory')
+          const result = await smartMemoryAdd(db, gw, msgs, {
+            workspaceId: wsId ?? workspaceId,
+          })
+          return JSON.stringify({
+            factsExtracted: result.extracted.length,
+            decisions: result.decisions.map((d) => ({
+              action: d.action,
+              fact: d.fact,
+              existingMemory: d.existingMemoryText ?? null,
+              reason: d.reason,
+            })),
+            summary: {
+              added: result.added,
+              updated: result.updated,
+              deleted: result.deleted,
+              unchanged: result.unchanged,
+            },
+          })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Smart memory add failed',
           })
         }
       }

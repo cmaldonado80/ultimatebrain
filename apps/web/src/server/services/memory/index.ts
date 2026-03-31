@@ -1,4 +1,12 @@
 export {
+  type ExtractedFact,
+  extractFacts,
+  type MemoryAction,
+  type MemoryDecision,
+  type SmartAddResult,
+  smartMemoryAdd,
+} from './memory-intelligence'
+export {
   type EmbedFunction,
   MemoryService,
   type MemoryTier,
