@@ -526,6 +526,194 @@ export default function AgentDetailPage() {
           </div>
         )}
       </SectionCard>
+
+      {/* Evolution History */}
+      <EvolutionPanel agentId={agent.id} />
+
+      {/* Capability Profile */}
+      <CapabilityPanel agentId={agent.id} />
     </div>
+  )
+}
+
+function EvolutionPanel({ agentId }: { agentId: string }) {
+  const cyclesQuery = trpc.evolution.cycles.useQuery({ agentId, limit: 5 })
+  const versionsQuery = trpc.evolution.soulVersions.useQuery({ agentId, limit: 5 })
+  const cycles = (cyclesQuery.data ?? []) as Array<{
+    id: string
+    cycleNumber: number
+    status: string
+    preScore: number | null
+    postScore: number | null
+    scoreDelta: number | null
+    startedAt: Date
+    analysisSummary: string | null
+  }>
+  const versions = (versionsQuery.data ?? []) as Array<{
+    id: string
+    version: number
+    isActive: boolean
+    avgQualityScore: number | null
+    mutationSummary: string | null
+    createdAt: Date
+  }>
+
+  return (
+    <SectionCard title="Evolution History">
+      {cycles.length === 0 && versions.length === 0 ? (
+        <div className="text-xs text-slate-600 py-2 text-center">
+          No evolution cycles yet. Trigger via auto_evolve_all or agent_evolve tool.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {/* Soul Versions */}
+          {versions.length > 0 && (
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">
+                Soul Versions
+              </div>
+              <div className="space-y-1">
+                {versions.map((v) => (
+                  <div
+                    key={v.id}
+                    className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-elevated rounded text-xs"
+                  >
+                    <span
+                      className={`font-mono ${v.isActive ? 'text-neon-green' : 'text-slate-500'}`}
+                    >
+                      v{v.version}
+                    </span>
+                    {v.isActive && <span className="text-[9px] text-neon-green">ACTIVE</span>}
+                    <span className="flex-1 text-slate-400 truncate">
+                      {v.mutationSummary ?? 'Snapshot'}
+                    </span>
+                    {v.avgQualityScore != null && (
+                      <span className="text-[10px] text-neon-teal">
+                        {(v.avgQualityScore * 100).toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Recent Cycles */}
+          {cycles.length > 0 && (
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">
+                Recent Cycles
+              </div>
+              <div className="space-y-1">
+                {cycles.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-elevated rounded text-xs"
+                  >
+                    <span className="font-mono text-slate-400">#{c.cycleNumber}</span>
+                    <span
+                      className={`text-[9px] uppercase ${
+                        c.status === 'accepted'
+                          ? 'text-neon-green'
+                          : c.status === 'rejected'
+                            ? 'text-neon-red'
+                            : 'text-neon-yellow'
+                      }`}
+                    >
+                      {c.status}
+                    </span>
+                    {c.scoreDelta != null && (
+                      <span
+                        className={`text-[10px] ${c.scoreDelta > 0 ? 'text-neon-green' : 'text-neon-red'}`}
+                      >
+                        {c.scoreDelta > 0 ? '+' : ''}
+                        {(c.scoreDelta * 100).toFixed(1)}%
+                      </span>
+                    )}
+                    <span className="flex-1 text-slate-500 truncate text-[10px]">
+                      {c.analysisSummary ?? ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </SectionCard>
+  )
+}
+
+function CapabilityPanel({ agentId }: { agentId: string }) {
+  const capQuery = trpc.evolution.capabilities.useQuery({ agentId })
+  const cap = capQuery.data as
+    | {
+        strongTools: Array<{ tool: string; successRate: number; uses: number }>
+        weakTools: Array<{ tool: string; successRate: number; uses: number }>
+        qualityTrend: string
+        avgQuality: number
+        strengths: string[]
+        weaknesses: string[]
+      }
+    | null
+    | undefined
+
+  if (!cap) return null
+
+  return (
+    <SectionCard title="Capability Profile">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">
+            Strengths
+          </div>
+          {cap.strengths.length === 0 ? (
+            <div className="text-xs text-slate-600">Not enough data</div>
+          ) : (
+            <div className="space-y-1">
+              {cap.strengths.map((s, i) => (
+                <div key={i} className="text-xs text-neon-green">
+                  {s}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div>
+          <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">
+            Weaknesses
+          </div>
+          {cap.weaknesses.length === 0 ? (
+            <div className="text-xs text-slate-600">None detected</div>
+          ) : (
+            <div className="space-y-1">
+              {cap.weaknesses.map((w, i) => (
+                <div key={i} className="text-xs text-neon-red">
+                  {w}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-4 mt-3 text-[10px] text-slate-500">
+        <span>
+          Avg Quality: <span className="text-neon-teal">{(cap.avgQuality * 100).toFixed(0)}%</span>
+        </span>
+        <span>
+          Trend:{' '}
+          <span
+            className={
+              cap.qualityTrend === 'improving'
+                ? 'text-neon-green'
+                : cap.qualityTrend === 'declining'
+                  ? 'text-neon-red'
+                  : 'text-slate-400'
+            }
+          >
+            {cap.qualityTrend}
+          </span>
+        </span>
+      </div>
+    </SectionCard>
   )
 }

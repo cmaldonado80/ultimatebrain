@@ -15,6 +15,7 @@ import { engineRegistryRouter } from './engine-registry'
 import { entitiesRouter } from './entities'
 import { ephemerisRouter } from './ephemeris'
 import { evalsRouter } from './evals'
+import { evolutionRouter } from './evolution'
 import { flowsRouter } from './flows'
 import { gatewayRouter } from './gateway'
 import { governanceRouter } from './governance'
@@ -59,6 +60,7 @@ export const appRouter = router({
   governance: governanceRouter,
   evals: evalsRouter,
   entities: entitiesRouter,
+  evolution: evolutionRouter,
   topology: topologyRouter,
   traces: tracesRouter,
   guardrails: guardrailsRouter,

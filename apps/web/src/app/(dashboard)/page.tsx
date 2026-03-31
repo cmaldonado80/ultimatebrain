@@ -274,6 +274,54 @@ export default function MissionControlPage() {
         </div>
       </SectionCard>
 
+      {/* Intelligence Panels — Evolution, Memory, Tools, Guardrails */}
+      <PageGrid cols="4" gap="md" className="mb-6">
+        <Link href="/ops/instincts" className="no-underline">
+          <SectionCard padding="sm">
+            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+              Evolution
+            </div>
+            <div className="text-lg font-mono text-neon-purple">{agents.length}</div>
+            <div className="text-[10px] text-slate-400">agents with auto-evolution</div>
+            <div className="text-[9px] text-neon-teal/60 mt-1">
+              Soul versioning + cross-learning active
+            </div>
+          </SectionCard>
+        </Link>
+        <Link href="/memory" className="no-underline">
+          <SectionCard padding="sm">
+            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+              Memory Intelligence
+            </div>
+            <div className="text-lg font-mono text-neon-blue">Active</div>
+            <div className="text-[10px] text-slate-400">fact extraction + consolidation</div>
+            <div className="text-[9px] text-neon-teal/60 mt-1">Proof-weighted recall enabled</div>
+          </SectionCard>
+        </Link>
+        <Link href="/ops/guardrails" className="no-underline">
+          <SectionCard padding="sm">
+            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+              Guardrails
+            </div>
+            <div className="text-lg font-mono text-neon-green">6 rules</div>
+            <div className="text-[10px] text-slate-400">PII + injection + rationalization</div>
+            <div className="text-[9px] text-neon-teal/60 mt-1">
+              Output validation on every response
+            </div>
+          </SectionCard>
+        </Link>
+        <Link href="/agents" className="no-underline">
+          <SectionCard padding="sm">
+            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Tools</div>
+            <div className="text-lg font-mono text-neon-yellow">59</div>
+            <div className="text-[10px] text-slate-400">agent tools with loop detection</div>
+            <div className="text-[9px] text-neon-teal/60 mt-1">
+              ACL filtering + analytics tracking
+            </div>
+          </SectionCard>
+        </Link>
+      </PageGrid>
+
       {/* Adaptive Recommended Panels */}
       {rankedPanelsQuery.data && (
         <div>

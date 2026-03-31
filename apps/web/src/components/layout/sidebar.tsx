@@ -64,6 +64,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Gateway', href: '/ops/gateway', icon: '⇄' },
       { label: 'Live Viewer', href: '/ops/live', icon: '◉' },
       { label: 'Cron Jobs', href: '/ops/cron', icon: '⏱' },
+      { label: 'Alerting', href: '/alerting', icon: '⚠' },
     ],
   },
   {
@@ -117,6 +118,10 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Builder', href: '/builder', icon: '◈' },
       { label: 'Skills', href: '/skills', icon: '★' },
       { label: 'Integrations', href: '/integrations', icon: '⊕' },
+      { label: 'Mini Brain Factory', href: '/mini-brain-factory', icon: '🏭' },
+      { label: 'Topology', href: '/topology', icon: '⊡' },
+      { label: 'Model Registry', href: '/model-registry', icon: '⊙' },
+      { label: 'Secrets', href: '/secrets', icon: '🔑' },
       { label: 'OpenClaw', href: '/openclaw', icon: '🦞' },
       { label: 'ClawHub', href: '/clawhub', icon: '🦞' },
       { label: 'Settings', href: '/settings', icon: '⚿' },
