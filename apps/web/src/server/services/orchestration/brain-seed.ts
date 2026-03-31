@@ -7,7 +7,7 @@
  */
 
 import type { Database } from '@solarc/db'
-import { agents, workspaceLifecycleEvents, workspaces } from '@solarc/db'
+import { agents, brainEntities, workspaceLifecycleEvents, workspaces } from '@solarc/db'
 import { and, eq } from 'drizzle-orm'
 
 import { getAgentSoul } from './agents'
@@ -1616,7 +1616,37 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
     }
   }
 
-  await eventBus.emit('brain.seeded', { workspacesCreated, agentsCreated })
+  // Ensure brainEntities exist for domain workspaces (drives sidebar Domain Apps section)
+  const DOMAIN_MAP: Record<string, string> = {
+    astrology: 'astrology',
+    search: 'research',
+    brain: 'intelligence',
+    cloud: 'infrastructure',
+    shield: 'security',
+    product: 'product-management',
+  }
+  let entitiesCreated = 0
+  for (const wsDef of W) {
+    const domain = DOMAIN_MAP[wsDef.icon ?? ''] ?? null
+    if (!domain) continue
+    const ws = await db.query.workspaces.findFirst({ where: eq(workspaces.name, wsDef.name) })
+    if (!ws) continue
+    // Check if entity already exists for this domain
+    const existing = await db.query.brainEntities.findFirst({
+      where: eq(brainEntities.domain, domain),
+    })
+    if (existing) continue
+    await db.insert(brainEntities).values({
+      name: wsDef.name,
+      domain,
+      tier: 'mini_brain',
+      status: 'active',
+      config: { workspaceId: ws.id, icon: wsDef.icon },
+    })
+    entitiesCreated++
+  }
+
+  await eventBus.emit('brain.seeded', { workspacesCreated, agentsCreated, entitiesCreated })
 
   return { workspacesCreated, agentsCreated, skipped }
 }

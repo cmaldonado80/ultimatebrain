@@ -38,7 +38,8 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Tickets', href: '/tickets', icon: '▤' },
       { label: 'Workspaces', href: '/workspaces', icon: '▦' },
       { label: 'Projects', href: '/projects', icon: '◈' },
-      { label: 'Feature Flags', href: '/canvas', icon: '◧' },
+      { label: 'OpenClaw', href: '/openclaw', icon: '🦞' },
+      { label: 'Astrology', href: '/astrology', icon: '☉' },
     ],
   },
   {
@@ -226,6 +227,12 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
     healthcare: '🏥',
     marketing: '📣',
     'soc-ops': '🛡',
+    research: '🔬',
+    intelligence: '🧠',
+    infrastructure: '☁',
+    security: '🛡',
+    'product-management': '📦',
+    engineering: '⚙',
   }
 
   const domainSection: NavSection | null =
