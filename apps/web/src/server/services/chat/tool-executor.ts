@@ -744,6 +744,194 @@ export const AGENT_TOOLS = [
   },
 ]
 
+// ─── Shared Helpers ─────────────────────────────────────────────────────────
+
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)',
+  Accept: 'text/html',
+}
+
+/** Search DuckDuckGo Lite and return structured results */
+async function ddgSearch(
+  query: string,
+  max: number,
+): Promise<Array<{ title: string; url: string; snippet: string }>> {
+  const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`
+  const res = await fetch(searchUrl, {
+    headers: BROWSER_HEADERS,
+    signal: AbortSignal.timeout(10000),
+  })
+  const html = await res.text()
+
+  const linkPattern =
+    /<a[^>]*rel="nofollow"[^>]*href="([^"]*)"[^>]*class="result-link"[^>]*>([\s\S]*?)<\/a>/gi
+  const snippetPattern = /<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
+
+  const links: Array<{ url: string; title: string }> = []
+  let linkMatch: RegExpExecArray | null
+  while ((linkMatch = linkPattern.exec(html)) !== null) {
+    const href = linkMatch[1] ?? ''
+    const title = (linkMatch[2] ?? '').replace(/<[^>]+>/g, '').trim()
+    if (href && title && !href.includes('duckduckgo.com')) {
+      links.push({ url: href, title })
+    }
+  }
+
+  const snippets: string[] = []
+  let snippetMatch: RegExpExecArray | null
+  while ((snippetMatch = snippetPattern.exec(html)) !== null) {
+    snippets.push(
+      (snippetMatch[1] ?? '')
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    )
+  }
+
+  const results: Array<{ title: string; url: string; snippet: string }> = []
+  for (let i = 0; i < Math.min(links.length, max); i++) {
+    results.push({
+      title: links[i]!.title,
+      url: links[i]!.url,
+      snippet: snippets[i] ?? '',
+    })
+  }
+
+  // Fallback: try HTML endpoint if lite returned no results
+  if (results.length === 0) {
+    const fallbackUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
+    const fbRes = await fetch(fallbackUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)' },
+      signal: AbortSignal.timeout(10000),
+    })
+    const fbHtml = await fbRes.text()
+
+    const resultBlocks = fbHtml.match(/<div class="result results_links[\s\S]*?<\/div>\s*<\/div>/gi)
+    if (resultBlocks) {
+      for (const block of resultBlocks.slice(0, max)) {
+        const urlMatch = block.match(/href="([^"]*)"/)
+        const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/)
+        const snipMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/)
+        if (urlMatch?.[1] && titleMatch?.[1]) {
+          results.push({
+            title: titleMatch[1].replace(/<[^>]+>/g, '').trim(),
+            url: urlMatch[1],
+            snippet: snipMatch?.[1]?.replace(/<[^>]+>/g, '').trim() ?? '',
+          })
+        }
+      }
+    }
+  }
+
+  return results
+}
+
+/** Strip HTML boilerplate and extract readable content */
+function extractReadableContent(html: string, maxLen: number): string {
+  // Remove non-content elements
+  let content = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+    .replace(/<header[\s\S]*?<\/header>/gi, '')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+    .replace(/<aside[\s\S]*?<\/aside>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+
+  // Try to find main content container
+  const articleMatch = content.match(/<article[^>]*>([\s\S]*?)<\/article>/i)
+  const mainMatch = content.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
+  const contentDiv = content.match(
+    /<div[^>]*(?:class|id)=["'][^"']*(?:content|article|post|entry|body)[^"']*["'][^>]*>([\s\S]*?)<\/div>\s*(?:<\/div>|$)/i,
+  )
+
+  if (articleMatch?.[1]) {
+    content = articleMatch[1]
+  } else if (mainMatch?.[1]) {
+    content = mainMatch[1]
+  } else if (contentDiv?.[1]) {
+    content = contentDiv[1]
+  }
+
+  // Convert block elements to newlines, strip remaining tags
+  content = content
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|h[1-6]|li|tr|blockquote)>/gi, '\n\n')
+    .replace(/<(?:hr)\s*\/?>/gi, '\n---\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .join('\n')
+    .trim()
+    .slice(0, maxLen)
+
+  return content
+}
+
+/** Scrape a URL and return readable content with metadata */
+async function scrapeUrl(
+  url: string,
+  maxLen: number,
+): Promise<{
+  url: string
+  content: string
+  title: string | null
+  snippet: string
+  metadata?: {
+    title: string | null
+    description: string | null
+    author: string | null
+    date: string | null
+    image: string | null
+  }
+}> {
+  const res = await fetch(url, {
+    headers: BROWSER_HEADERS,
+    signal: AbortSignal.timeout(15000),
+    redirect: 'follow',
+  })
+  const html = await res.text()
+
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
+  const metaDesc = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["']/i)
+  const metaAuthor = html.match(/<meta[^>]*name=["']author["'][^>]*content=["']([\s\S]*?)["']/i)
+  const metaDate =
+    html.match(
+      /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([\s\S]*?)["']/i,
+    ) ??
+    html.match(/<meta[^>]*name=["']date["'][^>]*content=["']([\s\S]*?)["']/i) ??
+    html.match(/<time[^>]*datetime=["']([\s\S]*?)["']/i)
+  const ogImage = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([\s\S]*?)["']/i)
+
+  const content = extractReadableContent(html, maxLen)
+  const title = titleMatch?.[1]?.trim() ?? null
+
+  return {
+    url,
+    content,
+    title,
+    snippet: content.slice(0, 200),
+    metadata: {
+      title,
+      description: metaDesc?.[1]?.trim() ?? null,
+      author: metaAuthor?.[1]?.trim() ?? null,
+      date: metaDate?.[1]?.trim() ?? null,
+      image: ogImage?.[1]?.trim() ?? null,
+    },
+  }
+}
+
 // ─── Tool Executor ───────────────────────────────────────────────────────────
 
 /**
@@ -998,8 +1186,28 @@ export async function executeTool(
         }
         // Determine day/night chart: hour < 6 or > 18 = night
         const isDiurnal = i.birthHour >= 6 && i.birthHour < 18
-        const result = firdaria(isDiurnal, i.maxAge ?? 75)
-        return JSON.stringify(result)
+        const periods = firdaria(isDiurnal, i.maxAge ?? 75)
+        // Anchor age-based periods to actual calendar dates
+        const birthDate = new Date(i.birthYear, i.birthMonth - 1, i.birthDay)
+        const anchored = periods.map((p) => ({
+          ...p,
+          startDate: new Date(birthDate.getTime() + p.startAge * 365.25 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .slice(0, 10),
+          endDate: new Date(birthDate.getTime() + p.endAge * 365.25 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .slice(0, 10),
+          subPeriods: p.subPeriods.map((sp) => ({
+            ...sp,
+            startDate: new Date(birthDate.getTime() + sp.startAge * 365.25 * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .slice(0, 10),
+            endDate: new Date(birthDate.getTime() + sp.endAge * 365.25 * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .slice(0, 10),
+          })),
+        }))
+        return JSON.stringify(anchored)
       }
 
       case 'ephemeris_fixed_stars': {
@@ -1171,82 +1379,7 @@ export async function executeTool(
         const query = toolInput.query as string
         const max = Math.min((toolInput.maxResults as number) ?? 5, 10)
         try {
-          const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`
-          const res = await fetch(searchUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)',
-              Accept: 'text/html',
-            },
-            signal: AbortSignal.timeout(10000),
-          })
-          const html = await res.text()
-
-          // Parse DuckDuckGo Lite results — each result is in a table row structure
-          const results: Array<{ title: string; url: string; snippet: string }> = []
-
-          // Match result links: <a rel="nofollow" href="..." class="result-link">Title</a>
-          const linkPattern =
-            /<a[^>]*rel="nofollow"[^>]*href="([^"]*)"[^>]*class="result-link"[^>]*>([\s\S]*?)<\/a>/gi
-          const snippetPattern = /<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
-
-          const links: Array<{ url: string; title: string }> = []
-          let linkMatch: RegExpExecArray | null
-          while ((linkMatch = linkPattern.exec(html)) !== null) {
-            const href = linkMatch[1] ?? ''
-            const title = (linkMatch[2] ?? '').replace(/<[^>]+>/g, '').trim()
-            if (href && title && !href.includes('duckduckgo.com')) {
-              links.push({ url: href, title })
-            }
-          }
-
-          const snippets: string[] = []
-          let snippetMatch: RegExpExecArray | null
-          while ((snippetMatch = snippetPattern.exec(html)) !== null) {
-            snippets.push(
-              (snippetMatch[1] ?? '')
-                .replace(/<[^>]+>/g, '')
-                .replace(/\s+/g, ' ')
-                .trim(),
-            )
-          }
-
-          for (let i = 0; i < Math.min(links.length, max); i++) {
-            results.push({
-              title: links[i]!.title,
-              url: links[i]!.url,
-              snippet: snippets[i] ?? '',
-            })
-          }
-
-          // Fallback: try HTML endpoint if lite returned no results
-          if (results.length === 0) {
-            const fallbackUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
-            const fbRes = await fetch(fallbackUrl, {
-              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)' },
-              signal: AbortSignal.timeout(10000),
-            })
-            const fbHtml = await fbRes.text()
-
-            // Parse result__a links and result__snippet
-            const resultBlocks = fbHtml.match(
-              /<div class="result results_links[\s\S]*?<\/div>\s*<\/div>/gi,
-            )
-            if (resultBlocks) {
-              for (const block of resultBlocks.slice(0, max)) {
-                const urlMatch = block.match(/href="([^"]*)"/)
-                const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/)
-                const snipMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/)
-                if (urlMatch?.[1] && titleMatch?.[1]) {
-                  results.push({
-                    title: titleMatch[1].replace(/<[^>]+>/g, '').trim(),
-                    url: urlMatch[1],
-                    snippet: snipMatch?.[1]?.replace(/<[^>]+>/g, '').trim() ?? '',
-                  })
-                }
-              }
-            }
-          }
-
+          const results = await ddgSearch(query, max)
           return JSON.stringify({ query, resultCount: results.length, results })
         } catch (err) {
           return JSON.stringify({
@@ -1258,102 +1391,19 @@ export async function executeTool(
       }
 
       case 'web_scrape': {
-        const scrapeUrl = toolInput.url as string
+        const targetUrl = toolInput.url as string
         const maxLen = (toolInput.maxLength as number) ?? 8000
         try {
-          const res = await fetch(scrapeUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)',
-              Accept: 'text/html',
-            },
-            signal: AbortSignal.timeout(15000),
-            redirect: 'follow',
-          })
-          const html = await res.text()
-
-          // Extract metadata
-          const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
-          const metaDesc = html.match(
-            /<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["']/i,
-          )
-          const metaAuthor = html.match(
-            /<meta[^>]*name=["']author["'][^>]*content=["']([\s\S]*?)["']/i,
-          )
-          const metaDate =
-            html.match(
-              /<meta[^>]*property=["']article:published_time["'][^>]*content=["']([\s\S]*?)["']/i,
-            ) ??
-            html.match(/<meta[^>]*name=["']date["'][^>]*content=["']([\s\S]*?)["']/i) ??
-            html.match(/<time[^>]*datetime=["']([\s\S]*?)["']/i)
-          const ogImage = html.match(
-            /<meta[^>]*property=["']og:image["'][^>]*content=["']([\s\S]*?)["']/i,
-          )
-
-          // Readability-style content extraction
-          // 1. Remove non-content elements
-          let content = html
-            .replace(/<script[\s\S]*?<\/script>/gi, '')
-            .replace(/<style[\s\S]*?<\/style>/gi, '')
-            .replace(/<nav[\s\S]*?<\/nav>/gi, '')
-            .replace(/<header[\s\S]*?<\/header>/gi, '')
-            .replace(/<footer[\s\S]*?<\/footer>/gi, '')
-            .replace(/<aside[\s\S]*?<\/aside>/gi, '')
-            .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
-            .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
-            .replace(/<!--[\s\S]*?-->/g, '')
-
-          // 2. Try to find main content container
-          const articleMatch = content.match(/<article[^>]*>([\s\S]*?)<\/article>/i)
-          const mainMatch = content.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
-          const contentDiv = content.match(
-            /<div[^>]*(?:class|id)=["'][^"']*(?:content|article|post|entry|body)[^"']*["'][^>]*>([\s\S]*?)<\/div>\s*(?:<\/div>|$)/i,
-          )
-
-          // Use most specific container found
-          if (articleMatch?.[1]) {
-            content = articleMatch[1]
-          } else if (mainMatch?.[1]) {
-            content = mainMatch[1]
-          } else if (contentDiv?.[1]) {
-            content = contentDiv[1]
-          }
-
-          // 3. Convert block elements to newlines, strip remaining tags
-          content = content
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<\/(?:p|div|h[1-6]|li|tr|blockquote)>/gi, '\n\n')
-            .replace(/<(?:hr)\s*\/?>/gi, '\n---\n')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .replace(/\n{3,}/g, '\n\n')
-            .replace(/[ \t]+/g, ' ')
-            .split('\n')
-            .map((line) => line.trim())
-            .filter((line) => line.length > 0)
-            .join('\n')
-            .trim()
-            .slice(0, maxLen)
-
+          const scraped = await scrapeUrl(targetUrl, maxLen)
           return JSON.stringify({
-            url: scrapeUrl,
-            metadata: {
-              title: titleMatch?.[1]?.trim() ?? null,
-              description: metaDesc?.[1]?.trim() ?? null,
-              author: metaAuthor?.[1]?.trim() ?? null,
-              date: metaDate?.[1]?.trim() ?? null,
-              image: ogImage?.[1]?.trim() ?? null,
-            },
-            content,
-            contentLength: content.length,
+            url: targetUrl,
+            metadata: scraped.metadata,
+            content: scraped.content,
+            contentLength: scraped.content.length,
           })
         } catch (err) {
           return JSON.stringify({
-            url: scrapeUrl,
+            url: targetUrl,
             error: err instanceof Error ? err.message : 'Scrape failed',
           })
         }
@@ -1362,8 +1412,20 @@ export async function executeTool(
       case 'db_query': {
         if (!db) return JSON.stringify({ error: 'Database not available' })
         const sql = toolInput.sql as string
-        if (!sql.trim().toLowerCase().startsWith('select')) {
+        const sqlNormalized = sql.trim().toLowerCase()
+        if (!sqlNormalized.startsWith('select')) {
           return JSON.stringify({ error: 'Only SELECT queries are allowed (read-only)' })
+        }
+        // Block multiple statements (SQL injection via semicolons)
+        const sqlNoStrings = sql.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '')
+        if (sqlNoStrings.includes(';')) {
+          return JSON.stringify({ error: 'Multiple statements are not allowed' })
+        }
+        // Block dangerous keywords outside of string literals
+        const dangerousPattern =
+          /\b(drop|delete|insert|update|alter|create|truncate|grant|revoke|exec|execute)\b/i
+        if (dangerousPattern.test(sqlNoStrings)) {
+          return JSON.stringify({ error: 'Only read-only SELECT queries are allowed' })
         }
         try {
           const result = await (db as any).execute(sql)
@@ -1432,6 +1494,15 @@ export async function executeTool(
         const question = toolInput.question as string
         if (!sqlQ.trim().toLowerCase().startsWith('select')) {
           return JSON.stringify({ error: 'Only SELECT queries allowed' })
+        }
+        const sqlQNoStrings = sqlQ.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '')
+        if (sqlQNoStrings.includes(';')) {
+          return JSON.stringify({ error: 'Multiple statements are not allowed' })
+        }
+        const dangerousQ =
+          /\b(drop|delete|insert|update|alter|create|truncate|grant|revoke|exec|execute)\b/i
+        if (dangerousQ.test(sqlQNoStrings)) {
+          return JSON.stringify({ error: 'Only read-only SELECT queries are allowed' })
         }
         try {
           const result = await (db as any).execute(sqlQ)
@@ -1841,7 +1912,6 @@ export async function executeTool(
               )
               subQueries = Array.isArray(parsed) ? parsed.slice(0, subQueryCount) : []
             } catch {
-              // Fallback: split the question into queries manually
               subQueries = [question, `${question} latest research`, `${question} expert analysis`]
             }
           } else {
@@ -1851,47 +1921,20 @@ export async function executeTool(
             )
           }
 
-          // Step 2: Parallel web searches
-          const searchFn = async (q: string) => {
-            const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`
-            const res = await fetch(searchUrl, {
-              headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)' },
-              signal: AbortSignal.timeout(10000),
-            }).catch(() => null)
-            if (!res) return []
-            const html = await res.text()
-            const linkPattern =
-              /<a[^>]*rel="nofollow"[^>]*href="([^"]*)"[^>]*class="result-link"[^>]*>([\s\S]*?)<\/a>/gi
-            const snippetPattern = /<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
-            const links: Array<{ url: string; title: string }> = []
-            let m: RegExpExecArray | null
-            while ((m = linkPattern.exec(html)) !== null) {
-              const href = m[1] ?? ''
-              const title = (m[2] ?? '').replace(/<[^>]+>/g, '').trim()
-              if (href && title && !href.includes('duckduckgo.com')) {
-                links.push({ url: href, title })
+          // Step 2: Parallel web searches using shared helper
+          const searchResults = await Promise.all(
+            subQueries.map(async (q) => {
+              try {
+                const results = await ddgSearch(q, resultsPerQuery)
+                return results.map((r) => ({ ...r, query: q }))
+              } catch {
+                return []
               }
-            }
-            const snips: string[] = []
-            while ((m = snippetPattern.exec(html)) !== null) {
-              snips.push(
-                (m[1] ?? '')
-                  .replace(/<[^>]+>/g, '')
-                  .replace(/\s+/g, ' ')
-                  .trim(),
-              )
-            }
-            return links.slice(0, resultsPerQuery).map((l, i) => ({
-              ...l,
-              snippet: snips[i] ?? '',
-              query: q,
-            }))
-          }
-
-          const searchResults = await Promise.all(subQueries.map(searchFn))
+            }),
+          )
           const allResults = searchResults.flat()
 
-          // Step 3: Deduplicate by URL and scrape top results
+          // Step 3: Deduplicate by URL and scrape top results using shared helper
           const seen = new Set<string>()
           const uniqueResults = allResults.filter((r) => {
             if (seen.has(r.url)) return false
@@ -1899,41 +1942,22 @@ export async function executeTool(
             return true
           })
 
-          const scrapeFn = async (r: { url: string; title: string; snippet: string }) => {
-            try {
-              const res = await fetch(r.url, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)' },
-                signal: AbortSignal.timeout(8000),
-                redirect: 'follow',
-              })
-              const html = await res.text()
-              let content = html
-                .replace(/<script[\s\S]*?<\/script>/gi, '')
-                .replace(/<style[\s\S]*?<\/style>/gi, '')
-                .replace(/<nav[\s\S]*?<\/nav>/gi, '')
-                .replace(/<header[\s\S]*?<\/header>/gi, '')
-                .replace(/<footer[\s\S]*?<\/footer>/gi, '')
-                .replace(/<aside[\s\S]*?<\/aside>/gi, '')
-
-              const article = content.match(/<article[^>]*>([\s\S]*?)<\/article>/i)
-              const main = content.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
-              if (article?.[1]) content = article[1]
-              else if (main?.[1]) content = main[1]
-
-              content = content
-                .replace(/<[^>]+>/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim()
-                .slice(0, 2000)
-
-              return { url: r.url, title: r.title, snippet: r.snippet, content }
-            } catch {
-              return { url: r.url, title: r.title, snippet: r.snippet, content: '' }
-            }
-          }
-
           const maxScrape = depth === 'quick' ? 6 : depth === 'thorough' ? 15 : 10
-          const sources = await Promise.all(uniqueResults.slice(0, maxScrape).map(scrapeFn))
+          const sources = await Promise.all(
+            uniqueResults.slice(0, maxScrape).map(async (r) => {
+              try {
+                const scraped = await scrapeUrl(r.url, 2000)
+                return {
+                  url: r.url,
+                  title: scraped.title ?? r.title,
+                  snippet: r.snippet,
+                  content: scraped.content,
+                }
+              } catch {
+                return { url: r.url, title: r.title, snippet: r.snippet, content: '' }
+              }
+            }),
+          )
 
           // Step 4: Synthesize with citations
           let synthesis = ''
@@ -2008,23 +2032,12 @@ export async function executeTool(
         const text = toolInput.text as string
         const sourceUrls = toolInput.sourceUrls as string[]
         try {
-          // Scrape each source to get content
+          // Scrape each source using shared helper
           const scrapedSources = await Promise.all(
             sourceUrls.slice(0, 10).map(async (srcUrl) => {
               try {
-                const res = await fetch(srcUrl, {
-                  headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)' },
-                  signal: AbortSignal.timeout(8000),
-                })
-                const html = await res.text()
-                const content = html
-                  .replace(/<script[\s\S]*?<\/script>/gi, '')
-                  .replace(/<style[\s\S]*?<\/style>/gi, '')
-                  .replace(/<[^>]+>/g, ' ')
-                  .replace(/\s+/g, ' ')
-                  .trim()
-                  .slice(0, 3000)
-                return { url: srcUrl, content }
+                const scraped = await scrapeUrl(srcUrl, 3000)
+                return { url: srcUrl, content: scraped.content }
               } catch {
                 return { url: srcUrl, content: '' }
               }
@@ -2178,22 +2191,23 @@ export async function executeTool(
 
           // Standard meta tags
           const getMetaContent = (nameOrProp: string): string | null => {
+            const escaped = nameOrProp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
             const byName = html.match(
-              new RegExp(`<meta[^>]*name=["']${nameOrProp}["'][^>]*content=["']([^"']*?)["']`, 'i'),
+              new RegExp(`<meta[^>]*name=["']${escaped}["'][^>]*content=["']([^"']*?)["']`, 'i'),
             )
             const byProp = html.match(
               new RegExp(
-                `<meta[^>]*property=["']${nameOrProp}["'][^>]*content=["']([^"']*?)["']`,
+                `<meta[^>]*property=["']${escaped}["'][^>]*content=["']([^"']*?)["']`,
                 'i',
               ),
             )
             // Also match content before name/property attribute
             const byNameRev = html.match(
-              new RegExp(`<meta[^>]*content=["']([^"']*?)["'][^>]*name=["']${nameOrProp}["']`, 'i'),
+              new RegExp(`<meta[^>]*content=["']([^"']*?)["'][^>]*name=["']${escaped}["']`, 'i'),
             )
             const byPropRev = html.match(
               new RegExp(
-                `<meta[^>]*content=["']([^"']*?)["'][^>]*property=["']${nameOrProp}["']`,
+                `<meta[^>]*content=["']([^"']*?)["'][^>]*property=["']${escaped}["']`,
                 'i',
               ),
             )
