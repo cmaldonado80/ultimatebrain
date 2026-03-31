@@ -28,19 +28,28 @@ import {
 } from '../../../../server/services/intelligence/recommendation-engine'
 import { ContextPipeline } from '../../../../server/services/memory/context-pipeline'
 import { createEmbedFn } from '../../../../server/services/memory/embed-helper'
-import {
-  consolidateMemories,
-  smartMemoryAdd,
-} from '../../../../server/services/memory/memory-intelligence'
+import { smartMemoryAdd } from '../../../../server/services/memory/memory-intelligence'
 import { MemoryService } from '../../../../server/services/memory/memory-service'
 import { eventBus } from '../../../../server/services/orchestration/event-bus'
 import { TokenLedgerService } from '../../../../server/services/platform/token-ledger'
+
+// ── Tool Access Control ─────────────────────────────────────────────────
+
+/** Filter AGENT_TOOLS based on agent's toolAccess whitelist.
+ *  If toolAccess is null/undefined/empty, return all tools (backward compatible). */
+function filterToolsForAgent(tools: typeof AGENT_TOOLS, toolAccess?: string[]): typeof AGENT_TOOLS {
+  if (!toolAccess || toolAccess.length === 0) return tools
+  return tools.filter((t) => toolAccess.includes(t.name))
+}
 
 // ── Rate Limiting ────────────────────────────────────────────────────────
 const RATE_LIMIT_WINDOW_MS = 60_000
 const MAX_REQUESTS_PER_IP = 20
 
 const ipCounts = new Map<string, { count: number; resetAt: number }>()
+
+/** Debounce map for per-session memory extraction (prevents 3 LLM calls per chat) */
+const memoryDebounce = new Map<string, number>()
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now()
@@ -111,6 +120,7 @@ async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: st
     agentType: agent.type ?? undefined,
     capability: agent.requiredModelType ?? undefined,
     skills: agent.skills ?? undefined,
+    toolAccess: agent.toolAccess ?? undefined,
     entityDatabaseUrl,
   }
 }
@@ -219,6 +229,7 @@ export async function POST(req: Request) {
     agentType?: string
     capability?: string
     skills?: string[]
+    toolAccess?: string[]
     entityDatabaseUrl?: string
   }> = []
 
@@ -584,7 +595,7 @@ export async function POST(req: Request) {
             const toolResult = await gateway.chat({
               model: targetAgentConfig.model,
               messages: toolMessages,
-              tools: AGENT_TOOLS,
+              tools: filterToolsForAgent(AGENT_TOOLS, targetAgentConfig.toolAccess),
               temperature: targetAgentConfig.temperature,
               maxTokens: targetAgentConfig.maxTokens,
             })
@@ -743,7 +754,7 @@ export async function POST(req: Request) {
               const toolResult = await gateway.chat({
                 model: agentConfig.model,
                 messages: toolMessages,
-                tools: AGENT_TOOLS,
+                tools: filterToolsForAgent(AGENT_TOOLS, agentConfig.toolAccess),
                 temperature: agentConfig.temperature,
                 maxTokens: agentConfig.maxTokens,
               })
@@ -897,23 +908,31 @@ export async function POST(req: Request) {
           refreshInsights(db, runRecord.id ? undefined : undefined).catch(() => {})
           observeRunCompletion(db, runRecord.id).catch(() => {})
 
-          // Fire-and-forget: auto-extract facts from this conversation (mem0 pattern)
-          // and consolidate into observations (Hindsight pattern)
-          const autoMemoryMessages = history
-            .filter((m) => m.role === 'user' || m.role === 'assistant')
-            .slice(-10) // Last 10 messages from this interaction
-          if (autoMemoryMessages.length >= 2) {
-            smartMemoryAdd(db, gateway, autoMemoryMessages, {
-              workspaceId: primaryWorkspaceId ?? undefined,
-              sourceAgentId: agentConfigs[0]?.id || undefined,
-            })
-              .then(() =>
-                consolidateMemories(db, gateway, {
-                  workspaceId: primaryWorkspaceId ?? undefined,
-                  limit: 20,
-                }),
-              )
-              .catch(() => {}) // Best-effort — never block chat
+          // Fire-and-forget: smart memory extraction with cost throttling
+          // Skip trivial conversations, debounce per-session, batch consolidation separately
+          const userMsgs = history.filter((m) => m.role === 'user')
+          const lastUserMsg = userMsgs[userMsgs.length - 1]?.content ?? ''
+          const isTrivial =
+            lastUserMsg.length < 20 ||
+            /^(hi|hello|hey|thanks|thank you|ok|bye|yes|no|sure)\b/i.test(lastUserMsg.trim())
+
+          if (!isTrivial && userMsgs.length >= 2) {
+            // Debounce: skip if this session had memory extracted recently
+            const sessionKey = `mem:${body.sessionId}`
+            const lastExtract = memoryDebounce.get(sessionKey)
+            const now = Date.now()
+            if (!lastExtract || now - lastExtract > 300_000) {
+              // 5 min debounce
+              memoryDebounce.set(sessionKey, now)
+              const autoMemoryMessages = history
+                .filter((m) => m.role === 'user' || m.role === 'assistant')
+                .slice(-10)
+              smartMemoryAdd(db, gateway, autoMemoryMessages, {
+                workspaceId: primaryWorkspaceId ?? undefined,
+                sourceAgentId: agentConfigs[0]?.id || undefined,
+              }).catch(() => {})
+              // Consolidation runs separately via cron (not inline) to save cost
+            }
           }
         }
 

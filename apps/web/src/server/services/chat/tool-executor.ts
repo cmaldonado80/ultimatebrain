@@ -880,6 +880,25 @@ export const AGENT_TOOLS = [
       required: [],
     },
   },
+  {
+    name: 'auto_evolve_all',
+    description:
+      'Run automatic evolution across all active agents: scans performance, evolves underperformers (score < 0.6), and consolidates memories. Use as a periodic maintenance tool.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        scoreThreshold: {
+          type: 'number',
+          description: 'Score threshold — evolve agents below this (default: 0.6)',
+        },
+        maxAgents: {
+          type: 'number',
+          description: 'Max agents to evolve per run (default: 5)',
+        },
+      },
+      required: [],
+    },
+  },
 ]
 
 const BROWSER_HEADERS = {
@@ -2717,6 +2736,24 @@ async function executeToolInner(
         } catch (err) {
           return JSON.stringify({
             error: err instanceof Error ? err.message : 'Consolidation failed',
+          })
+        }
+      }
+
+      case 'auto_evolve_all': {
+        if (!db) return JSON.stringify({ error: 'Database required for auto-evolution' })
+        const threshold = (toolInput.scoreThreshold as number) ?? 0.6
+        const maxAgents = (toolInput.maxAgents as number) ?? 5
+        try {
+          const { runAutoEvolution } = await import('../evolution')
+          const result = await runAutoEvolution(db, {
+            scoreThreshold: threshold,
+            maxAgentsPerRun: maxAgents,
+          })
+          return JSON.stringify(result)
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Auto-evolution failed',
           })
         }
       }

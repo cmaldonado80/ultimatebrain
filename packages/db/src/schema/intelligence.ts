@@ -448,3 +448,33 @@ export const evolutionCycles = pgTable(
     index('evo_cycles_agent_cycle_idx').on(t.agentId, t.cycleNumber),
   ],
 )
+
+// ── Cross-Agent Learning (Soul Fragments) ───────────────────────────
+
+/**
+ * Reusable soul fragments extracted from successful evolution mutations.
+ * When one agent evolves successfully, the improvement is captured as a
+ * fragment that other agents can reference or auto-inherit.
+ */
+export const soulFragments = pgTable(
+  'soul_fragments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    title: text('title').notNull(),
+    content: text('content').notNull(),
+    category: text('category').notNull(), // 'error_handling' | 'communication' | 'tool_use' | 'reasoning' | 'domain'
+    sourceAgentId: uuid('source_agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    sourceCycleId: uuid('source_cycle_id'),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
+    proofCount: integer('proof_count').default(1).notNull(),
+    adoptedByCount: integer('adopted_by_count').default(0).notNull(),
+    isGlobal: boolean('is_global').default(false).notNull(), // available to all workspaces
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    index('soul_fragments_workspace_idx').on(t.workspaceId),
+    index('soul_fragments_category_idx').on(t.category),
+    index('soul_fragments_global_idx').on(t.isGlobal),
+  ],
+)

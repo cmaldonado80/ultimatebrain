@@ -111,7 +111,8 @@ export class MemoryService {
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
-    // Cosine similarity search via pgvector
+    // Cosine similarity search via pgvector, boosted by proof count
+    // Observations with higher proof counts rank higher (proof-weighted recall)
     const results = await this.db
       .select({
         id: memories.id,
@@ -119,22 +120,39 @@ export class MemoryService {
         content: memories.content,
         tier: memories.tier,
         createdAt: memories.createdAt,
-        score: sql<number>`1 - (${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector)`,
+        factType: memories.factType,
+        proofCount: memories.proofCount,
+        rawScore: sql<number>`1 - (${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector)`,
       })
       .from(memories)
       .innerJoin(memoryVectors, eq(memories.id, memoryVectors.memoryId))
       .where(whereClause)
       .orderBy(sql`${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
-      .limit(limit)
+      .limit(limit * 2) // Over-fetch then re-rank
 
-    const mapped = results.map((r) => ({
-      id: r.id,
-      key: r.key,
-      content: r.content,
-      tier: r.tier as MemoryTier,
-      score: r.score,
-      createdAt: r.createdAt,
-    }))
+    // Re-rank: boost observations by proof count, deprioritize consolidated raw facts
+    const mapped = results
+      .map((r) => {
+        let score = r.rawScore
+        // Boost observations by log2(proofCount) — an observation with 8 proofs scores ~4x higher
+        if (r.factType === 'observation' && r.proofCount > 1) {
+          score *= 1 + Math.log2(r.proofCount)
+        }
+        // Deprioritize already-consolidated raw facts (they're noise — observations are the signal)
+        if (r.factType === 'consolidated') {
+          score *= 0.3
+        }
+        return {
+          id: r.id,
+          key: r.key,
+          content: r.content,
+          tier: r.tier as MemoryTier,
+          score,
+          createdAt: r.createdAt,
+        }
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
 
     // Track access for returned results (fire-and-forget)
     if (mapped.length > 0) {
