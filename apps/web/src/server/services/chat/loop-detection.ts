@@ -45,9 +45,9 @@ export interface LoopDetectionResult {
 
 export const DEFAULT_LOOP_CONFIG: LoopDetectionConfig = {
   enabled: true,
-  historySize: 30,
-  warnThreshold: 10,
-  criticalThreshold: 20,
+  historySize: 20,
+  warnThreshold: 3, // DeerFlow uses 3 (was 10) — catch loops early
+  criticalThreshold: 5, // DeerFlow uses 5 (was 20) — force stop quickly
   detectors: {
     genericRepeat: true,
     pollNoProgress: true,

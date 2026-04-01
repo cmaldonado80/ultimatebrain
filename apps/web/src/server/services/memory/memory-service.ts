@@ -130,18 +130,42 @@ export class MemoryService {
       .orderBy(sql`${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
       .limit(limit * 2) // Over-fetch then re-rank
 
-    // Re-rank: boost observations by proof count, deprioritize consolidated raw facts
+    // Re-rank with three scoring dimensions:
+    // 1. Proof-weighted: observations with high proof counts rank higher
+    // 2. Temporal layers (DeerFlow-inspired): recent memories boosted, old ones decay
+    // 3. Type weighting: consolidated facts deprioritized
+    const now = Date.now()
     const mapped = results
       .map((r) => {
         let score = r.rawScore
-        // Boost observations by log2(proofCount) — an observation with 8 proofs scores ~4x higher
+
+        // 1. Boost observations by log2(proofCount)
         if (r.factType === 'observation' && r.proofCount > 1) {
           score *= 1 + Math.log2(r.proofCount)
         }
-        // Deprioritize already-consolidated raw facts (they're noise — observations are the signal)
+
+        // 2. Temporal recency boost (DeerFlow-inspired layers)
+        // topOfMind: created < 1hr ago → 2x boost
+        // recent: created < 7 days → 1.5x boost
+        // earlier: created < 30 days → 1x (no change)
+        // longTerm: older → 0.8x decay
+        const ageMs = now - (r.createdAt?.getTime() ?? 0)
+        const ONE_HOUR = 60 * 60 * 1000
+        const ONE_WEEK = 7 * 24 * ONE_HOUR
+        const ONE_MONTH = 30 * 24 * ONE_HOUR
+        if (ageMs < ONE_HOUR) {
+          score *= 2.0 // topOfMind
+        } else if (ageMs < ONE_WEEK) {
+          score *= 1.5 // recent
+        } else if (ageMs > ONE_MONTH) {
+          score *= 0.8 // longTerm decay
+        }
+
+        // 3. Deprioritize consolidated raw facts (noise)
         if (r.factType === 'consolidated') {
           score *= 0.3
         }
+
         return {
           id: r.id,
           key: r.key,

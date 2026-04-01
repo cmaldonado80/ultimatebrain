@@ -1150,6 +1150,7 @@ import {
   recordToolOutcome,
   type ToolCallRecord,
 } from './loop-detection'
+import { auditCommand } from './sandbox-audit'
 
 /** Per-session tool call history for loop detection */
 const sessionHistories = new Map<string, ToolCallRecord[]>()
@@ -1248,9 +1249,17 @@ export async function executeTool(
 
     if (loopCheck.stuck && loopCheck.level === 'critical') {
       recordToolCall(history, toolName, toolInput, DEFAULT_LOOP_CONFIG)
+      // DeerFlow-inspired forced stop: instead of returning an error,
+      // force the agent to produce a useful final answer with what it has so far.
       return JSON.stringify({
-        error: 'Tool loop detected — execution blocked',
-        loopDetection: loopCheck,
+        _forcedStop: true,
+        instruction:
+          '[FORCED STOP] You have been repeating the same tool calls. ' +
+          'Stop calling tools immediately and produce your best final answer ' +
+          'based on what you have gathered so far. Summarize your findings, ' +
+          'acknowledge what you could not complete, and give the user a useful response.',
+        detector: loopCheck.detector,
+        count: loopCheck.count,
       })
     }
 
@@ -1760,6 +1769,11 @@ async function executeToolInner(
       case 'db_query': {
         if (!db) return JSON.stringify({ error: 'Database not available' })
         const sql = toolInput.sql as string
+        // Sandbox audit for SQL queries
+        const sqlAudit = auditCommand(sql)
+        if (sqlAudit.verdict === 'block') {
+          return JSON.stringify({ error: `Query blocked by sandbox audit: ${sqlAudit.reason}` })
+        }
         const sqlNormalized = sql.trim().toLowerCase()
         if (!sqlNormalized.startsWith('select')) {
           return JSON.stringify({ error: 'Only SELECT queries are allowed (read-only)' })
@@ -2706,14 +2720,13 @@ async function executeToolInner(
         const command = toolInput.command as string
         const successPattern = toolInput.successPattern as string | undefined
 
-        // Block dangerous commands
-        const cmdNormalized = command.trim().toLowerCase()
-        const dangerousCmd = /\b(rm\s+-rf|drop\s+|delete\s+|truncate|shutdown|kill\s+-9|mkfs)\b/i
-        if (dangerousCmd.test(cmdNormalized)) {
+        // Sandbox audit — classify command before execution
+        const audit = auditCommand(command)
+        if (audit.verdict === 'block') {
           return JSON.stringify({
             verified: false,
             claim,
-            error: 'Command blocked — contains dangerous operations',
+            error: `Command blocked by sandbox audit: ${audit.reason}`,
           })
         }
 

@@ -1,8 +1,9 @@
 /**
  * Context Compactor — prevents token limit breaches in long conversations.
  *
- * Inspired by PraisonAI's compaction module.
+ * Inspired by PraisonAI's compaction module + DeerFlow's TodoMiddleware.
  * Truncates middle messages while preserving system prompt + recent messages.
+ * After compaction, re-injects any active todo/plan state that was lost.
  */
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ export interface CompactionResult {
   originalTokens: number
   compactedTokens: number
   droppedCount: number
+  todoRecovered: boolean
 }
 
 // ── Defaults ──────────────────────────────────────────────────────────
@@ -84,6 +86,7 @@ export function compact(
       originalTokens,
       compactedTokens: originalTokens,
       droppedCount: 0,
+      todoRecovered: false,
     }
   }
 
@@ -109,7 +112,7 @@ export function compact(
 
   // If protected alone exceeds target, just keep system + recent
   if (protectedTokens >= targetTokens) {
-    const result = [
+    const compactedResult = [
       ...systemMessages.map(({ role, content }) => ({ role, content })),
       {
         role: 'system',
@@ -117,15 +120,18 @@ export function compact(
       },
       ...recentMessages,
     ]
-    const compactedTokens = result.reduce((sum, m) => sum + messageTokens(m), 0)
+    // Recover any lost todo/plan state from dropped messages
+    const recovery = recoverTodoState(messages, compactedResult)
+    const compactedTokens = recovery.messages.reduce((sum, m) => sum + messageTokens(m), 0)
     return {
-      messages: result,
+      messages: recovery.messages,
       compacted: true,
       originalCount,
-      compactedCount: result.length,
+      compactedCount: recovery.messages.length,
       originalTokens,
       compactedTokens,
       droppedCount: middleMessages.length,
+      todoRecovered: recovery.recovered,
     }
   }
 
@@ -144,28 +150,139 @@ export function compact(
   const keptMiddle = middleMessages.slice(keepFrom)
   const droppedCount = keepFrom
 
-  const result: Array<{ role: string; content: string }> = [
+  const compactedResult: Array<{ role: string; content: string }> = [
     ...systemMessages.map(({ role, content }) => ({ role, content })),
   ]
 
   if (droppedCount > 0) {
-    result.push({
+    compactedResult.push({
       role: 'system',
       content: `[Context compacted: ${droppedCount} earlier messages dropped to fit token limit]`,
     })
   }
 
-  result.push(...keptMiddle.map(({ role, content }) => ({ role, content })), ...recentMessages)
+  compactedResult.push(
+    ...keptMiddle.map(({ role, content }) => ({ role, content })),
+    ...recentMessages,
+  )
 
-  const compactedTokens = result.reduce((sum, m) => sum + messageTokens(m), 0)
+  // Recover any lost todo/plan state from dropped messages
+  const recovery = recoverTodoState(messages, compactedResult)
+  const compactedTokens = recovery.messages.reduce((sum, m) => sum + messageTokens(m), 0)
 
   return {
-    messages: result,
+    messages: recovery.messages,
     compacted: true,
     originalCount,
-    compactedCount: result.length,
+    compactedCount: recovery.messages.length,
     originalTokens,
     compactedTokens,
     droppedCount,
+    todoRecovered: recovery.recovered,
   }
+}
+
+// ── Todo/Plan State Recovery (DeerFlow-inspired) ─────────────────────
+
+/**
+ * Patterns that indicate task/plan state in messages.
+ * If these existed in the original messages but are missing from compacted
+ * messages, we re-inject the state to prevent agents from forgetting their plan.
+ */
+const TODO_PATTERNS = [
+  /(?:todo|task|plan|step)\s*(?:list|items?|tracker)?\s*[:：]\s*/i,
+  /(?:\d+\.\s+\[[ x✓✗]\])/i, // Checkbox-style task lists
+  /(?:remaining tasks|next steps|pending|in progress)/i,
+  /(?:## Plan|## Tasks|## TODO|## Steps)/i,
+]
+
+interface TodoRecovery {
+  messages: Array<{ role: string; content: string }>
+  recovered: boolean
+}
+
+/**
+ * Extract the last task/plan state from the original messages and re-inject
+ * it into the compacted messages if it was lost during compaction.
+ *
+ * Inspired by DeerFlow's TodoMiddleware context-loss detection.
+ */
+function recoverTodoState(
+  original: Array<{ role: string; content: string }>,
+  compacted: Array<{ role: string; content: string }>,
+): TodoRecovery {
+  // Check if compacted messages already contain todo/plan state
+  const compactedText = compacted.map((m) => m.content).join('\n')
+  const hasTodoInCompacted = TODO_PATTERNS.some((p) => p.test(compactedText))
+  if (hasTodoInCompacted) {
+    return { messages: compacted, recovered: false }
+  }
+
+  // Find the last message in original that contained todo/plan state
+  let lastTodoContent: string | null = null
+  for (let i = original.length - 1; i >= 0; i--) {
+    const msg = original[i]!
+    if (msg.role !== 'assistant') continue
+    const hasTodo = TODO_PATTERNS.some((p) => p.test(msg.content))
+    if (hasTodo) {
+      // Extract just the plan/todo section, not the entire message
+      lastTodoContent = extractPlanSection(msg.content)
+      break
+    }
+  }
+
+  if (!lastTodoContent) {
+    return { messages: compacted, recovered: false }
+  }
+
+  // Inject the recovered plan state after the compaction marker
+  const recoveryMessage: { role: string; content: string } = {
+    role: 'system',
+    content: `[Task state recovered after context compaction — your active plan from earlier is still valid]\n\n${lastTodoContent}`,
+  }
+
+  // Insert right after the compaction marker (or after system messages)
+  const insertIdx = compacted.findIndex((m) => m.content.includes('[Context compacted'))
+  const idx = insertIdx >= 0 ? insertIdx + 1 : 1
+
+  const result = [...compacted]
+  result.splice(idx, 0, recoveryMessage)
+
+  return { messages: result, recovered: true }
+}
+
+/**
+ * Extract the plan/task section from a message, trimming surrounding prose.
+ * Keeps numbered lists, checkbox items, and section headers.
+ */
+function extractPlanSection(content: string): string {
+  const lines = content.split('\n')
+  const planLines: string[] = []
+  let inPlan = false
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    // Start capturing at plan headers or numbered/checkbox items
+    if (/^##\s*(Plan|Tasks|TODO|Steps|Next)/i.test(trimmed)) {
+      inPlan = true
+      planLines.push(trimmed)
+      continue
+    }
+    if (/^\d+\.\s/.test(trimmed) || /^[-*]\s*\[/.test(trimmed)) {
+      inPlan = true
+      planLines.push(trimmed)
+      continue
+    }
+    if (inPlan) {
+      // Keep indented continuation lines
+      if (/^\s+/.test(line) || trimmed === '') {
+        planLines.push(trimmed)
+      } else {
+        // End of plan section
+        break
+      }
+    }
+  }
+
+  return planLines.length > 0 ? planLines.join('\n') : content.slice(0, 500)
 }
