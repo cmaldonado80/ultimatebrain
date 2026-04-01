@@ -345,7 +345,35 @@ export async function POST(req: Request) {
     if (threatsRemoved > 0) memoryContext = sanitized
   }
 
-  // 3c. Track memory recall count for UI hint
+  // 3c. Goal ancestry context (Paperclip-inspired — tasks carry WHY they exist)
+  let goalContext = ''
+  if (agentConfigs[0]?.workspaceId) {
+    try {
+      const { resolveAgentGoalContext } =
+        await import('../../../../server/services/orchestration/goal-ancestry')
+      goalContext = await resolveAgentGoalContext(
+        db,
+        agentConfigs[0].id,
+        agentConfigs[0].workspaceId,
+      )
+    } catch {
+      // Goal ancestry is best-effort
+    }
+  }
+
+  // 3d. Session rotation check (Paperclip-inspired — auto-rotate bloated sessions)
+  try {
+    const { checkSessionHealth } = await import('../../../../server/services/chat/session-rotation')
+    const health = await checkSessionHealth(db, body.sessionId)
+    if (health.needsRotation) {
+      // Don't auto-rotate — just inject a hint for the agent
+      goalContext += `\n\n[Session Health Warning] This session is approaching limits (${health.reason}). Consider wrapping up or summarizing progress.`
+    }
+  } catch {
+    // Best-effort
+  }
+
+  // 3e. Track memory recall count for UI hint
   const memoryRecallCount = memoryContext
     ? memoryContext.split('\n').filter((l) => l.startsWith('- [')).length
     : 0
@@ -559,7 +587,8 @@ export async function POST(req: Request) {
           const stepBaseMessages = [
             {
               role: 'system',
-              content: targetAgentConfig.soul + atlasCtx + memoryContext + stepInstinctCtx,
+              content:
+                targetAgentConfig.soul + atlasCtx + memoryContext + goalContext + stepInstinctCtx,
             },
             ...history,
             ...priorToolMessages,
@@ -772,7 +801,8 @@ export async function POST(req: Request) {
             const baseMessages = [
               {
                 role: 'system',
-                content: agentConfig.soul + atlasContext + memoryContext + instinctContext,
+                content:
+                  agentConfig.soul + atlasContext + memoryContext + goalContext + instinctContext,
               },
               ...history,
             ]

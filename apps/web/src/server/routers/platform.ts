@@ -407,4 +407,83 @@ export const platformRouter = router({
     .query(async ({ ctx, input }) => {
       return getMiniBrainLiveStats(ctx.db, input.entityId)
     }),
+
+  // === Atomic Task Checkout (Paperclip-inspired) ===
+
+  checkoutTask: protectedProcedure
+    .input(
+      z.object({
+        ticketId: z.string().uuid(),
+        agentId: z.string().uuid(),
+        entityId: z.string().uuid().optional(),
+        estimatedCostUsd: z.number().min(0).optional(),
+        leaseSeconds: z.number().min(30).max(3600).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { atomicCheckout } = await import('../services/platform/atomic-checkout')
+      return atomicCheckout(
+        ctx.db,
+        input.ticketId,
+        input.agentId,
+        input.entityId ?? null,
+        input.estimatedCostUsd,
+        input.leaseSeconds,
+      )
+    }),
+
+  releaseTask: protectedProcedure
+    .input(
+      z.object({
+        ticketId: z.string().uuid(),
+        agentId: z.string().uuid(),
+        status: z.enum(['done', 'backlog']).default('done'),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { releaseCheckout } = await import('../services/platform/atomic-checkout')
+      await releaseCheckout(ctx.db, input.ticketId, input.agentId, input.status)
+      return { released: true }
+    }),
+
+  // === Goal Ancestry (Paperclip-inspired) ===
+
+  goalAncestry: protectedProcedure
+    .input(z.object({ ticketId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { resolveGoalAncestry } = await import('../services/orchestration/goal-ancestry')
+      return resolveGoalAncestry(ctx.db, input.ticketId)
+    }),
+
+  // === Session Health & Rotation (Paperclip-inspired) ===
+
+  sessionHealth: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { checkSessionHealth } = await import('../services/chat/session-rotation')
+      return checkSessionHealth(ctx.db, input.sessionId)
+    }),
+
+  rotateSession: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { rotateSession } = await import('../services/chat/session-rotation')
+      const { GatewayRouter } = await import('../services/gateway')
+      const gw = new GatewayRouter(ctx.db)
+      return rotateSession(ctx.db, input.sessionId, async (msgs) => {
+        const result = await gw.chat({
+          messages: [
+            {
+              role: 'system',
+              content:
+                'Summarize this conversation into a brief handoff note (3-5 sentences). Focus on: what was being worked on, key decisions made, and what comes next.',
+            },
+            ...msgs,
+          ],
+          maxTokens: 512,
+          temperature: 0.1,
+        })
+        return result.content
+      })
+    }),
 })
