@@ -731,6 +731,47 @@ export const AGENT_TOOLS = [
     },
   },
   {
+    name: 'mixture_of_agents',
+    description:
+      'Ensemble reasoning: sends the same question to 3 different AI models in parallel, then synthesizes their answers into one high-quality response. Use for hard problems — math proofs, algorithm design, complex analysis, or when you need diverse perspectives.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        question: {
+          type: 'string',
+          description: 'The hard question or problem to solve with ensemble reasoning',
+        },
+        context: {
+          type: 'string',
+          description: 'Optional background context to include with the question',
+        },
+      },
+      required: ['question'],
+    },
+  },
+  {
+    name: 'save_skill',
+    description:
+      'Save a successful multi-step workflow as a reusable skill for future use. Call this after completing a complex task (5+ tool calls) to capture the procedure so it can be replicated later. Describe the goal, the steps taken, and any key parameters.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string', description: 'Short skill name (e.g., "deploy-nextjs-app")' },
+        description: { type: 'string', description: 'What this skill does and when to use it' },
+        steps: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Ordered list of steps/tool calls that make up this procedure',
+        },
+        category: {
+          type: 'string',
+          description: 'Category: development, research, analysis, devops, data, or general',
+        },
+      },
+      required: ['name', 'description', 'steps'],
+    },
+  },
+  {
     name: 'extract_metadata',
     description:
       'Extract structured metadata from a URL: title, description, author, date, Open Graph tags, and JSON-LD structured data.',
@@ -2450,6 +2491,142 @@ async function executeToolInner(
           return JSON.stringify({
             error: err instanceof Error ? err.message : 'Citation failed',
           })
+        }
+      }
+
+      case 'mixture_of_agents': {
+        // Hermes-inspired MoA: send same question to 3 models, aggregate best answer
+        const moaQuestion = toolInput.question as string
+        const moaContext = (toolInput.context as string) ?? ''
+        if (!db)
+          return JSON.stringify({ error: 'Mixture of Agents requires database for LLM gateway' })
+
+        try {
+          const { GatewayRouter: MoaGW } = await import('../gateway')
+          const moaGw = new MoaGW(db)
+
+          // Layer 1: 3 reference models answer in parallel
+          const referenceModels = [
+            {
+              name: 'analyst',
+              prompt:
+                'You are a rigorous analytical thinker. Break the problem into components and reason step-by-step. Be precise and cite your reasoning.',
+            },
+            {
+              name: 'creative',
+              prompt:
+                'You are a creative problem solver. Think laterally, consider unconventional approaches, and look for insights others might miss.',
+            },
+            {
+              name: 'critic',
+              prompt:
+                'You are a critical evaluator. Identify edge cases, potential errors, and challenge assumptions. Point out what could go wrong.',
+            },
+          ]
+
+          const referenceResults = await Promise.allSettled(
+            referenceModels.map(async (model) => {
+              const result = await moaGw.chat({
+                messages: [
+                  { role: 'system', content: model.prompt },
+                  {
+                    role: 'user',
+                    content: moaContext
+                      ? `Context: ${moaContext}\n\nQuestion: ${moaQuestion}`
+                      : moaQuestion,
+                  },
+                ],
+                temperature: 0.6,
+                maxTokens: 2048,
+              })
+              return { name: model.name, response: result.content }
+            }),
+          )
+
+          const successful = referenceResults
+            .filter(
+              (r): r is PromiseFulfilledResult<{ name: string; response: string }> =>
+                r.status === 'fulfilled',
+            )
+            .map((r) => r.value)
+
+          if (successful.length === 0) {
+            return JSON.stringify({ error: 'All reference models failed' })
+          }
+
+          // Layer 2: Aggregator synthesizes the best answer
+          const referencesText = successful
+            .map((r) => `### ${r.name.toUpperCase()} PERSPECTIVE\n${r.response}`)
+            .join('\n\n')
+
+          const aggregated = await moaGw.chat({
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'You are an expert synthesizer. You have received responses from multiple AI perspectives on the same question. Critically evaluate each response, identify the strongest reasoning, resolve conflicts, and produce a single authoritative answer that combines the best insights. Be specific and thorough.',
+              },
+              { role: 'user', content: `Question: ${moaQuestion}\n\n${referencesText}` },
+            ],
+            temperature: 0.4,
+            maxTokens: 4096,
+          })
+
+          return JSON.stringify({
+            answer: aggregated.content,
+            modelsUsed: successful.length,
+            perspectives: successful.map((r) => r.name),
+          })
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'MoA failed' })
+        }
+      }
+
+      case 'save_skill': {
+        // Hermes-inspired procedural skill capture — save multi-step workflows as reusable skills
+        const skillName = toolInput.name as string
+        const skillDescription = toolInput.description as string
+        const skillSteps = toolInput.steps as string[]
+        const skillCategory = (toolInput.category as string) ?? 'general'
+
+        if (!db) return JSON.stringify({ error: 'Database required for skill storage' })
+
+        try {
+          const { memories: memoriesTable } = await import('@solarc/db')
+
+          // Store skill as a core-tier memory with structured content
+          const skillContent = [
+            `## Skill: ${skillName}`,
+            `**Category:** ${skillCategory}`,
+            `**Description:** ${skillDescription}`,
+            '',
+            '### Steps',
+            ...skillSteps.map((step, i) => `${i + 1}. ${step}`),
+          ].join('\n')
+
+          const [saved] = await db
+            .insert(memoriesTable)
+            .values({
+              key: `skill:${skillName}`,
+              content: skillContent,
+              tier: 'core',
+              factType: 'observation',
+              confidence: 0.9,
+              proofCount: 1,
+              ...(workspaceId ? { workspaceId } : {}),
+            })
+            .returning({ id: memoriesTable.id })
+
+          return JSON.stringify({
+            saved: true,
+            skillName,
+            skillId: saved?.id,
+            category: skillCategory,
+            stepCount: skillSteps.length,
+            message: `Skill "${skillName}" saved. It will be recalled when similar tasks arise.`,
+          })
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'Skill save failed' })
         }
       }
 

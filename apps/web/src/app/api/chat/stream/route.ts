@@ -16,10 +16,15 @@ import { desc, eq, sql } from 'drizzle-orm'
 
 import { auth } from '../../../../server/auth'
 import { buildAtlasContext } from '../../../../server/services/atlas'
-import { compact, needsCompaction } from '../../../../server/services/chat/context-compactor'
+import {
+  compact,
+  needsCompaction,
+  structuredCompact,
+} from '../../../../server/services/chat/context-compactor'
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
 import { GatewayRouter } from '../../../../server/services/gateway'
 import { GuardrailEngine } from '../../../../server/services/guardrails'
+import { sanitizeContext } from '../../../../server/services/guardrails/input-scanner'
 import { InstinctInjector } from '../../../../server/services/instincts/injector'
 import { observeRunCompletion } from '../../../../server/services/instincts/run-observer'
 import type { Instinct } from '../../../../server/services/instincts/types'
@@ -80,6 +85,11 @@ function getGateway(): GatewayRouter {
 }
 
 const CONTEXT_WINDOW = 50
+
+// Hermes-inspired frozen memory snapshot cache — preserves LLM prefix cache within a session.
+// Memory writes during the session update DB but don't change the injected context until TTL expires.
+const MEMORY_SNAPSHOT_TTL = 5 * 60 * 1000 // 5 minutes
+const memorySnapshotCache = new Map<string, { context: string; timestamp: number }>()
 
 /** Load agent config from DB, including mini-brain database URL if available */
 async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: string) {
@@ -288,41 +298,54 @@ export async function POST(req: Request) {
   }
 
   // 3. Recall relevant context via ContextPipeline (vector search + relevance scoring)
-  // Use mini-brain's dedicated DB for memory ops when available
+  // Hermes-inspired frozen snapshot: cache memory per session to preserve LLM prefix cache.
   const primaryWorkspaceId = agentConfigs[0]?.workspaceId
   const entityDbUrl = agentConfigs[0]?.entityDatabaseUrl
   const memoryDb = entityDbUrl ? createMiniBrainDb(entityDbUrl) : db
   let memoryContext = ''
-  try {
-    const embedFn = createEmbedFn(db)
-    const pipeline = new ContextPipeline({ db: memoryDb, embedFn })
-    const pipelineResult = await pipeline.run(body.text, {
-      evaluate: false, // Quick mode — skip LLM reranking for chat latency
-      maxSources: 5,
-      ...(primaryWorkspaceId ? { workspaceId: primaryWorkspaceId } : {}),
-    })
-    if (pipelineResult.synthesizedContext) {
-      memoryContext = '\n\n' + pipelineResult.synthesizedContext
-    }
-  } catch {
-    // Fallback: simple keyword search if pipeline fails
+
+  const snapshotKey = `${body.sessionId}:${primaryWorkspaceId ?? 'default'}`
+  const cachedSnapshot = memorySnapshotCache.get(snapshotKey)
+  if (cachedSnapshot && Date.now() - cachedSnapshot.timestamp < MEMORY_SNAPSHOT_TTL) {
+    memoryContext = cachedSnapshot.context
+  } else {
     try {
-      const memoryService = new MemoryService(memoryDb)
-      const recalled = await memoryService.search(body.text, {
-        limit: 5,
+      const embedFn = createEmbedFn(db)
+      const pipeline = new ContextPipeline({ db: memoryDb, embedFn })
+      const pipelineResult = await pipeline.run(body.text, {
+        evaluate: false,
+        maxSources: 5,
         ...(primaryWorkspaceId ? { workspaceId: primaryWorkspaceId } : {}),
       })
-      if (recalled.length > 0) {
-        memoryContext =
-          '\n\nRelevant memories from past interactions:\n' +
-          recalled.map((m) => `- [${m.tier}] ${m.content}`).join('\n')
+      if (pipelineResult.synthesizedContext) {
+        memoryContext = '\n\n' + pipelineResult.synthesizedContext
       }
     } catch {
-      // Best-effort
+      try {
+        const memoryService = new MemoryService(memoryDb)
+        const recalled = await memoryService.search(body.text, {
+          limit: 5,
+          ...(primaryWorkspaceId ? { workspaceId: primaryWorkspaceId } : {}),
+        })
+        if (recalled.length > 0) {
+          memoryContext =
+            '\n\nRelevant memories from past interactions:\n' +
+            recalled.map((m) => `- [${m.tier}] ${m.content}`).join('\n')
+        }
+      } catch {
+        // Best-effort
+      }
     }
+    memorySnapshotCache.set(snapshotKey, { context: memoryContext, timestamp: Date.now() })
   }
 
-  // 3b. Track memory recall count for UI hint
+  // 3b. Scan injected context for prompt injection (Hermes-inspired input defense)
+  if (memoryContext) {
+    const { sanitized, threatsRemoved } = sanitizeContext(memoryContext, 'memory')
+    if (threatsRemoved > 0) memoryContext = sanitized
+  }
+
+  // 3c. Track memory recall count for UI hint
   const memoryRecallCount = memoryContext
     ? memoryContext.split('\n').filter((l) => l.startsWith('- [')).length
     : 0
@@ -344,13 +367,20 @@ export async function POST(req: Request) {
   let history = msgs.reverse().map((m) => ({ role: m.role, content: m.text }))
 
   // Auto-compact if conversation exceeds token budget
+  // Use Hermes-inspired structured compression (LLM summary) with fallback to simple truncation
   if (needsCompaction(history, { maxTokens: 80000, preserveRecent: 10, preserveSystem: true })) {
-    const compacted = compact(history, {
-      maxTokens: 80000,
-      preserveRecent: 10,
-      preserveSystem: true,
-    })
-    history = compacted.messages
+    const compactionConfig = { maxTokens: 80000, preserveRecent: 10, preserveSystem: true }
+    try {
+      const gw = new GatewayRouter(db)
+      const compacted = await structuredCompact(history, compactionConfig, async (msgs) => {
+        return gw.chat({ messages: msgs, maxTokens: 1024, temperature: 0.1 })
+      })
+      history = compacted.messages
+    } catch {
+      // Fallback to simple truncation if structured compression fails
+      const compacted = compact(history, compactionConfig)
+      history = compacted.messages
+    }
   }
 
   // 5. Create execution run record

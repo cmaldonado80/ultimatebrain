@@ -1,9 +1,11 @@
 /**
  * Context Compactor — prevents token limit breaches in long conversations.
  *
- * Inspired by PraisonAI's compaction module + DeerFlow's TodoMiddleware.
- * Truncates middle messages while preserving system prompt + recent messages.
- * After compaction, re-injects any active todo/plan state that was lost.
+ * Inspired by PraisonAI + DeerFlow TodoMiddleware + Hermes structured compression.
+ *
+ * Two modes:
+ * 1. compact() — fast, drop middle messages (no LLM call)
+ * 2. structuredCompact() — LLM-powered summary preserving Goal/Progress/Decisions/Files/NextSteps
  */
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -285,4 +287,136 @@ function extractPlanSection(content: string): string {
   }
 
   return planLines.length > 0 ? planLines.join('\n') : content.slice(0, 500)
+}
+
+// ── Structured LLM Compression (Hermes-inspired) ────────────────────
+
+/**
+ * The prompt template for structured summarization of dropped messages.
+ * Hermes uses Goal/Progress/Decisions/Files/NextSteps — we adopt the same.
+ */
+const STRUCTURED_SUMMARY_PROMPT = `Summarize the following conversation excerpt into a structured context block. Be specific and include concrete details (file names, function names, decisions made, error messages).
+
+## Conversation to Summarize
+{conversation}
+
+## Output Format
+Respond with ONLY this structured format:
+
+**Goal:** [What the user is trying to accomplish]
+**Progress:**
+- Done: [completed steps]
+- In Progress: [current work]
+- Blocked: [any blockers or issues]
+**Key Decisions:** [decisions made and why]
+**Relevant Files:** [specific file paths mentioned]
+**Next Steps:** [what comes next]
+**Critical Context:** [anything that must not be forgotten — error messages, constraints, preferences]`
+
+export interface StructuredSummary {
+  raw: string
+  tokenEstimate: number
+}
+
+/**
+ * Generate a structured summary of dropped messages using an LLM.
+ * Falls back gracefully to a simple "[Context compacted]" marker if LLM fails.
+ *
+ * @param droppedMessages - Messages that were removed during compaction
+ * @param chatFn - LLM chat function (injected to avoid circular dependency)
+ */
+export async function generateStructuredSummary(
+  droppedMessages: Array<{ role: string; content: string }>,
+  chatFn: (messages: Array<{ role: string; content: string }>) => Promise<{ content: string }>,
+): Promise<StructuredSummary | null> {
+  if (droppedMessages.length === 0) return null
+
+  // Serialize dropped messages, capping at 8000 chars to keep summarizer input manageable
+  const maxChars = 8000
+  let conversationText = ''
+  for (const msg of droppedMessages) {
+    const line = `[${msg.role}]: ${msg.content}\n\n`
+    if (conversationText.length + line.length > maxChars) {
+      conversationText += `\n... (${droppedMessages.length - droppedMessages.indexOf(msg)} more messages truncated)`
+      break
+    }
+    conversationText += line
+  }
+
+  const prompt = STRUCTURED_SUMMARY_PROMPT.replace('{conversation}', conversationText)
+
+  try {
+    const response = await chatFn([{ role: 'user', content: prompt }])
+    return {
+      raw: response.content,
+      tokenEstimate: estimateTokens(response.content),
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Enhanced compaction that uses LLM-powered structured summarization
+ * instead of simply dropping messages. Falls back to regular compact() on failure.
+ *
+ * @param messages - Full message history
+ * @param config - Compaction configuration
+ * @param chatFn - LLM chat function for summarization
+ */
+export async function structuredCompact(
+  messages: Array<{ role: string; content: string }>,
+  config: CompactionConfig = DEFAULT_COMPACTION,
+  chatFn: (messages: Array<{ role: string; content: string }>) => Promise<{ content: string }>,
+): Promise<CompactionResult> {
+  const originalTokens = messages.reduce((sum, m) => sum + messageTokens(m), 0)
+  if (originalTokens <= config.maxTokens) {
+    return {
+      messages,
+      compacted: false,
+      originalCount: messages.length,
+      compactedCount: messages.length,
+      originalTokens,
+      compactedTokens: originalTokens,
+      droppedCount: 0,
+      todoRecovered: false,
+    }
+  }
+
+  // Identify which messages would be dropped
+  const recentStart = Math.max(0, messages.length - config.preserveRecent)
+  const systemMessages = messages.filter((m) => m.role === 'system')
+  const droppedMessages = messages.filter((m, i) => m.role !== 'system' && i < recentStart)
+  const recentMessages = messages.slice(recentStart)
+
+  // Generate structured summary of dropped messages
+  const summary = await generateStructuredSummary(droppedMessages, chatFn)
+
+  if (!summary) {
+    // Fallback to regular compaction
+    return compact(messages, config)
+  }
+
+  // Build result: system + structured summary + recent
+  const result: Array<{ role: string; content: string }> = [
+    ...systemMessages,
+    {
+      role: 'system',
+      content: `[Structured context summary — ${droppedMessages.length} earlier messages compressed]\n\n${summary.raw}`,
+    },
+    ...recentMessages,
+  ]
+
+  const compactedTokens = result.reduce((sum, m) => sum + messageTokens(m), 0)
+
+  return {
+    messages: result,
+    compacted: true,
+    originalCount: messages.length,
+    compactedCount: result.length,
+    originalTokens,
+    compactedTokens,
+    droppedCount: droppedMessages.length,
+    todoRecovered: false, // Structured summary inherently preserves task state
+  }
 }
