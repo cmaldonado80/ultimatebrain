@@ -354,4 +354,94 @@ export const orchestrationRouter = router({
         input.severity,
       )
     }),
+
+  // === Agent Routines (Paperclip-inspired) ===
+
+  routinesList: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { listRoutines } = await import('../services/orchestration/agent-routines')
+      return listRoutines(ctx.db, input.workspaceId)
+    }),
+
+  routineUpsert: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid().optional(),
+        name: z.string().min(1),
+        agentId: z.string().uuid(),
+        workspaceId: z.string().uuid(),
+        triggerMode: z.enum(['schedule', 'webhook', 'manual']),
+        schedule: z.string().optional(),
+        task: z.string().min(1),
+        concurrencyPolicy: z
+          .enum(['always_enqueue', 'skip_if_active', 'coalesce'])
+          .default('skip_if_active'),
+        maxCatchUp: z.number().min(0).max(25).default(5),
+        enabled: z.boolean().default(true),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { upsertRoutine } = await import('../services/orchestration/agent-routines')
+      return upsertRoutine(ctx.db, input)
+    }),
+
+  routineDispatch: protectedProcedure
+    .input(
+      z.object({
+        routineId: z.string().uuid(),
+        triggerSource: z.enum(['schedule', 'webhook', 'manual', 'catch_up']).default('manual'),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { dispatchRoutine } = await import('../services/orchestration/agent-routines')
+      return dispatchRoutine(ctx.db, input.routineId, input.triggerSource)
+    }),
+
+  routineHistory: protectedProcedure
+    .input(z.object({ routineId: z.string().uuid() }))
+    .query(async ({ input }) => {
+      const { getRoutineHistory } = await import('../services/orchestration/agent-routines')
+      return getRoutineHistory(input.routineId)
+    }),
+
+  // === Work Products (Paperclip-inspired) ===
+
+  workProductsList: protectedProcedure
+    .input(z.object({ ticketId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { listWorkProducts } = await import('../services/orchestration/work-products')
+      return listWorkProducts(ctx.db, input.ticketId)
+    }),
+
+  workProductCreate: protectedProcedure
+    .input(
+      z.object({
+        ticketId: z.string().uuid(),
+        name: z.string().min(1),
+        type: z.string().default('other'),
+        content: z.string().optional(),
+        url: z.string().optional(),
+        agentId: z.string().uuid().optional(),
+        workspaceId: z.string().uuid().optional(),
+        isPrimary: z.boolean().default(false),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { createWorkProduct } = await import('../services/orchestration/work-products')
+      return createWorkProduct(ctx.db, input)
+    }),
+
+  workProductReview: protectedProcedure
+    .input(
+      z.object({
+        artifactId: z.string().uuid(),
+        reviewState: z.enum(['pending', 'approved', 'rejected', 'needs_revision']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { reviewWorkProduct } = await import('../services/orchestration/work-products')
+      await reviewWorkProduct(ctx.db, input.artifactId, input.reviewState)
+      return { updated: true }
+    }),
 })
