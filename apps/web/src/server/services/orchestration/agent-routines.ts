@@ -190,7 +190,7 @@ export async function dispatchRoutine(
   // Execute
   if (executeFn && routine.agentId) {
     try {
-      const task = (config.task as string) ?? routine.task
+      const task = routine.task ?? 'No task defined'
       const result = await executeFn(routine.agentId, task)
       run.status = 'completed'
       run.completedAt = Date.now()

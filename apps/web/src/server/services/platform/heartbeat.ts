@@ -82,10 +82,15 @@ export async function runHeartbeatSweep(db: Database): Promise<HeartbeatResult> 
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS)
 
-      const response = await fetch(healthUrl, {
+      // Use Promise.race as backup timeout in case AbortController doesn't catch DNS/connect failures
+      const fetchPromise = fetch(healthUrl, {
         signal: controller.signal,
         headers: { Accept: 'application/json' },
       })
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Health check timeout')), HEALTH_TIMEOUT_MS + 1000),
+      )
+      const response = await Promise.race([fetchPromise, timeoutPromise])
       clearTimeout(timeout)
 
       if (response.ok) {

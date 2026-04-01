@@ -159,7 +159,7 @@ export async function rotateSession(
     })
     .returning({ id: chatSessions.id })
 
-  if (!newSession) {
+  if (!newSession?.id) {
     return {
       rotated: false,
       oldSessionId,

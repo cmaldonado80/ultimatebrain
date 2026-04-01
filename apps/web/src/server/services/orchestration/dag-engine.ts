@@ -141,7 +141,14 @@ export async function executeDAG(
     )
 
     if (ready.length === 0) {
-      // No nodes ready but not all done — something is stuck
+      // No nodes ready but not all done — mark stuck nodes as failed
+      for (const node of workflow.nodes) {
+        if (node.status === 'pending') {
+          node.status = 'failed'
+          node.error = 'Stuck: dependencies could not be satisfied'
+          completed.add(node.id)
+        }
+      }
       break
     }
 
@@ -191,10 +198,13 @@ export async function executeDAG(
               break
             }
             case 'aggregate': {
-              // Collect results from all dependencies
+              // Collect results from successfully completed dependencies only
               const aggregated: Record<string, unknown> = {}
               for (const depId of node.dependsOn) {
-                aggregated[depId] = workflow.state[depId]
+                const depNode = nodeMap.get(depId)
+                if (depNode?.status === 'completed') {
+                  aggregated[depId] = workflow.state[depId]
+                }
               }
               node.result = aggregated
               workflow.state[node.id] = aggregated

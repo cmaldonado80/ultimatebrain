@@ -97,6 +97,7 @@ export async function recallRelevantSkills(
   const scored: SkillSuggestion[] = []
 
   for (const skill of skills) {
+    if (!skill.key.startsWith('skill:')) continue
     let score = 0
     const reasons: string[] = []
     const content = skill.content.toLowerCase()

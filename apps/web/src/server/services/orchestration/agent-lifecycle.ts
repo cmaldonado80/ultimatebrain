@@ -12,7 +12,7 @@
  */
 
 import type { Database } from '@solarc/db'
-import { agents, brainEntityAgents } from '@solarc/db'
+import { agents, brainEntityAgents, chatRunSteps } from '@solarc/db'
 import { eq, sql } from 'drizzle-orm'
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -158,7 +158,6 @@ export async function reviewPerformance(db: Database, agentId: string): Promise<
   })
 
   // Count runs and success rate from chatRunSteps
-  const { chatRunSteps } = await import('@solarc/db')
   const [stats] = await db
     .select({
       totalRuns: sql<number>`count(*)::int`,

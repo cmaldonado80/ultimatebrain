@@ -58,7 +58,7 @@ const BLOCK_PATTERNS: AuditPattern[] = [
   { pattern: /\bnc\s+-l/i, label: 'netcat listener' },
   // SQL destruction
   { pattern: /\b(DROP|TRUNCATE)\s+(TABLE|DATABASE|SCHEMA)\b/i, label: 'SQL data destruction' },
-  { pattern: /\bDELETE\s+FROM\s+\w+\s*(;|$)/i, label: 'DELETE without WHERE' },
+  { pattern: /\bDELETE\s+FROM\s+\w+\s*(?:;|$)(?!.*\bWHERE\b)/i, label: 'DELETE without WHERE' },
   { pattern: /\bUPDATE\s+\w+\s+SET\s+.*(?:WHERE\s+1\s*=\s*1|;$)/i, label: 'UPDATE all rows' },
 ]
 

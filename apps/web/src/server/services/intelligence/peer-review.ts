@@ -116,12 +116,19 @@ export async function runPeerReview(
         .replace(/```json\n?/g, '')
         .replace(/```\n?/g, '')
         .trim()
-      const parsed = JSON.parse(cleaned)
+
+      let parsed: { score?: number; reasoning?: string }
+      try {
+        parsed = JSON.parse(cleaned)
+      } catch {
+        // LLM returned non-JSON — assign neutral score
+        parsed = { score: 0.5, reasoning: 'Could not parse review response' }
+      }
 
       return {
         reviewer: task.reviewer,
         reviewed: task.reviewed,
-        score: Math.min(1, Math.max(0, Number(parsed.score) || 0)),
+        score: Math.min(1, Math.max(0, Number(parsed.score) || 0.5)),
         reasoning: String(parsed.reasoning ?? ''),
       }
     }),
