@@ -345,19 +345,31 @@ export async function POST(req: Request) {
     if (threatsRemoved > 0) memoryContext = sanitized
   }
 
-  // 3c. Goal ancestry context (Paperclip-inspired — tasks carry WHY they exist)
+  // 3c. Organizational context (Corporation model — agents know their place in the org)
   let goalContext = ''
-  if (agentConfigs[0]?.workspaceId) {
-    try {
-      const { resolveAgentGoalContext } =
-        await import('../../../../server/services/orchestration/goal-ancestry')
-      goalContext = await resolveAgentGoalContext(
-        db,
-        agentConfigs[0].id,
-        agentConfigs[0].workspaceId,
-      )
-    } catch {
-      // Goal ancestry is best-effort
+  try {
+    const { buildOrgContext } =
+      await import('../../../../server/services/orchestration/mission-context')
+    const orgCtx = await buildOrgContext(
+      db,
+      agentConfigs[0]?.id ?? '',
+      agentConfigs[0]?.workspaceId,
+    )
+    goalContext = orgCtx.contextString
+  } catch {
+    // Fallback to simple goal ancestry if org context fails
+    if (agentConfigs[0]?.workspaceId) {
+      try {
+        const { resolveAgentGoalContext } =
+          await import('../../../../server/services/orchestration/goal-ancestry')
+        goalContext = await resolveAgentGoalContext(
+          db,
+          agentConfigs[0].id,
+          agentConfigs[0].workspaceId,
+        )
+      } catch {
+        // Best-effort
+      }
     }
   }
 
@@ -366,7 +378,6 @@ export async function POST(req: Request) {
     const { checkSessionHealth } = await import('../../../../server/services/chat/session-rotation')
     const health = await checkSessionHealth(db, body.sessionId)
     if (health.needsRotation) {
-      // Don't auto-rotate — just inject a hint for the agent
       goalContext += `\n\n[Session Health Warning] This session is approaching limits (${health.reason}). Consider wrapping up or summarizing progress.`
     }
   } catch {

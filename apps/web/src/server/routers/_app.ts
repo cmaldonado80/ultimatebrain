@@ -31,6 +31,7 @@ import { meshRouter } from './mesh'
 import { miniBrainFactoryRouter } from './mini-brain-factory'
 import { modelRegistryRouter } from './model-registry'
 import { orchestrationRouter } from './orchestration'
+import { orgRouter } from './org'
 import { organizationsRouter } from './organizations'
 import { platformRouter } from './platform'
 import { playbooksRouter } from './playbooks'
@@ -97,6 +98,7 @@ export const appRouter = router({
   builder: builderRouter,
   admin: adminRouter,
   mesh: meshRouter,
+  org: orgRouter,
 })
 
 export type AppRouter = typeof appRouter

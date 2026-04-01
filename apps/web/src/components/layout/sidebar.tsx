@@ -119,6 +119,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Skills', href: '/skills', icon: '★' },
       { label: 'Integrations', href: '/integrations', icon: '⊕' },
       { label: 'Mini Brain Factory', href: '/mini-brain-factory', icon: '🏭' },
+      { label: 'Org Chart', href: '/org-chart', icon: '◈' },
       { label: 'Topology', href: '/topology', icon: '⊡' },
       { label: 'Model Registry', href: '/model-registry', icon: '⊙' },
       { label: 'Secrets', href: '/secrets', icon: '🔑' },
