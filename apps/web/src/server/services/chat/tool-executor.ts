@@ -772,6 +772,57 @@ export const AGENT_TOOLS = [
     },
   },
   {
+    name: 'execute_workflow',
+    description:
+      'Execute a multi-step workflow as a directed acyclic graph (DAG). Supports conditional branching, parallel execution, and state passing between steps. Use for complex tasks that need multiple tools in a specific order with dependencies.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string', description: 'Workflow name' },
+        nodes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', description: 'Unique node ID' },
+              type: {
+                type: 'string',
+                enum: ['tool', 'condition', 'parallel', 'aggregate'],
+                description: 'Node type',
+              },
+              tool: { type: 'string', description: 'Tool name (for type=tool)' },
+              input: {
+                type: 'object',
+                description: 'Tool input. Use {{nodeId}} to reference another node result',
+              },
+              condition: {
+                type: 'string',
+                description: 'Condition expression (for type=condition)',
+              },
+              trueBranch: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Node IDs for true branch',
+              },
+              falseBranch: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Node IDs for false branch',
+              },
+              dependsOn: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Node IDs that must complete first',
+              },
+            },
+          },
+          description: 'Workflow nodes defining the DAG',
+        },
+      },
+      required: ['name', 'nodes'],
+    },
+  },
+  {
     name: 'extract_metadata',
     description:
       'Extract structured metadata from a URL: title, description, author, date, Open Graph tags, and JSON-LD structured data.',
@@ -2554,8 +2605,27 @@ async function executeToolInner(
             return JSON.stringify({ error: 'All reference models failed' })
           }
 
-          // Layer 2: Aggregator synthesizes the best answer
-          const referencesText = successful
+          // Layer 1.5: Peer review — agents score each other before aggregation
+          let approvedPerspectives = successful
+          if (successful.length >= 2) {
+            try {
+              const { runPeerReview } = await import('../intelligence/peer-review')
+              const peerResult = await runPeerReview(
+                moaQuestion,
+                successful.map((s) => ({ name: s.name, content: s.response })),
+                moaGw,
+              )
+              approvedPerspectives = peerResult.approved.map((a) => ({
+                name: a.name,
+                response: a.content,
+              }))
+            } catch {
+              // Peer review failed — use all perspectives (graceful degradation)
+            }
+          }
+
+          // Layer 2: Aggregator synthesizes the best answer (only approved perspectives)
+          const referencesText = approvedPerspectives
             .map((r) => `### ${r.name.toUpperCase()} PERSPECTIVE\n${r.response}`)
             .join('\n\n')
 
@@ -2627,6 +2697,68 @@ async function executeToolInner(
           })
         } catch (err) {
           return JSON.stringify({ error: err instanceof Error ? err.message : 'Skill save failed' })
+        }
+      }
+
+      case 'execute_workflow': {
+        // DAG Engine — execute multi-step workflows with branching and parallelism
+        const wfName = toolInput.name as string
+        const wfNodes = toolInput.nodes as Array<{
+          id: string
+          type: string
+          tool?: string
+          input?: Record<string, unknown>
+          condition?: string
+          trueBranch?: string[]
+          falseBranch?: string[]
+          dependsOn?: string[]
+        }>
+
+        if (!db) return JSON.stringify({ error: 'Database required for workflow execution' })
+
+        try {
+          const { executeDAG } = await import('../orchestration/dag-engine')
+
+          const workflow = {
+            id: crypto.randomUUID(),
+            name: wfName,
+            nodes: wfNodes.map((n) => ({
+              id: n.id,
+              type: n.type as 'tool' | 'condition' | 'parallel' | 'aggregate',
+              tool: n.tool,
+              input: n.input,
+              condition: n.condition,
+              trueBranch: n.trueBranch,
+              falseBranch: n.falseBranch,
+              dependsOn: n.dependsOn ?? [],
+              status: 'pending' as const,
+            })),
+            state: {} as Record<string, unknown>,
+            status: 'pending' as 'pending' | 'running' | 'completed' | 'failed',
+          }
+
+          const result = await executeDAG(workflow, async (toolName, input) => {
+            return executeToolInner(toolName, input, db, workspaceId)
+          })
+
+          return JSON.stringify({
+            workflowId: result.workflowId,
+            status: result.status,
+            totalDurationMs: result.totalDurationMs,
+            nodesExecuted: result.nodeResults.length,
+            nodeResults: result.nodeResults.map((n) => ({
+              id: n.id,
+              status: n.status,
+              durationMs: n.durationMs,
+            })),
+            finalState: Object.fromEntries(
+              Object.entries(result.state).slice(0, 20), // Cap state output
+            ),
+          })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Workflow execution failed',
+          })
         }
       }
 

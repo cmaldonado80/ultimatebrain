@@ -298,3 +298,70 @@ export const BUILTIN_RULES: GuardrailRule[] = [
   toolCallValidator,
   antiRationalizationRule,
 ]
+
+// ── Diagnostic Guardrail Categories (AgentDoG + Galileo-inspired) ────
+
+/**
+ * Three-category guardrail taxonomy for diagnostic analysis.
+ * Each rule is classified into a failure mode category:
+ *   - structural: Malformed outputs, dangling tool calls, format errors
+ *   - content: Hallucination, unverified claims, PII leakage
+ *   - security: Injection attacks, command injection, privilege escalation
+ */
+export type GuardrailCategory = 'structural' | 'content' | 'security'
+
+export const RULE_CATEGORIES: Record<string, GuardrailCategory> = {
+  output_length: 'structural',
+  tool_call_validator: 'structural',
+  anti_rationalization: 'content',
+  pii_detector: 'content',
+  prompt_injection_shield: 'security',
+  content_safety: 'security',
+}
+
+export interface DiagnosticSummary {
+  totalViolations: number
+  byCategory: Record<GuardrailCategory, { count: number; violations: Violation[] }>
+  bySeverity: Record<Severity, number>
+  riskLevel: 'safe' | 'low' | 'medium' | 'high' | 'critical'
+}
+
+/**
+ * Generate a diagnostic summary from guardrail violations.
+ * Categorizes violations by failure mode (structural/content/security)
+ * and computes an overall risk level.
+ */
+export function diagnoseViolations(violations: Violation[]): DiagnosticSummary {
+  const byCategory: Record<GuardrailCategory, { count: number; violations: Violation[] }> = {
+    structural: { count: 0, violations: [] },
+    content: { count: 0, violations: [] },
+    security: { count: 0, violations: [] },
+  }
+
+  const bySeverity: Record<Severity, number> = {
+    low: 0,
+    medium: 0,
+    high: 0,
+    critical: 0,
+  }
+
+  for (const v of violations) {
+    const category = RULE_CATEGORIES[v.rule] ?? 'content'
+    byCategory[category].count++
+    byCategory[category].violations.push(v)
+    bySeverity[v.severity]++
+  }
+
+  let riskLevel: DiagnosticSummary['riskLevel'] = 'safe'
+  if (bySeverity.critical > 0 || byCategory.security.count > 0) riskLevel = 'critical'
+  else if (bySeverity.high > 0) riskLevel = 'high'
+  else if (bySeverity.medium > 0) riskLevel = 'medium'
+  else if (violations.length > 0) riskLevel = 'low'
+
+  return {
+    totalViolations: violations.length,
+    byCategory,
+    bySeverity,
+    riskLevel,
+  }
+}

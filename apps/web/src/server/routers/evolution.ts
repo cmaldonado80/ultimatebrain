@@ -189,4 +189,78 @@ export const evolutionRouter = router({
       digest,
     }
   }),
+
+  /** Get execution trajectory for a chat run */
+  trajectory: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { getTrajectory } = await import('../services/intelligence/trajectory-recorder')
+      return getTrajectory(ctx.db, input.runId)
+    }),
+
+  /** Analyze an execution trajectory for patterns and failures */
+  trajectoryAnalysis: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { getTrajectory, analyzeTrajectory } =
+        await import('../services/intelligence/trajectory-recorder')
+      const trajectory = await getTrajectory(ctx.db, input.runId)
+      if (!trajectory) return null
+      return analyzeTrajectory(trajectory)
+    }),
+
+  /** Compare two trajectories (original vs retry) */
+  trajectoryCompare: protectedProcedure
+    .input(
+      z.object({
+        originalRunId: z.string().uuid(),
+        retryRunId: z.string().uuid(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { getTrajectory, compareTrajectories } =
+        await import('../services/intelligence/trajectory-recorder')
+      const original = await getTrajectory(ctx.db, input.originalRunId)
+      const retry = await getTrajectory(ctx.db, input.retryRunId)
+      if (!original || !retry) return null
+      return compareTrajectories(original, retry)
+    }),
+
+  /** Get diagnostic guardrail summary for recent violations */
+  guardrailDiagnostic: protectedProcedure.query(async ({ ctx }) => {
+    const { guardrailLogs } = await import('@solarc/db')
+    const { desc: descOrd } = await import('drizzle-orm')
+    const recentLogs = await ctx.db
+      .select()
+      .from(guardrailLogs)
+      .orderBy(descOrd(guardrailLogs.createdAt))
+      .limit(100)
+
+    const { diagnoseViolations } = await import('../services/guardrails/rules')
+    const violations = recentLogs
+      .filter((log) => !log.passed)
+      .map((log) => ({
+        rule: log.ruleName ?? 'unknown',
+        detail: log.violationDetail ?? '',
+        severity: 'medium' as 'low' | 'medium' | 'high' | 'critical',
+      }))
+
+    return diagnoseViolations(violations)
+  }),
+
+  /** Recall relevant skills for a given context */
+  skillRecall: protectedProcedure
+    .input(
+      z.object({
+        message: z.string(),
+        toolHistory: z.array(z.object({ toolName: z.string() })).default([]),
+        workspaceId: z.string().uuid().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { extractContextSignature, recallRelevantSkills } =
+        await import('../services/intelligence/skill-recall')
+      const context = extractContextSignature(input.message, input.toolHistory)
+      return recallRelevantSkills(ctx.db, context, input.workspaceId)
+    }),
 })
