@@ -171,4 +171,22 @@ export const evolutionRouter = router({
         await import('../services/intelligence/session-intelligence')
       return generateSessionSummary(ctx.db, gw, input.sessionId)
     }),
+
+  /** Generate cross-tier learning digest */
+  crossTierDigest: protectedProcedure.mutation(async ({ ctx }) => {
+    const { GatewayRouter } = await import('../services/gateway')
+    const gw = new GatewayRouter(ctx.db)
+    const { generateCrossTierDigest, promoteFragmentsToGlobal, propagateHighProofObservations } =
+      await import('../services/intelligence/cross-tier-digest')
+
+    const promoted = await promoteFragmentsToGlobal(ctx.db)
+    const propagated = await propagateHighProofObservations(ctx.db)
+    const digest = await generateCrossTierDigest(ctx.db, gw)
+
+    return {
+      fragmentsPromotedToGlobal: promoted,
+      observationsPropagated: propagated,
+      digest,
+    }
+  }),
 })

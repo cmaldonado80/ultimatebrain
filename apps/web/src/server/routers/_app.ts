@@ -27,6 +27,7 @@ import { intelligenceRouter } from './intelligence'
 import { journeysRouter } from './journeys'
 import { mcpRouter } from './mcp'
 import { memoryRouter } from './memory'
+import { meshRouter } from './mesh'
 import { miniBrainFactoryRouter } from './mini-brain-factory'
 import { modelRegistryRouter } from './model-registry'
 import { orchestrationRouter } from './orchestration'
@@ -95,6 +96,7 @@ export const appRouter = router({
   astrology: astrologyRouter,
   builder: builderRouter,
   admin: adminRouter,
+  mesh: meshRouter,
 })
 
 export type AppRouter = typeof appRouter

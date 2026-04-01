@@ -10,6 +10,8 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { DebateEngine, EntityManager, TokenLedgerService } from '../services/platform'
+import { getHeartbeatStatus, runHeartbeatSweep } from '../services/platform/heartbeat'
+import { getMiniBrainLiveStats } from '../services/platform/mini-brain-stats'
 import { protectedProcedure, router } from '../trpc'
 
 let debate: DebateEngine | null = null
@@ -386,5 +388,23 @@ export const platformRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return getEntities(ctx.db).deleteRoute(input.id)
+    }),
+
+  // === Heartbeat ===
+
+  heartbeatSweep: protectedProcedure.mutation(async ({ ctx }) => {
+    return runHeartbeatSweep(ctx.db)
+  }),
+
+  heartbeatStatus: protectedProcedure.query(async ({ ctx }) => {
+    return getHeartbeatStatus(ctx.db)
+  }),
+
+  // === Live Stats ===
+
+  miniBrainLiveStats: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return getMiniBrainLiveStats(ctx.db, input.entityId)
     }),
 })

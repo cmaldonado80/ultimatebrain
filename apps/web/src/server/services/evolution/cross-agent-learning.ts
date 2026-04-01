@@ -218,5 +218,16 @@ export async function runCrossAgentLearning(
     result.errors.push(`observation promotion: ${err instanceof Error ? err.message : 'failed'}`)
   }
 
+  // 3. Auto-promote soul fragments to global when adopted by 3+ agents
+  try {
+    const { promoteFragmentsToGlobal } = await import('../intelligence/cross-tier-digest')
+    const promoted = await promoteFragmentsToGlobal(db)
+    if (promoted > 0) {
+      result.fragmentsExtracted += promoted // reuse counter for promoted globals
+    }
+  } catch {
+    // Non-critical — global promotion is best-effort
+  }
+
   return result
 }

@@ -180,6 +180,174 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
     }
   })
 
+  // ── Proxy: LLM Embedding ────────────────────────────────────────────
+
+  app.post('/api/llm/embed', requireAppAuth, async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.llm.embed(body)
+      return c.json(result)
+    } catch (err) {
+      log.error('proxy_llm_embed_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return c.json({ error: err instanceof Error ? err.message : 'LLM embed failed' }, 502)
+    }
+  })
+
+  // ── Proxy: A2A (Agent-to-Agent) ───────────────────────────────────
+
+  app.post('/api/a2a/discover', requireAppAuth, async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.a2a.discover(body)
+      return c.json({ agents: result })
+    } catch (err) {
+      log.error('proxy_a2a_discover_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return c.json({ error: err instanceof Error ? err.message : 'A2A discover failed' }, 502)
+    }
+  })
+
+  app.post('/api/a2a/delegate', requireAppAuth, async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.a2a.delegate(body)
+      return c.json(result)
+    } catch (err) {
+      log.error('proxy_a2a_delegate_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return c.json({ error: err instanceof Error ? err.message : 'A2A delegate failed' }, 502)
+    }
+  })
+
+  app.post('/api/a2a/tasks/status', requireAppAuth, async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.a2a.getTaskStatus(body.taskId)
+      return c.json(result)
+    } catch (err) {
+      log.error('proxy_a2a_status_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return c.json({ error: err instanceof Error ? err.message : 'A2A task status failed' }, 502)
+    }
+  })
+
+  // ── Proxy: Orchestration ──────────────────────────────────────────
+
+  app.post('/api/orch/tickets', requireAppAuth, async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.orch.createTicket(body)
+      return c.json(result)
+    } catch (err) {
+      log.error('proxy_orch_create_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return c.json({ error: err instanceof Error ? err.message : 'Ticket creation failed' }, 502)
+    }
+  })
+
+  app.post('/api/orch/tickets/get', requireAppAuth, async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.orch.getTicket(body.id)
+      return c.json(result)
+    } catch (err) {
+      log.error('proxy_orch_get_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return c.json({ error: err instanceof Error ? err.message : 'Ticket get failed' }, 502)
+    }
+  })
+
+  app.post('/api/orch/tickets/list', requireAppAuth, async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.orch.listTickets(body)
+      return c.json({ tickets: result })
+    } catch (err) {
+      log.error('proxy_orch_list_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return c.json({ error: err instanceof Error ? err.message : 'Ticket list failed' }, 502)
+    }
+  })
+
+  // ── Proxy: Eval ───────────────────────────────────────────────────
+
+  app.post('/api/eval/run', requireAppAuth, async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.eval.run(body)
+      return c.json(result)
+    } catch (err) {
+      log.error('proxy_eval_run_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return c.json({ error: err instanceof Error ? err.message : 'Eval run failed' }, 502)
+    }
+  })
+
+  app.post('/api/eval/results', requireAppAuth, async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.eval.getResult(body.runId)
+      return c.json(result)
+    } catch (err) {
+      log.error('proxy_eval_results_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return c.json({ error: err instanceof Error ? err.message : 'Eval results failed' }, 502)
+    }
+  })
+
+  // ── Proxy: Guardrails ─────────────────────────────────────────────
+
+  app.post('/api/guardrails/check', requireAppAuth, async (c) => {
+    try {
+      const body = await c.req.json()
+      const result = await brain.guardrails.check(body)
+      return c.json(result)
+    } catch (err) {
+      log.error('proxy_guardrails_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return c.json({ error: err instanceof Error ? err.message : 'Guardrail check failed' }, 502)
+    }
+  })
+
+  // ── Proxy: Mesh (Peer-to-Peer delegation) ─────────────────────────
+
+  app.get('/api/mesh/info', async (c) => {
+    return c.json({
+      entityId: config.entityId,
+      domain: config.domain,
+      status: 'active',
+    })
+  })
+
+  app.post('/api/mesh/delegate', requireAppAuth, async (c) => {
+    try {
+      const body = (await c.req.json()) as { task: string; context?: unknown }
+      log.info('mesh_delegation_received', { task: body.task })
+
+      // Find matching domain route for the task, or delegate via A2A
+      const result = await brain.a2a.delegate({
+        agentId: config.entityId,
+        task: body.task,
+        context: body.context,
+      })
+      return c.json(result)
+    } catch (err) {
+      log.error('mesh_delegate_failed', { error: err instanceof Error ? err.message : String(err) })
+      return c.json({ error: err instanceof Error ? err.message : 'Mesh delegation failed' }, 502)
+    }
+  })
+
   // ── Start ───────────────────────────────────────────────────────────
 
   return {

@@ -477,6 +477,105 @@ function DeploymentPanel({ entityId }: { entityId: string }) {
   )
 }
 
+/** Live status panel — real-time throughput and health per mini brain */
+function LiveStatusPanel({ entityId }: { entityId: string }) {
+  const statsQuery = trpc.platform.miniBrainLiveStats.useQuery(
+    { entityId },
+    { refetchInterval: 30_000 },
+  )
+
+  const stats = statsQuery.data as unknown as {
+    requestsLastHour: number
+    tokensLastHour: number
+    costLast24h: number
+    agentCount: number
+    memoryCount: number
+    lastHeartbeat: string | null
+    failCount: number
+    throughputBuckets: Array<{ bucket: string; requests: number; tokens: number; costUsd: number }>
+  } | null
+
+  if (statsQuery.isLoading || !stats) return null
+
+  // Heartbeat freshness indicator
+  const heartbeatAge = stats.lastHeartbeat
+    ? Date.now() - new Date(stats.lastHeartbeat).getTime()
+    : null
+  const heartbeatColor: 'green' | 'yellow' | 'red' | 'slate' =
+    heartbeatAge === null
+      ? 'slate'
+      : heartbeatAge < 60_000
+        ? 'green'
+        : heartbeatAge < 300_000
+          ? 'yellow'
+          : 'red'
+
+  const buckets = stats.throughputBuckets ?? []
+
+  return (
+    <div className="ml-8 mt-2 bg-bg-deep rounded px-3 py-2">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] text-slate-500 uppercase">Live Status</span>
+        <StatusBadge
+          label={stats.failCount > 0 ? `${stats.failCount} fails` : 'healthy'}
+          color={heartbeatColor}
+        />
+        {stats.lastHeartbeat && (
+          <span className="text-[9px] text-slate-600">
+            Heartbeat: {new Date(stats.lastHeartbeat).toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-5 gap-2 text-[10px]">
+        <div>
+          <span className="text-slate-500">Req/hr:</span>{' '}
+          <span className="text-slate-300">{stats.requestsLastHour}</span>
+        </div>
+        <div>
+          <span className="text-slate-500">Tokens/hr:</span>{' '}
+          <span className="text-slate-300">{(stats.tokensLastHour ?? 0).toLocaleString()}</span>
+        </div>
+        <div>
+          <span className="text-slate-500">Cost 24h:</span>{' '}
+          <span className="text-neon-yellow">${(stats.costLast24h ?? 0).toFixed(4)}</span>
+        </div>
+        <div>
+          <span className="text-slate-500">Agents:</span>{' '}
+          <span className="text-slate-300">{stats.agentCount}</span>
+        </div>
+        <div>
+          <span className="text-slate-500">Memories:</span>{' '}
+          <span className="text-slate-300">{stats.memoryCount}</span>
+        </div>
+      </div>
+
+      {/* Throughput sparkline */}
+      {buckets.length > 0 && (
+        <div className="mt-2">
+          <div className="text-[9px] text-slate-600 mb-0.5">
+            Throughput (5min buckets, last hour)
+          </div>
+          <div className="flex items-end gap-px h-8">
+            {buckets.map((b) => {
+              const max = Math.max(...buckets.map((x) => x.requests), 1)
+              const h = Math.max((b.requests / max) * 100, 4)
+              return (
+                <div
+                  key={b.bucket}
+                  className="flex-1 bg-neon-teal/40 rounded-t"
+                  style={{ height: `${h}%` }}
+                  title={`${b.bucket}: ${b.requests} req, ${b.tokens} tokens`}
+                />
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function MiniBrainFactoryPage() {
   const utils = trpc.useUtils()
   const topologyQuery = trpc.entities.topology.useQuery()
@@ -600,6 +699,23 @@ export default function MiniBrainFactoryPage() {
     onSuccess: () => utils.entities.topology.invalidate(),
   })
 
+  // Heartbeat sweep
+  const heartbeatSweepMutation = trpc.platform.heartbeatSweep.useMutation({
+    onSuccess: () => utils.entities.topology.invalidate(),
+  })
+
+  // Mesh peers
+  const meshPeersQuery = trpc.mesh.peers.useQuery()
+  const meshPeers = (meshPeersQuery.data ?? []) as Array<{
+    entityId: string
+    name: string
+    domain: string | null
+    endpoint: string | null
+    capabilities: string[]
+    status: string
+    lastHeartbeat: string | null
+  }>
+
   // Dev templates for selected mini brain domain
   const getDevTemplatesForDomain = (domain: string | null) => {
     if (!domain) return []
@@ -619,7 +735,7 @@ export default function MiniBrainFactoryPage() {
       />
 
       {/* Stats */}
-      <PageGrid cols="3" className="mb-6">
+      <PageGrid cols="4" className="mb-6">
         <StatCard
           label="Mini Brains"
           value={miniBrains.length}
@@ -638,7 +754,42 @@ export default function MiniBrainFactoryPage() {
           color="green"
           sub="Available blueprints"
         />
+        <StatCard
+          label="Mesh Peers"
+          value={meshPeers.filter((p) => p.endpoint).length}
+          color="blue"
+          sub="Reachable endpoints"
+        />
       </PageGrid>
+
+      {/* Operations Bar */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => heartbeatSweepMutation.mutate()}
+          disabled={heartbeatSweepMutation.isPending}
+          className="cyber-btn-secondary cyber-btn-sm"
+        >
+          {heartbeatSweepMutation.isPending ? 'Sweeping...' : 'Run Heartbeat Sweep'}
+        </button>
+        {heartbeatSweepMutation.isSuccess && (
+          <span className="text-[10px] text-neon-green self-center">
+            {(() => {
+              const r = heartbeatSweepMutation.data as unknown as {
+                checked: number
+                healthy: number
+                degraded: number
+                recovered: number
+              }
+              return `Checked ${r.checked}: ${r.healthy} healthy, ${r.degraded} degraded, ${r.recovered} recovered`
+            })()}
+          </span>
+        )}
+        {heartbeatSweepMutation.isError && (
+          <span className="text-[10px] text-neon-red self-center">
+            Sweep failed: {heartbeatSweepMutation.error.message}
+          </span>
+        )}
+      </div>
 
       {/* Create Mini Brain */}
       <SectionCard title="Create Mini Brain" className="mb-6">
@@ -938,6 +1089,9 @@ export default function MiniBrainFactoryPage() {
 
                   {/* Deployment Workflows */}
                   <DeploymentPanel entityId={mb.id} />
+
+                  {/* Live Status */}
+                  <LiveStatusPanel entityId={mb.id} />
 
                   {/* Development Apps for this Mini Brain */}
                   {mbDevs.length > 0 && (
