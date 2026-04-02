@@ -1228,4 +1228,61 @@ export const AGENT_TOOLS = [
       required: ['name', 'purpose'],
     },
   },
+  {
+    name: 'generate_design_system',
+    description:
+      'Generate a complete design system from brand inputs. Outputs: color palette (with semantic tokens and dark mode), typography scale, spacing system, border radius tokens, shadow tokens, breakpoints, component inventory, and usage guidelines. Saves as a work product.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        brandName: { type: 'string', description: 'Brand/product name' },
+        brandPersonality: {
+          type: 'string',
+          description:
+            'Brand personality: professional, playful, premium, minimal, bold, warm, technical',
+        },
+        primaryColor: {
+          type: 'string',
+          description:
+            'Primary brand color (hex, e.g., #6366f1). Optional — will be generated if not provided.',
+        },
+        targetPlatform: {
+          type: 'string',
+          enum: ['web', 'mobile', 'both'],
+          description: 'Target platform (default: both)',
+        },
+        darkMode: { type: 'boolean', description: 'Include dark mode tokens (default: true)' },
+      },
+      required: ['brandName', 'brandPersonality'],
+    },
+  },
+  {
+    name: 'map_user_journey',
+    description:
+      'Generate a structured user journey map for a specific user action. Outputs stages with: user actions, touchpoints, emotions, pain points, opportunities, and design recommendations. Includes happy path, error recovery, and edge cases.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        userAction: {
+          type: 'string',
+          description:
+            'The action the user wants to complete (e.g., "sign up and create first project")',
+        },
+        productType: {
+          type: 'string',
+          description: 'Type of product (e.g., "SaaS dashboard", "mobile fitness app")',
+        },
+        userPersona: {
+          type: 'string',
+          description: 'Brief user persona (e.g., "non-technical small business owner, age 35-50")',
+        },
+        currentPainPoints: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Known pain points in the current experience (optional)',
+        },
+      },
+      required: ['userAction', 'productType'],
+    },
+  },
 ]

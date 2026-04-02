@@ -2145,6 +2145,158 @@ Return as structured markdown.`,
         }
       }
 
+      case 'generate_design_system': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const brandName = toolInput.brandName as string
+        const personality = toolInput.brandPersonality as string
+        const primaryColor = (toolInput.primaryColor as string) ?? 'auto'
+        const platform = (toolInput.targetPlatform as string) ?? 'both'
+        const darkMode = (toolInput.darkMode as boolean) ?? true
+
+        try {
+          const { GatewayRouter: DsGW } = await import('../gateway')
+          const gw = new DsGW(db)
+          const result = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content: `You are a design system architect. Generate a complete design system for "${brandName}" (personality: ${personality}).
+
+Output a structured design system document with these sections:
+
+## 1. Color Palette
+- Primary: ${primaryColor === 'auto' ? 'Generate based on brand personality' : primaryColor}
+- Secondary, accent, neutral, semantic (success, warning, error, info)
+- Each color with 50-950 shade scale (like Tailwind)
+${darkMode ? '- Dark mode variants for all colors' : ''}
+- CSS custom property names: --color-{name}-{shade}
+
+## 2. Typography Scale
+- Font families (heading, body, mono)
+- Type scale: xs through 6xl with exact px/rem values
+- Line heights, letter spacing, font weights
+- Platform: ${platform}
+
+## 3. Spacing System
+- Base unit (e.g., 4px)
+- Scale: 0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24
+- CSS custom properties: --space-{size}
+
+## 4. Border Radius
+- none, sm, md, lg, xl, 2xl, full
+
+## 5. Shadows
+- sm, md, lg, xl for light mode
+${darkMode ? '- Dark mode shadow adjustments' : ''}
+
+## 6. Breakpoints
+- sm: 640px, md: 768px, lg: 1024px, xl: 1280px, 2xl: 1536px
+
+## 7. Component Inventory
+- List 20 core components this brand needs with brief purpose
+- Mark priority: essential, important, nice-to-have
+
+## 8. Usage Guidelines
+- Do/Don't for color usage
+- Accessibility minimums (contrast ratios)
+- Responsive behavior rules
+
+Return as well-structured markdown with code blocks for CSS variables.`,
+              },
+              {
+                role: 'user',
+                content: `Brand: ${brandName}\nPersonality: ${personality}\nPrimary: ${primaryColor}\nPlatform: ${platform}`,
+              },
+            ],
+            temperature: 0.3,
+            maxTokens: 4096,
+          })
+
+          // Auto-save as work product if we have a workspace
+          try {
+            const { memories: mem } = await import('@solarc/db')
+            await db.insert(mem).values({
+              key: `design-system:${brandName.toLowerCase().replace(/\s+/g, '-')}`,
+              content: result.content,
+              tier: 'core',
+              factType: 'observation',
+              confidence: 0.9,
+              proofCount: 1,
+              ...(workspaceId ? { workspaceId } : {}),
+            })
+          } catch {
+            // Non-critical — design system still returned
+          }
+
+          return result.content
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Design system generation failed',
+          })
+        }
+      }
+
+      case 'map_user_journey': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const userAction = toolInput.userAction as string
+        const productType = toolInput.productType as string
+        const userPersona = (toolInput.userPersona as string) ?? 'general user'
+        const painPoints = (toolInput.currentPainPoints as string[]) ?? []
+
+        try {
+          const { GatewayRouter: JourneyGW } = await import('../gateway')
+          const gw = new JourneyGW(db)
+          const result = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content: `You are a UX researcher creating a comprehensive user journey map.
+
+Generate a structured journey map for the user action on a ${productType}.
+${painPoints.length > 0 ? `Known pain points to address: ${painPoints.join(', ')}` : ''}
+
+For EACH stage, provide:
+
+## Stage N: [Stage Name]
+- **User Goal**: What the user wants to achieve at this point
+- **Actions**: What the user does (clicks, types, scrolls)
+- **Touchpoints**: What UI elements they interact with
+- **Emotion**: 😊 Positive / 😐 Neutral / 😤 Frustrated (with reason)
+- **Pain Points**: What could go wrong or frustrate the user
+- **Opportunities**: How to delight the user or reduce friction
+- **Design Recommendation**: Specific UI/UX suggestion
+
+Include these stages at minimum:
+1. **Awareness/Entry** — How user discovers and enters the flow
+2. **Onboarding/Orientation** — First-time experience
+3. **Core Action** — The main task they're trying to complete
+4. **Decision Points** — Where users need to make choices
+5. **Completion** — Successfully finishing the action
+6. **Error Recovery** — What happens when things go wrong
+7. **Post-Completion** — Follow-up engagement and retention
+
+End with:
+## Summary
+- **Critical Moments**: Top 3 make-or-break moments in the journey
+- **Quick Wins**: 3 easy improvements that would have immediate impact
+- **Design Principles**: 3 principles this journey should follow
+
+Persona: ${userPersona}`,
+              },
+              { role: 'user', content: `User Action: ${userAction}\nProduct: ${productType}` },
+            ],
+            temperature: 0.4,
+            maxTokens: 4096,
+          })
+
+          return result.content
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Journey mapping failed',
+          })
+        }
+      }
+
       case 'panel_debate': {
         const topic = toolInput.topic as string
         const perspectives = (toolInput.perspectives as string[]) ?? [
