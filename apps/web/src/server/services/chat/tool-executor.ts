@@ -2297,6 +2297,324 @@ Persona: ${userPersona}`,
         }
       }
 
+      // ── Corporation Autonomy Tool Executors ─────────────────────────
+
+      case 'delegate_to_team': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const parentTask = toolInput.parentTask as string
+        let subtasks = toolInput.subtasks as
+          | Array<{
+              title: string
+              description: string
+              requiredSkills: string[]
+              priority: string
+            }>
+          | undefined
+        const delegateWsId = (toolInput.workspaceId as string) ?? workspaceId
+        const delegateProjectId = (toolInput.projectId as string) ?? null
+
+        try {
+          // Step 1: If no subtasks provided, auto-generate them
+          if (!subtasks || subtasks.length === 0) {
+            const { GatewayRouter: DelegateGW } = await import('../gateway')
+            const gw = new DelegateGW(db)
+            const breakdown = await gw.chat({
+              messages: [
+                {
+                  role: 'system',
+                  content: `You are a project manager. Break the following task into 3-7 concrete, actionable sub-tasks. For each, specify a title, description, required skills (as tags), and priority. Return ONLY valid JSON: {"subtasks": [{"title": "...", "description": "...", "requiredSkills": ["skill1", "skill2"], "priority": "high|medium|low"}]}`,
+                },
+                { role: 'user', content: parentTask },
+              ],
+              temperature: 0.2,
+              maxTokens: 2048,
+            })
+            try {
+              const cleaned = breakdown.content
+                .replace(/```json\n?/g, '')
+                .replace(/```\n?/g, '')
+                .trim()
+              const parsed = JSON.parse(cleaned)
+              subtasks = parsed.subtasks ?? []
+            } catch {
+              return JSON.stringify({
+                error: 'Failed to auto-generate subtasks from task description',
+              })
+            }
+          }
+
+          if (!subtasks || subtasks.length === 0) {
+            return JSON.stringify({ error: 'No subtasks to delegate' })
+          }
+
+          // Step 2: Find team members in this workspace
+          const { agents: agentsT } = await import('@solarc/db')
+          const { eq: eqD } = await import('drizzle-orm')
+
+          let teamAgents: Array<{
+            id: string
+            name: string
+            skills: string[] | null
+            status: string
+          }> = []
+          if (delegateWsId) {
+            teamAgents = (await db
+              .select({
+                id: agentsT.id,
+                name: agentsT.name,
+                skills: agentsT.skills,
+                status: agentsT.status,
+              })
+              .from(agentsT)
+              .where(eqD(agentsT.workspaceId, delegateWsId))) as typeof teamAgents
+          }
+
+          // Step 3: Skill-match and create tickets
+          const { tickets: ticketsT } = await import('@solarc/db')
+          const assignments: Array<{
+            ticket: string
+            agent: string
+            agentName: string
+            skills: string[]
+          }> = []
+
+          for (const sub of subtasks) {
+            // Find best agent by skill overlap
+            let bestAgent: (typeof teamAgents)[0] | null = null
+            let bestScore = -1
+
+            for (const agent of teamAgents) {
+              if (agent.status === 'offline') continue
+              const agentSkills = (agent.skills ?? []) as string[]
+              const overlap = sub.requiredSkills.filter((s) =>
+                agentSkills.some((as_) => as_.toLowerCase().includes(s.toLowerCase())),
+              ).length
+              if (overlap > bestScore) {
+                bestScore = overlap
+                bestAgent = agent
+              }
+            }
+
+            // Create ticket
+            const [_ticket] = await db
+              .insert(ticketsT)
+              .values({
+                title: sub.title,
+                description: `${sub.description}\n\n[Delegated from: ${parentTask}]\n[Required skills: ${sub.requiredSkills.join(', ')}]`,
+                priority: (sub.priority ?? 'medium') as 'low' | 'medium' | 'high' | 'critical',
+                assignedAgentId: bestAgent?.id ?? null,
+                workspaceId: delegateWsId ?? null,
+                projectId: delegateProjectId,
+              })
+              .returning({ id: ticketsT.id })
+
+            assignments.push({
+              ticket: sub.title,
+              agent: bestAgent?.id ?? 'unassigned',
+              agentName: bestAgent?.name ?? 'unassigned',
+              skills: sub.requiredSkills,
+            })
+          }
+
+          return JSON.stringify({
+            delegated: true,
+            parentTask,
+            subtaskCount: subtasks.length,
+            assignments,
+            teamSize: teamAgents.length,
+          })
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'Delegation failed' })
+        }
+      }
+
+      case 'validate_against_standards': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const workProduct = toolInput.workProduct as string
+        const standardType = toolInput.standardType as string
+        const strictMode = (toolInput.strictMode as boolean) ?? false
+
+        try {
+          // Step 1: Fetch the relevant standard from memory
+          const { memories: memT } = await import('@solarc/db')
+          const { sql: sqlV } = await import('drizzle-orm')
+
+          const standards = await db
+            .select({ key: memT.key, content: memT.content })
+            .from(memT)
+            .where(sqlV`${memT.key} LIKE ${'%' + standardType + '%'} AND ${memT.tier} = 'core'`)
+            .limit(3)
+
+          const standardContent = standards.map((s) => s.content).join('\n\n')
+
+          if (!standardContent) {
+            return JSON.stringify({
+              error: `No standard found for "${standardType}". Save a standard first using generate_design_system, save_skill, or memory_store with a core tier.`,
+            })
+          }
+
+          // Step 2: LLM validation
+          const { GatewayRouter: ValidGW } = await import('../gateway')
+          const gw = new ValidGW(db)
+          const result = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content: `You are a standards compliance validator. Check the work product against the organizational standard.
+
+## Standard (Source of Truth)
+${standardContent.slice(0, 4000)}
+
+## Validation Rules
+- Check every concrete requirement in the standard
+- For each check: PASS, WARN, or FAIL with specific reason
+- ${strictMode ? 'STRICT MODE: Warnings are treated as failures' : 'Normal mode: Only failures block approval'}
+
+Return ONLY valid JSON:
+{
+  "compliant": true/false,
+  "score": 0-100,
+  "checks": [{"criterion": "...", "status": "pass|warn|fail", "detail": "..."}],
+  "summary": "...",
+  "fixes": ["specific fix 1", "specific fix 2"]
+}`,
+              },
+              { role: 'user', content: `Work Product to Validate:\n${workProduct.slice(0, 6000)}` },
+            ],
+            temperature: 0.1,
+            maxTokens: 2048,
+          })
+
+          // Parse and return
+          try {
+            const cleaned = result.content
+              .replace(/```json\n?/g, '')
+              .replace(/```\n?/g, '')
+              .trim()
+            return cleaned
+          } catch {
+            return result.content
+          }
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'Validation failed' })
+        }
+      }
+
+      case 'research_to_action': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const researchContent = toolInput.researchContent as string
+        const researchType = toolInput.researchType as string
+        const actionWsId = (toolInput.workspaceId as string) ?? workspaceId
+        const assignToTeam = (toolInput.assignToTeam as boolean) ?? true
+
+        try {
+          // Step 1: Extract actionable items from research
+          const { GatewayRouter: ActionGW } = await import('../gateway')
+          const gw = new ActionGW(db)
+          const extraction = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content: `You are converting ${researchType} research into actionable tickets. Extract every actionable insight, pain point, opportunity, or fix from the research.
+
+For each item, provide:
+- title: Clear action-oriented ticket title (verb + object)
+- description: What needs to be done and why
+- priority: critical (blocks users) | high (significant impact) | medium (improvement) | low (nice-to-have)
+- effort: small (hours) | medium (days) | large (weeks)
+- requiredSkills: skill tags needed
+
+Return ONLY valid JSON: {"actions": [{"title": "...", "description": "...", "priority": "...", "effort": "...", "requiredSkills": ["..."]}]}`,
+              },
+              { role: 'user', content: researchContent.slice(0, 8000) },
+            ],
+            temperature: 0.2,
+            maxTokens: 3000,
+          })
+
+          let actions: Array<{
+            title: string
+            description: string
+            priority: string
+            effort: string
+            requiredSkills: string[]
+          }> = []
+
+          try {
+            const cleaned = extraction.content
+              .replace(/```json\n?/g, '')
+              .replace(/```\n?/g, '')
+              .trim()
+            const parsed = JSON.parse(cleaned)
+            actions = parsed.actions ?? []
+          } catch {
+            return JSON.stringify({ error: 'Failed to extract actions from research' })
+          }
+
+          // Step 2: Create tickets for each action
+          const { tickets: ticketsT } = await import('@solarc/db')
+          const createdTickets: Array<{ title: string; priority: string; assigned: string }> = []
+
+          // Optionally find agents for skill matching
+          let teamAgents: Array<{ id: string; name: string; skills: string[] | null }> = []
+          if (assignToTeam && actionWsId) {
+            const { agents: agentsT } = await import('@solarc/db')
+            const { eq: eqA } = await import('drizzle-orm')
+            teamAgents = (await db
+              .select({ id: agentsT.id, name: agentsT.name, skills: agentsT.skills })
+              .from(agentsT)
+              .where(eqA(agentsT.workspaceId, actionWsId))) as typeof teamAgents
+          }
+
+          for (const action of actions.slice(0, 15)) {
+            // Skill match
+            let bestAgentId: string | null = null
+            let bestAgentName = 'unassigned'
+
+            if (assignToTeam && teamAgents.length > 0) {
+              let bestScore = -1
+              for (const agent of teamAgents) {
+                const agentSkills = (agent.skills ?? []) as string[]
+                const overlap = action.requiredSkills.filter((s) =>
+                  agentSkills.some((as_) => as_.toLowerCase().includes(s.toLowerCase())),
+                ).length
+                if (overlap > bestScore) {
+                  bestScore = overlap
+                  bestAgentId = agent.id
+                  bestAgentName = agent.name
+                }
+              }
+            }
+
+            await db.insert(ticketsT).values({
+              title: action.title,
+              description: `${action.description}\n\n[Source: ${researchType}]\n[Effort: ${action.effort}]\n[Skills: ${action.requiredSkills.join(', ')}]`,
+              priority: (action.priority ?? 'medium') as 'low' | 'medium' | 'high' | 'critical',
+              assignedAgentId: bestAgentId,
+              workspaceId: actionWsId ?? null,
+            })
+
+            createdTickets.push({
+              title: action.title,
+              priority: action.priority,
+              assigned: bestAgentName,
+            })
+          }
+
+          return JSON.stringify({
+            converted: true,
+            researchType,
+            actionsFound: actions.length,
+            ticketsCreated: createdTickets.length,
+            tickets: createdTickets,
+          })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Research conversion failed',
+          })
+        }
+      }
+
       case 'panel_debate': {
         const topic = toolInput.topic as string
         const perspectives = (toolInput.perspectives as string[]) ?? [

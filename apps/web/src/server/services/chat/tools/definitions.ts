@@ -1285,4 +1285,98 @@ export const AGENT_TOOLS = [
       required: ['userAction', 'productType'],
     },
   },
+
+  // ── Corporation Autonomy Tools (department-level self-organization) ──
+
+  {
+    name: 'delegate_to_team',
+    description:
+      'Break a task into sub-tasks and auto-assign to team members based on skill matching. Use when you are a department head and receive a high-level task that needs multiple specialists. Analyzes your team roster, matches skills to sub-tasks, creates tickets, and assigns them.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        parentTask: { type: 'string', description: 'The high-level task to break down' },
+        subtasks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'Sub-task title' },
+              description: { type: 'string', description: 'What needs to be done' },
+              requiredSkills: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Skills needed for this sub-task',
+              },
+              priority: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+            },
+          },
+          description:
+            'Sub-tasks to delegate. If empty, the tool auto-generates sub-tasks from the parent task using LLM.',
+        },
+        workspaceId: {
+          type: 'string',
+          description: 'Workspace UUID (optional, defaults to current)',
+        },
+        projectId: { type: 'string', description: 'Project UUID to link tickets to (optional)' },
+      },
+      required: ['parentTask'],
+    },
+  },
+  {
+    name: 'validate_against_standards',
+    description:
+      'Validate any work product against saved organizational standards (design systems, coding guidelines, security policies). Fetches the relevant standard from memory and checks compliance. Returns pass/fail per criterion with specific violations and fixes.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        workProduct: {
+          type: 'string',
+          description: 'The content to validate (component spec, code, document)',
+        },
+        standardType: {
+          type: 'string',
+          description:
+            'Type of standard to validate against: design-system, coding-standards, security-policy, accessibility, or a custom key (searches memory for matching standard)',
+        },
+        strictMode: {
+          type: 'boolean',
+          description: 'Fail on warnings too, not just errors (default: false)',
+        },
+      },
+      required: ['workProduct', 'standardType'],
+    },
+  },
+  {
+    name: 'research_to_action',
+    description:
+      'Convert structured research or analysis into actionable tickets. Takes a journey map, audit report, competitive analysis, or any structured findings and creates one ticket per actionable insight. Prioritizes by impact and effort.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        researchContent: {
+          type: 'string',
+          description: 'The research/analysis content to convert',
+        },
+        researchType: {
+          type: 'string',
+          enum: [
+            'journey-map',
+            'accessibility-audit',
+            'competitive-analysis',
+            'design-review',
+            'performance-audit',
+            'general',
+          ],
+          description: 'Type of research being converted',
+        },
+        workspaceId: { type: 'string', description: 'Workspace for created tickets (optional)' },
+        assignToTeam: {
+          type: 'boolean',
+          description: 'Auto-assign tickets to best-matching agents (default: true)',
+        },
+      },
+      required: ['researchContent', 'researchType'],
+    },
+  },
 ]

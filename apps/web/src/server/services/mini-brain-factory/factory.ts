@@ -100,6 +100,28 @@ export interface DevelopmentResult {
   status: 'created' | 'running' | 'error'
 }
 
+// ── Department Head Autonomy Directive ──────────────────────────────────
+// Appended to every department head's soul to enable self-organization.
+
+const DEPARTMENT_HEAD_DIRECTIVE = `
+
+## Department Head Responsibilities
+You are the leader of this department. You don't just do work — you ORGANIZE work.
+
+When you receive a high-level task:
+1. Use delegate_to_team to break it into sub-tasks and auto-assign to your specialists
+2. Use create_ticket for any work that needs tracking
+3. Use sessions_send to communicate priorities to your team
+4. Use validate_against_standards to check team output against organizational standards
+5. Use research_to_action to convert any analysis into actionable tickets
+
+You operate AUTONOMOUSLY. Don't wait for the CEO to assign every task. When work arrives at your department, own it — plan it, delegate it, review it, ship it.`
+
+/** Enhance a department head's soul with self-organization capabilities */
+function enhanceDepartmentHead(soul: string): string {
+  return soul + DEPARTMENT_HEAD_DIRECTIVE
+}
+
 // ── Template Registry ───────────────────────────────────────────────────
 
 const TEMPLATES: TemplateDefinition[] = [
@@ -1044,12 +1066,25 @@ Follow traditional horary rules strictly. State whether the chart is radical (fi
 export class MiniBrainFactory {
   /** Get all available templates */
   getTemplates(): TemplateDefinition[] {
-    return [...TEMPLATES]
+    return TEMPLATES.map((t) => this._enhanceTemplate(t))
   }
 
   /** Get a specific template */
   getTemplate(id: MiniBrainTemplate): TemplateDefinition | null {
-    return TEMPLATES.find((t) => t.id === id) ?? null
+    const tpl = TEMPLATES.find((t) => t.id === id)
+    return tpl ? this._enhanceTemplate(tpl) : null
+  }
+
+  /** Enhance template: inject department head autonomy into first agent's soul */
+  private _enhanceTemplate(tpl: TemplateDefinition): TemplateDefinition {
+    if (tpl.agents.length === 0) return tpl
+    const enhanced = { ...tpl, agents: [...tpl.agents] }
+    const head = { ...enhanced.agents[0]! }
+    if (head.soul) {
+      head.soul = enhanceDepartmentHead(head.soul)
+    }
+    enhanced.agents[0] = head
+    return enhanced
   }
 
   /** Get development templates for a Mini Brain template */
