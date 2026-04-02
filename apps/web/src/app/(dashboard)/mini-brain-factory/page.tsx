@@ -18,6 +18,7 @@ const TEMPLATE_ICONS: Record<string, string> = {
   marketing: '📣',
   'soc-ops': '🛡',
   design: '◈',
+  engineering: '⚙',
 }
 
 /** Database status panel per mini brain — separate component so hook runs per entity */

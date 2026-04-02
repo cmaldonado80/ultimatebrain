@@ -908,7 +908,15 @@ export const AGENT_TOOLS = [
         name: { type: 'string', description: 'Department name (e.g., "Frontend Engineering")' },
         template: {
           type: 'string',
-          enum: ['astrology', 'hospitality', 'healthcare', 'marketing', 'soc-ops', 'design'],
+          enum: [
+            'astrology',
+            'hospitality',
+            'healthcare',
+            'marketing',
+            'soc-ops',
+            'design',
+            'engineering',
+          ],
           description: 'Template to use (optional — creates empty department if not specified)',
         },
       },
@@ -1306,6 +1314,79 @@ export const AGENT_TOOLS = [
         darkBackground: { type: 'boolean', description: 'Use dark background (default: false)' },
       },
       required: ['html', 'name'],
+    },
+  },
+
+  // ── Engineering Department Tools ──────────────────────────────────
+
+  {
+    name: 'code_review',
+    description:
+      'Perform a structured code review on a file or code snippet. Checks: correctness, security, performance, readability, error handling, test coverage. Returns actionable feedback with severity ratings.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        code: { type: 'string', description: 'The code to review' },
+        filename: { type: 'string', description: 'Filename for context (e.g., "auth-service.ts")' },
+        language: {
+          type: 'string',
+          description: 'Language: typescript, python, go, rust (default: typescript)',
+        },
+        focusAreas: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Specific areas: security, performance, readability, error-handling, types (default: all)',
+        },
+      },
+      required: ['code', 'filename'],
+    },
+  },
+  {
+    name: 'run_tests',
+    description:
+      'Execute test suite for the project or a specific test file. Returns pass/fail results, coverage summary, and failed test details.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        testFile: {
+          type: 'string',
+          description: 'Specific test file to run (optional — runs all tests if omitted)',
+        },
+        command: { type: 'string', description: 'Custom test command (default: "npx vitest run")' },
+        cwd: { type: 'string', description: 'Working directory (default: project root)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'architecture_decision',
+    description:
+      'Document an Architecture Decision Record (ADR). Captures: context, problem, options considered, decision, consequences. Saves as a core memory so the corporation remembers WHY technical choices were made.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Decision title (e.g., "Use tRPC over REST for internal APIs")',
+        },
+        context: { type: 'string', description: 'Background and constraints' },
+        options: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              pros: { type: 'array', items: { type: 'string' } },
+              cons: { type: 'array', items: { type: 'string' } },
+            },
+          },
+          description: 'Options considered (2-4)',
+        },
+        decision: { type: 'string', description: 'The chosen option and rationale' },
+        consequences: { type: 'string', description: 'What this decision means for the team' },
+      },
+      required: ['title', 'context', 'decision'],
     },
   },
 

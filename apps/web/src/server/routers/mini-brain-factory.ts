@@ -46,6 +46,7 @@ const templateEnum = z.enum([
   'marketing',
   'soc-ops',
   'design',
+  'engineering',
 ])
 
 export const miniBrainFactoryRouter = router({

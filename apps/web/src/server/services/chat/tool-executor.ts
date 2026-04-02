@@ -2297,6 +2297,162 @@ Persona: ${userPersona}`,
         }
       }
 
+      // ── Engineering Department Tool Executors ──────────────────────
+
+      case 'code_review': {
+        if (!db) return JSON.stringify({ error: 'Database required for code review' })
+        const code = toolInput.code as string
+        const filename = toolInput.filename as string
+        const language = (toolInput.language as string) ?? 'typescript'
+        const focusAreas = (toolInput.focusAreas as string[]) ?? [
+          'security',
+          'performance',
+          'readability',
+          'error-handling',
+          'types',
+        ]
+
+        try {
+          const { GatewayRouter: ReviewGW } = await import('../gateway')
+          const gw = new ReviewGW(db)
+          const result = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content: `You are a senior ${language} code reviewer. Review the code in "${filename}" focusing on: ${focusAreas.join(', ')}.
+
+For each issue found, provide:
+- Line reference (approximate)
+- Severity: critical (security/correctness bug) | major (significant issue) | minor (style/improvement) | nitpick
+- Category: ${focusAreas.join(' | ')}
+- Description of the issue
+- Suggested fix (show corrected code)
+
+Also provide:
+- Overall quality score (1-10)
+- Summary of what the code does well
+- Top 3 priority fixes
+
+Return as structured markdown.`,
+              },
+              {
+                role: 'user',
+                content: `File: ${filename}\nLanguage: ${language}\n\n\`\`\`${language}\n${code.slice(0, 8000)}\n\`\`\``,
+              },
+            ],
+            temperature: 0.2,
+            maxTokens: 3000,
+          })
+          return result.content
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Code review failed',
+          })
+        }
+      }
+
+      case 'run_tests': {
+        const testFile = (toolInput.testFile as string) ?? ''
+        const testCmd =
+          (toolInput.command as string) ??
+          (testFile ? `npx vitest run ${testFile}` : 'npx vitest run')
+        const testCwd = (toolInput.cwd as string) ?? process.cwd()
+
+        // Security audit
+        const { auditCommand: auditTest } = await import('./sandbox-audit')
+        const testAudit = auditTest(testCmd)
+        if (testAudit.verdict === 'block') {
+          return JSON.stringify({ error: `Blocked: ${testAudit.reason}` })
+        }
+
+        try {
+          const { execSync: testExec } = await import('child_process')
+          const output = testExec(testCmd, {
+            encoding: 'utf8',
+            timeout: 120000,
+            cwd: testCwd,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            env: { ...process.env, CI: 'true', FORCE_COLOR: '0' },
+          }).trim()
+
+          return JSON.stringify({
+            command: testCmd,
+            output: output.slice(0, 10000),
+            passed: !output.includes('FAIL') && !output.includes('failed'),
+          })
+        } catch (err) {
+          const errMsg =
+            err instanceof Error
+              ? ((err as { stdout?: string }).stdout ?? err.message)
+              : 'Test execution failed'
+          return JSON.stringify({
+            command: testCmd,
+            passed: false,
+            output: typeof errMsg === 'string' ? errMsg.slice(0, 10000) : 'Test failed',
+          })
+        }
+      }
+
+      case 'architecture_decision': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const adrTitle = toolInput.title as string
+        const adrContext = toolInput.context as string
+        const adrOptions = toolInput.options as
+          | Array<{ name: string; pros: string[]; cons: string[] }>
+          | undefined
+        const adrDecision = toolInput.decision as string
+        const adrConsequences = (toolInput.consequences as string) ?? ''
+
+        // Format ADR
+        const adrContent = [
+          `# ADR: ${adrTitle}`,
+          `**Date:** ${new Date().toISOString().slice(0, 10)}`,
+          `**Status:** Accepted`,
+          '',
+          `## Context`,
+          adrContext,
+          '',
+        ]
+
+        if (adrOptions && adrOptions.length > 0) {
+          adrContent.push('## Options Considered')
+          for (const opt of adrOptions) {
+            adrContent.push(`### ${opt.name}`)
+            if (opt.pros?.length) adrContent.push(`- Pros: ${opt.pros.join(', ')}`)
+            if (opt.cons?.length) adrContent.push(`- Cons: ${opt.cons.join(', ')}`)
+            adrContent.push('')
+          }
+        }
+
+        adrContent.push('## Decision', adrDecision, '')
+        if (adrConsequences) {
+          adrContent.push('## Consequences', adrConsequences)
+        }
+
+        const adrText = adrContent.join('\n')
+
+        // Save as core memory
+        try {
+          const { memories: memAdr } = await import('@solarc/db')
+          const [saved] = await db
+            .insert(memAdr)
+            .values({
+              key: `adr:${adrTitle.toLowerCase().replace(/\s+/g, '-')}`,
+              content: adrText,
+              tier: 'core',
+              factType: 'observation',
+              confidence: 0.95,
+              proofCount: 1,
+              ...(workspaceId ? { workspaceId } : {}),
+            })
+            .returning({ id: memAdr.id })
+
+          return JSON.stringify({ saved: true, adrId: saved?.id, title: adrTitle })
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'ADR save failed' })
+        }
+      }
+
       case 'render_preview': {
         const html = toolInput.html as string
         const previewName = toolInput.name as string
