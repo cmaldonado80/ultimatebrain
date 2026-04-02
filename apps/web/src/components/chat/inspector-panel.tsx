@@ -2,7 +2,7 @@
 
 /**
  * Inspector Pro — tabbed detail panel for deep inspection of messages,
- * tools, agents, and edges in the chat thread.
+ * tools, agents, and runs in the chat thread.
  */
 
 import { useState } from 'react'
@@ -21,8 +21,30 @@ export type InspectorSelection =
       model?: string
       timestamp?: Date
     }
-  | { type: 'tool'; name: string; input: unknown; result?: string; status: string }
+  | { type: 'tool'; name: string; input: unknown; result?: string; status: string; stepId?: string }
   | { type: 'agent'; id: string; name: string; model?: string; agentType?: string; soul?: string }
+  | {
+      type: 'run'
+      runId: string
+      status: string
+      agentNames: string[]
+      stepCount: number
+      durationMs: number | null
+      startedAt: Date
+      memoryCount: number
+      retryOfRunId?: string | null
+      retryType?: string | null
+      retryScope?: string | null
+      retryTargetId?: string | null
+      retryReason?: string | null
+      workflowId?: string | null
+      workflowName?: string | null
+      autonomyLevel?: string | null
+      autoActionsCount?: number | null
+      recommendationSource?: string | null
+      qualityScore?: number | null
+      qualityLabel?: string | null
+    }
   | null
 
 // ── Tabs ───────────────────────────────────────────────────────────────
@@ -41,9 +63,18 @@ const TABS: { id: TabId; label: string }[] = [
 interface InspectorPanelProps {
   selection: InspectorSelection
   onClose: () => void
+  onCompareWithParent?: () => void
+  onNavigateToRun?: (runId: string) => void
+  onRetryStep?: (stepId: string) => void
 }
 
-export function InspectorPanel({ selection, onClose }: InspectorPanelProps) {
+export function InspectorPanel({
+  selection,
+  onClose,
+  onCompareWithParent,
+  onNavigateToRun,
+  onRetryStep,
+}: InspectorPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
   if (!selection) {
@@ -59,7 +90,9 @@ export function InspectorPanel({ selection, onClose }: InspectorPanelProps) {
       ? 'Message'
       : selection.type === 'tool'
         ? 'Tool Call'
-        : 'Agent Profile'
+        : selection.type === 'run'
+          ? 'Run Details'
+          : 'Agent Profile'
 
   return (
     <div className="w-80 border-l border-border bg-bg-surface flex flex-col overflow-hidden">
@@ -70,6 +103,18 @@ export function InspectorPanel({ selection, onClose }: InspectorPanelProps) {
           ✕
         </button>
       </div>
+
+      {/* Compare with parent shortcut (runs only) */}
+      {selection.type === 'run' && selection.retryOfRunId && (
+        <div className="px-4 py-2 border-b border-border-dim">
+          <button
+            onClick={() => onCompareWithParent?.()}
+            className="cyber-btn-sm cyber-btn-secondary text-[10px] w-full"
+          >
+            ⇄ Compare with parent run
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 px-3 py-2 border-b border-border-dim">
@@ -90,7 +135,13 @@ export function InspectorPanel({ selection, onClose }: InspectorPanelProps) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
-        {activeTab === 'overview' && <OverviewTab selection={selection} />}
+        {activeTab === 'overview' && (
+          <OverviewTab
+            selection={selection}
+            onNavigateToRun={onNavigateToRun}
+            onRetryStep={onRetryStep}
+          />
+        )}
         {activeTab === 'details' && <DetailsTab selection={selection} />}
         {activeTab === 'metadata' && <MetadataTab selection={selection} />}
         {activeTab === 'raw' && <RawTab selection={selection} />}
@@ -101,7 +152,15 @@ export function InspectorPanel({ selection, onClose }: InspectorPanelProps) {
 
 // ── Tab Components ─────────────────────────────────────────────────────
 
-function OverviewTab({ selection }: { selection: NonNullable<InspectorSelection> }) {
+function OverviewTab({
+  selection,
+  onNavigateToRun,
+  onRetryStep,
+}: {
+  selection: NonNullable<InspectorSelection>
+  onNavigateToRun?: (runId: string) => void
+  onRetryStep?: (stepId: string) => void
+}) {
   return (
     <>
       {selection.type === 'message' && (
@@ -119,8 +178,19 @@ function OverviewTab({ selection }: { selection: NonNullable<InspectorSelection>
         <div className="space-y-2">
           <InfoRow label="Tool" value={selection.name} />
           <InfoRow label="Status" value={selection.status} />
+          {selection.stepId && (
+            <InfoRow label="Step ID" value={selection.stepId.slice(0, 12) + '...'} mono />
+          )}
           {selection.result && (
             <InfoRow label="Result" value={`${selection.result.length} chars`} />
+          )}
+          {onRetryStep && selection.stepId && selection.status !== 'running' && (
+            <button
+              className="w-full mt-2 text-[10px] text-slate-500 hover:text-neon-yellow border border-border-dim hover:border-neon-yellow/30 px-3 py-1.5 rounded transition-colors"
+              onClick={() => onRetryStep(selection.stepId!)}
+            >
+              ↻ Retry This Step
+            </button>
           )}
         </div>
       )}
@@ -130,6 +200,162 @@ function OverviewTab({ selection }: { selection: NonNullable<InspectorSelection>
           {selection.agentType && <InfoRow label="Type" value={selection.agentType} />}
           {selection.model && <InfoRow label="Model" value={selection.model} />}
           {selection.id && <InfoRow label="ID" value={selection.id.slice(0, 12) + '...'} />}
+        </div>
+      )}
+      {selection.type === 'run' && (
+        <div className="space-y-3">
+          {/* Core stats */}
+          <div className="space-y-2">
+            <InfoRow label="Status" value={selection.status} />
+            <InfoRow label="Steps" value={String(selection.stepCount)} />
+            <InfoRow
+              label="Duration"
+              value={selection.durationMs ? `${selection.durationMs}ms` : 'N/A'}
+            />
+            <InfoRow label="Memories" value={String(selection.memoryCount)} />
+          </div>
+
+          {/* Agents */}
+          {selection.agentNames.length > 0 && (
+            <div>
+              <Label text="Agents" />
+              <div className="flex flex-wrap gap-1 mt-1">
+                {selection.agentNames.map((name) => (
+                  <span key={name} className="cyber-badge text-[10px]">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recommendation source */}
+          {selection.recommendationSource && (
+            <div className="cyber-card p-2.5 space-y-1">
+              <Label text="Triggered By" />
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <span className="text-neon-purple">◆</span>
+                <span className="text-slate-300">
+                  {selection.recommendationSource} recommendation
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Lineage section */}
+          {selection.retryOfRunId && (
+            <div className="cyber-card p-2.5 space-y-1.5">
+              <Label text="Lineage" />
+              <div className="flex items-center gap-2 text-[10px]">
+                <span className="text-neon-yellow">
+                  {selection.retryType === 'auto'
+                    ? '⟳'
+                    : selection.retryType === 'suggested'
+                      ? '↺'
+                      : '↻'}
+                </span>
+                <span className="text-slate-400">
+                  {selection.retryType ?? 'manual'}{' '}
+                  {selection.retryScope === 'group'
+                    ? 'group retry'
+                    : selection.retryScope === 'step'
+                      ? 'step retry'
+                      : 'retry'}{' '}
+                  of
+                </span>
+                {onNavigateToRun ? (
+                  <button
+                    onClick={() => onNavigateToRun(selection.retryOfRunId!)}
+                    className="text-neon-teal hover:underline font-mono"
+                  >
+                    {selection.retryOfRunId.slice(0, 8)}...
+                  </button>
+                ) : (
+                  <span className="text-slate-300 font-mono">
+                    {selection.retryOfRunId.slice(0, 8)}...
+                  </span>
+                )}
+              </div>
+              {selection.retryScope &&
+                selection.retryScope !== 'run' &&
+                selection.retryTargetId && (
+                  <div className="text-[10px] text-slate-500 truncate">
+                    Target:{' '}
+                    <span className="font-mono text-slate-400">
+                      {selection.retryTargetId.slice(0, 12)}...
+                    </span>
+                  </div>
+                )}
+              {selection.retryReason && (
+                <div className="text-[10px] text-slate-500 truncate">
+                  Reason: {selection.retryReason}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Workflow section */}
+          {selection.workflowName && (
+            <div className="cyber-card p-2.5 space-y-1">
+              <Label text="Workflow" />
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <span className="text-neon-blue">▶</span>
+                <span className="text-slate-300">{selection.workflowName}</span>
+              </div>
+              {selection.workflowId && (
+                <div className="text-[9px] text-slate-600 font-mono">
+                  {selection.workflowId.slice(0, 12)}...
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Autonomy section */}
+          {selection.autonomyLevel && selection.autonomyLevel !== 'manual' && (
+            <div className="cyber-card p-2.5 space-y-1">
+              <Label text="Autonomy" />
+              <div className="flex items-center gap-2 text-[10px]">
+                <span
+                  className={`px-1.5 py-0.5 rounded ${
+                    selection.autonomyLevel === 'auto'
+                      ? 'bg-neon-purple/10 text-neon-purple'
+                      : 'bg-neon-blue/10 text-neon-blue'
+                  }`}
+                >
+                  {selection.autonomyLevel}
+                </span>
+                {(selection.autoActionsCount ?? 0) > 0 && (
+                  <span className="text-slate-500">
+                    {selection.autoActionsCount} auto action
+                    {selection.autoActionsCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Quality section */}
+          {selection.qualityScore != null && (
+            <div className="cyber-card p-2.5 space-y-1">
+              <Label text="Quality" />
+              <div className="flex items-center gap-2 text-[10px]">
+                <span
+                  className={`px-1.5 py-0.5 rounded ${
+                    selection.qualityLabel === 'high'
+                      ? 'bg-neon-green/10 text-neon-green'
+                      : selection.qualityLabel === 'medium'
+                        ? 'bg-neon-yellow/10 text-neon-yellow'
+                        : 'bg-neon-red/10 text-neon-red'
+                  }`}
+                >
+                  {selection.qualityLabel}
+                </span>
+                <span className="text-slate-400 font-mono">
+                  {Math.round(selection.qualityScore * 100)}%
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>
@@ -172,6 +398,46 @@ function DetailsTab({ selection }: { selection: NonNullable<InspectorSelection> 
           </div>
         </div>
       )}
+      {selection.type === 'run' && (
+        <div className="space-y-3">
+          <Label text="Run Timeline" />
+          <div className="text-[10px] text-slate-500">
+            Started: {new Date(selection.startedAt).toLocaleString()}
+          </div>
+          <div className="text-[10px] text-slate-500">
+            {selection.stepCount} steps across {selection.agentNames.length} agent(s)
+          </div>
+          {selection.memoryCount > 0 && (
+            <div className="text-[10px] text-neon-purple">
+              {selection.memoryCount} memories recalled
+            </div>
+          )}
+
+          {/* Run context summary */}
+          <div className="cyber-card p-2.5 space-y-1.5">
+            <Label text="Run Context" />
+            {selection.retryOfRunId && (
+              <div className="text-[10px] text-neon-yellow">
+                {selection.retryType ?? 'manual'}{' '}
+                {selection.retryScope === 'group'
+                  ? 'group retry'
+                  : selection.retryScope === 'step'
+                    ? 'step retry'
+                    : 'retry'}
+              </div>
+            )}
+            {selection.workflowName && (
+              <div className="text-[10px] text-neon-blue">Workflow: {selection.workflowName}</div>
+            )}
+            <div className="text-[10px] text-slate-500">
+              Autonomy: {selection.autonomyLevel ?? 'manual'}
+            </div>
+            {!selection.retryOfRunId && !selection.workflowName && (
+              <div className="text-[10px] text-slate-600">Direct user invocation</div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }
@@ -197,6 +463,7 @@ function MetadataTab({ selection }: { selection: NonNullable<InspectorSelection>
         <>
           <InfoRow label="Tool Name" value={selection.name} mono />
           <InfoRow label="Status" value={selection.status} />
+          {selection.stepId && <InfoRow label="Step ID" value={selection.stepId} mono />}
         </>
       )}
       {selection.type === 'agent' && (
@@ -205,6 +472,34 @@ function MetadataTab({ selection }: { selection: NonNullable<InspectorSelection>
           <InfoRow label="Name" value={selection.name} />
           {selection.agentType && <InfoRow label="Type" value={selection.agentType} />}
           {selection.model && <InfoRow label="Model" value={selection.model} mono />}
+        </>
+      )}
+      {selection.type === 'run' && (
+        <>
+          <InfoRow label="Run ID" value={selection.runId} mono />
+          <InfoRow label="Status" value={selection.status} />
+          <InfoRow label="Started" value={new Date(selection.startedAt).toISOString()} mono />
+          <InfoRow label="Steps" value={String(selection.stepCount)} />
+          <InfoRow label="Memories" value={String(selection.memoryCount)} />
+          {selection.durationMs !== null && (
+            <InfoRow label="Duration" value={`${selection.durationMs}ms`} mono />
+          )}
+          <InfoRow label="Autonomy" value={selection.autonomyLevel ?? 'manual'} />
+          {selection.retryOfRunId && (
+            <InfoRow label="Retry Of" value={selection.retryOfRunId} mono />
+          )}
+          {selection.retryType && <InfoRow label="Retry Type" value={selection.retryType} />}
+          {selection.retryScope && <InfoRow label="Retry Scope" value={selection.retryScope} />}
+          {selection.retryTargetId && (
+            <InfoRow label="Retry Target" value={selection.retryTargetId} mono />
+          )}
+          {selection.workflowId && (
+            <InfoRow label="Workflow ID" value={selection.workflowId} mono />
+          )}
+          {selection.workflowName && <InfoRow label="Workflow" value={selection.workflowName} />}
+          {(selection.autoActionsCount ?? 0) > 0 && (
+            <InfoRow label="Auto Actions" value={String(selection.autoActionsCount)} />
+          )}
         </>
       )}
     </div>

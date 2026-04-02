@@ -12,8 +12,8 @@ export type StreamEvent =
   // Existing events (backward compatible)
   | { type: 'agent_start'; agentName: string; agentId: string; groupId?: string }
   | { type: 'text'; content: string; agentId?: string; agentName?: string }
-  | { type: 'tool_use'; name: string; input: unknown }
-  | { type: 'tool_result'; name: string; result: string }
+  | { type: 'tool_use'; name: string; input: unknown; stepId?: string }
+  | { type: 'tool_result'; name: string; result: string; stepId?: string }
   | { type: 'memory_context'; count: number; sources?: string[] }
   | { type: 'error'; message: string }
 
@@ -24,9 +24,9 @@ export function streamEventToItem(ev: StreamEvent): ThreadItemData {
     case 'text':
       return { type: 'streaming', text: ev.content, agentName: ev.agentName }
     case 'tool_use':
-      return { type: 'tool_use', name: ev.name, input: ev.input }
+      return { type: 'tool_use', name: ev.name, input: ev.input, stepId: ev.stepId }
     case 'tool_result':
-      return { type: 'tool_result', name: ev.name, result: ev.result }
+      return { type: 'tool_result', name: ev.name, result: ev.result, stepId: ev.stepId }
     case 'memory_context':
       return { type: 'memory_context', count: ev.count, sources: ev.sources }
     case 'error':
@@ -47,6 +47,17 @@ export function sessionTitle(
   return new Date(createdAt).toLocaleDateString()
 }
 
+export interface StreamMeta {
+  retryOfRunId?: string
+  retryType?: 'manual' | 'auto' | 'suggested'
+  retryScope?: 'run' | 'group' | 'step'
+  retryTargetId?: string
+  retryReason?: string
+  workflowId?: string
+  workflowName?: string
+  autonomyLevel?: 'manual' | 'assist' | 'auto'
+}
+
 export function useChatStream(
   selectedSession: string | null,
   selectedAgents: string[],
@@ -55,10 +66,15 @@ export function useChatStream(
   const [streaming, setStreaming] = useState(false)
   const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([])
   const [optimisticText, setOptimisticText] = useState<string | null>(null)
+  const [lastRunId, setLastRunId] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const handleSend = useCallback(
-    async (text: string, textareaRef?: React.RefObject<HTMLTextAreaElement | null>) => {
+    async (
+      text: string,
+      textareaRef?: React.RefObject<HTMLTextAreaElement | null>,
+      meta?: StreamMeta,
+    ) => {
       if (!selectedSession || !text.trim() || streaming) return
       const trimmed = text.trim()
       setOptimisticText(trimmed)
@@ -77,6 +93,7 @@ export function useChatStream(
             sessionId: selectedSession,
             text: trimmed,
             agentIds: selectedAgents.length > 0 ? selectedAgents : undefined,
+            ...meta,
           }),
           signal: controller.signal,
         })
@@ -137,12 +154,22 @@ export function useChatStream(
               } else if (ev.type === 'tool_use') {
                 setStreamEvents((p) => [
                   ...p,
-                  { type: 'tool_use', name: ev.name as string, input: ev.input },
+                  {
+                    type: 'tool_use',
+                    name: ev.name as string,
+                    input: ev.input,
+                    stepId: ev.stepId as string | undefined,
+                  },
                 ])
               } else if (ev.type === 'tool_result') {
                 setStreamEvents((p) => [
                   ...p,
-                  { type: 'tool_result', name: ev.name as string, result: ev.result as string },
+                  {
+                    type: 'tool_result',
+                    name: ev.name as string,
+                    result: ev.result as string,
+                    stepId: ev.stepId as string | undefined,
+                  },
                 ])
               } else if (ev.type === 'memory_context') {
                 setStreamEvents((p) => [
@@ -154,6 +181,7 @@ export function useChatStream(
                   },
                 ])
               } else if (ev.type === 'run_started') {
+                setLastRunId(ev.runId as string)
                 setStreamEvents((p) => [...p, { type: 'run_started', runId: ev.runId as string }])
               } else if (ev.type === 'run_completed') {
                 setStreamEvents((p) => [
@@ -181,7 +209,16 @@ export function useChatStream(
               ...p,
               { type: 'error', message: `${(err as Error).message} — auto-retrying in 2s...` },
             ])
-            setTimeout(() => handleSend(trimmed, textareaRef), 2000)
+            setTimeout(
+              () =>
+                handleSend(trimmed, textareaRef, {
+                  ...meta,
+                  retryType: 'auto',
+                  retryReason: (err as Error).message,
+                  autonomyLevel: 'auto',
+                }),
+              2000,
+            )
           } else {
             setStreamEvents((p) => [...p, { type: 'error', message: (err as Error).message }])
           }
@@ -201,5 +238,5 @@ export function useChatStream(
     abortRef.current?.abort()
   }, [])
 
-  return { streaming, streamEvents, optimisticText, handleSend, abort, setStreamEvents }
+  return { streaming, streamEvents, optimisticText, lastRunId, handleSend, abort, setStreamEvents }
 }

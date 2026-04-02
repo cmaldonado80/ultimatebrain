@@ -115,7 +115,10 @@ export const receiptActions = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },
-  (t) => [index('receipt_actions_receipt_id_idx').on(t.receiptId)],
+  (t) => [
+    index('receipt_actions_receipt_id_idx').on(t.receiptId),
+    index('receipt_actions_receipt_seq_idx').on(t.receiptId, t.sequence),
+  ],
 )
 
 export const receiptAnomalies = pgTable(
@@ -133,16 +136,23 @@ export const receiptAnomalies = pgTable(
   (t) => [index('receipt_anomalies_receipt_id_idx').on(t.receiptId)],
 )
 
-export const approvalGates = pgTable('approval_gates', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  action: text('action').notNull(),
-  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
-  risk: text('risk'),
-  status: approvalStatusEnum('status').default('pending').notNull(),
-  requestedAt: timestamp('requested_at').defaultNow().notNull(),
-  decidedAt: timestamp('decided_at'),
-  decidedBy: text('decided_by'),
-  reason: text('reason'),
-  metadata: jsonb('metadata'),
-  expiresAt: timestamp('expires_at'),
-})
+export const approvalGates = pgTable(
+  'approval_gates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    action: text('action').notNull(),
+    agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    risk: text('risk'),
+    status: approvalStatusEnum('status').default('pending').notNull(),
+    requestedAt: timestamp('requested_at').defaultNow().notNull(),
+    decidedAt: timestamp('decided_at'),
+    decidedBy: text('decided_by'),
+    reason: text('reason'),
+    metadata: jsonb('metadata'),
+    expiresAt: timestamp('expires_at'),
+  },
+  (t) => [
+    index('approval_gates_status_idx').on(t.status),
+    index('approval_gates_agent_idx').on(t.agentId),
+  ],
+)

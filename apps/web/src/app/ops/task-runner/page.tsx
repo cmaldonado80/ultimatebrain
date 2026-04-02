@@ -7,6 +7,7 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface PlanStep {
@@ -78,12 +79,7 @@ export default function TaskRunnerPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">Task Runner</h2>
-        <p className="mt-1 mb-0 text-xs text-slate-500">
-          Detect execution mode, route tickets to the right pipeline, and manage deep work plans.
-        </p>
-      </div>
+      <PageHeader title="Task Runner" />
 
       {error && (
         <div className="mb-4">

@@ -12,6 +12,7 @@ import { HealthPanel } from '../../../components/observatory/health-panel'
 import { InsightsPanel } from '../../../components/observatory/insights-panel'
 import { layoutTopology } from '../../../components/observatory/layout'
 import { mergeOverlayIntoFlowNodes } from '../../../components/observatory/merge'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 // ── Inspector ───────────────────────────────────────────────────────────
@@ -233,7 +234,7 @@ export default function ObservatoryPage() {
     <div className="flex flex-col h-[calc(100vh-64px)]">
       {/* Toolbar */}
       <div className="flex items-center gap-4 px-4 py-2 border-b border-border bg-bg-deep/80">
-        <h1 className="font-orbitron text-sm text-neon-teal tracking-wider">SWARM OBSERVATORY</h1>
+        <PageHeader title="Observatory" live className="mb-0" />
         <div className="flex items-center gap-3 ml-auto text-[11px] text-slate-400">
           {data?.stats && (
             <>

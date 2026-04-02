@@ -9,6 +9,7 @@
 
   /* ── Neon Color Palette ─────────────────────────────────────────────── */
   --color-neon-blue:   #00d4ff;
+  --color-neon-teal:   #00c4cc;
   --color-neon-purple: #8b5cf6;
   --color-neon-green:  #00ff88;
   --color-neon-yellow: #ffd200;
@@ -283,5 +284,91 @@
 @keyframes agent-cursor-pulse {
   0%, 100% { transform: scale(1); opacity: 0.7; }
   50%      { transform: scale(1.1); opacity: 1; }
+}
+
+/* ── Astrology Domain Classes ──────────────────────────────────────────── */
+
+@layer components {
+  .astro-card {
+    @apply bg-bg-card border border-border rounded-xl backdrop-blur-md transition-all duration-300;
+    padding: 16px;
+  }
+  .astro-card:hover {
+    border-color: rgba(139, 92, 246, 0.3);
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.05);
+  }
+  .astro-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--color-neon-purple);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+  }
+  .astro-btn-primary:hover { background: rgba(139, 92, 246, 0.3); }
+  .astro-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .astro-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+  }
+  .astro-btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+  .astro-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 58, 92, 0.1);
+    color: var(--color-neon-red);
+    border: 1px solid rgba(255, 58, 92, 0.3);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .astro-btn-danger:hover { background: rgba(255, 58, 92, 0.2); }
+  .astro-btn-sm { padding: 4px 10px; font-size: 12px; }
+  .astro-input {
+    @apply w-full bg-bg-elevated text-slate-100 border border-border rounded-lg;
+    padding: 8px 12px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .astro-input:focus {
+    border-color: rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
+  }
+  .astro-input::placeholder { color: #64748b; }
+  .astro-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font-mono);
+    @apply border border-border bg-white/5;
+  }
 }
 

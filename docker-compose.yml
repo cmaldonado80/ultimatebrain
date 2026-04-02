@@ -42,7 +42,7 @@ services:
   # OpenClaw daemon — universal LLM/tool/channel gateway
   # Provides: 20+ LLM providers, 26+ channels, 67+ skills, 1000+ MCP tools
   # The Brain connects via WebSocket and gracefully degrades if unavailable.
-  # Replace the image below with the actual OpenClaw image when available.
+  # Requires Node 22+ and openclaw@latest from npm.
   openclaw:
     image: node:22-slim
     restart: unless-stopped
@@ -52,13 +52,13 @@ services:
       PORT: 18789
       OPENCLAW_TOKEN: ${OPENCLAW_TOKEN:-}
       # Add LLM provider keys for OpenClaw to route through:
-      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-    # TODO: Replace with actual OpenClaw startup command when image is available
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
     command: >
-      sh -c "echo 'OpenClaw daemon placeholder — replace with actual image' && sleep infinity"
+      sh -c "npm install -g openclaw@latest && openclaw daemon --port 18789"
     healthcheck:
-      test: ["CMD-SHELL", "echo ok"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:18789/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

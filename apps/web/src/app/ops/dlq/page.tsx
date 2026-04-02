@@ -5,6 +5,9 @@
  */
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 export default function DLQPage() {
@@ -31,14 +34,7 @@ export default function DLQPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="p-6 text-slate-100 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-xs">Fetching diagnostics</div>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Loading diagnostics..." />
   }
 
   const diagnosis = diagnoseQuery.data as
@@ -50,12 +46,7 @@ export default function DLQPage() {
 
   return (
     <div className="p-6 text-slate-100">
-      <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">Dead Letter Queue</h2>
-        <p className="mt-1 mb-0 text-xs text-slate-500">
-          Inspect and retry failed jobs — ticket executions, cron runs, and webhook deliveries.
-        </p>
-      </div>
+      <PageHeader title="Dead Letter Queue" />
       {health && (
         <div className="cyber-card p-4 mb-4">
           <div className="flex justify-between items-center mb-2.5">
@@ -108,9 +99,7 @@ export default function DLQPage() {
         !diagnosis.issues?.length &&
         !diagnosis.failedTickets?.length &&
         !diagnosis.expiredLeases?.length && (
-          <div className="text-center text-slate-500 py-10 text-sm">
-            No issues found. System is healthy.
-          </div>
+          <EmptyState title="No issues found" message="System is healthy." />
         )}
     </div>
   )

@@ -7,6 +7,10 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { FilterPills } from '../../../components/ui/filter-pills'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 export default function InstinctsPage() {
@@ -60,20 +64,17 @@ export default function InstinctsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-orbitron text-neon-teal">Instincts</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Learned trigger&rarr;action patterns &mdash; {instinctsList.length} instincts
-          </p>
-        </div>
-        <button
-          className="cyber-btn-primary text-sm px-3 py-1.5"
-          onClick={() => setShowCreate(!showCreate)}
-        >
-          {showCreate ? 'Cancel' : '+ New Instinct'}
-        </button>
-      </div>
+      <PageHeader
+        title="Instincts"
+        actions={
+          <button
+            className="cyber-btn-primary text-sm px-3 py-1.5"
+            onClick={() => setShowCreate(!showCreate)}
+          >
+            {showCreate ? 'Cancel' : '+ New Instinct'}
+          </button>
+        }
+      />
 
       {/* Create form */}
       {showCreate && (
@@ -123,29 +124,23 @@ export default function InstinctsPage() {
       )}
 
       {/* Scope filter */}
-      <div className="flex gap-2">
-        {['all', 'development', 'mini_brain', 'brain'].map((s) => (
-          <button
-            key={s}
-            onClick={() => setScopeFilter(s)}
-            className={`cyber-btn-secondary text-xs px-3 py-1.5 ${
-              scopeFilter === s ? 'ring-1 ring-neon-teal text-neon-teal' : ''
-            }`}
-          >
-            {s === 'all' ? 'All' : s.replace('_', ' ')}
-          </button>
-        ))}
-      </div>
+      <FilterPills
+        options={['all', 'development', 'mini_brain', 'brain'] as const}
+        value={scopeFilter}
+        onChange={setScopeFilter}
+        labels={{
+          all: 'All',
+          development: 'Development',
+          mini_brain: 'Mini Brain',
+          brain: 'Brain',
+        }}
+      />
 
       {/* Instincts list */}
       {instinctsQuery.isLoading ? (
-        <div className="flex items-center justify-center min-h-[40vh]">
-          <div className="text-lg font-orbitron text-slate-500">Loading instincts...</div>
-        </div>
+        <LoadingState message="Loading instincts..." />
       ) : instinctsList.length === 0 ? (
-        <div className="cyber-card p-8 text-center text-slate-500">
-          No instincts found. Create one or let agents learn patterns automatically.
-        </div>
+        <EmptyState title="No instincts found" />
       ) : (
         <div className="grid gap-3">
           {instinctsList.map((inst) => (

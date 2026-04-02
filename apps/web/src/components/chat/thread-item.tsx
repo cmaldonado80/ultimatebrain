@@ -31,8 +31,8 @@ export type ThreadItemData =
       createdAt: Date
     }
   | { type: 'agent_start'; agentName: string; agentId: string }
-  | { type: 'tool_use'; name: string; input: unknown }
-  | { type: 'tool_result'; name: string; result: string }
+  | { type: 'tool_use'; name: string; input: unknown; stepId?: string }
+  | { type: 'tool_result'; name: string; result: string; stepId?: string }
   | { type: 'streaming'; text: string; agentName?: string }
   | { type: 'error'; message: string; onRetry?: () => void }
   | { type: 'system'; text: string }
@@ -49,9 +49,10 @@ function agentColor(name: string): string {
 interface ThreadItemProps {
   item: ThreadItemData
   onInspect?: (selection: InspectorSelection) => void
+  onRetryStep?: (stepId: string) => void
 }
 
-export function ThreadItem({ item, onInspect }: ThreadItemProps) {
+export function ThreadItem({ item, onInspect, onRetryStep }: ThreadItemProps) {
   switch (item.type) {
     case 'user':
       return (
@@ -177,7 +178,13 @@ export function ThreadItem({ item, onInspect }: ThreadItemProps) {
             input={item.input}
             status="running"
             onInspect={() =>
-              onInspect?.({ type: 'tool', name: item.name, input: item.input, status: 'running' })
+              onInspect?.({
+                type: 'tool',
+                name: item.name,
+                input: item.input,
+                status: 'running',
+                stepId: item.stepId,
+              })
             }
           />
         </div>
@@ -197,8 +204,10 @@ export function ThreadItem({ item, onInspect }: ThreadItemProps) {
                 input: {},
                 result: item.result,
                 status: 'done',
+                stepId: item.stepId,
               })
             }
+            onRetryStep={item.stepId && onRetryStep ? () => onRetryStep(item.stepId!) : undefined}
           />
         </div>
       )

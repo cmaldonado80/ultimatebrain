@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createDb, type Database, waitForSchema } from '@solarc/db'
 
 import { auth } from '../../../../server/auth'
+import { resolveActiveOrg } from '../../../../server/services/platform/org-bootstrap'
 
 /** Singleton DB pool — survives across Vercel hot reloads / Lambda reuse */
 let _db: Database | undefined
@@ -23,14 +24,20 @@ async function handler(req: Request) {
   await waitForSchema()
 
   const session = await auth()
+  const db = getDb()
+
+  let orgId = ''
+  if (session?.user?.id) {
+    orgId = await resolveActiveOrg(db, session.user.id, req)
+  }
 
   return fetchRequestHandler({
     endpoint: '/api/trpc',
     req,
     router: appRouter,
     createContext: () => ({
-      db: getDb(),
-      session: session?.user?.id ? { userId: session.user.id } : null,
+      db,
+      session: session?.user?.id ? { userId: session.user.id, organizationId: orgId } : null,
     }),
   })
 }

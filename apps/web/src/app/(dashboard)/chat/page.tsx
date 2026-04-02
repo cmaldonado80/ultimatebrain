@@ -4,9 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ActivityRail } from '../../../components/chat/activity-rail'
 import { CommandPalette } from '../../../components/chat/command-palette'
+import { EvidenceSheet } from '../../../components/chat/evidence-sheet'
 import { buildExecutionGroups, ExecutionGroup } from '../../../components/chat/execution-group'
 import { InspectorPanel } from '../../../components/chat/inspector-panel'
+import { IntelligenceCard } from '../../../components/chat/intelligence-card'
 import { MentionPicker } from '../../../components/chat/mention-picker'
+import { RunHistoryPanel } from '../../../components/chat/run-history-panel'
 import { SuggestionBar } from '../../../components/chat/suggestion-bar'
 import { ThreadItem, type ThreadItemData } from '../../../components/chat/thread-item'
 import { DbErrorBanner } from '../../../components/db-error-banner'
@@ -31,10 +34,19 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [runHistoryOpen, setRunHistoryOpen] = useState(false)
   const [showCommands, setShowCommands] = useState(false)
   const [showMentions, setShowMentions] = useState(false)
   const [commandQuery, setCommandQuery] = useState('')
   const [mentionQuery, setMentionQuery] = useState('')
+  const [intelligenceDismissed, setIntelligenceDismissed] = useState(false)
+  const [lastRecEventId, setLastRecEventId] = useState<string | null>(null)
+  const [decisionMode, setDecisionMode] = useState('balanced')
+  const [evidenceTarget, setEvidenceTarget] = useState<{
+    recommendationId: string
+    recommendationType: string
+    label: string
+  } | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -73,6 +85,7 @@ export default function ChatPage() {
     streaming,
     streamEvents,
     optimisticText,
+    lastRunId,
     handleSend: sendStream,
     abort,
   } = useChatStream(selectedSession, selectedAgents, utils)
@@ -111,6 +124,29 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamEvents, streaming, optimisticText])
 
+  // Load decision mode from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('decision-mode')
+    if (saved) setDecisionMode(saved)
+  }, [])
+
+  // Reset intelligence dismissal on session change
+  useEffect(() => {
+    setIntelligenceDismissed(false)
+    setLastRecEventId(null)
+  }, [selectedSession])
+
+  // Link recommendation event to resulting run (fire-and-forget)
+  const linkRecToRun = trpc.intelligence.linkRecommendationToRun.useMutation()
+  useEffect(() => {
+    if (lastRunId && lastRecEventId) {
+      linkRecToRun
+        .mutateAsync({ eventId: lastRecEventId, resultingRunId: lastRunId })
+        .catch(() => {})
+      setLastRecEventId(null) // Only link once
+    }
+  }, [lastRunId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Send wrapper (reads newMessage from local state) ────────────────
   const handleSend = useCallback(() => {
     if (!newMessage.trim()) return
@@ -118,6 +154,60 @@ export default function ChatPage() {
     setNewMessage('')
     sendStream(text, textareaRef)
   }, [newMessage, sendStream])
+
+  /** Retry last message with lineage tracking */
+  const handleRetry = useCallback(
+    (retryType: 'manual' | 'suggested' = 'manual') => {
+      const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
+      if (!lastUserMsg) return
+      const autonomy =
+        (localStorage.getItem('autonomy-level') as 'manual' | 'assist' | 'auto') ?? 'manual'
+      sendStream(lastUserMsg.text, textareaRef, {
+        retryOfRunId: lastRunId ?? undefined,
+        retryType,
+        autonomyLevel: autonomy,
+      })
+    },
+    [messages, lastRunId, sendStream],
+  )
+
+  /** Targeted retry: group-level */
+  const handleGroupRetry = useCallback(
+    (runId: string, groupId: string) => {
+      const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
+      if (!lastUserMsg) return
+      const autonomy =
+        (localStorage.getItem('autonomy-level') as 'manual' | 'assist' | 'auto') ?? 'manual'
+      sendStream(lastUserMsg.text, textareaRef, {
+        retryOfRunId: runId,
+        retryType: 'manual',
+        retryScope: 'group',
+        retryTargetId: groupId,
+        retryReason: `Retry group ${groupId}`,
+        autonomyLevel: autonomy,
+      })
+    },
+    [messages, sendStream],
+  )
+
+  /** Targeted retry: step-level */
+  const handleStepRetry = useCallback(
+    (runId: string, stepId: string) => {
+      const lastUserMsg = [...messages].reverse().find((m: { role: string }) => m.role === 'user')
+      if (!lastUserMsg) return
+      const autonomy =
+        (localStorage.getItem('autonomy-level') as 'manual' | 'assist' | 'auto') ?? 'manual'
+      sendStream(lastUserMsg.text, textareaRef, {
+        retryOfRunId: runId,
+        retryType: 'manual',
+        retryScope: 'step',
+        retryTargetId: stepId,
+        retryReason: `Retry step ${stepId.slice(0, 8)}`,
+        autonomyLevel: autonomy,
+      })
+    },
+    [messages, sendStream],
+  )
 
   // ── Session delete ──────────────────────────────────────────────────
   const handleDelete = useCallback(
@@ -145,7 +235,7 @@ export default function ChatPage() {
           createSession.mutateAsync({})
           break
         case 'retry':
-          handleSend()
+          handleRetry('manual')
           break
         case 'stop':
           abort()
@@ -169,7 +259,7 @@ export default function ChatPage() {
         }
       }
     },
-    [agents, createSession, handleSend, abort, selectedSession, sessionQuery.data],
+    [agents, createSession, handleRetry, abort, selectedSession, sessionQuery.data],
   )
 
   // ── @mention handler ────────────────────────────────────────────────
@@ -265,12 +355,32 @@ export default function ChatPage() {
             </span>
           )}
         </div>
-        <button
-          onClick={() => setInspectorOpen(!inspectorOpen)}
-          className={`cyber-btn-sm ${inspectorOpen ? 'cyber-btn-primary' : 'cyber-btn-secondary'} text-xs`}
-        >
-          Inspector
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => {
+              setRunHistoryOpen(!runHistoryOpen)
+              if (!runHistoryOpen) {
+                setInspectorOpen(false)
+                setEvidenceTarget(null)
+              }
+            }}
+            className={`cyber-btn-sm ${runHistoryOpen ? 'cyber-btn-primary' : 'cyber-btn-secondary'} text-xs`}
+          >
+            Runs
+          </button>
+          <button
+            onClick={() => {
+              setInspectorOpen(!inspectorOpen)
+              if (!inspectorOpen) {
+                setRunHistoryOpen(false)
+                setEvidenceTarget(null)
+              }
+            }}
+            className={`cyber-btn-sm ${inspectorOpen ? 'cyber-btn-primary' : 'cyber-btn-secondary'} text-xs`}
+          >
+            Inspector
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 flex min-h-0">
@@ -369,12 +479,23 @@ export default function ChatPage() {
                           key={i}
                           group={item as Parameters<typeof ExecutionGroup>[0]['group']}
                           onInspect={handleInspect}
+                          onRetryGroup={
+                            lastRunId
+                              ? (groupId) => handleGroupRetry(lastRunId, groupId)
+                              : undefined
+                          }
+                          onRetryStep={
+                            lastRunId ? (stepId) => handleStepRetry(lastRunId, stepId) : undefined
+                          }
                         />
                       ) : (
                         <ThreadItem
                           key={i}
                           item={item as Parameters<typeof ThreadItem>[0]['item']}
                           onInspect={handleInspect}
+                          onRetryStep={
+                            lastRunId ? (stepId) => handleStepRetry(lastRunId, stepId) : undefined
+                          }
                         />
                       ),
                     )}
@@ -404,8 +525,14 @@ export default function ChatPage() {
                             agentCount={selectedAgents.length || 1}
                             agentName={lastAgent}
                             finalAnswerText={finalText}
+                            decisionMode={decisionMode}
+                            onDecisionModeChange={(mode) => {
+                              setDecisionMode(mode)
+                              localStorage.setItem('decision-mode', mode)
+                            }}
                             onAction={(action) => {
-                              if (action === 'retry' || action === 'retry_different') handleSend()
+                              if (action === 'retry') handleRetry('manual')
+                              else if (action === 'retry_different') handleRetry('suggested')
                               else if (action === 'copy') navigator.clipboard.writeText(finalText)
                               else if (action === 'follow_up') textareaRef.current?.focus()
                               else if (action === 'second_opinion') setShowMentions(true)
@@ -417,6 +544,35 @@ export default function ChatPage() {
                   </div>
                 )}
               </div>
+              {/* Pre-run intelligence */}
+              {selectedSession &&
+                !streaming &&
+                !intelligenceDismissed &&
+                newMessage.length > 10 && (
+                  <div className="flex-shrink-0 px-4">
+                    <IntelligenceCard
+                      sessionId={selectedSession}
+                      userInput={newMessage}
+                      agentIds={selectedAgents.length > 0 ? selectedAgents : undefined}
+                      decisionMode={decisionMode}
+                      onAction={(action, eventId) => {
+                        if (eventId) setLastRecEventId(eventId)
+                        if (action.type === 'switch_autonomy') {
+                          localStorage.setItem('autonomy-level', action.payload.level as string)
+                        } else if (action.type === 'inspect_evidence') {
+                          setEvidenceTarget({
+                            recommendationId: action.payload.recommendationId as string,
+                            recommendationType: action.payload.recommendationType as string,
+                            label: action.payload.recommendationLabel as string,
+                          })
+                          setInspectorOpen(false)
+                          setRunHistoryOpen(false)
+                        }
+                      }}
+                      onDismiss={() => setIntelligenceDismissed(true)}
+                    />
+                  </div>
+                )}
               {/* Composer */}
               <div className="border-t border-border px-4 py-3 flex-shrink-0">
                 <div className="max-w-3xl mx-auto">
@@ -557,9 +713,68 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* Right panel -- inspector */}
+        {/* Right panel -- inspector or run history */}
         {inspectorOpen && (
-          <InspectorPanel selection={inspectorSelection} onClose={() => setInspectorOpen(false)} />
+          <InspectorPanel
+            selection={inspectorSelection}
+            onClose={() => setInspectorOpen(false)}
+            onCompareWithParent={() => {
+              setInspectorOpen(false)
+              setRunHistoryOpen(true)
+            }}
+            onNavigateToRun={(runId) => {
+              // Open inspector for the target run (minimal info)
+              handleInspect({
+                type: 'run',
+                runId,
+                status: 'unknown',
+                agentNames: [],
+                stepCount: 0,
+                durationMs: null,
+                startedAt: new Date(),
+                memoryCount: 0,
+              })
+            }}
+            onRetryStep={lastRunId ? (stepId) => handleStepRetry(lastRunId, stepId) : undefined}
+          />
+        )}
+        {runHistoryOpen && selectedSession && (
+          <RunHistoryPanel
+            sessionId={selectedSession}
+            onSelectRun={(sel) => {
+              handleInspect(sel)
+              setRunHistoryOpen(false)
+            }}
+            onCompare={() => {
+              // handled internally by RunHistoryPanel
+            }}
+            onClose={() => setRunHistoryOpen(false)}
+          />
+        )}
+        {evidenceTarget && selectedSession && (
+          <EvidenceSheet
+            recommendationId={evidenceTarget.recommendationId}
+            recommendationType={evidenceTarget.recommendationType}
+            label={evidenceTarget.label}
+            sessionId={selectedSession}
+            userInput={newMessage.length > 5 ? newMessage : undefined}
+            agentIds={selectedAgents.length > 0 ? selectedAgents : undefined}
+            decisionMode={decisionMode}
+            onClose={() => setEvidenceTarget(null)}
+            onNavigateToRun={(runId) => {
+              setEvidenceTarget(null)
+              handleInspect({
+                type: 'run',
+                runId,
+                status: 'unknown',
+                agentNames: [],
+                stepCount: 0,
+                durationMs: null,
+                startedAt: new Date(),
+                memoryCount: 0,
+              })
+            }}
+          />
         )}
       </div>
     </div>

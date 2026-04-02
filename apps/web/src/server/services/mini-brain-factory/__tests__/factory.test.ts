@@ -27,16 +27,17 @@ describe('MiniBrainFactory', () => {
   })
 
   describe('listTemplates()', () => {
-    it('should return all 6 templates', () => {
+    it('should return all 7 templates', () => {
       const templates = factory.getTemplates()
-      expect(templates.length).toBe(6)
+      expect(templates.length).toBe(7)
       const ids = templates.map((t) => t.id)
       expect(ids).toContain('astrology')
       expect(ids).toContain('hospitality')
       expect(ids).toContain('healthcare')
-      expect(ids).toContain('legal')
       expect(ids).toContain('marketing')
       expect(ids).toContain('soc-ops')
+      expect(ids).toContain('design')
+      expect(ids).toContain('engineering')
     })
   })
 

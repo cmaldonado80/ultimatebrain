@@ -19,7 +19,19 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
     // ── Step 1: Create all enum types ──
     const enums: [string, string[]][] = [
       ['entity_tier', ['brain', 'mini_brain', 'development']],
-      ['entity_status', ['active', 'suspended', 'degraded', 'provisioning']],
+      [
+        'entity_status',
+        [
+          'provisioning',
+          'configured',
+          'deployed',
+          'verified',
+          'active',
+          'degraded',
+          'suspended',
+          'retired',
+        ],
+      ],
       [
         'ticket_status',
         ['backlog', 'queued', 'in_progress', 'review', 'done', 'failed', 'cancelled'],
@@ -73,6 +85,19 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
           CREATE TYPE ${name} AS ENUM (${values.map((v) => `'${v}'`).join(', ')});
         EXCEPTION WHEN duplicate_object THEN NULL; END $$;
       `)
+    }
+
+    // ── Step 1a: Add missing enum values to existing types ──
+    const enumAdditions: [string, string[]][] = [
+      ['entity_status', ['configured', 'deployed', 'verified', 'retired']],
+      ['approval_status', ['expired']],
+    ]
+    for (const [enumName, newValues] of enumAdditions) {
+      for (const val of newValues) {
+        await client
+          .query(`ALTER TYPE ${enumName} ADD VALUE IF NOT EXISTS '${val}'`)
+          .catch(() => {})
+      }
     }
 
     // ── Step 1b: Enable pgvector extension for memory embeddings ──
@@ -815,10 +840,53 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         enforce boolean DEFAULT true,
         updated_at timestamp NOT NULL DEFAULT now()
       )`,
+
+      // Persistence: Journey Execution State
+      `CREATE TABLE IF NOT EXISTS journey_executions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        journey_id text NOT NULL,
+        status text NOT NULL DEFAULT 'active',
+        current_state text NOT NULL,
+        context jsonb,
+        history jsonb,
+        started_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS journey_executions_journey_idx ON journey_executions(journey_id)`,
+      `CREATE INDEX IF NOT EXISTS journey_executions_status_idx ON journey_executions(status)`,
+
+      // Persistence: Presence Entries
+      `CREATE TABLE IF NOT EXISTS presence_entries (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id text,
+        type text NOT NULL,
+        location text,
+        workspace_id text,
+        status jsonb,
+        cursor jsonb,
+        last_heartbeat timestamp NOT NULL DEFAULT now(),
+        connected_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS presence_entries_user_idx ON presence_entries(user_id)`,
+      `CREATE INDEX IF NOT EXISTS presence_entries_heartbeat_idx ON presence_entries(last_heartbeat)`,
+
+      // Persistence: User Layout Preferences
+      `CREATE TABLE IF NOT EXISTS user_preferences (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id text NOT NULL UNIQUE,
+        pinned_panels text[],
+        hidden_panels text[],
+        behavior_weights jsonb,
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
     ]
 
     for (const sql of tables) {
-      await client.query(sql).catch(() => {})
+      await client.query(sql).catch((err) => {
+        // Log but continue — table may already exist or enum may conflict
+        const snippet = typeof sql === 'string' ? sql.substring(0, 60) : 'unknown'
+        console.warn(`[Schema] DDL statement skipped: ${snippet}...`, err?.message ?? err)
+      })
     }
 
     // ── Step 2b: Add missing columns to existing tables ──
@@ -829,6 +897,7 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `ALTER TABLE agents ADD COLUMN IF NOT EXISTS tool_access text[]`,
       `ALTER TABLE agents ADD COLUMN IF NOT EXISTS parent_orchestrator_id uuid`,
       `ALTER TABLE agents ADD COLUMN IF NOT EXISTS required_model_type model_type`,
+      `ALTER TABLE agents ADD COLUMN IF NOT EXISTS verification_level integer DEFAULT 0`,
       `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS is_system_protected boolean DEFAULT false`,
       `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS lifecycle_state workspace_lifecycle DEFAULT 'draft' NOT NULL`,
       `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS icon text`,
@@ -837,7 +906,17 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `ALTER TABLE orchestrator_routes ADD COLUMN IF NOT EXISTS orchestrator_id uuid`,
       `ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS source_agent_id uuid`,
       `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS database_url text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS encrypted_database_url text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS health_endpoint text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS environment text DEFAULT 'local'`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS deployment_provider text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS deployment_ref text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS version text`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS last_deployed_at timestamp`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS owner_user_id uuid`,
       `ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL`,
+      `ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS model_override text`,
+      `ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS parent_session_id uuid`,
       `ALTER TABLE chat_run_steps ADD COLUMN IF NOT EXISTS group_id text`,
       `CREATE TABLE IF NOT EXISTS run_memory_usage (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -847,6 +926,226 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         tier memory_tier,
         created_at timestamp NOT NULL DEFAULT now()
       )`,
+      `DO $$ BEGIN CREATE TYPE deployment_workflow_status AS ENUM ('pending','running','completed','failed','cancelled'); EXCEPTION WHEN duplicate_object THEN null; END $$`,
+      `CREATE TABLE IF NOT EXISTS deployment_workflows (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        entity_id uuid NOT NULL REFERENCES brain_entities(id) ON DELETE CASCADE,
+        dev_entity_id uuid REFERENCES brain_entities(id) ON DELETE SET NULL,
+        status deployment_workflow_status NOT NULL DEFAULT 'pending',
+        current_step text,
+        steps jsonb NOT NULL DEFAULT '[]'::jsonb,
+        config jsonb,
+        triggered_by uuid REFERENCES users(id),
+        error text,
+        started_at timestamp,
+        completed_at timestamp,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS deployment_workflows_entity_idx ON deployment_workflows(entity_id)`,
+      `CREATE INDEX IF NOT EXISTS deployment_workflows_status_idx ON deployment_workflows(status)`,
+      `DO $$ BEGIN CREATE TYPE secret_type AS ENUM ('brain_api_key','mini_brain_secret','app_secret','database_url'); EXCEPTION WHEN duplicate_object THEN null; END $$`,
+      `DO $$ BEGIN CREATE TYPE secret_status AS ENUM ('active','rotating','pending_activation','revoked'); EXCEPTION WHEN duplicate_object THEN null; END $$`,
+      `CREATE TABLE IF NOT EXISTS entity_secrets (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        entity_id uuid NOT NULL REFERENCES brain_entities(id) ON DELETE CASCADE,
+        type secret_type NOT NULL,
+        status secret_status NOT NULL DEFAULT 'active',
+        version integer NOT NULL DEFAULT 1,
+        key_hash text,
+        key_prefix text,
+        previous_key_hash text,
+        rotation_started_at timestamp,
+        expires_at timestamp,
+        created_by uuid REFERENCES users(id),
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS entity_secrets_entity_idx ON entity_secrets(entity_id)`,
+      `CREATE INDEX IF NOT EXISTS entity_secrets_type_status_idx ON entity_secrets(type, status)`,
+      // Organizations
+      `CREATE TABLE IF NOT EXISTS organizations (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        name text NOT NULL,
+        slug text UNIQUE NOT NULL,
+        status text NOT NULL DEFAULT 'active',
+        owner_user_id uuid NOT NULL REFERENCES users(id),
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS organizations_slug_idx ON organizations(slug)`,
+      `CREATE INDEX IF NOT EXISTS organizations_owner_idx ON organizations(owner_user_id)`,
+      `CREATE TABLE IF NOT EXISTS organization_members (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role text NOT NULL,
+        joined_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS org_members_org_idx ON organization_members(organization_id)`,
+      `CREATE INDEX IF NOT EXISTS org_members_user_idx ON organization_members(user_id)`,
+      // Org-scoping columns on existing tables
+      `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `ALTER TABLE brain_entities ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `ALTER TABLE deployment_workflows ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `ALTER TABLE entity_secrets ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `ALTER TABLE audit_events ADD COLUMN IF NOT EXISTS organization_id uuid`,
+      `CREATE INDEX IF NOT EXISTS brain_entities_org_idx ON brain_entities(organization_id)`,
+      `CREATE INDEX IF NOT EXISTS deployment_workflows_org_idx ON deployment_workflows(organization_id)`,
+      `CREATE INDEX IF NOT EXISTS incidents_org_idx ON incidents(organization_id)`,
+
+      // Missing columns found in DDL audit
+      `ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS created_by uuid`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS retry_type text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS retry_scope text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS retry_target_id text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS retry_reason text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS workflow_id uuid`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS workflow_name text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS autonomy_level text`,
+      `ALTER TABLE chat_runs ADD COLUMN IF NOT EXISTS auto_actions_count integer DEFAULT 0`,
+      `ALTER TABLE instincts ADD COLUMN IF NOT EXISTS status text DEFAULT 'observed'`,
+
+      // alert_rules table (was entirely missing from DDL)
+      `CREATE TABLE IF NOT EXISTS alert_rules (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        name text NOT NULL,
+        service_scope text,
+        condition text NOT NULL,
+        threshold real,
+        window_minutes integer DEFAULT 5,
+        severity text DEFAULT 'medium',
+        enabled boolean DEFAULT true,
+        created_by uuid,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+
+      // incidents table (was entirely missing from DDL)
+      `CREATE TABLE IF NOT EXISTS incidents (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        rule_id uuid REFERENCES alert_rules(id) ON DELETE SET NULL,
+        service_id text,
+        service_name text NOT NULL,
+        severity text NOT NULL DEFAULT 'medium',
+        status text NOT NULL DEFAULT 'triggered',
+        message text,
+        organization_id uuid,
+        triggered_at timestamp NOT NULL DEFAULT now(),
+        acknowledged_at timestamp,
+        acknowledged_by uuid,
+        resolved_at timestamp,
+        resolved_by uuid,
+        metadata jsonb,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS incidents_status_idx ON incidents(status)`,
+      `CREATE INDEX IF NOT EXISTS incidents_service_idx ON incidents(service_name)`,
+      // Astrology domain tables
+      `CREATE TABLE IF NOT EXISTS astrology_charts (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid,
+        created_by_user_id uuid,
+        name text NOT NULL,
+        birth_date text NOT NULL,
+        birth_time text NOT NULL,
+        latitude real NOT NULL,
+        longitude real NOT NULL,
+        timezone real,
+        chart_data jsonb NOT NULL,
+        highlights jsonb,
+        summary text,
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS astrology_charts_org_idx ON astrology_charts(organization_id)`,
+      `CREATE TABLE IF NOT EXISTS astrology_reports (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid,
+        chart_id uuid NOT NULL REFERENCES astrology_charts(id) ON DELETE CASCADE,
+        report_type text NOT NULL DEFAULT 'natal',
+        sections jsonb NOT NULL,
+        summary text,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS astrology_reports_chart_idx ON astrology_reports(chart_id)`,
+      `CREATE TABLE IF NOT EXISTS astrology_relationships (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid,
+        created_by_user_id uuid,
+        person_a_name text NOT NULL,
+        person_a_data jsonb NOT NULL,
+        person_b_name text NOT NULL,
+        person_b_data jsonb NOT NULL,
+        compatibility_score real,
+        synastry_data jsonb,
+        narrative text,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS astrology_relationships_org_idx ON astrology_relationships(organization_id)`,
+      `CREATE TABLE IF NOT EXISTS astrology_share_tokens (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        resource_type text NOT NULL,
+        resource_id uuid NOT NULL,
+        token text UNIQUE NOT NULL,
+        created_by_user_id uuid,
+        organization_id uuid,
+        revoked_at timestamp,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS share_tokens_token_idx ON astrology_share_tokens(token)`,
+      `CREATE TABLE IF NOT EXISTS astrology_engagement (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid NOT NULL,
+        chart_id uuid NOT NULL REFERENCES astrology_charts(id) ON DELETE CASCADE,
+        last_seen_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS engagement_user_chart_idx ON astrology_engagement(user_id, chart_id)`,
+      // Product events + improvement proposals
+      `CREATE TABLE IF NOT EXISTS product_events (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid,
+        user_id uuid,
+        domain text NOT NULL,
+        resource_type text,
+        action text NOT NULL,
+        metadata jsonb,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS product_events_domain_idx ON product_events(domain)`,
+      `CREATE INDEX IF NOT EXISTS product_events_action_idx ON product_events(action)`,
+      `CREATE TABLE IF NOT EXISTS improvement_proposals (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        domain text NOT NULL,
+        organization_id uuid,
+        layer text NOT NULL,
+        title text NOT NULL,
+        description text NOT NULL,
+        expected_impact text,
+        confidence real,
+        status text NOT NULL DEFAULT 'pending',
+        execution_plan jsonb,
+        proposed_at timestamp NOT NULL DEFAULT now(),
+        resolved_at timestamp,
+        resolved_by uuid
+      )`,
+      `CREATE INDEX IF NOT EXISTS improvement_proposals_domain_idx ON improvement_proposals(domain)`,
+
+      `CREATE TABLE IF NOT EXISTS documents (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        name text NOT NULL,
+        content text NOT NULL,
+        chunk_count integer DEFAULT 0,
+        workspace_id uuid,
+        organization_id uuid,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+
+      // Missing indexes from audit (Batch 1)
+      `CREATE INDEX IF NOT EXISTS chat_run_steps_agent_idx ON chat_run_steps(agent_id)`,
+      `CREATE INDEX IF NOT EXISTS guardrail_logs_ticket_id_idx ON guardrail_logs(ticket_id)`,
+      `CREATE INDEX IF NOT EXISTS receipt_actions_receipt_seq_idx ON receipt_actions(receipt_id, sequence)`,
+      `CREATE INDEX IF NOT EXISTS approval_gates_status_idx ON approval_gates(status)`,
+      `CREATE INDEX IF NOT EXISTS approval_gates_agent_idx ON approval_gates(agent_id)`,
     ]
     for (const stmt of alterStatements) {
       await client.query(stmt).catch(() => {})
@@ -964,6 +1263,63 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         stream: true,
         inCost: 0.15,
         outCost: 0.6,
+        speed: 'fast',
+      },
+      // Ollama Cloud Models
+      {
+        id: 'qwen3.5:cloud',
+        name: 'Qwen 3.5 Cloud',
+        provider: 'ollama',
+        type: 'agentic',
+        ctx: 128000,
+        out: 32000,
+        vision: false,
+        tools: true,
+        stream: true,
+        inCost: 0,
+        outCost: 0,
+        speed: 'medium',
+      },
+      {
+        id: 'deepseek-v3.2:cloud',
+        name: 'DeepSeek V3.2 Cloud',
+        provider: 'ollama',
+        type: 'reasoning',
+        ctx: 128000,
+        out: 32000,
+        vision: false,
+        tools: true,
+        stream: true,
+        inCost: 0,
+        outCost: 0,
+        speed: 'medium',
+      },
+      {
+        id: 'llama-3.2-11b-vision:cloud',
+        name: 'Llama 3.2 11B Vision Cloud',
+        provider: 'ollama',
+        type: 'vision',
+        ctx: 128000,
+        out: 8192,
+        vision: true,
+        tools: false,
+        stream: true,
+        inCost: 0,
+        outCost: 0,
+        speed: 'fast',
+      },
+      {
+        id: 'llama-guard-3:cloud',
+        name: 'Llama Guard 3 Cloud',
+        provider: 'ollama',
+        type: 'guard',
+        ctx: 8192,
+        out: 4096,
+        vision: false,
+        tools: false,
+        stream: true,
+        inCost: 0,
+        outCost: 0,
         speed: 'fast',
       },
     ]

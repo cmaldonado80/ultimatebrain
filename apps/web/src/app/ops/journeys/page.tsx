@@ -5,6 +5,9 @@
  */
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface JourneyExecution {
@@ -61,26 +64,14 @@ export default function JourneysPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-lg font-orbitron">Loading journeys...</div>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Loading journeys..." />
   }
 
   const executions = (data ?? []) as JourneyExecution[]
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">Journeys</h2>
-        <p className="mt-1 mb-0 text-xs text-slate-500">
-          Declarative agent state machines — view active executions, state history, and pause/resume
-          controls.
-        </p>
-      </div>
+      <PageHeader title="Journeys" />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -110,10 +101,7 @@ export default function JourneysPage() {
 
       {/* Executions */}
       {executions.length === 0 ? (
-        <div className="text-center text-slate-600 py-10 text-sm">
-          No active journey executions. Journeys are started when agents enter constrained
-          workflows.
-        </div>
+        <EmptyState title="No active executions" />
       ) : (
         <div className="space-y-3">
           {executions.map((exec) => (

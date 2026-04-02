@@ -12,15 +12,20 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
+import { users } from './auth'
 import {
   agents,
   debateEdgeTypeEnum,
   debateSessionStatusEnum,
+  deploymentWorkflowStatusEnum,
   entityAgentRoleEnum,
   entityStatusEnum,
   entityTierEnum,
   projects,
+  secretStatusEnum,
+  secretTypeEnum,
 } from './core'
+import { anomalySeverityEnum } from './execution'
 
 // Brain entity hierarchy
 export const brainEntities = pgTable(
@@ -37,12 +42,21 @@ export const brainEntities = pgTable(
     domainEngines: jsonb('domain_engines'),
     apiKeyHash: text('api_key_hash'),
     endpoint: text('endpoint'),
-    databaseUrl: text('database_url'),
+    databaseUrl: text('database_url'), // legacy — prefer encryptedDatabaseUrl
+    encryptedDatabaseUrl: text('encrypted_database_url'),
     healthEndpoint: text('health_endpoint'),
     status: entityStatusEnum('status').default('provisioning').notNull(),
     config: jsonb('config'),
     hookProfile: text('hook_profile').default('standard'),
     lastHealthCheck: timestamp('last_health_check'),
+    // Deployment metadata
+    environment: text('environment').default('local'),
+    deploymentProvider: text('deployment_provider'),
+    deploymentRef: text('deployment_ref'),
+    version: text('version'),
+    lastDeployedAt: timestamp('last_deployed_at'),
+    ownerUserId: uuid('owner_user_id'),
+    organizationId: uuid('organization_id'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -50,6 +64,7 @@ export const brainEntities = pgTable(
     index('brain_entities_status_idx').on(t.status),
     index('brain_entities_parent_id_idx').on(t.parentId),
     index('brain_entities_tier_idx').on(t.tier),
+    index('brain_entities_org_idx').on(t.organizationId),
   ],
 )
 
@@ -180,3 +195,148 @@ export const tokenBudgets = pgTable('token_budgets', {
   enforce: boolean('enforce').default(true),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
+
+// ── Alerting + Incidents ──────────────────────────────────────────────
+
+export const alertRules = pgTable('alert_rules', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  serviceScope: text('service_scope').notNull(),
+  condition: text('condition').notNull(),
+  threshold: real('threshold').notNull(),
+  windowMinutes: integer('window_minutes').default(5).notNull(),
+  severity: anomalySeverityEnum('severity').default('medium').notNull(),
+  enabled: boolean('enabled').default(true).notNull(),
+  createdBy: uuid('created_by'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const incidents = pgTable(
+  'incidents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ruleId: uuid('rule_id'),
+    serviceId: text('service_id').notNull(),
+    serviceName: text('service_name').notNull(),
+    severity: anomalySeverityEnum('severity').default('medium').notNull(),
+    status: text('status').default('triggered').notNull(),
+    message: text('message'),
+    organizationId: uuid('organization_id'),
+    triggeredAt: timestamp('triggered_at').defaultNow().notNull(),
+    acknowledgedAt: timestamp('acknowledged_at'),
+    acknowledgedBy: uuid('acknowledged_by'),
+    resolvedAt: timestamp('resolved_at'),
+    resolvedBy: uuid('resolved_by'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('incidents_status_idx').on(t.status),
+    index('incidents_triggered_idx').on(t.triggeredAt),
+    index('incidents_org_idx').on(t.organizationId),
+  ],
+)
+
+// ── Deployment Workflows ─────────────────────────────────────────────
+
+export const deploymentWorkflows = pgTable(
+  'deployment_workflows',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    entityId: uuid('entity_id')
+      .references(() => brainEntities.id, { onDelete: 'cascade' })
+      .notNull(),
+    devEntityId: uuid('dev_entity_id').references(() => brainEntities.id, {
+      onDelete: 'set null',
+    }),
+    status: deploymentWorkflowStatusEnum('status').default('pending').notNull(),
+    currentStep: text('current_step'),
+    steps: jsonb('steps').default([]).notNull(),
+    config: jsonb('config'),
+    triggeredBy: uuid('triggered_by').references(() => users.id),
+    organizationId: uuid('organization_id'),
+    error: text('error'),
+    startedAt: timestamp('started_at'),
+    completedAt: timestamp('completed_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('deployment_workflows_entity_idx').on(t.entityId),
+    index('deployment_workflows_status_idx').on(t.status),
+    index('deployment_workflows_org_idx').on(t.organizationId),
+  ],
+)
+
+// ── Entity Secrets ───────────────────────────────────────────────────
+
+export const entitySecrets = pgTable(
+  'entity_secrets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    entityId: uuid('entity_id')
+      .references(() => brainEntities.id, { onDelete: 'cascade' })
+      .notNull(),
+    type: secretTypeEnum('type').notNull(),
+    status: secretStatusEnum('status').default('active').notNull(),
+    version: integer('version').default(1).notNull(),
+    keyHash: text('key_hash'),
+    keyPrefix: text('key_prefix'),
+    previousKeyHash: text('previous_key_hash'),
+    rotationStartedAt: timestamp('rotation_started_at'),
+    expiresAt: timestamp('expires_at'),
+    organizationId: uuid('organization_id'),
+    createdBy: uuid('created_by').references(() => users.id),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('entity_secrets_entity_idx').on(t.entityId),
+    index('entity_secrets_type_status_idx').on(t.type, t.status),
+  ],
+)
+
+// ── Product Events ───────────────────────────────────────────────────
+
+export const productEvents = pgTable(
+  'product_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id'),
+    userId: uuid('user_id'),
+    domain: text('domain').notNull(),
+    resourceType: text('resource_type'),
+    action: text('action').notNull(),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('product_events_domain_idx').on(t.domain),
+    index('product_events_action_idx').on(t.action),
+    index('product_events_created_idx').on(t.createdAt),
+  ],
+)
+
+// ── Improvement Proposals ────────────────────────────────────────────
+
+export const improvementProposals = pgTable(
+  'improvement_proposals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    domain: text('domain').notNull(),
+    organizationId: uuid('organization_id'),
+    layer: text('layer').notNull(),
+    title: text('title').notNull(),
+    description: text('description').notNull(),
+    expectedImpact: text('expected_impact'),
+    confidence: real('confidence'),
+    status: text('status').default('pending').notNull(),
+    executionPlan: jsonb('execution_plan'),
+    proposedAt: timestamp('proposed_at').defaultNow().notNull(),
+    resolvedAt: timestamp('resolved_at'),
+    resolvedBy: uuid('resolved_by'),
+  },
+  (t) => [
+    index('improvement_proposals_domain_idx').on(t.domain),
+    index('improvement_proposals_status_idx').on(t.status),
+  ],
+)

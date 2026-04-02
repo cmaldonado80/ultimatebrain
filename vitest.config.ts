@@ -11,9 +11,9 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: ['node_modules/', 'dist/', '.next/', 'templates/'],
       thresholds: {
-        lines: 70,
-        functions: 70,
-        branches: 60,
+        lines: 80,
+        functions: 80,
+        branches: 70,
       },
     },
   },

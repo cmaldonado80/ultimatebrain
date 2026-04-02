@@ -1,12 +1,16 @@
 'use client'
 
 /**
- * Sidebar — 260px navigation with 24 tabs + Cmd+K spotlight search
+ * Sidebar — 260px navigation with Cmd+K spotlight search.
+ * Admin section shown only to platform_owner.
  */
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { memo, useEffect, useState } from 'react'
+
+import { useActiveOrg } from '../../hooks/use-active-org'
+import { trpc } from '../../utils/trpc'
 
 // ── Navigation Structure ────────────────────────────────────────────────
 
@@ -14,6 +18,7 @@ interface NavItem {
   label: string
   href: string
   icon: string
+  external?: boolean
 }
 
 interface NavSection {
@@ -21,19 +26,58 @@ interface NavSection {
   items: NavItem[]
 }
 
-const NAV_SECTIONS: NavSection[] = [
+const BASE_NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { label: 'Mission Control', href: '/', icon: '⊞' },
-      { label: 'Observatory', href: '/observatory', icon: '⬡' },
-      { label: 'Workshop', href: '/workshop', icon: '◈' },
-      { label: 'Intelligence', href: '/intelligence', icon: '◇' },
+      { label: 'CEO Dashboard', href: '/ceo', icon: '⬡' },
+      { label: 'Notifications', href: '/notifications', icon: '⊙' },
+      { label: 'Finance', href: '/finance', icon: '$' },
       { label: 'Chat', href: '/chat', icon: '◉' },
+    ],
+  },
+  {
+    title: 'Corporation',
+    items: [
+      { label: 'Org Chart', href: '/org-chart', icon: '◈' },
+      { label: 'Agent Inbox', href: '/inbox', icon: '✉' },
       { label: 'Agents', href: '/agents', icon: '⬡' },
       { label: 'Tickets', href: '/tickets', icon: '▤' },
-      { label: 'Workspaces', href: '/workspaces', icon: '▦' },
+      { label: 'Project Board', href: '/board', icon: '▦' },
       { label: 'Projects', href: '/projects', icon: '◈' },
-      { label: 'Feature Flags', href: '/canvas', icon: '◧' },
+      { label: 'Products', href: '/products', icon: '▣' },
+      { label: 'Routines', href: '/routines', icon: '⟳' },
+      { label: 'Work Products', href: '/work-products', icon: '◉' },
+    ],
+  },
+  {
+    title: 'Departments',
+    items: [
+      { label: 'Workspaces', href: '/workspaces', icon: '▦' },
+      { label: 'Mini Brain Factory', href: '/mini-brain-factory', icon: '🏭' },
+      { label: 'Topology', href: '/topology', icon: '⊡' },
+      { label: 'OpenClaw', href: '/openclaw', icon: '🦞' },
+      { label: 'Astrology', href: '/astrology', icon: '☉' },
+    ],
+  },
+  {
+    title: 'Intelligence',
+    items: [
+      { label: 'Memory Graph', href: '/memory', icon: '◇' },
+      { label: 'Intelligence', href: '/intelligence', icon: '◇' },
+      { label: 'Guardrails', href: '/guardrails', icon: '⛨' },
+      { label: 'Trajectory', href: '/trajectory', icon: '⤳' },
+      { label: 'Skills', href: '/skills', icon: '★' },
+      { label: 'Flows', href: '/flows', icon: '⤳' },
+      { label: 'Playbooks', href: '/playbooks', icon: '▶' },
+    ],
+  },
+  {
+    title: 'Organization',
+    items: [
+      { label: 'Org Dashboard', href: '/org/dashboard', icon: '◎' },
+      { label: 'Org Settings', href: '/org', icon: '⊞' },
+      { label: 'Members', href: '/org/members', icon: '◉' },
     ],
   },
   {
@@ -43,21 +87,25 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Monitoring',
     items: [
+      { label: 'Runtime Status', href: '/ops/status', icon: '●' },
+      { label: 'Incidents', href: '/ops/incidents', icon: '⚡' },
       { label: 'Traces', href: '/ops/traces', icon: '⋯' },
       { label: 'Evals', href: '/ops/evals', icon: '✓' },
       { label: 'Gateway', href: '/ops/gateway', icon: '⇄' },
       { label: 'Live Viewer', href: '/ops/live', icon: '◉' },
       { label: 'Cron Jobs', href: '/ops/cron', icon: '⏱' },
+      { label: 'Alerting', href: '/alerting', icon: '⚠' },
     ],
   },
   {
     title: 'Safety',
     items: [
-      { label: 'Guardrails', href: '/ops/guardrails', icon: '⛊' },
+      { label: 'Guardrails (Ops)', href: '/ops/guardrails', icon: '⛊' },
       { label: 'Approvals', href: '/ops/approvals', icon: '⊘' },
       { label: 'DLQ', href: '/ops/dlq', icon: '⚠' },
       { label: 'Healing', href: '/ops/healing', icon: '♥' },
       { label: 'Checkpoints', href: '/ops/checkpoints', icon: '⟲' },
+      { label: 'Audit Log', href: '/audit', icon: '📋' },
     ],
   },
   {
@@ -67,25 +115,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Task Runner', href: '/ops/task-runner', icon: '▷' },
       { label: 'Journeys', href: '/ops/journeys', icon: '⟿' },
       { label: 'Databases', href: '/ops/databases', icon: '⊟' },
-    ],
-  },
-  {
-    title: 'Discovery',
-    items: [
-      { label: 'Browser Sessions', href: '/ops/browser-sessions', icon: '⧉' },
-      { label: 'Visual QA', href: '/ops/visual-qa', icon: '⊡' },
-      { label: 'Instincts', href: '/ops/instincts', icon: '⚡' },
-      { label: 'Marketplace', href: '/ops/aitmpl', icon: '⊞' },
       { label: 'A2A Protocol', href: '/ops/a2a', icon: '⇋' },
-    ],
-  },
-  {
-    title: 'Intelligence',
-    items: [
-      { label: 'Memory Graph', href: '/memory', icon: '◇' },
-      { label: 'Flows', href: '/flows', icon: '⤳' },
-      { label: 'Playbooks', href: '/playbooks', icon: '▶' },
-      { label: 'QA Recordings', href: '/qa', icon: '⏺' },
     ],
   },
   {
@@ -95,25 +125,55 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Engines', href: '/engines', icon: '⚙' },
       { label: 'Engine Registry', href: '/engines/registry', icon: '⊛' },
       { label: 'Brain Manager', href: '/engines/manage', icon: '◆' },
-      { label: 'Skills', href: '/skills', icon: '★' },
+      { label: 'Runtimes', href: '/runtimes', icon: '◎' },
+      { label: 'Deployments', href: '/ops/deployments', icon: '▷' },
+      { label: 'Model Registry', href: '/model-registry', icon: '⊙' },
+      { label: 'Secrets', href: '/secrets', icon: '🔑' },
       { label: 'Integrations', href: '/integrations', icon: '⊕' },
+      { label: 'Builder', href: '/builder', icon: '◈' },
+      { label: 'ClawHub', href: '/clawhub', icon: '🦞' },
+      { label: 'Onboarding', href: '/onboarding', icon: '▷' },
       { label: 'Settings', href: '/settings', icon: '⚿' },
     ],
   },
+  {
+    title: 'QA & Discovery',
+    items: [
+      { label: 'Observatory', href: '/observatory', icon: '⬡' },
+      { label: 'Workshop', href: '/workshop', icon: '◈' },
+      { label: 'QA Recordings', href: '/qa', icon: '⏺' },
+      { label: 'Browser Sessions', href: '/ops/browser-sessions', icon: '⧉' },
+      { label: 'Visual QA', href: '/ops/visual-qa', icon: '⊡' },
+      { label: 'Instincts', href: '/ops/instincts', icon: '⚡' },
+      { label: 'Marketplace', href: '/ops/aitmpl', icon: '⊞' },
+    ],
+  },
 ]
+
+// Domain Apps section is built dynamically from brainEntities (see Sidebar component)
+
+const ADMIN_SECTION: NavSection = {
+  title: 'Admin',
+  items: [
+    { label: 'All Organizations', href: '/admin/orgs', icon: '⊞' },
+    { label: 'All Users', href: '/admin/users', icon: '◉' },
+  ],
+}
 
 // ── Spotlight Search ────────────────────────────────────────────────────
 
 const SpotlightSearch = memo(function SpotlightSearch({
   open,
   onClose,
+  sections,
 }: {
   open: boolean
   onClose: () => void
+  sections: NavSection[]
 }) {
   const [query, setQuery] = useState('')
 
-  const allItems = NAV_SECTIONS.flatMap((s) => s.items)
+  const allItems = sections.flatMap((s) => s.items)
   const filtered = query
     ? allItems.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()))
     : allItems.slice(0, 8)
@@ -163,11 +223,60 @@ const SpotlightSearch = memo(function SpotlightSearch({
   )
 })
 
+// ── Org Name ──────────────────────────────────────────────────────────────
+
+function OrgNameLabel() {
+  const { activeOrg } = useActiveOrg()
+  if (!activeOrg) return null
+  return <div className="text-[10px] text-neon-teal/50 mt-1 truncate ml-7">{activeOrg.name}</div>
+}
+
 // ── Sidebar Component ───────────────────────────────────────────────────
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname()
   const [spotlightOpen, setSpotlightOpen] = useState(false)
+  const { isPlatformOwner } = useActiveOrg()
+
+  // Build dynamic Domain Apps section from DB
+  const topologyQuery = trpc.entities.topology.useQuery(undefined, { staleTime: 60_000 })
+  const miniBrains = (topologyQuery.data?.miniBrains ?? []) as Array<{
+    id: string
+    name: string
+    domain: string | null
+    status: string
+  }>
+
+  const DOMAIN_ICONS: Record<string, string> = {
+    astrology: '☉',
+    hospitality: '🏨',
+    healthcare: '🏥',
+    marketing: '📣',
+    'soc-ops': '🛡',
+    research: '🔬',
+    intelligence: '🧠',
+    infrastructure: '☁',
+    security: '🛡',
+    'product-management': '📦',
+    engineering: '⚙',
+  }
+
+  const domainSection: NavSection | null =
+    miniBrains.length > 0
+      ? {
+          title: 'Domain Apps',
+          items: miniBrains.map((mb) => ({
+            label: mb.name,
+            href: `/domain/${mb.domain ?? mb.id}`,
+            icon: DOMAIN_ICONS[mb.domain ?? ''] ?? '◆',
+          })),
+        }
+      : null
+
+  const sections = [...BASE_NAV_SECTIONS]
+  if (domainSection) sections.push(domainSection)
+  if (isPlatformOwner) sections.push(ADMIN_SECTION)
+  const navSections = sections
 
   // Cmd+K / Ctrl+K shortcut
   useEffect(() => {
@@ -190,12 +299,15 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
   return (
     <>
       <aside className="w-64 h-full flex-shrink-0 bg-bg-surface border-r border-border flex flex-col px-3 py-4 z-20 overflow-hidden">
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 px-2 mb-5">
-          <span className="text-neon-blue text-lg">◆</span>
-          <span className="font-orbitron text-[14px] font-bold text-white tracking-widest">
-            SOLARC<span className="text-neon-blue">.</span>BRAIN
-          </span>
+        {/* Logo + Org */}
+        <div className="px-2 mb-5">
+          <div className="flex items-center gap-2.5">
+            <span className="text-neon-blue text-lg">◆</span>
+            <span className="font-orbitron text-[14px] font-bold text-white tracking-widest">
+              SOLARC<span className="text-neon-blue">.</span>BRAIN
+            </span>
+          </div>
+          <OrgNameLabel />
         </div>
 
         {/* Search trigger */}
@@ -212,26 +324,43 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto space-y-0.5">
-          {NAV_SECTIONS.map((section, si) => (
+          {navSections.map((section, si) => (
             <div key={si}>
               {section.title && (
                 <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/20 px-2 pt-4 pb-1.5">
                   {section.title}
                 </div>
               )}
-              {section.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`nav-item ${isActive(item.href) ? 'nav-item-active' : ''}`}
-                  onClick={onNavigate}
-                >
-                  <span className="w-[18px] text-center text-xs opacity-70 flex-shrink-0">
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                </Link>
-              ))}
+              {section.items.map((item) =>
+                item.external ? (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="nav-item"
+                    onClick={onNavigate}
+                  >
+                    <span className="w-[18px] text-center text-xs opacity-70 flex-shrink-0">
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                    <span className="ml-auto text-[9px] text-slate-600">↗</span>
+                  </a>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`nav-item ${isActive(item.href) ? 'nav-item-active' : ''}`}
+                    onClick={onNavigate}
+                  >
+                    <span className="w-[18px] text-center text-xs opacity-70 flex-shrink-0">
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                  </Link>
+                ),
+              )}
             </div>
           ))}
         </nav>
@@ -248,11 +377,15 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
           >
             Sign out
           </button>
-          <div className="text-[10px] font-mono text-white/10 mt-1">v0.1.0 · Phase 18</div>
+          <div className="text-[10px] font-mono text-white/10 mt-1">v0.1.0 · Phase 19</div>
         </div>
       </aside>
 
-      <SpotlightSearch open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
+      <SpotlightSearch
+        open={spotlightOpen}
+        onClose={() => setSpotlightOpen(false)}
+        sections={navSections}
+      />
     </>
   )
 }

@@ -58,7 +58,9 @@ export const ticketsRouter = router({
       const [ticket] = await ctx.db.insert(tickets).values(input).returning()
       if (!ticket)
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create ticket' })
-      eventBus.emit('ticket.created', { ticketId: ticket.id }).catch(() => {})
+      eventBus.emit('ticket.created', { ticketId: ticket.id }).catch((err) => {
+        console.error('[Tickets] Failed to emit ticket.created event:', err)
+      })
       return ticket
     }),
   update: protectedProcedure

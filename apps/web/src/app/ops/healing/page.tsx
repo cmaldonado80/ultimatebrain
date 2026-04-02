@@ -7,6 +7,8 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 export default function HealingPage() {
@@ -63,13 +65,7 @@ export default function HealingPage() {
   }
 
   if (diagnoseQuery.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-lg font-orbitron">Running diagnostics...</div>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Running diagnostics..." />
   }
 
   const diagnosis = diagnoseQuery.data as {
@@ -95,9 +91,9 @@ export default function HealingPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">System Healing</h2>
+      <PageHeader
+        title="Healing"
+        actions={
           <div className="flex gap-2">
             <button
               className="cyber-btn-primary"
@@ -114,11 +110,8 @@ export default function HealingPage() {
               Clear Expired Leases
             </button>
           </div>
-        </div>
-        <p className="mt-1 mb-0 text-xs text-slate-500">
-          Monitor system health, diagnose issues, and trigger automatic recovery.
-        </p>
-      </div>
+        }
+      />
 
       {autoHealResult && (
         <div className="bg-neon-green/10 border border-neon-green/20 rounded-lg p-3 mb-4 text-neon-green text-xs">

@@ -5,6 +5,9 @@
  */
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface GatewayMetric {
@@ -40,14 +43,7 @@ export default function GatewayPage() {
   const isLoading = metricsQuery.isLoading || healthQuery.isLoading || providersQuery.isLoading
 
   if (isLoading) {
-    return (
-      <div className="p-6 text-slate-100 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-xs">Fetching gateway data</div>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Loading gateway data..." />
   }
 
   const metrics: GatewayMetric[] = (metricsQuery.data as GatewayMetric[]) ?? []
@@ -65,12 +61,7 @@ export default function GatewayPage() {
 
   return (
     <div className="p-6 text-slate-100">
-      <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">Gateway</h2>
-        <p className="mt-1 mb-0 text-xs text-slate-500">
-          LLM Gateway metrics — request volume, latency, cost tracking, and cache hit rates.
-        </p>
-      </div>
+      <PageHeader title="Gateway" subtitle="API costs, latency, and provider health." />
       <div className="grid grid-cols-6 gap-2.5 mb-5">
         <div className="cyber-card p-3.5 text-center">
           <div
@@ -103,7 +94,7 @@ export default function GatewayPage() {
       </div>
 
       {metrics.length === 0 ? (
-        <div className="text-center text-slate-500 py-10 text-sm">No gateway metrics yet.</div>
+        <EmptyState title="No gateway metrics yet" />
       ) : (
         <div className="cyber-card overflow-hidden">
           <div className="flex px-4 py-2.5 bg-bg-elevated border-b border-border">

@@ -129,7 +129,7 @@ class JourneyBuilder {
       transitions?: Record<string, string>
       tools?: string[]
       terminal?: boolean
-    }
+    },
   ): this {
     this.def.states[id] = {
       name: definition.name,
@@ -151,8 +151,81 @@ class JourneyBuilder {
 // ── Journey Engine ──────────────────────────────────────────────────────
 
 const activeExecutions = new Map<string, JourneyExecution>()
+let _dbLoaded = false
 
 export class JourneyEngine {
+  private db: unknown = null
+
+  constructor(db?: unknown) {
+    this.db = db ?? null
+    if (this.db && !_dbLoaded) {
+      _dbLoaded = true
+      this.loadFromDb().catch((err) => {
+        console.error('[JourneyEngine] Failed to load from DB:', err)
+      })
+    }
+  }
+
+  /** Load active journey executions from database on startup */
+  private async loadFromDb(): Promise<void> {
+    if (!this.db) return
+    try {
+      const { journeyExecutions } = await import('@solarc/db')
+      const { eq } = await import('drizzle-orm')
+      const db = this.db as import('@solarc/db').Database
+      const rows = await db.query.journeyExecutions.findMany({
+        where: eq(journeyExecutions.status, 'active'),
+      })
+      for (const row of rows) {
+        activeExecutions.set(row.id, {
+          id: row.id,
+          journeyId: row.journeyId,
+          currentState: row.currentState,
+          context: (row.context as Record<string, unknown>) ?? {},
+          history: (row.history as Array<StateTransition>) ?? [],
+          status: row.status as JourneyExecution['status'],
+          startedAt: row.startedAt,
+        })
+      }
+    } catch (err) {
+      console.warn('[JourneyEngine] DB load failed:', err)
+    }
+  }
+
+  /** Persist journey execution to DB */
+  private persistExecution(execution: JourneyExecution): void {
+    if (!this.db) return
+    import('@solarc/db')
+      .then(async ({ journeyExecutions }) => {
+        const db = this.db as import('@solarc/db').Database
+        await db
+          .insert(journeyExecutions)
+          .values({
+            id: execution.id,
+            journeyId: execution.journeyId,
+            status: execution.status as 'active' | 'paused' | 'completed' | 'failed',
+            currentState: execution.currentState,
+            context: execution.context,
+            history: execution.history as unknown as Record<string, unknown>,
+            startedAt: execution.startedAt,
+            updatedAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: journeyExecutions.id,
+            set: {
+              status: execution.status as 'active' | 'paused' | 'completed' | 'failed',
+              currentState: execution.currentState,
+              context: execution.context,
+              history: execution.history as unknown as Record<string, unknown>,
+              updatedAt: new Date(),
+            },
+          })
+      })
+      .catch((err) => {
+        console.error('[JourneyEngine] DB persist failed:', err)
+      })
+  }
+
   /**
    * Start a new journey execution.
    */
@@ -168,6 +241,7 @@ export class JourneyEngine {
     }
 
     activeExecutions.set(execution.id, execution)
+    this.persistExecution(execution)
     return execution
   }
 
@@ -178,7 +252,7 @@ export class JourneyEngine {
     executionId: string,
     journeyDef: JourneyDefinition,
     trigger: string,
-    eventData?: Record<string, unknown>
+    eventData?: Record<string, unknown>,
   ): Promise<{ transitioned: boolean; newState?: string; execution: JourneyExecution }> {
     const execution = activeExecutions.get(executionId)
     if (!execution) throw new Error(`Execution not found: ${executionId}`)
@@ -218,6 +292,7 @@ export class JourneyEngine {
       execution.completedAt = new Date()
     }
 
+    this.persistExecution(execution)
     return { transitioned: true, newState: nextStateId, execution }
   }
 
@@ -288,7 +363,10 @@ export class JourneyEngine {
    */
   pause(executionId: string): void {
     const execution = activeExecutions.get(executionId)
-    if (execution) execution.status = 'paused'
+    if (execution) {
+      execution.status = 'paused'
+      this.persistExecution(execution)
+    }
   }
 
   /**
@@ -296,7 +374,10 @@ export class JourneyEngine {
    */
   resume(executionId: string): void {
     const execution = activeExecutions.get(executionId)
-    if (execution && execution.status === 'paused') execution.status = 'active'
+    if (execution && execution.status === 'paused') {
+      execution.status = 'active'
+      this.persistExecution(execution)
+    }
   }
 
   /**
@@ -307,6 +388,7 @@ export class JourneyEngine {
     if (execution) {
       execution.status = 'failed'
       execution.completedAt = new Date()
+      this.persistExecution(execution)
     }
   }
 }

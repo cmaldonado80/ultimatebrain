@@ -10,7 +10,7 @@
 
 import { useState } from 'react'
 
-import type { PresenceEntry } from '../../server/services/presence/manager'
+import type { PresenceEntry } from '../../server/services/presence/types'
 import { trpc } from '../../utils/trpc'
 
 // ── Mock data ─────────────────────────────────────────────────────────────
@@ -172,7 +172,7 @@ export default function PresenceAvatars({
   maxVisible = 5,
 }: PresenceAvatarsProps) {
   const { data: liveEntries } = trpc.presence.getActive.useQuery(undefined, {
-    refetchInterval: 5000,
+    refetchInterval: 2000,
     retry: false,
   })
   const entries = entriesProp ?? (liveEntries as PresenceEntry[] | undefined) ?? MOCK_ENTRIES

@@ -10,3 +10,7 @@ dist/
 .DS_Store
 coverage/
 .port
+next-env.d.ts
+
+# Generated test artifacts
+.generated-test/

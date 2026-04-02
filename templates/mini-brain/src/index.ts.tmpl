@@ -1,0 +1,33 @@
+/**
+ * {{DOMAIN_TITLE}} Mini Brain
+ *
+ * Three-tier architecture:
+ *   Development app → {{DOMAIN_TITLE}} Mini Brain → Brain core services
+ */
+
+import { createMiniBrainServer } from '@solarc/mini-brain-server'
+
+import { exampleRoute } from './routes/example.js'
+
+const entityId = process.env.ENTITY_ID ?? '{{DOMAIN}}-dev'
+const domain = '{{DOMAIN}}'
+const brainUrl = process.env.BRAIN_URL ?? 'http://localhost:3000/api/brain'
+const brainApiKey = process.env.BRAIN_API_KEY ?? ''
+const appSecret = process.env.APP_SECRET ?? ''
+const port = Number(process.env.PORT ?? {{PORT}})
+
+if (!brainApiKey) {
+  console.warn('[{{DOMAIN_TITLE}}Brain] BRAIN_API_KEY not set — Brain SDK calls will fail')
+}
+
+const server = createMiniBrainServer(
+  { entityId, domain, brainUrl, brainApiKey, appSecret, port },
+  [exampleRoute],
+)
+
+server.start(port)
+
+console.warn(`[{{DOMAIN_TITLE}}Brain] Domain endpoints:`)
+console.warn(`  POST {{ROUTE_PATH}}`)
+console.warn(`  GET  /health`)
+console.warn(`  GET  /info`)

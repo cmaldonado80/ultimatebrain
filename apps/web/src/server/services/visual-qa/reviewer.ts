@@ -381,33 +381,24 @@ export class VisualQAReviewer {
     // When multimodal gateway support is available, replace the prompt with image content.
     try {
       if (this.gateway) {
-        const frameDescription =
-          `Frame #${frame.index} at offset ${frame.offsetMs}ms, ` +
-          `resolution ${frame.width}x${frame.height}, ` +
-          `image URL: ${frame.imageUrl}, captured at: ${frame.capturedAt.toISOString()}`
-
         const result = await this.gateway.chat({
-          model: 'claude-haiku-4-5',
+          model: 'llama-3.2-11b-vision:cloud',
           messages: [
             {
               role: 'system',
               content:
-                'You are a visual QA analyst. Given a frame description and expected UI state, ' +
-                'determine if the frame likely matches. Respond with a JSON object: ' +
-                '{"matches": boolean, "explanation": "...", "confidence": 0.0-1.0}. ' +
-                'Since you cannot see the actual image, base your analysis on the metadata and ' +
-                'provide lower confidence. Respond ONLY with JSON.',
+                'You are a visual QA reviewer. Compare the screenshot against the expected state and report pass/fail with explanation.',
             },
             {
               role: 'user',
-              content: `Frame: ${frameDescription}\n\nExpected state: ${expectedState}`,
+              content: `Expected state: "${expectedState}"\n\nAnalyze the screenshot and determine if it matches the expected state. Respond ONLY with valid JSON: { "verdict": "pass" or "fail", "explanation": "...", "confidence": 0.0 to 1.0 }`,
             },
           ],
         })
 
         const parsed = JSON.parse(result.content)
         return {
-          matches: !!parsed.matches,
+          matches: parsed.verdict === 'pass',
           explanation: String(parsed.explanation ?? ''),
           confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.5,
         }

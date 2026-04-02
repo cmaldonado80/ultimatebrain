@@ -4,7 +4,12 @@ const nextConfig: NextConfig = {
   // Only use standalone output for Docker builds, not Vercel (Vercel has its own adapter)
   ...(process.env.VERCEL ? {} : { output: 'standalone' as const }),
   images: { formats: ['image/avif', 'image/webp'] },
-  transpilePackages: ['@solarc/db', '@solarc/types', '@solarc/engine-contracts'],
+  transpilePackages: [
+    '@solarc/db',
+    '@solarc/types',
+    '@solarc/engine-contracts',
+    '@solarc/ephemeris',
+  ],
   serverExternalPackages: ['swisseph'],
   outputFileTracingIncludes: {
     '/api/**': ['./src/server/services/orchestration/agents/**/*.md'],

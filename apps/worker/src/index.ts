@@ -1,11 +1,12 @@
-import PgBoss from 'pg-boss'
 import { createDb } from '@solarc/db'
-import { TicketExecutionEngine } from '../../web/src/server/services/orchestration/ticket-engine'
-import { CronEngine } from '../../web/src/server/services/orchestration/cron-engine'
-import { MemoryService } from '../../web/src/server/services/memory/memory-service'
+import PgBoss from 'pg-boss'
+
 import { EvalRunner } from '../../web/src/server/services/evals/runner'
 import { HealingEngine } from '../../web/src/server/services/healing/healing-engine'
 import { InstinctObserver } from '../../web/src/server/services/instincts/observer'
+import { MemoryService } from '../../web/src/server/services/memory/memory-service'
+import { CronEngine } from '../../web/src/server/services/orchestration/cron-engine'
+import { TicketExecutionEngine } from '../../web/src/server/services/orchestration/ticket-engine'
 import { ModeRouter } from '../../web/src/server/services/task-runner/mode-router'
 
 const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://postgres:dev@localhost:5432/solarc'
@@ -39,12 +40,16 @@ async function main() {
       // Transition to queued, then let the mode router handle execution
       await ticketEngine.transition(ticketId, 'queued')
       const result = await modeRouter.route(ticketId, '', { forceMode: 'autonomous' })
-      console.warn(`[Worker] Ticket ${ticketId} completed (mode=${result.mode}, ${result.latencyMs}ms)`)
+      console.warn(
+        `[Worker] Ticket ${ticketId} completed (mode=${result.mode}, ${result.latencyMs}ms)`,
+      )
     } catch (err) {
       console.error(`[Worker] Ticket ${ticketId} failed:`, err)
       try {
         await ticketEngine.transition(ticketId, 'failed')
-      } catch (statusErr) { console.warn(`[Worker] Best-effort status update failed for ticket ${ticketId}:`, statusErr) }
+      } catch (statusErr) {
+        console.warn(`[Worker] Best-effort status update failed for ticket ${ticketId}:`, statusErr)
+      }
       throw err
     }
   })
@@ -77,7 +82,9 @@ async function main() {
     console.warn(`[Worker] Compacting memory for workspace: ${workspaceId}`)
     try {
       const result = await memoryService.processPromotions()
-      console.warn(`[Worker] Memory compaction done: ${result.promoted} promoted, ${result.rejected} rejected`)
+      console.warn(
+        `[Worker] Memory compaction done: ${result.promoted} promoted, ${result.rejected} rejected`,
+      )
     } catch (err) {
       console.error(`[Worker] Memory compaction failed for workspace ${workspaceId}:`, err)
       throw err
@@ -92,7 +99,7 @@ async function main() {
       const result = await evalRunner.runDataset(datasetId)
       console.warn(
         `[Worker] Eval run ${result.runId} finished: score=${result.overallScore.toFixed(3)}, ` +
-        `passRate=${(result.passRate * 100).toFixed(1)}%`
+          `passRate=${(result.passRate * 100).toFixed(1)}%`,
       )
     } catch (err) {
       console.error(`[Worker] Eval run failed for dataset ${datasetId}:`, err)
@@ -108,7 +115,7 @@ async function main() {
       const report = await healingEngine.diagnose()
       console.warn(
         `[Worker] Health check complete: status=${report.overallStatus}, ` +
-        `checks=${report.checks.length}, recommendations=${report.recommendations.length}`
+          `checks=${report.checks.length}, recommendations=${report.recommendations.length}`,
       )
     } catch (err) {
       console.error(`[Worker] Health check failed for entity ${entityId}:`, err)

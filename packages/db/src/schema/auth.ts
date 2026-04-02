@@ -1,4 +1,15 @@
-import { integer, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
+
+import { workspaces } from './core'
 
 /** OAuth account types as defined by Auth.js — inlined to avoid @auth/core dep in db package */
 type AdapterAccountType = 'oauth' | 'oidc' | 'email' | 'webauthn'
@@ -51,4 +62,96 @@ export const verificationTokens = pgTable(
     expires: timestamp('expires', { mode: 'date' }).notNull(),
   },
   (t) => [primaryKey({ columns: [t.identifier, t.token] })],
+)
+
+// === Governance ===
+
+export const userRoles = pgTable(
+  'user_roles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    role: text('role').notNull(), // 'platform_owner' | 'operator' | 'viewer'
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [index('user_roles_user_idx').on(t.userId)],
+)
+
+export const workspaceMembers = pgTable(
+  'workspace_members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    workspaceId: uuid('workspace_id')
+      .references(() => workspaces.id, { onDelete: 'cascade' })
+      .notNull(),
+    role: text('role').notNull(), // 'owner' | 'operator' | 'viewer'
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('workspace_members_user_idx').on(t.userId),
+    index('workspace_members_workspace_idx').on(t.workspaceId),
+  ],
+)
+
+export const auditEvents = pgTable(
+  'audit_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    action: text('action').notNull(),
+    resourceType: text('resource_type').notNull(),
+    resourceId: text('resource_id'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('audit_events_user_idx').on(t.userId),
+    index('audit_events_action_idx').on(t.action),
+    index('audit_events_created_idx').on(t.createdAt),
+  ],
+)
+
+// === Organizations ===
+
+export const organizations = pgTable(
+  'organizations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    slug: text('slug').unique().notNull(),
+    status: text('status').default('active').notNull(),
+    ownerUserId: uuid('owner_user_id')
+      .references(() => users.id)
+      .notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('organizations_slug_idx').on(t.slug),
+    index('organizations_owner_idx').on(t.ownerUserId),
+  ],
+)
+
+export const organizationMembers = pgTable(
+  'organization_members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .references(() => organizations.id, { onDelete: 'cascade' })
+      .notNull(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    role: text('role').notNull(),
+    joinedAt: timestamp('joined_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('org_members_org_idx').on(t.organizationId),
+    index('org_members_user_idx').on(t.userId),
+  ],
 )

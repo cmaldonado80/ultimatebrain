@@ -296,7 +296,7 @@ const KNOWN_MODELS: Record<string, KnownModel> = {
     speed: 'fast',
   },
 
-  // Meta / Ollama
+  // Meta / Ollama (Local)
   'llama-3.3-70b': {
     type: 'agentic',
     secondary: ['coder'],
@@ -309,6 +309,7 @@ const KNOWN_MODELS: Record<string, KnownModel> = {
   },
   'llama-3.2-11b-vision': {
     type: 'vision',
+    secondary: ['multimodal'],
     displayName: 'Llama 3.2 11B Vision',
     provider: 'ollama',
     contextWindow: 128000,
@@ -322,6 +323,109 @@ const KNOWN_MODELS: Record<string, KnownModel> = {
     provider: 'ollama',
     streaming: true,
     speed: 'fast',
+  },
+
+  // Ollama Cloud Models
+  'qwen3.5': {
+    type: 'agentic',
+    secondary: ['coder', 'reasoning'],
+    displayName: 'Qwen 3.5',
+    provider: 'ollama',
+    contextWindow: 128000,
+    tools: true,
+    streaming: true,
+    speed: 'medium',
+  },
+  'deepseek-v3.2': {
+    type: 'reasoning',
+    secondary: ['agentic', 'coder'],
+    displayName: 'DeepSeek V3.2',
+    provider: 'ollama',
+    contextWindow: 128000,
+    tools: true,
+    streaming: true,
+    speed: 'medium',
+  },
+  'deepseek-v3.1': {
+    type: 'reasoning',
+    secondary: ['agentic'],
+    displayName: 'DeepSeek V3.1',
+    provider: 'ollama',
+    contextWindow: 128000,
+    tools: true,
+    streaming: true,
+    speed: 'medium',
+  },
+  'deepseek-r1': {
+    type: 'reasoning',
+    secondary: ['coder'],
+    displayName: 'DeepSeek R1',
+    provider: 'ollama',
+    contextWindow: 128000,
+    tools: true,
+    streaming: true,
+    speed: 'slow',
+  },
+  'kimi-k2.5': {
+    type: 'agentic',
+    secondary: ['vision', 'multimodal'],
+    displayName: 'Kimi K2.5',
+    provider: 'ollama',
+    contextWindow: 128000,
+    vision: true,
+    tools: true,
+    streaming: true,
+    speed: 'medium',
+  },
+  'minimax-m2': {
+    type: 'coder',
+    secondary: ['agentic'],
+    displayName: 'MiniMax M2',
+    provider: 'ollama',
+    contextWindow: 128000,
+    tools: true,
+    streaming: true,
+    speed: 'medium',
+  },
+  'minimax-m2.5': {
+    type: 'coder',
+    secondary: ['agentic'],
+    displayName: 'MiniMax M2.5',
+    provider: 'ollama',
+    contextWindow: 128000,
+    tools: true,
+    streaming: true,
+    speed: 'medium',
+  },
+  'glm-5': {
+    type: 'reasoning',
+    secondary: ['agentic'],
+    displayName: 'GLM-5',
+    provider: 'ollama',
+    contextWindow: 128000,
+    tools: true,
+    streaming: true,
+    speed: 'medium',
+  },
+  'glm-4.7': {
+    type: 'agentic',
+    secondary: ['coder'],
+    displayName: 'GLM-4.7',
+    provider: 'ollama',
+    contextWindow: 128000,
+    tools: true,
+    streaming: true,
+    speed: 'medium',
+  },
+  'gpt-oss': {
+    type: 'agentic',
+    secondary: ['reasoning', 'coder'],
+    displayName: 'GPT-OSS',
+    provider: 'ollama',
+    contextWindow: 128000,
+    tools: true,
+    streaming: true,
+    speed: 'medium',
   },
 
   // Embeddings (Ollama)
@@ -338,7 +442,7 @@ const KNOWN_MODELS: Record<string, KnownModel> = {
     speed: 'fast',
   },
 
-  // Coders
+  // Coders (Ollama Local)
   'qwen2.5-coder': {
     type: 'coder',
     displayName: 'Qwen 2.5 Coder',

@@ -7,6 +7,11 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
+import type { StatusColor } from '../../../components/ui/status-badge'
+import { StatusBadge } from '../../../components/ui/status-badge'
 import { trpc } from '../../../utils/trpc'
 
 interface Project {
@@ -23,11 +28,11 @@ interface Project {
   updatedAt: Date
 }
 
-const STATUS_CLASS: Record<string, string> = {
-  planning: 'text-neon-yellow border-neon-yellow',
-  active: 'text-neon-green border-neon-green',
-  completed: 'text-neon-purple border-neon-purple',
-  cancelled: 'text-neon-red border-neon-red',
+const STATUS_BADGE_COLOR: Record<string, StatusColor> = {
+  planning: 'blue',
+  active: 'green',
+  completed: 'green',
+  cancelled: 'slate',
 }
 
 export default function ProjectsPage() {
@@ -62,11 +67,8 @@ export default function ProjectsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching projects</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading projects..." />
       </div>
     )
   }
@@ -78,19 +80,16 @@ export default function ProjectsPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">
-            Projects ({allProjects.length})
-          </h2>
+      <PageHeader
+        title="Projects"
+        subtitle="Organize agents, tickets, and resources into scoped project groups."
+        count={allProjects.length}
+        actions={
           <button className="cyber-btn-primary text-xs" onClick={() => setShowForm(!showForm)}>
             {showForm ? 'Cancel' : '+ New Project'}
           </button>
-        </div>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Organize agents, tickets, and resources into scoped project groups.
-        </p>
-      </div>
+        }
+      />
 
       <input
         className="cyber-input w-full mb-4"
@@ -133,9 +132,7 @@ export default function ProjectsPage() {
         </div>
       )}
       {projects.length === 0 ? (
-        <div className="text-center text-slate-500 py-10 text-sm">
-          No projects found. Create one to get started.
-        </div>
+        <EmptyState title="No projects found" message="Create one to get started." />
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-3">
           {projects.map((p) => (
@@ -149,11 +146,7 @@ export default function ProjectsPage() {
                   {p.name}
                 </span>
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`cyber-badge uppercase ${STATUS_CLASS[p.status] || 'text-slate-500 border-gray-500'}`}
-                  >
-                    {p.status}
-                  </span>
+                  <StatusBadge label={p.status} color={STATUS_BADGE_COLOR[p.status] ?? 'slate'} />
                   <button
                     className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
                       deleteConfirm === p.id

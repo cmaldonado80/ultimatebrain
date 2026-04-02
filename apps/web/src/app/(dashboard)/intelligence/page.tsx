@@ -5,9 +5,82 @@
  */
 
 import Link from 'next/link'
+import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageGrid } from '../../../components/ui/page-grid'
+import { PageHeader } from '../../../components/ui/page-header'
+import { SectionCard } from '../../../components/ui/section-card'
+import { StatCard } from '../../../components/ui/stat-card'
 import { trpc } from '../../../utils/trpc'
+
+function DocumentUploadCard() {
+  const [name, setName] = useState('')
+  const [content, setContent] = useState('')
+  const [status, setStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle')
+  const [result, setResult] = useState<{ chunksStored: number; documentName: string } | null>(null)
+
+  async function handleUpload() {
+    if (!name.trim() || !content.trim()) return
+    setStatus('uploading')
+    try {
+      const res = await fetch('/api/documents/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), content }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      setResult(data)
+      setStatus('done')
+      setName('')
+      setContent('')
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  return (
+    <div className="cyber-card p-6 text-center border-dashed">
+      <div className="text-slate-500 text-sm mb-2">Document Ingestion</div>
+      <p className="text-xs text-slate-600 mb-3">
+        Upload text documents for your agents to learn from.
+      </p>
+      <div className="space-y-2 max-w-md mx-auto text-left">
+        <input
+          type="text"
+          placeholder="Document name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full px-3 py-1.5 bg-bg-deep border border-border-dim rounded text-xs text-slate-200 placeholder:text-slate-600"
+        />
+        <textarea
+          placeholder="Paste document content here..."
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          rows={4}
+          className="w-full px-3 py-1.5 bg-bg-deep border border-border-dim rounded text-xs text-slate-200 placeholder:text-slate-600 resize-y"
+        />
+        <button
+          onClick={handleUpload}
+          disabled={status === 'uploading' || !name.trim() || !content.trim()}
+          className="cyber-btn-primary cyber-btn-sm w-full"
+        >
+          {status === 'uploading' ? 'Uploading...' : 'Upload Document'}
+        </button>
+        {status === 'done' && result && (
+          <div className="text-xs text-neon-green">
+            Stored {result.chunksStored} chunks from &ldquo;{result.documentName}&rdquo;
+          </div>
+        )}
+        {status === 'error' && (
+          <div className="text-xs text-red-400">Upload failed. Please try again.</div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function IntelligencePage() {
   const sessionsQuery = trpc.intelligence.chatSessions.useQuery()
@@ -25,11 +98,7 @@ export default function IntelligencePage() {
 
   const isLoading = sessionsQuery.isLoading
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-lg font-orbitron text-slate-500">Loading Intelligence Hub...</div>
-      </div>
-    )
+    return <LoadingState message="Loading Intelligence Hub..." />
   }
 
   const sessions = (sessionsQuery.data ?? []) as Array<{
@@ -62,39 +131,22 @@ export default function IntelligencePage() {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-orbitron text-neon-teal">Intelligence Hub</h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Knowledge, conversations, and agent capabilities
-        </p>
-      </div>
+      <PageHeader
+        title="Intelligence Hub"
+        subtitle="Knowledge, conversations, and agent capabilities"
+      />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="cyber-card p-4 text-center">
-          <div className="text-2xl font-bold font-orbitron text-neon-blue">{sessions.length}</div>
-          <div className="text-[10px] text-slate-500">Chat Sessions</div>
-        </div>
-        <div className="cyber-card p-4 text-center">
-          <div className="text-2xl font-bold font-orbitron text-neon-purple">
-            {memories.length}+
-          </div>
-          <div className="text-[10px] text-slate-500">Memory Entries</div>
-        </div>
-        <div className="cyber-card p-4 text-center">
-          <div className="text-2xl font-bold font-orbitron text-neon-green">{agents.length}</div>
-          <div className="text-[10px] text-slate-500">Total Agents</div>
-        </div>
-        <div className="cyber-card p-4 text-center">
-          <div className="text-2xl font-bold font-orbitron text-neon-teal">{agentsWithSouls}</div>
-          <div className="text-[10px] text-slate-500">Agents with Souls</div>
-        </div>
-      </div>
+      <PageGrid cols="4">
+        <StatCard label="Chat Sessions" value={sessions.length} color="blue" />
+        <StatCard label="Memory Entries" value={`${memories.length}+`} color="purple" />
+        <StatCard label="Total Agents" value={agents.length} color="green" />
+        <StatCard label="Agents with Souls" value={agentsWithSouls} color="blue" />
+      </PageGrid>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <PageGrid cols="2">
         {/* The Hub — Recent Sessions */}
-        <div className="cyber-card p-4">
+        <SectionCard variant="intelligence">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-orbitron text-white">The Hub</h3>
             <Link href="/chat" className="cyber-btn-primary cyber-btn-xs no-underline">
@@ -129,10 +181,10 @@ export default function IntelligencePage() {
               })}
             </div>
           )}
-        </div>
+        </SectionCard>
 
         {/* The Architect — Agent Capabilities */}
-        <div className="cyber-card p-4">
+        <SectionCard variant="intelligence">
           <h3 className="text-sm font-orbitron text-white mb-3">The Architect</h3>
           <p className="text-xs text-slate-400 mb-3">
             Agent fleet by type &mdash; {agents.length} total agents
@@ -158,11 +210,11 @@ export default function IntelligencePage() {
                 </div>
               ))}
           </div>
-        </div>
-      </div>
+        </SectionCard>
+      </PageGrid>
 
       {/* Memory Timeline */}
-      <div className="cyber-card p-4">
+      <SectionCard variant="intelligence">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-orbitron text-white">Recent Memory</h3>
           <Link
@@ -196,18 +248,10 @@ export default function IntelligencePage() {
             ))}
           </div>
         )}
-      </div>
+      </SectionCard>
 
-      {/* Document Upload Placeholder */}
-      <div className="cyber-card p-6 text-center border-dashed">
-        <div className="text-slate-500 text-sm mb-2">Document Ingestion</div>
-        <p className="text-xs text-slate-600 mb-3">
-          Upload PDFs and documents for your agents to learn from.
-        </p>
-        <button className="cyber-btn-secondary cyber-btn-sm" disabled>
-          Coming Soon
-        </button>
-      </div>
+      {/* Document Upload */}
+      <DocumentUploadCard />
     </div>
   )
 }

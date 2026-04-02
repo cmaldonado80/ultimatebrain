@@ -4,10 +4,17 @@
  * Tickets — list all tickets from the database.
  */
 
+import Link from 'next/link'
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import ConfirmDialog from '../../../components/ui/confirm-dialog'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { FilterPills } from '../../../components/ui/filter-pills'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
+import type { StatusColor } from '../../../components/ui/status-badge'
+import { StatusBadge } from '../../../components/ui/status-badge'
 import { trpc } from '../../../utils/trpc'
 
 interface Ticket {
@@ -25,21 +32,26 @@ interface Ticket {
   updatedAt: Date
 }
 
-const STATUS_CLASSES: Record<string, string> = {
-  backlog: 'text-slate-500',
-  queued: 'text-neon-yellow',
-  in_progress: 'text-neon-purple',
-  review: 'text-orange-400',
-  done: 'text-neon-green',
-  failed: 'text-neon-red',
-  cancelled: 'text-slate-400',
+const STATUS_BADGE_COLOR: Record<string, StatusColor> = {
+  backlog: 'slate',
+  queued: 'blue',
+  in_progress: 'blue',
+  review: 'yellow',
+  done: 'green',
+  failed: 'red',
+  cancelled: 'slate',
 }
 
-const PRIORITY_CLASSES: Record<string, string> = {
-  low: 'text-slate-500',
-  medium: 'text-neon-yellow',
-  high: 'text-orange-400',
-  critical: 'text-neon-red',
+const PRIORITY_BADGE_COLOR: Record<string, StatusColor> = {
+  low: 'slate',
+  medium: 'yellow',
+  high: 'yellow',
+  critical: 'red',
+}
+
+const STATUS_TABS = ['all', 'backlog', 'queued', 'in_progress', 'review', 'done', 'failed'] as const
+const STATUS_TAB_LABELS: Partial<Record<string, string>> = {
+  in_progress: 'In Progress',
 }
 
 export default function TicketsPage() {
@@ -98,11 +110,8 @@ export default function TicketsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching tickets</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading tickets..." />
       </div>
     )
   }
@@ -112,21 +121,18 @@ export default function TicketsPage() {
     .filter((t) => statusFilter === 'all' || t.status === statusFilter)
     .filter((t) => !search || t.title.toLowerCase().includes(search.toLowerCase()))
 
-  const STATUS_TABS = ['all', 'backlog', 'queued', 'in_progress', 'review', 'done', 'failed']
-
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Tickets ({allTickets.length})</h2>
+      <PageHeader
+        title="Tickets"
+        subtitle="Track execution tickets through the pipeline — backlog, queued, in progress, review, done."
+        count={allTickets.length}
+        actions={
           <button className="cyber-btn-primary text-xs" onClick={() => setShowForm(!showForm)}>
             {showForm ? 'Cancel' : '+ New Ticket'}
           </button>
-        </div>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Track execution tickets through the pipeline — backlog, queued, in progress, review, done.
-        </p>
-      </div>
+        }
+      />
 
       <input
         className="cyber-input w-full mb-2.5 text-[13px]"
@@ -134,22 +140,13 @@ export default function TicketsPage() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      <div className="flex gap-1 mb-4 flex-wrap">
-        {STATUS_TABS.map((s) => (
-          <button
-            key={s}
-            className={`border border-border-dim rounded px-2.5 py-0.5 text-[11px] cursor-pointer transition-colors ${
-              statusFilter === s
-                ? 'bg-bg-elevated text-slate-50 font-semibold'
-                : 'bg-transparent text-slate-500 font-normal'
-            }`}
-            onClick={() => setStatusFilter(s)}
-          >
-            {s === 'all' ? 'All' : s.replace('_', ' ')}
-            {s !== 'all' && ` (${allTickets.filter((t) => t.status === s).length})`}
-          </button>
-        ))}
-      </div>
+      <FilterPills
+        options={STATUS_TABS}
+        value={statusFilter as (typeof STATUS_TABS)[number]}
+        onChange={setStatusFilter}
+        labels={STATUS_TAB_LABELS}
+        className="mb-4"
+      />
 
       {showForm && (
         <div className="cyber-card p-4 mb-4">
@@ -227,9 +224,7 @@ export default function TicketsPage() {
         </div>
       )}
       {tickets.length === 0 ? (
-        <div className="text-center text-slate-500 py-10 text-sm">
-          No tickets found. Create one to get started.
-        </div>
+        <EmptyState title="No tickets found" message="Create one to get started." />
       ) : (
         <div className="cyber-card overflow-hidden">
           <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border-dim">
@@ -260,16 +255,13 @@ export default function TicketsPage() {
                   {t.title}
                 </span>
                 <span className="flex-1 text-[13px]">
-                  <span className={`cyber-badge ${STATUS_CLASSES[t.status] || 'text-slate-500'}`}>
-                    {t.status}
-                  </span>
+                  <StatusBadge label={t.status} color={STATUS_BADGE_COLOR[t.status] ?? 'slate'} />
                 </span>
                 <span className="flex-1 text-[13px]">
-                  <span
-                    className={`cyber-badge ${PRIORITY_CLASSES[t.priority] || 'text-slate-500'}`}
-                  >
-                    {t.priority}
-                  </span>
+                  <StatusBadge
+                    label={t.priority}
+                    color={PRIORITY_BADGE_COLOR[t.priority] ?? 'slate'}
+                  />
                 </span>
                 <span className="flex-1 text-[13px]">{t.complexity}</span>
                 <span className="flex-1 text-[13px]">
@@ -305,17 +297,31 @@ export default function TicketsPage() {
                   <div className="flex gap-4">
                     <span>
                       Workspace:{' '}
-                      {t.workspaceId
-                        ? (allWorkspaces.find((w) => w.id === t.workspaceId)?.name ??
-                          t.workspaceId.slice(0, 8))
-                        : 'Unassigned'}
+                      {t.workspaceId ? (
+                        <Link
+                          href={`/workspaces/${t.workspaceId}`}
+                          className="text-neon-teal hover:underline no-underline"
+                        >
+                          {allWorkspaces.find((w) => w.id === t.workspaceId)?.name ??
+                            t.workspaceId.slice(0, 8)}
+                        </Link>
+                      ) : (
+                        'Unassigned'
+                      )}
                     </span>
                     <span>
                       Agent:{' '}
-                      {t.assignedAgentId
-                        ? (allAgents.find((a) => a.id === t.assignedAgentId)?.name ??
-                          t.assignedAgentId.slice(0, 8))
-                        : 'Unassigned'}
+                      {t.assignedAgentId ? (
+                        <Link
+                          href={`/agents/${t.assignedAgentId}`}
+                          className="text-neon-purple hover:underline no-underline"
+                        >
+                          {allAgents.find((a) => a.id === t.assignedAgentId)?.name ??
+                            t.assignedAgentId.slice(0, 8)}
+                        </Link>
+                      ) : (
+                        'Unassigned'
+                      )}
                     </span>
                     <span>Mode: {t.executionMode ?? 'auto'}</span>
                   </div>

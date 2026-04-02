@@ -15,6 +15,10 @@ import { z } from 'zod'
 import { MiniBrainFactory, type MiniBrainTemplate } from '../services/mini-brain-factory/factory'
 import { createNeonBranch, deleteNeonBranch, maskConnectionUri } from '../services/neon/neon-api'
 import { getAgentSoul } from '../services/orchestration/agents'
+import { auditEvent } from '../services/platform/audit'
+import { advanceWorkflow, createDeploymentWorkflow } from '../services/platform/deployment-workflow'
+import { generateEntityApiKey } from '../services/platform/entity-auth'
+import { assertPermission } from '../services/platform/permissions'
 import { protectedProcedure, router } from '../trpc'
 
 let _factory: MiniBrainFactory | null = null
@@ -39,9 +43,10 @@ const templateEnum = z.enum([
   'astrology',
   'hospitality',
   'healthcare',
-  'legal',
   'marketing',
   'soc-ops',
+  'design',
+  'engineering',
 ])
 
 export const miniBrainFactoryRouter = router({
@@ -75,12 +80,18 @@ export const miniBrainFactoryRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Governance: only platform_owner can create Mini Brains
+      await assertPermission(ctx.db, ctx.session.userId, 'create_brain')
+
       const template = getFactory().getTemplate(input.template as MiniBrainTemplate)
       if (!template) throw new Error(`Template '${input.template}' not found`)
 
       // Wrap core provisioning in a transaction for atomicity
       const txResult = await ctx.db.transaction(async (tx) => {
         // 1. Create brain entity
+        // Generate entity API key for Brain SDK auth
+        const { apiKey: entityApiKey, apiKeyHash } = generateEntityApiKey()
+
         const [entity] = await tx
           .insert(brainEntities)
           .values({
@@ -90,6 +101,9 @@ export const miniBrainFactoryRouter = router({
             parentId: input.parentId,
             enginesEnabled: template.engines,
             status: 'provisioning',
+            apiKeyHash,
+            ownerUserId: ctx.session.userId,
+            organizationId: ctx.session.organizationId,
           })
           .returning()
         if (!entity) throw new Error('Failed to create entity')
@@ -102,6 +116,7 @@ export const miniBrainFactoryRouter = router({
             type: 'general',
             goal: `${template.domain} domain — ${template.engines.join(', ')}`,
             icon: template.id,
+            organizationId: ctx.session.organizationId,
           })
           .returning()
         if (!ws) throw new Error('Failed to create workspace')
@@ -179,7 +194,7 @@ export const miniBrainFactoryRouter = router({
                 role: 'primary',
               })
             } catch (linkErr) {
-              console.warn(
+              console.error(
                 `[smartCreate] Failed to link agent ${agent.id} to entity ${entity.id}:`,
                 linkErr,
               )
@@ -195,7 +210,7 @@ export const miniBrainFactoryRouter = router({
           enabled: true,
         })
 
-        // 7. Activate workspace
+        // 7. Activate workspace (workspace is immediately usable, entity goes through deploy workflow)
         await tx
           .update(workspaces)
           .set({ lifecycleState: 'active' })
@@ -209,59 +224,79 @@ export const miniBrainFactoryRouter = router({
           payload: { activatedBy: 'smart-create' },
         })
 
-        // 8. Activate entity
-        await tx
-          .update(brainEntities)
-          .set({ status: 'active' })
-          .where(eq(brainEntities.id, entity.id))
-
-        return { entity, ws, agentIds }
+        // 8. Entity stays at 'provisioning' — deployment workflow handles lifecycle
+        return { entity, ws, agentIds, entityApiKey }
       })
 
-      // 9. Auto-provision Neon database (outside transaction — non-blocking)
-      let databaseHost: string | null = null
-      const apiKey = process.env.NEON_API_KEY
-      const projectId = process.env.NEON_PROJECT_ID
-
-      if (apiKey && projectId) {
-        try {
-          const branchName = `mb-${txResult.entity.id.slice(0, 8)}-${input.name.replace(/\W/g, '-').toLowerCase().slice(0, 20)}`
-          const result = await createNeonBranch({ apiKey, projectId, branchName })
-
-          await ctx.db
-            .update(brainEntities)
-            .set({
-              databaseUrl: result.connectionUri,
-              config: {
-                neon: {
-                  branchId: result.branchId,
-                  endpointId: result.endpointId,
-                  host: result.host,
-                  databaseName: result.databaseName,
-                  createdAt: new Date().toISOString(),
-                },
-              },
-            })
-            .where(eq(brainEntities.id, txResult.entity.id))
-
-          databaseHost = result.host
-        } catch (err) {
-          console.warn(`[smartCreate] Neon auto-provision failed for ${txResult.entity.id}:`, err)
-        }
+      // 9. Create deployment workflow and auto-advance through provision_db + configure
+      let workflowId: string | null = null
+      try {
+        workflowId = await createDeploymentWorkflow(
+          ctx.db,
+          txResult.entity.id,
+          null,
+          ctx.session.userId,
+        )
+        // Auto-advance provision_db and configure steps
+        await advanceWorkflow(ctx.db, workflowId, ctx.session.userId)
+      } catch (err) {
+        // Deployment failed — rollback entity to failed state so it's visible in UI
+        console.error(
+          `[smartCreate] Deployment workflow failed for ${txResult.entity.id}, marking as failed:`,
+          err,
+        )
+        await ctx.db
+          .update(brainEntities)
+          .set({ status: 'suspended' })
+          .where(eq(brainEntities.id, txResult.entity.id))
       }
+
+      // Audit: log Mini Brain creation
+      await auditEvent(
+        ctx.db,
+        ctx.session.userId,
+        'create_mini_brain',
+        'brain_entity',
+        txResult.entity.id,
+        {
+          template: template.id,
+          name: input.name,
+          workspaceId: txResult.ws.id,
+          workflowId,
+        },
+      )
 
       return {
         entity: {
           id: txResult.entity.id,
           name: txResult.entity.name,
           tier: txResult.entity.tier,
-          status: 'active',
+          status: 'provisioning',
         },
         workspace: { id: txResult.ws.id, name: txResult.ws.name },
         agentCount: txResult.agentIds.length + 1, // +1 for orchestrator
         template: template.id,
-        database: databaseHost ? { host: databaseHost, provisioned: true } : null,
+        workflowId,
+        // API key shown once — only hash stored in DB
+        apiKey: txResult.entityApiKey,
       }
+    }),
+
+  /** Regenerate API key for an entity (returns new key, old key invalidated) */
+  regenerateEntityApiKey: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertPermission(ctx.db, ctx.session.userId, 'rotate_key', {
+        type: 'brain_entity',
+        id: input.entityId,
+      })
+      const { apiKey, apiKeyHash } = generateEntityApiKey()
+      await ctx.db
+        .update(brainEntities)
+        .set({ apiKeyHash })
+        .where(eq(brainEntities.id, input.entityId))
+      await auditEvent(ctx.db, ctx.session.userId, 'rotate_key', 'brain_entity', input.entityId)
+      return { apiKey }
     }),
 
   /**
@@ -382,7 +417,7 @@ export const miniBrainFactoryRouter = router({
                 .insert(brainEntityAgents)
                 .values({ entityId: entity.id, agentId: agent.id, role: 'primary' })
             } catch (linkErr) {
-              console.warn(
+              console.error(
                 `[smartCreateDev] Failed to link agent ${agent.id} to entity ${entity.id}:`,
                 linkErr,
               )
@@ -398,52 +433,27 @@ export const miniBrainFactoryRouter = router({
           enabled: true,
         })
 
-        // 7. Activate both
+        // 7. Activate workspace, entity stays at 'provisioning' for deployment workflow
         await tx
           .update(workspaces)
           .set({ lifecycleState: 'active' })
           .where(eq(workspaces.id, ws.id))
-        await tx
-          .update(brainEntities)
-          .set({ status: 'active' })
-          .where(eq(brainEntities.id, entity.id))
 
         return { entity, ws, devAgentIds }
       })
 
-      // 8. Auto-provision Neon database (outside transaction — non-blocking)
-      let databaseHost: string | null = null
-      const apiKey = process.env.NEON_API_KEY
-      const projectId = process.env.NEON_PROJECT_ID
-
-      if (apiKey && projectId) {
-        try {
-          const branchName = `dev-${txResult.entity.id.slice(0, 8)}-${input.name.replace(/\W/g, '-').toLowerCase().slice(0, 20)}`
-          const result = await createNeonBranch({ apiKey, projectId, branchName })
-
-          await ctx.db
-            .update(brainEntities)
-            .set({
-              databaseUrl: result.connectionUri,
-              config: {
-                neon: {
-                  branchId: result.branchId,
-                  endpointId: result.endpointId,
-                  host: result.host,
-                  databaseName: result.databaseName,
-                  createdAt: new Date().toISOString(),
-                },
-              },
-            })
-            .where(eq(brainEntities.id, txResult.entity.id))
-
-          databaseHost = result.host
-        } catch (err) {
-          console.warn(
-            `[smartCreateDev] Neon auto-provision failed for ${txResult.entity.id}:`,
-            err,
-          )
-        }
+      // 8. Create deployment workflow for the development entity
+      let workflowId: string | null = null
+      try {
+        workflowId = await createDeploymentWorkflow(
+          ctx.db,
+          input.miniBrainId,
+          txResult.entity.id,
+          ctx.session.userId,
+        )
+        await advanceWorkflow(ctx.db, workflowId, ctx.session.userId)
+      } catch (err) {
+        console.error(`[smartCreateDev] Deployment workflow failed for ${txResult.entity.id}:`, err)
       }
 
       return {
@@ -451,12 +461,12 @@ export const miniBrainFactoryRouter = router({
           id: txResult.entity.id,
           name: txResult.entity.name,
           tier: 'development',
-          status: 'active',
+          status: 'provisioning',
         },
         workspace: { id: txResult.ws.id, name: txResult.ws.name },
         agentCount: txResult.devAgentIds.length + 1, // +1 for orchestrator
         template: devTemplate?.id ?? null,
-        database: databaseHost ? { host: databaseHost, provisioned: true } : null,
+        workflowId,
       }
     }),
 
@@ -671,7 +681,7 @@ export const miniBrainFactoryRouter = router({
             enabled: true,
           })
         } catch (bindErr) {
-          console.warn(`[reprovision] Failed to create binding:`, bindErr)
+          console.error(`[reprovision] Failed to create binding:`, bindErr)
         }
       }
 
@@ -744,7 +754,7 @@ export const miniBrainFactoryRouter = router({
               .insert(brainEntityAgents)
               .values({ entityId: input.entityId, agentId: orch.id, role: 'primary' })
           } catch (linkErr) {
-            console.warn(`[reprovision] Failed to link orchestrator:`, linkErr)
+            console.error(`[reprovision] Failed to link orchestrator:`, linkErr)
           }
           added++
         }
@@ -781,7 +791,7 @@ export const miniBrainFactoryRouter = router({
               .insert(brainEntityAgents)
               .values({ entityId: input.entityId, agentId: agent.id, role: 'primary' })
           } catch (linkErr) {
-            console.warn(
+            console.error(
               `[reprovision] Failed to link agent ${agent.id} to entity ${input.entityId}:`,
               linkErr,
             )

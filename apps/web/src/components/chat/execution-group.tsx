@@ -116,9 +116,16 @@ export function buildExecutionGroups(items: ThreadItemData[]): GroupedItem[] {
 interface ExecutionGroupProps {
   group: ExecutionGroupData
   onInspect?: (selection: InspectorSelection) => void
+  onRetryGroup?: (groupId: string) => void
+  onRetryStep?: (stepId: string) => void
 }
 
-export function ExecutionGroup({ group, onInspect }: ExecutionGroupProps) {
+export function ExecutionGroup({
+  group,
+  onInspect,
+  onRetryGroup,
+  onRetryStep,
+}: ExecutionGroupProps) {
   const [collapsed, setCollapsed] = useState(!group.isActive)
   const color = agentColor(group.agentName)
   const stepCount = group.items.filter(
@@ -183,31 +190,43 @@ export function ExecutionGroup({ group, onInspect }: ExecutionGroupProps) {
             Inspect
           </button>
           {!group.isActive && group.items.length > 0 && (
-            <button
-              className="text-[9px] text-slate-600 hover:text-neon-green px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors"
-              onClick={(e) => {
-                e.stopPropagation()
-                // Extract execution pattern for workflow saving
-                const steps = group.items
-                  .filter((i) => i.type === 'tool_use' || i.type === 'agent')
-                  .map((i) => ({
-                    type: i.type === 'tool_use' ? 'tool' : 'agent',
-                    name: 'name' in i ? (i as { name: string }).name : group.agentName,
-                  }))
-                navigator.clipboard.writeText(
-                  JSON.stringify({ agent: group.agentName, steps }, null, 2),
-                )
-                // Visual feedback
-                const btn = e.currentTarget
-                btn.textContent = 'Saved!'
-                setTimeout(() => {
-                  btn.textContent = 'Save'
-                }, 2000)
-              }}
-              title="Save execution pattern"
-            >
-              Save
-            </button>
+            <>
+              <button
+                className="text-[9px] text-slate-600 hover:text-neon-green px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const steps = group.items
+                    .filter((i) => i.type === 'tool_use' || i.type === 'agent')
+                    .map((i) => ({
+                      type: i.type === 'tool_use' ? 'tool' : 'agent',
+                      name: 'name' in i ? (i as { name: string }).name : group.agentName,
+                    }))
+                  navigator.clipboard.writeText(
+                    JSON.stringify({ agent: group.agentName, steps }, null, 2),
+                  )
+                  const btn = e.currentTarget
+                  btn.textContent = 'Saved!'
+                  setTimeout(() => {
+                    btn.textContent = 'Save'
+                  }, 2000)
+                }}
+                title="Save execution pattern"
+              >
+                Save
+              </button>
+              {onRetryGroup && (
+                <button
+                  className="text-[9px] text-slate-600 hover:text-neon-yellow px-1.5 py-0.5 rounded hover:bg-white/5 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onRetryGroup(group.id)
+                  }}
+                  title="Retry this group"
+                >
+                  Retry
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -216,7 +235,7 @@ export function ExecutionGroup({ group, onInspect }: ExecutionGroupProps) {
       {!collapsed && (
         <div className="pl-4 border-l-2 border-border-dim ml-[11px]">
           {group.items.map((item, i) => (
-            <ThreadItem key={i} item={item} onInspect={onInspect} />
+            <ThreadItem key={i} item={item} onInspect={onInspect} onRetryStep={onRetryStep} />
           ))}
         </div>
       )}

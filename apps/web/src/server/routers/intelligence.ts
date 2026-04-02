@@ -5,8 +5,17 @@
  * and inter-agent messaging for collaborative reasoning.
  */
 import type { Database } from '@solarc/db'
-import { chatRuns, chatRunSteps, playbooks } from '@solarc/db'
-import { eq } from 'drizzle-orm'
+import {
+  chatRuns,
+  chatRunSteps,
+  playbooks,
+  recommendationEvents,
+  recommendationOutcomes,
+  runMemoryUsage,
+  runQuality,
+  workflowInsights,
+} from '@solarc/db'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { GatewayRouter } from '../services/gateway'
@@ -15,6 +24,22 @@ import {
   ChatSessionManager,
   CognitionManager,
 } from '../services/intelligence'
+import {
+  buildEvidencePayload,
+  buildRecommendations,
+  compareTradeoffs,
+  computeBlendedScore,
+  computeModeImpact,
+  computeRunQualityScore,
+  computeSessionSummary,
+  computeTradeoffVector,
+  extractBestKnownPaths,
+  findSimilarRuns,
+  getEffectivenessStats,
+  getInstinctBoost,
+  refreshInsights,
+  summarizeTradeoffs,
+} from '../services/intelligence/recommendation-engine'
 import { protectedProcedure, router } from '../trpc'
 
 let cognition: CognitionManager | null = null
@@ -294,14 +319,29 @@ export const intelligenceRouter = router({
         : null
     }),
 
-  /** List runs for a session */
+  /** List runs for a session (newest first) */
   sessionRuns: protectedProcedure
     .input(z.object({ sessionId: z.string().uuid(), limit: z.number().min(1).max(50).default(10) }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.query.chatRuns.findMany({
+      const runs = await ctx.db.query.chatRuns.findMany({
         where: eq(chatRuns.sessionId, input.sessionId),
+        orderBy: desc(chatRuns.startedAt),
         limit: input.limit,
       })
+      // Join quality scores
+      const runIds = runs.map((r) => r.id)
+      const qualities =
+        runIds.length > 0
+          ? await ctx.db.query.runQuality.findMany({
+              where: sql`${runQuality.runId} = ANY(${runIds})`,
+            })
+          : []
+      const qMap = new Map(qualities.map((q) => [q.runId, q]))
+      return runs.map((r) => ({
+        ...r,
+        qualityScore: qMap.get(r.id)?.score ?? null,
+        qualityLabel: qMap.get(r.id)?.label ?? null,
+      }))
     }),
 
   /** Save a workflow from an existing run's steps */
@@ -332,6 +372,740 @@ export const intelligenceRouter = router({
         })
         .returning()
       return saved
+    }),
+
+  /** Get steps for a specific group within a run */
+  getGroupSteps: protectedProcedure
+    .input(z.object({ runId: z.string().uuid(), groupId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const steps = await ctx.db.query.chatRunSteps.findMany({
+        where: eq(chatRunSteps.runId, input.runId),
+      })
+      return steps
+        .filter((s) => s.groupId === input.groupId)
+        .sort((a, b) => a.sequence - b.sequence)
+    }),
+
+  /** Get a specific step with its context (adjacent steps in same group) */
+  getStepContext: protectedProcedure
+    .input(z.object({ stepId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const step = await ctx.db.query.chatRunSteps.findFirst({
+        where: eq(chatRunSteps.id, input.stepId),
+      })
+      if (!step) return null
+      const siblings = step.groupId
+        ? (
+            await ctx.db.query.chatRunSteps.findMany({
+              where: eq(chatRunSteps.runId, step.runId),
+            })
+          )
+            .filter((s) => s.groupId === step.groupId)
+            .sort((a, b) => a.sequence - b.sequence)
+        : [step]
+      return {
+        step,
+        siblings,
+        run: await ctx.db.query.chatRuns.findFirst({ where: eq(chatRuns.id, step.runId) }),
+      }
+    }),
+
+  /** Get child runs (retries of a given run) */
+  getChildRuns: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.chatRuns.findMany({
+        where: eq(chatRuns.retryOfRunId, input.runId),
+        orderBy: desc(chatRuns.startedAt),
+      })
+    }),
+
+  /** Get memory usage for a specific run */
+  getRunMemories: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.runMemoryUsage.findMany({
+        where: eq(runMemoryUsage.runId, input.runId),
+      })
+    }),
+
+  // === Run Quality ===
+
+  /** Get precomputed quality score for a run */
+  getRunQuality: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.runQuality.findFirst({
+        where: eq(runQuality.runId, input.runId),
+      })
+    }),
+
+  /** Compute (or recompute) quality score for a run */
+  computeRunQuality: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      return computeRunQualityScore(ctx.db, input.runId)
+    }),
+
+  /** Get quality summary for all runs in a session */
+  getSessionQualitySummary: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const runs = await ctx.db.query.chatRuns.findMany({
+        where: eq(chatRuns.sessionId, input.sessionId),
+        orderBy: desc(chatRuns.startedAt),
+        limit: 50,
+      })
+      const runIds = runs.map((r) => r.id)
+      const qualities =
+        runIds.length > 0
+          ? await ctx.db.query.runQuality.findMany({
+              where: sql`${runQuality.runId} = ANY(${runIds})`,
+            })
+          : []
+
+      const qMap = new Map(qualities.map((q) => [q.runId, q]))
+      const scored = runs.map((r) => ({
+        runId: r.id,
+        status: r.status,
+        score: qMap.get(r.id)?.score ?? null,
+        label: qMap.get(r.id)?.label ?? null,
+      }))
+
+      const scores = scored.filter((s) => s.score !== null).map((s) => s.score!)
+      const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
+
+      // Trend: compare first 3 vs last 3
+      let trend: 'improving' | 'declining' | 'stable' | null = null
+      if (scores.length >= 6) {
+        const recent = scores.slice(0, 3).reduce((a, b) => a + b, 0) / 3
+        const earlier = scores.slice(-3).reduce((a, b) => a + b, 0) / 3
+        trend =
+          recent - earlier > 0.1 ? 'improving' : recent - earlier < -0.1 ? 'declining' : 'stable'
+      }
+
+      return { runs: scored, avgScore, trend }
+    }),
+
+  /** Get comprehensive session intelligence summary */
+  getSessionSummary: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return computeSessionSummary(ctx.db, input.sessionId)
+    }),
+
+  /** Compare two runs side by side */
+  compareRuns: protectedProcedure
+    .input(z.object({ runIdA: z.string().uuid(), runIdB: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const fetchDetails = async (runId: string) => {
+        const run = await ctx.db.query.chatRuns.findFirst({ where: eq(chatRuns.id, runId) })
+        if (!run) return null
+        const [steps, memUsage] = await Promise.all([
+          ctx.db.query.chatRunSteps.findMany({ where: eq(chatRunSteps.runId, runId) }),
+          ctx.db.query.runMemoryUsage.findMany({ where: eq(runMemoryUsage.runId, runId) }),
+        ])
+        return { run, steps: steps.sort((a, b) => a.sequence - b.sequence), memoryUsage: memUsage }
+      }
+
+      const [a, b] = await Promise.all([fetchDetails(input.runIdA), fetchDetails(input.runIdB)])
+      if (!a || !b) throw new Error('Run not found')
+
+      const toolCountA = a.steps.filter((s) => s.type === 'tool').length
+      const toolCountB = b.steps.filter((s) => s.type === 'tool').length
+      const agentNamesA = [...new Set(a.steps.filter((s) => s.agentName).map((s) => s.agentName!))]
+      const agentNamesB = [...new Set(b.steps.filter((s) => s.agentName).map((s) => s.agentName!))]
+      const avgConfA =
+        a.memoryUsage.length > 0
+          ? a.memoryUsage.reduce((sum, m) => sum + (m.confidence ?? 0), 0) / a.memoryUsage.length
+          : null
+      const avgConfB =
+        b.memoryUsage.length > 0
+          ? b.memoryUsage.reduce((sum, m) => sum + (m.confidence ?? 0), 0) / b.memoryUsage.length
+          : null
+
+      const durationA = a.run.durationMs
+      const durationB = b.run.durationMs
+      const stepsA = a.run.stepCount ?? a.steps.length
+      const stepsB = b.run.stepCount ?? b.steps.length
+      const isFasterB = durationA !== null && durationB !== null && durationB < durationA
+      const isFewerStepsB = stepsB < stepsA
+
+      return {
+        runA: { id: a.run.id, status: a.run.status, startedAt: a.run.startedAt },
+        runB: { id: b.run.id, status: b.run.status, startedAt: b.run.startedAt },
+        verdict:
+          a.run.status === 'completed' && b.run.status === 'completed'
+            ? isFasterB && isFewerStepsB
+              ? 'B improved'
+              : isFasterB || isFewerStepsB
+                ? 'B mixed'
+                : 'similar'
+            : b.run.status === 'completed' && a.run.status !== 'completed'
+              ? 'B recovered'
+              : a.run.status === 'completed' && b.run.status !== 'completed'
+                ? 'B regressed'
+                : 'inconclusive',
+        sections: [
+          {
+            label: 'Outcome',
+            items: [
+              {
+                key: 'Status',
+                a: a.run.status,
+                b: b.run.status,
+                changed: a.run.status !== b.run.status,
+              },
+              {
+                key: 'Duration (ms)',
+                a: durationA,
+                b: durationB,
+                changed: durationA !== durationB,
+              },
+            ],
+          },
+          {
+            label: 'Execution',
+            items: [
+              {
+                key: 'Step Count',
+                a: stepsA,
+                b: stepsB,
+                changed: stepsA !== stepsB,
+              },
+              {
+                key: 'Agents Used',
+                a: agentNamesA.join(', ') || 'none',
+                b: agentNamesB.join(', ') || 'none',
+                changed: agentNamesA.join(',') !== agentNamesB.join(','),
+              },
+              {
+                key: 'Tool Calls',
+                a: toolCountA,
+                b: toolCountB,
+                changed: toolCountA !== toolCountB,
+              },
+            ],
+          },
+          {
+            label: 'Memory',
+            items: [
+              {
+                key: 'Memories Used',
+                a: a.run.memoryCount ?? a.memoryUsage.length,
+                b: b.run.memoryCount ?? b.memoryUsage.length,
+                changed:
+                  (a.run.memoryCount ?? a.memoryUsage.length) !==
+                  (b.run.memoryCount ?? b.memoryUsage.length),
+              },
+              {
+                key: 'Avg Confidence',
+                a: avgConfA !== null ? Math.round(avgConfA * 100) / 100 : null,
+                b: avgConfB !== null ? Math.round(avgConfB * 100) / 100 : null,
+                changed: avgConfA !== avgConfB,
+              },
+            ],
+          },
+          {
+            label: 'Retry',
+            items: [
+              {
+                key: 'Is Retry',
+                a: a.run.retryOfRunId ? 'yes' : 'no',
+                b: b.run.retryOfRunId ? 'yes' : 'no',
+                changed: !!a.run.retryOfRunId !== !!b.run.retryOfRunId,
+              },
+              {
+                key: 'Retry Type',
+                a: a.run.retryType ?? 'none',
+                b: b.run.retryType ?? 'none',
+                changed: a.run.retryType !== b.run.retryType,
+              },
+              {
+                key: 'Retry Scope',
+                a: a.run.retryScope ?? 'none',
+                b: b.run.retryScope ?? 'none',
+                changed: a.run.retryScope !== b.run.retryScope,
+              },
+              {
+                key: 'Retry Target',
+                a: a.run.retryTargetId ?? 'none',
+                b: b.run.retryTargetId ?? 'none',
+                changed: a.run.retryTargetId !== b.run.retryTargetId,
+              },
+            ],
+          },
+          {
+            label: 'Workflow',
+            items: [
+              {
+                key: 'Workflow',
+                a: a.run.workflowName ?? 'none',
+                b: b.run.workflowName ?? 'none',
+                changed: a.run.workflowId !== b.run.workflowId,
+              },
+            ],
+          },
+          {
+            label: 'Autonomy',
+            items: [
+              {
+                key: 'Level',
+                a: a.run.autonomyLevel ?? 'manual',
+                b: b.run.autonomyLevel ?? 'manual',
+                changed: a.run.autonomyLevel !== b.run.autonomyLevel,
+              },
+              {
+                key: 'Auto Actions',
+                a: a.run.autoActionsCount ?? 0,
+                b: b.run.autoActionsCount ?? 0,
+                changed: (a.run.autoActionsCount ?? 0) !== (b.run.autoActionsCount ?? 0),
+              },
+            ],
+          },
+          // Step Changes section — only for step-level retries
+          ...(b.run.retryScope === 'step' && b.run.retryTargetId && b.run.retryOfRunId === a.run.id
+            ? [
+                (() => {
+                  const targetStepA = a.steps.find((s) => s.id === b.run.retryTargetId)
+                  // In B, find the retried tool step (same tool name, not a replayed prior)
+                  const priorCount = targetStepA ? targetStepA.sequence : 0
+                  const targetStepB = targetStepA
+                    ? b.steps.find(
+                        (s) =>
+                          s.toolName === targetStepA.toolName &&
+                          s.type === 'tool' &&
+                          s.sequence >= priorCount,
+                      )
+                    : null
+                  const downstreamA = targetStepA
+                    ? a.steps.filter((s) => s.sequence > targetStepA.sequence).length
+                    : 0
+                  const downstreamB = targetStepB
+                    ? b.steps.filter((s) => s.sequence > targetStepB.sequence).length
+                    : 0
+                  return {
+                    label: 'Step Changes',
+                    items: [
+                      {
+                        key: 'Retried Step',
+                        a: targetStepA?.toolName ?? 'unknown',
+                        b: targetStepA?.toolName ?? 'unknown',
+                        changed: false,
+                      },
+                      {
+                        key: 'Tool Output Changed',
+                        a: (targetStepA?.toolResult ?? 'none').slice(0, 60),
+                        b: (targetStepB?.toolResult ?? 'none').slice(0, 60),
+                        changed: targetStepA?.toolResult !== targetStepB?.toolResult,
+                      },
+                      {
+                        key: 'Downstream Steps',
+                        a: downstreamA,
+                        b: downstreamB,
+                        changed: downstreamA !== downstreamB,
+                      },
+                    ],
+                  }
+                })(),
+              ]
+            : []),
+        ],
+      }
+    }),
+
+  // === Workflow Intelligence ===
+
+  /** Find similar historical runs based on agents, input text, and tool patterns */
+  getSimilarRuns: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        userInput: z.string().optional(),
+        agentIds: z.array(z.string()).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return findSimilarRuns(ctx.db, {
+        sessionId: input.sessionId,
+        userInput: input.userInput,
+        agentIds: input.agentIds,
+      })
+    }),
+
+  /** Get evidence-based recommendations for a session context */
+  getWorkflowIntelligence: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        userInput: z.string().optional(),
+        agentIds: z.array(z.string()).optional(),
+        decisionMode: z
+          .enum(['balanced', 'quality', 'speed', 'stability', 'simplicity'])
+          .optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const similarRuns = await findSimilarRuns(ctx.db, {
+        sessionId: input.sessionId,
+        userInput: input.userInput,
+        agentIds: input.agentIds,
+      })
+      const recs = buildRecommendations(similarRuns)
+
+      // Blend in effectiveness + quality data
+      const enhanced = await Promise.all(
+        recs.map(async (rec) => {
+          const stats = await getEffectivenessStats(ctx.db, rec.id)
+          // Compute avg quality of runs backing this recommendation
+          const recRunQualityScores = similarRuns
+            .filter((r) => rec.evidence.basedOnRunIds.includes(r.runId))
+            .map((r) => r.run.qualityScore)
+            .filter((s): s is number => s != null)
+          const avgQuality =
+            recRunQualityScores.length > 0
+              ? recRunQualityScores.reduce((a, b) => a + b, 0) / recRunQualityScores.length
+              : null
+          // Instinct boost from promoted behavioral patterns
+          const instinctBoost = await getInstinctBoost(
+            ctx.db,
+            rec.type as Parameters<typeof getInstinctBoost>[1],
+          )
+          const blendedConfidence = computeBlendedScore(
+            rec.confidence,
+            stats,
+            avgQuality,
+            input.decisionMode,
+          )
+          return {
+            ...rec,
+            confidence: Math.min(Math.round((blendedConfidence + instinctBoost) * 100) / 100, 1),
+            qualityScore: avgQuality !== null ? Math.round(avgQuality * 100) / 100 : null,
+            instinctInfluence:
+              instinctBoost > 0 ? { boost: instinctBoost, source: 'promoted_instinct' } : null,
+            modeImpact: input.decisionMode
+              ? computeModeImpact(rec.confidence, stats, avgQuality, input.decisionMode)
+              : null,
+            stats:
+              stats.shown >= 3
+                ? {
+                    shown: stats.shown,
+                    clicked: stats.clicked,
+                    improved: stats.improved,
+                    recovered: stats.recovered,
+                    acceptanceRate: Math.round(stats.acceptanceRate * 100) / 100,
+                    improvementRate: Math.round(stats.improvementRate * 100) / 100,
+                  }
+                : null,
+          }
+        }),
+      )
+
+      return enhanced.sort((a, b) => b.confidence - a.confidence)
+    }),
+
+  /** Get best-known execution paths for similar tasks */
+  getBestKnownPaths: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        userInput: z.string().optional(),
+        agentIds: z.array(z.string()).optional(),
+        limit: z.number().min(1).max(10).default(3),
+        decisionMode: z
+          .enum(['balanced', 'quality', 'speed', 'stability', 'simplicity'])
+          .optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return extractBestKnownPaths(ctx.db, input)
+    }),
+
+  /** Compare tradeoffs between two runs */
+  getTradeoffComparison: protectedProcedure
+    .input(
+      z.object({
+        runIdA: z.string().uuid(),
+        runIdB: z.string().uuid(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const fetchRunData = async (runId: string) => {
+        const run = await ctx.db.query.chatRuns.findFirst({ where: eq(chatRuns.id, runId) })
+        if (!run) return null
+        const quality = await ctx.db.query.runQuality.findFirst({
+          where: eq(runQuality.runId, runId),
+        })
+        return {
+          status: run.status,
+          durationMs: run.durationMs,
+          stepCount: run.stepCount,
+          qualityScore: quality?.score ?? null,
+        }
+      }
+      const [a, b] = await Promise.all([fetchRunData(input.runIdA), fetchRunData(input.runIdB)])
+      if (!a || !b) return null
+      const vectorA = computeTradeoffVector([a])
+      const vectorB = computeTradeoffVector([b])
+      return compareTradeoffs(vectorA, vectorB)
+    }),
+
+  /** Get tradeoff summary across all runs in a session */
+  getSessionTradeoffSummary: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const runs = await ctx.db.query.chatRuns.findMany({
+        where: and(eq(chatRuns.sessionId, input.sessionId), sql`${chatRuns.status} != 'running'`),
+        orderBy: desc(chatRuns.startedAt),
+        limit: 20,
+      })
+      if (runs.length === 0) return null
+
+      const runIds = runs.map((r) => r.id)
+      const qualities = await ctx.db.query.runQuality.findMany({
+        where: sql`${runQuality.runId} = ANY(${runIds})`,
+      })
+      const qMap = new Map(qualities.map((q) => [q.runId, q.score]))
+
+      const options = runs.map((r) => ({
+        id: r.id,
+        vector: computeTradeoffVector([
+          {
+            status: r.status,
+            durationMs: r.durationMs,
+            stepCount: r.stepCount,
+            qualityScore: qMap.get(r.id) ?? null,
+          },
+        ]),
+      }))
+
+      return {
+        summary: summarizeTradeoffs(options),
+        runs: options.map((o) => ({ runId: o.id, vector: o.vector })),
+      }
+    }),
+
+  /** Get structured evidence for a specific recommendation */
+  getRecommendationEvidence: protectedProcedure
+    .input(
+      z.object({
+        recommendationId: z.string(),
+        recommendationType: z.string(),
+        label: z.string(),
+        sessionId: z.string().uuid(),
+        userInput: z.string().optional(),
+        agentIds: z.array(z.string()).optional(),
+        decisionMode: z
+          .enum(['balanced', 'quality', 'speed', 'stability', 'simplicity'])
+          .optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return buildEvidencePayload(ctx.db, input)
+    }),
+
+  /** Get cached workflow performance insights */
+  getWorkflowInsights: protectedProcedure
+    .input(
+      z.object({
+        workflowId: z.string().uuid().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      if (input.workflowId) {
+        return ctx.db.query.workflowInsights.findMany({
+          where: eq(workflowInsights.workflowId, input.workflowId),
+        })
+      }
+      return ctx.db.query.workflowInsights.findMany({
+        orderBy: desc(workflowInsights.totalRuns),
+        limit: 20,
+      })
+    }),
+
+  /** Recompute and cache workflow insight aggregates */
+  refreshWorkflowInsights: protectedProcedure
+    .input(
+      z.object({
+        workflowId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return refreshInsights(ctx.db, input.workflowId ?? undefined)
+    }),
+
+  // === Recommendation Feedback Loop ===
+
+  /** Log that a recommendation was shown to the user */
+  logRecommendationShown: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        recommendationId: z.string(),
+        recommendationType: z.string(),
+        workflowId: z.string().uuid().optional(),
+        autonomyLevel: z.string().optional(),
+        confidence: z.number().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [event] = await ctx.db
+        .insert(recommendationEvents)
+        .values({
+          sessionId: input.sessionId,
+          recommendationId: input.recommendationId,
+          recommendationType: input.recommendationType,
+          workflowId: input.workflowId ?? null,
+          autonomyLevel: input.autonomyLevel ?? null,
+          confidence: input.confidence ?? null,
+        })
+        .returning({ id: recommendationEvents.id })
+      return { eventId: event?.id }
+    }),
+
+  /** Log that a recommendation was dismissed */
+  logRecommendationDismissed: protectedProcedure
+    .input(z.object({ eventId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(recommendationEvents)
+        .set({ dismissedAt: new Date() })
+        .where(eq(recommendationEvents.id, input.eventId))
+    }),
+
+  /** Log that a recommendation action was clicked */
+  logRecommendationAction: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string().uuid(),
+        actionType: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(recommendationEvents)
+        .set({ clickedAt: new Date(), actionType: input.actionType })
+        .where(eq(recommendationEvents.id, input.eventId))
+    }),
+
+  /** Link a resulting run to a recommendation event and compute outcome */
+  linkRecommendationToRun: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string().uuid(),
+        resultingRunId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Link the run to the event
+      await ctx.db
+        .update(recommendationEvents)
+        .set({ resultingRunId: input.resultingRunId })
+        .where(eq(recommendationEvents.id, input.eventId))
+
+      // Load both runs to compute outcome
+      const event = await ctx.db.query.recommendationEvents.findFirst({
+        where: eq(recommendationEvents.id, input.eventId),
+      })
+      if (!event) return
+
+      const resultRun = await ctx.db.query.chatRuns.findFirst({
+        where: eq(chatRuns.id, input.resultingRunId),
+      })
+      if (!resultRun || resultRun.status === 'running') return
+
+      // Find the parent/baseline run (most recent completed run in same session before this one)
+      const baselineRun = await ctx.db.query.chatRuns.findFirst({
+        where: and(
+          eq(chatRuns.sessionId, event.sessionId),
+          sql`${chatRuns.id} != ${input.resultingRunId}`,
+          sql`${chatRuns.startedAt} < ${resultRun.startedAt}`,
+        ),
+        orderBy: desc(chatRuns.startedAt),
+      })
+
+      const improved =
+        resultRun.status === 'completed' && (!baselineRun || baselineRun.status !== 'completed')
+      const faster =
+        baselineRun?.durationMs != null &&
+        resultRun.durationMs != null &&
+        resultRun.durationMs < baselineRun.durationMs
+      const fewerSteps =
+        baselineRun?.stepCount != null &&
+        resultRun.stepCount != null &&
+        resultRun.stepCount < baselineRun.stepCount
+      const recovered = resultRun.status === 'completed' && baselineRun?.status === 'failed'
+
+      await ctx.db.insert(recommendationOutcomes).values({
+        eventId: input.eventId,
+        resultingRunId: input.resultingRunId,
+        improved: improved || faster || fewerSteps || recovered,
+        faster,
+        recovered,
+        fewerSteps,
+        deltaDurationMs:
+          baselineRun?.durationMs != null && resultRun.durationMs != null
+            ? resultRun.durationMs - baselineRun.durationMs
+            : null,
+        deltaStepCount:
+          baselineRun?.stepCount != null && resultRun.stepCount != null
+            ? resultRun.stepCount - baselineRun.stepCount
+            : null,
+      })
+    }),
+
+  /** Get aggregate stats for a recommendation type */
+  getRecommendationStats: protectedProcedure
+    .input(
+      z.object({
+        recommendationType: z.string().optional(),
+        recommendationId: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const where = input.recommendationId
+        ? eq(recommendationEvents.recommendationId, input.recommendationId)
+        : input.recommendationType
+          ? eq(recommendationEvents.recommendationType, input.recommendationType)
+          : undefined
+
+      const events = await ctx.db.query.recommendationEvents.findMany({
+        where,
+        orderBy: desc(recommendationEvents.shownAt),
+        limit: 200,
+      })
+
+      const total = events.length
+      const dismissed = events.filter((e) => e.dismissedAt).length
+      const clicked = events.filter((e) => e.clickedAt).length
+      const linked = events.filter((e) => e.resultingRunId).length
+
+      // Load outcomes for linked events
+      const linkedIds = events.filter((e) => e.resultingRunId).map((e) => e.id)
+      const outcomes =
+        linkedIds.length > 0
+          ? await ctx.db.query.recommendationOutcomes.findMany({
+              where: sql`${recommendationOutcomes.eventId} = ANY(${linkedIds})`,
+            })
+          : []
+
+      const improved = outcomes.filter((o) => o.improved).length
+      const recovered = outcomes.filter((o) => o.recovered).length
+      const faster = outcomes.filter((o) => o.faster).length
+
+      return {
+        shown: total,
+        dismissed,
+        clicked,
+        linked,
+        acceptanceRate: total > 0 ? clicked / total : 0,
+        outcomes: outcomes.length,
+        improved,
+        recovered,
+        faster,
+        improvementRate: outcomes.length > 0 ? improved / outcomes.length : 0,
+        recoveryRate: outcomes.length > 0 ? recovered / outcomes.length : 0,
+      }
     }),
 
   // === Agent Messaging ===
@@ -499,4 +1273,163 @@ export const intelligenceRouter = router({
     const { getOpenClawStatus } = await import('../adapters/openclaw/bootstrap')
     return getOpenClawStatus()
   }),
+
+  // ── Background Agent Sessions ──────────────────────────────────────────
+
+  /** Dispatch an agent chat in the background (fire-and-forget). Returns run ID for polling. */
+  backgroundChat: protectedProcedure
+    .input(
+      z.object({
+        agentId: z.string().uuid(),
+        message: z.string().min(1),
+        workspaceId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { agents, chatSessions, chatMessages } = await import('@solarc/db')
+      const agent = await ctx.db.query.agents.findFirst({
+        where: eq(agents.id, input.agentId),
+      })
+      if (!agent) throw new Error('Agent not found')
+
+      // Create session + run record
+      const [session] = await ctx.db
+        .insert(chatSessions)
+        .values({ agentId: agent.id, workspaceId: input.workspaceId ?? agent.workspaceId })
+        .returning()
+      if (!session) throw new Error('Failed to create session')
+
+      await ctx.db.insert(chatMessages).values({
+        sessionId: session.id,
+        role: 'user',
+        text: input.message,
+      })
+
+      const [run] = await ctx.db
+        .insert(chatRuns)
+        .values({ sessionId: session.id, agentIds: [agent.id], status: 'running' })
+        .returning()
+
+      // Fire-and-forget: run chat in background
+      const { GatewayRouter } = await import('../services/gateway')
+      const gw = new GatewayRouter(ctx.db)
+      gw.chat({
+        model: agent.model ?? undefined,
+        messages: [
+          ...(agent.soul ? [{ role: 'system' as const, content: agent.soul }] : []),
+          { role: 'user', content: input.message },
+        ],
+        agentId: agent.id,
+      })
+        .then(async (result) => {
+          await ctx.db.insert(chatMessages).values({
+            sessionId: session.id,
+            role: 'assistant',
+            text: result.content,
+          })
+          if (run) {
+            await ctx.db
+              .update(chatRuns)
+              .set({ status: 'completed', completedAt: new Date() })
+              .where(eq(chatRuns.id, run.id))
+          }
+        })
+        .catch(async (err) => {
+          if (run) {
+            await ctx.db
+              .update(chatRuns)
+              .set({ status: 'failed', completedAt: new Date() })
+              .where(eq(chatRuns.id, run.id))
+          }
+          console.error('[backgroundChat] Error:', err)
+        })
+
+      return { sessionId: session.id, runId: run?.id, status: 'dispatched' }
+    }),
+
+  /** Check status of a background chat run. */
+  backgroundStatus: protectedProcedure
+    .input(z.object({ runId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const run = await ctx.db.query.chatRuns.findFirst({
+        where: eq(chatRuns.id, input.runId),
+      })
+      if (!run) return { status: 'not_found' }
+
+      // Get last assistant message for the session
+      const { chatMessages } = await import('@solarc/db')
+      const lastMsg = await ctx.db.query.chatMessages.findFirst({
+        where: and(eq(chatMessages.sessionId, run.sessionId), eq(chatMessages.role, 'assistant')),
+        orderBy: desc(chatMessages.createdAt),
+      })
+
+      return {
+        status: run.status,
+        content: lastMsg?.text ?? null,
+        completedAt: run.completedAt,
+        sessionId: run.sessionId,
+      }
+    }),
+
+  // ── Session Branching ──────────────────────────────────────────────────
+
+  /** Branch a session: copy messages up to a point into a new session. */
+  branchSession: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        afterMessageId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { chatSessions, chatMessages } = await import('@solarc/db')
+
+      // Get original session
+      const original = await ctx.db.query.chatSessions.findFirst({
+        where: eq(chatSessions.id, input.sessionId),
+      })
+      if (!original) throw new Error('Session not found')
+
+      // Get messages to copy
+      const allMessages = await ctx.db.query.chatMessages.findMany({
+        where: eq(chatMessages.sessionId, input.sessionId),
+        orderBy: [sql`created_at ASC`],
+      })
+
+      let messagesToCopy = allMessages
+      if (input.afterMessageId) {
+        const idx = allMessages.findIndex((m) => m.id === input.afterMessageId)
+        if (idx >= 0) messagesToCopy = allMessages.slice(0, idx + 1)
+      }
+
+      // Create new branched session
+      const [newSession] = await ctx.db
+        .insert(chatSessions)
+        .values({
+          agentId: original.agentId,
+          workspaceId: original.workspaceId,
+          modelOverride: original.modelOverride,
+          parentSessionId: original.id,
+        })
+        .returning()
+      if (!newSession) throw new Error('Failed to create branch')
+
+      // Copy messages
+      if (messagesToCopy.length > 0) {
+        await ctx.db.insert(chatMessages).values(
+          messagesToCopy.map((m) => ({
+            sessionId: newSession.id,
+            role: m.role,
+            text: m.text,
+            sourceAgentId: m.sourceAgentId,
+          })),
+        )
+      }
+
+      return {
+        branchedSessionId: newSession.id,
+        parentSessionId: original.id,
+        messagesCopied: messagesToCopy.length,
+      }
+    }),
 })

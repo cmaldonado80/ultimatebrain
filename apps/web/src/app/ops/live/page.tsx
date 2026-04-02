@@ -7,6 +7,10 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { FilterPills } from '../../../components/ui/filter-pills'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 type FilterType = 'all' | 'user' | 'agent'
@@ -39,54 +43,24 @@ export default function LiveViewerPage() {
   }>
 
   const filtered = filter === 'all' ? entries : entries.filter((e) => e.type === filter)
-  const userCount = entries.filter((e) => e.type === 'user').length
-  const agentCount = entries.filter((e) => e.type === 'agent').length
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-orbitron text-neon-teal">Live Viewer</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Real-time presence &mdash; {entries.length} active ({userCount} users, {agentCount}{' '}
-            agents)
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="neon-dot-green animate-pulse" />
-          <span className="text-xs text-slate-500">Auto-refresh 5s</span>
-        </div>
-      </div>
+      <PageHeader title="Live Viewer" live />
 
-      {/* Filter buttons */}
-      <div className="flex gap-2">
-        {(['all', 'user', 'agent'] as FilterType[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`cyber-btn-secondary text-xs px-3 py-1.5 ${
-              filter === f ? 'ring-1 ring-neon-teal text-neon-teal' : ''
-            }`}
-          >
-            {f === 'all'
-              ? `All (${entries.length})`
-              : f === 'user'
-                ? `Users (${userCount})`
-                : `Agents (${agentCount})`}
-          </button>
-        ))}
-      </div>
+      <FilterPills
+        options={['all', 'user', 'agent'] as const}
+        value={filter}
+        onChange={setFilter}
+        labels={{ all: 'All', user: 'Users', agent: 'Agents' }}
+        className="mb-4"
+      />
 
       {/* Presence table */}
       {presenceQuery.isLoading ? (
-        <div className="flex items-center justify-center min-h-[40vh]">
-          <div className="text-lg font-orbitron text-slate-500">Scanning presence...</div>
-        </div>
+        <LoadingState message="Scanning presence..." />
       ) : filtered.length === 0 ? (
-        <div className="cyber-card p-8 text-center text-slate-500">
-          No active {filter === 'all' ? 'entries' : filter + 's'} right now.
-        </div>
+        <EmptyState title="No active entries right now" />
       ) : (
         <div className="cyber-table-scroll">
           <table className="w-full text-sm">

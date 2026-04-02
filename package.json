@@ -14,6 +14,8 @@
     "db:migrate": "turbo db:migrate --filter=@solarc/db",
     "db:seed": "turbo db:seed --filter=@solarc/db",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "brain:create": "tsx scripts/create-brain.ts",
+    "brain:validate": "tsx scripts/validate-template.ts",
     "clean": "turbo clean && rm -rf node_modules",
     "prepare": "husky"
   },
@@ -23,11 +25,12 @@
     "eslint": "^9.0.0",
     "husky": "^9.0.0",
     "lint-staged": "^15.0.0",
+    "next": "^15.1.0",
     "prettier": "^3.4.0",
+    "tsx": "^4.21.0",
     "turbo": "^2.4.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0",
-    "next": "^15.1.0"
+    "vitest": "^3.0.0"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

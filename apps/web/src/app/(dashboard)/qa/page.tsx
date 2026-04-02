@@ -7,6 +7,9 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { EmptyState } from '../../../components/ui/empty-state'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface DatasetSummary {
@@ -44,11 +47,8 @@ export default function QAPage() {
 
   if (datasetsQuery.isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching QA data</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading recordings..." />
       </div>
     )
   }
@@ -58,12 +58,7 @@ export default function QAPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">QA Recordings</h2>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Record, replay, and validate visual test sessions for quality assurance.
-        </p>
-      </div>
+      <PageHeader title="QA Recordings" />
 
       <div className="flex gap-4 min-h-[400px]">
         {/* Sidebar */}
@@ -72,7 +67,7 @@ export default function QAPage() {
             Datasets ({datasets.length})
           </div>
           {datasets.length === 0 ? (
-            <div className="text-xs text-slate-600 p-3 text-center">No eval datasets found.</div>
+            <EmptyState message="No eval datasets found." />
           ) : (
             datasets.map((ds) => (
               <div

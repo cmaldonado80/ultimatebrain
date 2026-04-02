@@ -111,7 +111,8 @@ export class MemoryService {
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
-    // Cosine similarity search via pgvector
+    // Cosine similarity search via pgvector, boosted by proof count
+    // Observations with higher proof counts rank higher (proof-weighted recall)
     const results = await this.db
       .select({
         id: memories.id,
@@ -119,22 +120,63 @@ export class MemoryService {
         content: memories.content,
         tier: memories.tier,
         createdAt: memories.createdAt,
-        score: sql<number>`1 - (${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector)`,
+        factType: memories.factType,
+        proofCount: memories.proofCount,
+        rawScore: sql<number>`1 - (${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector)`,
       })
       .from(memories)
       .innerJoin(memoryVectors, eq(memories.id, memoryVectors.memoryId))
       .where(whereClause)
       .orderBy(sql`${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
-      .limit(limit)
+      .limit(limit * 2) // Over-fetch then re-rank
 
-    const mapped = results.map((r) => ({
-      id: r.id,
-      key: r.key,
-      content: r.content,
-      tier: r.tier as MemoryTier,
-      score: r.score,
-      createdAt: r.createdAt,
-    }))
+    // Re-rank with three scoring dimensions:
+    // 1. Proof-weighted: observations with high proof counts rank higher
+    // 2. Temporal layers (DeerFlow-inspired): recent memories boosted, old ones decay
+    // 3. Type weighting: consolidated facts deprioritized
+    const now = Date.now()
+    const mapped = results
+      .map((r) => {
+        let score = r.rawScore
+
+        // 1. Boost observations by log2(proofCount)
+        if (r.factType === 'observation' && r.proofCount > 1) {
+          score *= 1 + Math.log2(r.proofCount)
+        }
+
+        // 2. Temporal recency boost (DeerFlow-inspired layers)
+        // topOfMind: created < 1hr ago → 2x boost
+        // recent: created < 7 days → 1.5x boost
+        // earlier: created < 30 days → 1x (no change)
+        // longTerm: older → 0.8x decay
+        const ageMs = now - (r.createdAt?.getTime() ?? 0)
+        const ONE_HOUR = 60 * 60 * 1000
+        const ONE_WEEK = 7 * 24 * ONE_HOUR
+        const ONE_MONTH = 30 * 24 * ONE_HOUR
+        if (ageMs < ONE_HOUR) {
+          score *= 2.0 // topOfMind
+        } else if (ageMs < ONE_WEEK) {
+          score *= 1.5 // recent
+        } else if (ageMs > ONE_MONTH) {
+          score *= 0.8 // longTerm decay
+        }
+
+        // 3. Deprioritize consolidated raw facts (noise)
+        if (r.factType === 'consolidated') {
+          score *= 0.3
+        }
+
+        return {
+          id: r.id,
+          key: r.key,
+          content: r.content,
+          tier: r.tier as MemoryTier,
+          score,
+          createdAt: r.createdAt,
+        }
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
 
     // Track access for returned results (fire-and-forget)
     if (mapped.length > 0) {

@@ -7,6 +7,8 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
 import { trpc } from '../../../utils/trpc'
 
 interface AgentCard {
@@ -51,13 +53,7 @@ export default function A2APage() {
   }
 
   if (cardsQuery.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-lg font-orbitron">Loading A2A protocol...</div>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Loading A2A protocol..." />
   }
 
   const cards = (cardsQuery.data ?? []) as AgentCard[]
@@ -69,32 +65,24 @@ export default function A2APage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <div className="flex justify-between items-center">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">Agent-to-Agent Protocol</h2>
-          <div className="flex gap-2">
-            <button
-              className="cyber-btn-primary"
-              onClick={() =>
-                generateAllMut.mutate({
-                  baseUrl:
-                    typeof window !== 'undefined'
-                      ? window.location.origin
-                      : 'http://localhost:3000',
-                })
-              }
-              disabled={generateAllMut.isPending}
-            >
-              {generateAllMut.isPending ? 'Generating...' : 'Generate All Cards'}
-            </button>
-            <button className="cyber-btn-secondary" onClick={() => setShowExternal(!showExternal)}>
-              External ({external.length})
-            </button>
-          </div>
-        </div>
-        <p className="mt-1 mb-0 text-xs text-slate-500">
-          Manage agent identity cards, task delegations, and inter-agent discovery.
-        </p>
+      <PageHeader title="A2A Protocol" />
+
+      <div className="flex gap-2 mb-4">
+        <button
+          className="cyber-btn-primary"
+          onClick={() =>
+            generateAllMut.mutate({
+              baseUrl:
+                typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000',
+            })
+          }
+          disabled={generateAllMut.isPending}
+        >
+          {generateAllMut.isPending ? 'Generating...' : 'Generate All Cards'}
+        </button>
+        <button className="cyber-btn-secondary" onClick={() => setShowExternal(!showExternal)}>
+          External ({external.length})
+        </button>
       </div>
 
       {/* Stats */}

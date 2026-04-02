@@ -671,7 +671,9 @@ export class SystemOrchestrator {
       await this.db
         .delete(workspaces)
         .where(eq(workspaces.id, ws.id))
-        .catch(() => {})
+        .catch((err) => {
+          console.error('[SystemOrchestrator] Failed to delete workspace:', err)
+        })
     }
 
     return { removedWorkspaces: toRemove.length, removedAgents }

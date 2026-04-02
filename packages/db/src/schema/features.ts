@@ -73,7 +73,10 @@ export const guardrailLogs = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },
-  (t) => [index('guardrail_logs_agent_id_idx').on(t.agentId)],
+  (t) => [
+    index('guardrail_logs_agent_id_idx').on(t.agentId),
+    index('guardrail_logs_ticket_id_idx').on(t.ticketId),
+  ],
 )
 
 // Feature #5: Evals
@@ -196,6 +199,7 @@ export const instincts = pgTable('instincts', {
   confidence: real('confidence').default(0.3).notNull(),
   domain: text('domain').default('universal'),
   scope: instinctScopeEnum('scope').default('development').notNull(),
+  status: text('status').default('observed').notNull(), // 'observed' | 'candidate' | 'promoted' | 'deprecated' | 'disabled'
   entityId: uuid('entity_id'),
   evidenceCount: integer('evidence_count').default(1),
   lastObservedAt: timestamp('last_observed_at').defaultNow(),
@@ -205,9 +209,7 @@ export const instincts = pgTable('instincts', {
 
 export const instinctObservations = pgTable('instinct_observations', {
   id: uuid('id').primaryKey().defaultRandom(),
-  instinctId: uuid('instinct_id')
-    .references(() => instincts.id, { onDelete: 'cascade' })
-    .notNull(),
+  instinctId: uuid('instinct_id').references(() => instincts.id, { onDelete: 'cascade' }),
   eventType: text('event_type').notNull(),
   payload: jsonb('payload'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -242,6 +244,76 @@ export const healingLogs = pgTable('healing_logs', {
   target: text('target').notNull(),
   reason: text('reason').notNull(),
   success: boolean('success').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// ── Persistence: Journey Execution State ──────────────────────────────────
+
+export const journeyExecutionStatusEnum = pgEnum('journey_execution_status', [
+  'active',
+  'paused',
+  'completed',
+  'failed',
+])
+
+export const journeyExecutions = pgTable(
+  'journey_executions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    journeyId: text('journey_id').notNull(),
+    status: journeyExecutionStatusEnum('status').default('active').notNull(),
+    currentState: text('current_state').notNull(),
+    context: jsonb('context'),
+    history: jsonb('history'), // Array of StateTransition
+    startedAt: timestamp('started_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('journey_executions_journey_idx').on(t.journeyId),
+    index('journey_executions_status_idx').on(t.status),
+  ],
+)
+
+// ── Persistence: Presence Entries (with TTL cleanup) ─────────────────────
+
+export const presenceEntries = pgTable(
+  'presence_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id'),
+    type: text('type').notNull(), // 'user' | 'agent'
+    location: text('location'),
+    workspaceId: text('workspace_id'),
+    status: jsonb('status'),
+    cursor: jsonb('cursor'),
+    lastHeartbeat: timestamp('last_heartbeat').defaultNow().notNull(),
+    connectedAt: timestamp('connected_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('presence_entries_user_idx').on(t.userId),
+    index('presence_entries_heartbeat_idx').on(t.lastHeartbeat),
+  ],
+)
+
+// ── Persistence: User Layout Preferences ─────────────────────────────────
+
+export const userPreferences = pgTable('user_preferences', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().unique(),
+  pinnedPanels: text('pinned_panels').array(),
+  hiddenPanels: text('hidden_panels').array(),
+  behaviorWeights: jsonb('behavior_weights'), // Record<string, BehaviorSignals>
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// Feature: Document Ingestion
+export const documents = pgTable('documents', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  content: text('content').notNull(),
+  chunkCount: integer('chunk_count').default(0),
+  workspaceId: uuid('workspace_id'),
+  organizationId: uuid('organization_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 

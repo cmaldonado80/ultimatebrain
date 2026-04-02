@@ -1,6 +1,9 @@
 /**
  * Engine Registry Router — centralized engine health and usage tracking.
  */
+import { brainEntities } from '@solarc/db'
+import { TRPCError } from '@trpc/server'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import type { EngineId } from '../services/engine-registry/registry'
@@ -97,5 +100,44 @@ export const engineRegistryRouter = router({
         input.error,
       )
       return { recorded: true }
+    }),
+
+  healthCheck: protectedProcedure
+    .input(z.object({ engineId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const engine = await ctx.db.query.brainEntities.findFirst({
+        where: eq(brainEntities.id, input.engineId),
+      })
+      if (!engine) throw new TRPCError({ code: 'NOT_FOUND', message: 'Engine not found' })
+      // Check endpoint health if available
+      if (engine.healthEndpoint) {
+        try {
+          const res = await fetch(engine.healthEndpoint, { signal: AbortSignal.timeout(5000) })
+          return {
+            status: res.ok ? 'healthy' : 'unhealthy',
+            statusCode: res.status,
+            endpoint: engine.healthEndpoint,
+          }
+        } catch {
+          return { status: 'unreachable', endpoint: engine.healthEndpoint }
+        }
+      }
+      return { status: 'no-endpoint', endpoint: null }
+    }),
+
+  capabilities: protectedProcedure
+    .input(z.object({ engineId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const engine = await ctx.db.query.brainEntities.findFirst({
+        where: eq(brainEntities.id, input.engineId),
+      })
+      if (!engine) throw new TRPCError({ code: 'NOT_FOUND', message: 'Engine not found' })
+      return {
+        id: engine.id,
+        name: engine.name,
+        tier: engine.tier,
+        engines: engine.enginesEnabled ?? [],
+        status: engine.status,
+      }
     }),
 })

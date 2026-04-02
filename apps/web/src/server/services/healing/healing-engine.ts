@@ -197,7 +197,9 @@ export class HealingEngine {
           status: overallStatus,
           issueCount: checks.filter((c) => c.status !== 'pass').length,
         })
-        .catch(() => {})
+        .catch((err) => {
+          console.error('[HealingEngine] Failed to emit health.check event:', err)
+        })
     }
 
     return {

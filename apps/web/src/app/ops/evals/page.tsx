@@ -12,6 +12,9 @@
 import { useEffect, useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
+import { SectionCard } from '../../../components/ui/section-card'
 import { trpc } from '../../../utils/trpc'
 
 // ── Types (mirroring server types for client use) ─────────────────────────
@@ -238,11 +241,8 @@ export default function EvalsPage() {
 
   if (isLoading) {
     return (
-      <div className="text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-xs">Fetching eval datasets</div>
-        </div>
+      <div className="text-slate-50 p-6">
+        <LoadingState message="Loading eval datasets..." />
       </div>
     )
   }
@@ -275,15 +275,7 @@ export default function EvalsPage() {
 
   return (
     <div className="text-slate-50 p-6">
-      {/* Header */}
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <h1 className="m-0 text-[22px] font-bold font-orbitron">Eval Dashboard</h1>
-          <p className="mt-1 mb-0 text-xs text-slate-500">
-            Production-to-eval pipeline &middot; automated regression detection
-          </p>
-        </div>
-      </div>
+      <PageHeader title="Eval Dashboard" />
       <div className="flex gap-5">
         {/* Sidebar — Dataset List */}
         <div className="w-[220px] shrink-0">
@@ -335,23 +327,25 @@ export default function EvalsPage() {
 
               {/* Overview Tab */}
               {activeTab === 'overview' && latestRun && (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
-                  {SCORE_DIMENSIONS.map((dim) => (
-                    <div key={dim.key} className="cyber-card p-3.5">
-                      <div className="text-[11px] text-slate-400 mb-1">{dim.label}</div>
-                      <div className="text-2xl font-bold mb-2">
-                        {Math.round(
-                          ((latestRun.scores as Record<string, number>)?.[dim.key] ?? 0) * 100,
-                        )}
-                        %
+                <SectionCard variant="intelligence" title="Latest Scores">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+                    {SCORE_DIMENSIONS.map((dim) => (
+                      <div key={dim.key} className="cyber-card p-3.5">
+                        <div className="text-[11px] text-slate-400 mb-1">{dim.label}</div>
+                        <div className="text-2xl font-bold mb-2">
+                          {Math.round(
+                            ((latestRun.scores as Record<string, number>)?.[dim.key] ?? 0) * 100,
+                          )}
+                          %
+                        </div>
+                        <ScoreBar
+                          score={(latestRun.scores as Record<string, number>)?.[dim.key] ?? 0}
+                          color={dim.color}
+                        />
                       </div>
-                      <ScoreBar
-                        score={(latestRun.scores as Record<string, number>)?.[dim.key] ?? 0}
-                        color={dim.color}
-                      />
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </SectionCard>
               )}
 
               {activeTab === 'overview' && !latestRun && !runsQuery.isLoading && (
@@ -378,24 +372,26 @@ export default function EvalsPage() {
                       No run history available.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
-                      {SCORE_DIMENSIONS.map((dim) => (
-                        <div key={dim.key} className="cyber-card p-3.5">
-                          <div className="text-xs font-semibold mb-2">{dim.label}</div>
-                          <ScoreTrend history={history} dimension={dim} />
-                          {history.length >= 2 && (
-                            <div className="flex justify-between text-[10px] text-slate-500 mt-1">
-                              <span>{new Date(history[0]?.createdAt).toLocaleDateString()}</span>
-                              <span>
-                                {new Date(
-                                  history[history.length - 1]?.createdAt,
-                                ).toLocaleDateString()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    <SectionCard variant="intelligence" title="Score Trends">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
+                        {SCORE_DIMENSIONS.map((dim) => (
+                          <div key={dim.key} className="cyber-card p-3.5">
+                            <div className="text-xs font-semibold mb-2">{dim.label}</div>
+                            <ScoreTrend history={history} dimension={dim} />
+                            {history.length >= 2 && (
+                              <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                                <span>{new Date(history[0]?.createdAt).toLocaleDateString()}</span>
+                                <span>
+                                  {new Date(
+                                    history[history.length - 1]?.createdAt,
+                                  ).toLocaleDateString()}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </SectionCard>
                   )}
                 </div>
               )}

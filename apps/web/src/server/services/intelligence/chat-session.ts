@@ -217,8 +217,42 @@ export class ChatSessionManager {
     const toSummarize = allMsgs.slice(0, allMsgs.length - keepRecent)
     const transcript = toSummarize.map((m) => `${m.role}: ${m.text}`).join('\n')
 
-    // Generate summary via LLM
+    // Memory flush: extract key facts before compacting to prevent data loss
     const gateway = new GatewayRouter(this.db)
+    try {
+      const flushResult = await gateway.chat({
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Extract the 3-5 most important facts, decisions, or action items from this conversation. Output each on a new line, prefixed with "FACT: ". Be concise.',
+          },
+          { role: 'user', content: transcript },
+        ],
+      })
+      // Store extracted facts in memory (core tier) for durability
+      const { MemoryService } = await import('../memory/memory-service')
+      const memService = new MemoryService(this.db)
+      const facts = flushResult.content
+        .split('\n')
+        .filter((l) => l.startsWith('FACT:'))
+        .map((l) => l.replace('FACT:', '').trim())
+      for (const fact of facts) {
+        if (fact.length > 10) {
+          await memService
+            .store({
+              key: `session-${sessionId}-fact`,
+              content: fact,
+              tier: 'core',
+            })
+            .catch(() => {}) // Non-blocking
+        }
+      }
+    } catch {
+      // Memory flush is best-effort — don't block compaction
+    }
+
+    // Generate summary via LLM
     const result = await gateway.chat({
       messages: [
         {

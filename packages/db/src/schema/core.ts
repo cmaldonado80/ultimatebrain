@@ -16,10 +16,14 @@ import {
 
 export const entityTierEnum = pgEnum('entity_tier', ['brain', 'mini_brain', 'development'])
 export const entityStatusEnum = pgEnum('entity_status', [
-  'active',
-  'suspended',
-  'degraded',
   'provisioning',
+  'configured',
+  'deployed',
+  'verified',
+  'active',
+  'degraded',
+  'suspended',
+  'retired',
 ])
 export const ticketStatusEnum = pgEnum('ticket_status', [
   'backlog',
@@ -109,6 +113,28 @@ export const workspaceBindingTypeEnum = pgEnum('workspace_binding_type', [
   'engine',
   'skill',
 ])
+export const secretTypeEnum = pgEnum('secret_type', [
+  'brain_api_key',
+  'mini_brain_secret',
+  'app_secret',
+  'database_url',
+])
+
+export const secretStatusEnum = pgEnum('secret_status', [
+  'active',
+  'rotating',
+  'pending_activation',
+  'revoked',
+])
+
+export const deploymentWorkflowStatusEnum = pgEnum('deployment_workflow_status', [
+  'pending',
+  'running',
+  'completed',
+  'failed',
+  'cancelled',
+])
+
 export const workspaceGoalStatusEnum = pgEnum('workspace_goal_status', [
   'active',
   'achieved',
@@ -127,6 +153,8 @@ export const workspaces = pgTable('workspaces', {
   autonomyLevel: integer('autonomy_level').default(1),
   lifecycleState: workspaceLifecycleEnum('lifecycle_state').default('draft').notNull(),
   isSystemProtected: boolean('is_system_protected').default(false),
+  organizationId: uuid('organization_id'),
+  createdBy: uuid('created_by'),
   settings: jsonb('settings'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -154,6 +182,7 @@ export const agents = pgTable(
     temperature: real('temperature').default(1.0),
     maxTokens: integer('max_tokens').default(4096),
     toolAccess: text('tool_access').array(),
+    verificationLevel: integer('verification_level').default(0), // 0=anonymous, 1=api_key, 2=oauth, 3=did
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },

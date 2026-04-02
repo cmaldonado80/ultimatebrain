@@ -99,7 +99,7 @@ export class AitmplInstaller {
 
     try {
       const headers: Record<string, string> = {
-        'Accept': 'application/vnd.github.v3+json',
+        Accept: 'application/vnd.github.v3+json',
       }
       if (this.config.githubToken) {
         headers['Authorization'] = `Bearer ${this.config.githubToken}`
@@ -108,7 +108,7 @@ export class AitmplInstaller {
       const res = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) })
       if (!res.ok) return null
 
-      const data = await res.json() as Record<string, unknown>
+      const data = (await res.json()) as Record<string, unknown>
       const content = data.content
         ? Buffer.from(String(data.content), 'base64').toString('utf-8')
         : null
@@ -121,7 +121,9 @@ export class AitmplInstaller {
         author: (data.author as string) ?? 'unknown',
         version: (data.version as string) ?? '1.0.0',
         sourceUrl: url,
-        contentHash: content ? this.computeSha256(content) : this.generateHash(`${category}/${name}/1.0.0`),
+        contentHash: content
+          ? this.computeSha256(content)
+          : this.generateHash(`${category}/${name}/1.0.0`),
         license: (data.license as string) ?? 'MIT',
         downloads: 0,
         tags: [category, name],
@@ -131,7 +133,10 @@ export class AitmplInstaller {
       if (content) result.content = content
       return result
     } catch (err) {
-      console.warn(`[AitmplInstaller] Network error fetching ${category}/${name}, using fallback:`, err)
+      console.warn(
+        `[AitmplInstaller] Network error fetching ${category}/${name}, using fallback:`,
+        err,
+      )
       return {
         id: `aitmpl-${category}-${name}`,
         name,
@@ -157,7 +162,7 @@ export class AitmplInstaller {
 
     try {
       const headers: Record<string, string> = {
-        'Accept': 'application/vnd.github.v3+json',
+        Accept: 'application/vnd.github.v3+json',
       }
       if (this.config.githubToken) {
         headers['Authorization'] = `Bearer ${this.config.githubToken}`
@@ -218,12 +223,11 @@ export class AitmplInstaller {
     const permissions = this.inferPermissions(content)
 
     // Risk level
-    const criticalIssues = staticIssues.filter((i) =>
-      i.includes('eval') || i.includes('child_process') || i.includes('exec')
+    const criticalIssues = staticIssues.filter(
+      (i) => i.includes('eval') || i.includes('child_process') || i.includes('exec'),
     )
     const riskLevel: SecurityScanReport['riskLevel'] =
-      criticalIssues.length > 0 ? 'high' :
-      staticIssues.length > 2 ? 'medium' : 'low'
+      criticalIssues.length > 0 ? 'high' : staticIssues.length > 2 ? 'medium' : 'low'
 
     const staticPassed = criticalIssues.length === 0
     const sandboxPassed = sandboxIssues.length === 0
@@ -245,7 +249,7 @@ export class AitmplInstaller {
   async install(
     component: AitmplComponent,
     targetTier: InstallTier,
-    targetEntity: string
+    targetEntity: string,
   ): Promise<InstallResult> {
     // 1. Verify hash
     if (!this.verifyHash(component)) {
@@ -256,7 +260,13 @@ export class AitmplInstaller {
         tier: targetTier,
         targetEntity,
         version: component.version,
-        securityScan: { result: 'fail', staticAnalysis: { passed: false, issues: ['Hash mismatch'] }, sandboxTest: { passed: true, issues: [] }, permissionsRequired: [], riskLevel: 'high' },
+        securityScan: {
+          result: 'fail',
+          staticAnalysis: { passed: false, issues: ['Hash mismatch'] },
+          sandboxTest: { passed: true, issues: [] },
+          permissionsRequired: [],
+          riskLevel: 'high',
+        },
         installed: false,
         error: 'Content hash verification failed',
       }
@@ -318,10 +328,33 @@ export class AitmplInstaller {
     // Infer from tags and content
     const tags = component.tags.map((t) => t.toLowerCase())
 
-    if (tags.some((t) => ['governance', 'security', 'compliance', 'healing', 'orchestration', 'infrastructure'].includes(t))) {
+    if (
+      tags.some((t) =>
+        [
+          'governance',
+          'security',
+          'compliance',
+          'healing',
+          'orchestration',
+          'infrastructure',
+        ].includes(t),
+      )
+    ) {
       return 'brain'
     }
-    if (tags.some((t) => ['domain', 'specialist', 'astrology', 'hospitality', 'legal', 'healthcare', 'marketing', 'soc'].includes(t))) {
+    if (
+      tags.some((t) =>
+        [
+          'domain',
+          'specialist',
+          'astrology',
+          'hospitality',
+          'healthcare',
+          'marketing',
+          'soc',
+        ].includes(t),
+      )
+    ) {
       return 'mini_brain'
     }
     if (tags.some((t) => ['user-facing', 'chatbot', 'ui', 'app', 'frontend'].includes(t))) {
@@ -386,7 +419,7 @@ export class AitmplInstaller {
   private async adaptAndInstall(
     component: AitmplComponent,
     tier: InstallTier,
-    _entity: string
+    _entity: string,
   ): Promise<void> {
     try {
       const { AitmplAdapter } = await import('./adapter')

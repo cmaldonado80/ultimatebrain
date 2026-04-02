@@ -1,0 +1,38 @@
+/**
+ * Example Route — replace with real domain logic
+ *
+ * POST {{ROUTE_PATH}}
+ */
+
+import type { BrainClient } from '@solarc/brain-sdk'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type HonoContext = any
+
+export const exampleRoute = {
+  method: 'post' as const,
+  path: '{{ROUTE_PATH}}',
+  handler: async (c: HonoContext, _brain: BrainClient): Promise<Response> => {
+    try {
+      const input = await c.req.json()
+
+      // TODO: Replace with real {{DOMAIN}} domain logic
+      // Examples:
+      //   const result = await domainEngine.compute(input)
+      //   const memory = await brain.memory.search({ query: '...' })
+      //   const interpretation = await brain.llm.chat({ messages: [...] })
+
+      return c.json({
+        domain: '{{DOMAIN}}',
+        input,
+        result: 'Replace this with real domain computation',
+        computedAt: new Date().toISOString(),
+      })
+    } catch (err) {
+      return c.json(
+        { error: err instanceof Error ? err.message : 'Request failed' },
+        500,
+      )
+    }
+  },
+}

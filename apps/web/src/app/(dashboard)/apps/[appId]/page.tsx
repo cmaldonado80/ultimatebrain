@@ -10,6 +10,11 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 
 import { DbErrorBanner } from '../../../../components/db-error-banner'
+import { LoadingState } from '../../../../components/ui/loading-state'
+import { PageGrid } from '../../../../components/ui/page-grid'
+import { PageHeader } from '../../../../components/ui/page-header'
+import { SectionCard } from '../../../../components/ui/section-card'
+import { StatCard } from '../../../../components/ui/stat-card'
 import { trpc } from '../../../../utils/trpc'
 
 /** Row shape returned by `trpc.agents.byId` (drizzle `agents` table select) */
@@ -47,11 +52,8 @@ export default function AppDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="text-slate-50 p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching app details</div>
-        </div>
+      <div className="text-slate-50 p-6">
+        <LoadingState message="Loading app..." />
       </div>
     )
   }
@@ -82,48 +84,25 @@ export default function AppDetailPage() {
         <Link href="/apps" className="text-xs text-slate-500 no-underline block mb-2">
           ← Apps
         </Link>
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="m-0 mb-1.5 text-[22px] font-bold">{agentName}</h1>
-            <div className="flex gap-2 items-center">
-              <span className="cyber-badge bg-[#1e3a5f] text-blue-300 font-semibold">
-                {agentType}
-              </span>
-              {agentDescription && (
-                <span className="text-xs text-slate-500">{agentDescription}</span>
-              )}
-            </div>
-          </div>
+        <PageHeader title={agentName} />
+        <div className="flex gap-2 items-center">
+          <span className="cyber-badge bg-[#1e3a5f] text-blue-300 font-semibold">{agentType}</span>
+          {agentDescription && <span className="text-xs text-slate-500">{agentDescription}</span>}
         </div>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-2.5 mb-5">
-        <div className="cyber-card p-3 text-center">
-          <div className="text-[22px] font-bold">{agentModel}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Model</div>
-        </div>
-        <div className="cyber-card p-3 text-center">
-          <div className="text-[22px] font-bold">{agentSkills.length}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Skills</div>
-        </div>
-        <div className="cyber-card p-3 text-center">
-          <div className="text-[22px] font-bold">{agentTags.length}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Tags</div>
-        </div>
-        <div className="cyber-card p-3 text-center">
-          <div className="text-[22px] font-bold">{agentType}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Type</div>
-        </div>
-      </div>
+      <PageGrid cols="4" className="mb-5">
+        <StatCard label="Model" value={agentModel} />
+        <StatCard label="Skills" value={agentSkills.length} />
+        <StatCard label="Tags" value={agentTags.length} />
+        <StatCard label="Type" value={agentType} />
+      </PageGrid>
 
       <div className="grid grid-cols-[1fr_320px] gap-4">
         {/* Left: Skills */}
         <div>
-          <div className="cyber-card p-4 mb-3">
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">
-              Skills
-            </div>
+          <SectionCard title="Skills" className="mb-3">
             {agentSkills.length === 0 ? (
               <div className="text-xs text-slate-600 text-center p-4">No skills assigned</div>
             ) : (
@@ -137,15 +116,12 @@ export default function AppDetailPage() {
                 </div>
               ))
             )}
-          </div>
+          </SectionCard>
         </div>
 
         {/* Right: Tags & Details */}
         <div>
-          <div className="cyber-card p-4 mb-3">
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">
-              Tags
-            </div>
+          <SectionCard title="Tags" className="mb-3">
             {agentTags.length === 0 ? (
               <div className="text-xs text-slate-600 text-center p-4">No tags</div>
             ) : (
@@ -157,12 +133,9 @@ export default function AppDetailPage() {
                 ))}
               </div>
             )}
-          </div>
+          </SectionCard>
 
-          <div className="cyber-card p-4 mb-3">
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">
-              Details
-            </div>
+          <SectionCard title="Details" className="mb-3">
             <div className="flex gap-2 py-1 text-xs border-b border-gray-900">
               <span className="text-slate-500 min-w-[80px]">ID:</span>
               <span className="text-slate-300 font-mono text-[11px] break-all">{appId}</span>
@@ -183,7 +156,7 @@ export default function AppDetailPage() {
                 </span>
               </div>
             )}
-          </div>
+          </SectionCard>
         </div>
       </div>
     </div>

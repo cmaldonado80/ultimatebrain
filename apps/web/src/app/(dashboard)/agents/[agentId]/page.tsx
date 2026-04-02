@@ -1,9 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../../components/db-error-banner'
+import { LoadingState } from '../../../../components/ui/loading-state'
+import { PageHeader } from '../../../../components/ui/page-header'
+import { SectionCard } from '../../../../components/ui/section-card'
 import { trpc } from '../../../../utils/trpc'
 
 export default function AgentDetailPage() {
@@ -12,6 +16,10 @@ export default function AgentDetailPage() {
   const agentId = params.agentId as string
 
   const { data, isLoading, error } = trpc.agents.agentWithTraces.useQuery({ id: agentId })
+  const scorecardQuery = trpc.agents.getAgentScorecard.useQuery({ agentId })
+  const specQuery = trpc.agents.getAgentSpecialization.useQuery({ agentId })
+  const pairingsQuery = trpc.agents.getAgentPairings.useQuery({ agentId })
+  const orgContextQuery = trpc.org.agentContext.useQuery({ agentId })
   const modelsQuery = trpc.models.availableModels.useQuery()
   const utils = trpc.useUtils()
 
@@ -37,8 +45,8 @@ export default function AgentDetailPage() {
 
   if (isLoading || !data) {
     return (
-      <div className="p-6 text-slate-50 max-w-[800px] flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">Loading agent...</div>
+      <div className="p-6 text-slate-50 max-w-[800px]">
+        <LoadingState message="Loading agent..." />
       </div>
     )
   }
@@ -78,47 +86,109 @@ export default function AgentDetailPage() {
         &larr; Back to Agents
       </button>
 
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <h2 className="m-0 text-[22px] font-bold font-orbitron">{agent.name}</h2>
-          {agent.type && (
-            <span className="cyber-badge text-neon-blue bg-neon-blue/10 border-neon-blue/20">
-              {agent.type}
-            </span>
-          )}
-          {agent.requiredModelType && (
-            <span className="cyber-badge text-neon-purple bg-neon-purple/10 border-neon-purple/20">
-              {agent.requiredModelType}
-            </span>
-          )}
-          <span
-            className={`neon-dot ${
-              agent.status === 'idle'
-                ? 'neon-dot-green'
-                : agent.status === 'error'
-                  ? 'neon-dot-red'
-                  : 'neon-dot-purple'
-            }`}
-          />
-          <span className="text-[11px] text-slate-500">{agent.status}</span>
-        </div>
-        <p className="mt-1 mb-0 text-[13px] text-slate-400">
-          {agent.description || 'No description'}
-        </p>
-        <div className="flex gap-2 mt-2">
-          <span className="text-[11px] text-slate-600 font-mono">
-            Model: {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
-          </span>
-          <span className="text-[11px] text-slate-600">|</span>
-          <span className="text-[11px] text-slate-600 font-mono">
-            Temp: {agent.temperature ?? 1.0} | Max tokens: {agent.maxTokens ?? 4096}
-          </span>
-        </div>
+      <PageHeader
+        title={agent.name}
+        subtitle={agent.description || 'No description'}
+        actions={
+          <div className="flex items-center gap-2">
+            {agent.type && (
+              <span className="cyber-badge text-neon-blue bg-neon-blue/10 border-neon-blue/20">
+                {agent.type}
+              </span>
+            )}
+            {agent.requiredModelType && (
+              <span className="cyber-badge text-neon-purple bg-neon-purple/10 border-neon-purple/20">
+                {agent.requiredModelType}
+              </span>
+            )}
+            <span
+              className={`neon-dot ${
+                agent.status === 'idle'
+                  ? 'neon-dot-green'
+                  : agent.status === 'error'
+                    ? 'neon-dot-red'
+                    : 'neon-dot-purple'
+              }`}
+            />
+            <span className="text-[11px] text-slate-500">{agent.status}</span>
+          </div>
+        }
+      />
+      {/* Organization Context */}
+      {orgContextQuery.data &&
+        (orgContextQuery.data as { data: { departmentName: string | null } }).data
+          .departmentName && (
+          <SectionCard title="Organization" className="mb-4">
+            {(() => {
+              const ctx = (
+                orgContextQuery.data as {
+                  data: {
+                    corporationName: string
+                    departmentName: string | null
+                    departmentMission: string | null
+                    agentRole: string | null
+                    reportsTo: string | null
+                    teammates: string[]
+                  }
+                }
+              ).data
+              return (
+                <div className="grid grid-cols-2 gap-3 text-[11px]">
+                  <div>
+                    <span className="text-slate-500">Corporation:</span>{' '}
+                    <span className="text-slate-300">{ctx.corporationName}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Department:</span>{' '}
+                    <Link
+                      href="/org-chart"
+                      className="text-neon-purple hover:underline no-underline"
+                    >
+                      {ctx.departmentName}
+                    </Link>
+                  </div>
+                  {ctx.agentRole && (
+                    <div>
+                      <span className="text-slate-500">Role:</span>{' '}
+                      <span className="text-neon-teal">{ctx.agentRole}</span>
+                    </div>
+                  )}
+                  {ctx.reportsTo && (
+                    <div>
+                      <span className="text-slate-500">Reports To:</span>{' '}
+                      <span className="text-slate-300">{ctx.reportsTo}</span>
+                    </div>
+                  )}
+                  {ctx.departmentMission && (
+                    <div className="col-span-2">
+                      <span className="text-slate-500">Department Mission:</span>{' '}
+                      <span className="text-slate-400 italic">{ctx.departmentMission}</span>
+                    </div>
+                  )}
+                  {ctx.teammates.length > 0 && (
+                    <div className="col-span-2">
+                      <span className="text-slate-500">Team:</span>{' '}
+                      <span className="text-slate-400">{ctx.teammates.slice(0, 6).join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </SectionCard>
+        )}
+
+      <div className="flex gap-2 mb-4">
+        <span className="text-[11px] text-slate-600 font-mono">
+          Model: {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
+        </span>
+        <span className="text-[11px] text-slate-600">|</span>
+        <span className="text-[11px] text-slate-600 font-mono">
+          Temp: {agent.temperature ?? 1.0} | Max tokens: {agent.maxTokens ?? 4096}
+        </span>
       </div>
 
       {/* Soul / System Prompt */}
-      <div className="cyber-card p-4 mb-4">
+      <SectionCard className="mb-4">
         <div className="flex justify-between items-center mb-2">
           <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron">
             Soul (System Prompt)
@@ -173,10 +243,10 @@ export default function AgentDetailPage() {
             )}
           </div>
         )}
-      </div>
+      </SectionCard>
 
       {/* Configuration */}
-      <div className="cyber-card p-4 mb-4">
+      <SectionCard className="mb-4">
         <div className="flex justify-between items-center mb-2">
           <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron">
             Configuration
@@ -270,13 +340,10 @@ export default function AgentDetailPage() {
             </span>
           </div>
         </div>
-      </div>
+      </SectionCard>
 
       {/* Skills & Tags */}
-      <div className="cyber-card p-4 mb-4">
-        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2">
-          Skills & Tags
-        </div>
+      <SectionCard title="Skills & Tags" className="mb-4">
         <div className="flex gap-4">
           <div className="flex-1">
             <div className="text-[11px] text-slate-500 mb-1">Skills</div>
@@ -310,13 +377,188 @@ export default function AgentDetailPage() {
             </div>
           </div>
         </div>
-      </div>
+      </SectionCard>
+
+      {/* Performance Scorecard */}
+      {scorecardQuery.data && scorecardQuery.data.totalRuns > 0 && (
+        <SectionCard title="Performance" className="mb-4">
+          <div className="grid grid-cols-5 gap-4 text-center">
+            <div>
+              <div className="text-lg font-mono text-slate-200">
+                {scorecardQuery.data.totalRuns}
+              </div>
+              <div className="text-[10px] text-slate-500">Runs</div>
+            </div>
+            <div>
+              <div className="text-lg font-mono text-neon-green">
+                {Math.round(scorecardQuery.data.successRate * 100)}%
+              </div>
+              <div className="text-[10px] text-slate-500">Success</div>
+            </div>
+            <div>
+              <div className="text-lg font-mono text-neon-teal">
+                {scorecardQuery.data.avgQualityScore != null
+                  ? `${Math.round(scorecardQuery.data.avgQualityScore * 100)}%`
+                  : '--'}
+              </div>
+              <div className="text-[10px] text-slate-500">Quality</div>
+            </div>
+            <div>
+              <div className="text-lg font-mono text-slate-300">
+                {scorecardQuery.data.avgDurationMs != null
+                  ? `${Math.round(scorecardQuery.data.avgDurationMs / 1000)}s`
+                  : '--'}
+              </div>
+              <div className="text-[10px] text-slate-500">Avg Time</div>
+            </div>
+            <div>
+              <div
+                className={`text-lg font-mono ${
+                  scorecardQuery.data.trend === 'improving'
+                    ? 'text-neon-green'
+                    : scorecardQuery.data.trend === 'declining'
+                      ? 'text-neon-red'
+                      : 'text-slate-400'
+                }`}
+              >
+                {scorecardQuery.data.trend === 'improving'
+                  ? '↑'
+                  : scorecardQuery.data.trend === 'declining'
+                    ? '↓'
+                    : scorecardQuery.data.trend === 'stable'
+                      ? '→'
+                      : '--'}
+              </div>
+              <div className="text-[10px] text-slate-500">Trend</div>
+            </div>
+          </div>
+          <div className="text-[10px] text-slate-600 text-right mt-2">
+            Confidence: {scorecardQuery.data.dataConfidence}
+          </div>
+        </SectionCard>
+      )}
+
+      {/* Specialization */}
+      {specQuery.data &&
+        (specQuery.data.workflowAffinities.length > 0 ||
+          specQuery.data.toolProficiencies.length > 0) && (
+          <SectionCard title="Specialization" variant="intelligence" className="mb-4">
+            {specQuery.data.topStrength && (
+              <div className="text-[11px] text-neon-teal mb-2">
+                Top strength: <span className="font-semibold">{specQuery.data.topStrength}</span>
+              </div>
+            )}
+
+            {specQuery.data.workflowAffinities.length > 0 && (
+              <div className="mb-2.5">
+                <div className="text-[10px] text-slate-500 uppercase mb-1">Workflows</div>
+                <div className="flex flex-wrap gap-1">
+                  {specQuery.data.workflowAffinities.map((wf) => (
+                    <span
+                      key={wf.label}
+                      className={`text-[10px] px-2 py-0.5 rounded border ${
+                        wf.score >= 0.7
+                          ? 'bg-neon-green/10 text-neon-green border-neon-green/20'
+                          : wf.score >= 0.5
+                            ? 'bg-neon-blue/10 text-neon-blue border-neon-blue/20'
+                            : 'bg-neon-yellow/10 text-neon-yellow border-neon-yellow/20'
+                      }`}
+                    >
+                      {wf.label} {Math.round(wf.score * 100)}%
+                      <span className="ml-1 text-slate-600">({wf.runs})</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {specQuery.data.toolProficiencies.length > 0 && (
+              <div className="mb-2.5">
+                <div className="text-[10px] text-slate-500 uppercase mb-1">Tools</div>
+                <div className="flex flex-wrap gap-1">
+                  {specQuery.data.toolProficiencies.slice(0, 10).map((tp) => (
+                    <span
+                      key={tp.label}
+                      className={`text-[10px] px-2 py-0.5 rounded border ${
+                        tp.score >= 0.8
+                          ? 'bg-neon-green/10 text-neon-green border-neon-green/20'
+                          : tp.score >= 0.6
+                            ? 'bg-neon-blue/10 text-neon-blue border-neon-blue/20'
+                            : 'bg-neon-yellow/10 text-neon-yellow border-neon-yellow/20'
+                      }`}
+                    >
+                      {tp.label} {Math.round(tp.score * 100)}%
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {specQuery.data.weakContexts.length > 0 && (
+              <div>
+                <div className="text-[10px] text-slate-500 uppercase mb-1">Weak Areas</div>
+                <div className="flex flex-wrap gap-1">
+                  {specQuery.data.weakContexts.map((wc) => (
+                    <span
+                      key={wc.label}
+                      className="text-[10px] px-2 py-0.5 rounded border bg-neon-red/10 text-neon-red border-neon-red/20"
+                    >
+                      {wc.label} {Math.round(wc.score * 100)}%
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </SectionCard>
+        )}
+
+      {/* Collaboration / Pairings */}
+      {pairingsQuery.data && pairingsQuery.data.pairings.length > 0 && (
+        <SectionCard title="Collaborations" className="mb-4">
+          <div className="flex flex-col gap-1.5">
+            {pairingsQuery.data.pairings.map((p) => (
+              <div
+                key={p.partnerId}
+                className="flex items-center gap-2 bg-bg-elevated rounded px-2.5 py-1.5 cursor-pointer hover:border-neon-blue/30 border border-transparent transition-colors"
+                onClick={() => router.push(`/agents/${p.partnerId}`)}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    p.synergy === 'positive'
+                      ? 'bg-neon-green'
+                      : p.synergy === 'negative'
+                        ? 'bg-neon-red'
+                        : 'bg-slate-500'
+                  }`}
+                />
+                <span className="text-[12px] text-slate-200 font-medium flex-1">
+                  {p.partnerName}
+                </span>
+                <span
+                  className={`text-[10px] ${
+                    p.synergy === 'positive'
+                      ? 'text-neon-green'
+                      : p.synergy === 'negative'
+                        ? 'text-neon-red'
+                        : 'text-slate-500'
+                  }`}
+                >
+                  {p.synergy}
+                </span>
+                {p.avgQuality != null && (
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {Math.round(p.avgQuality * 100)}%
+                  </span>
+                )}
+                <span className="text-[10px] text-slate-600">{p.sharedRuns} shared</span>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
 
       {/* Recent Activity */}
-      <div className="cyber-card p-4 mb-4">
-        <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron mb-2">
-          Recent Activity ({agent.recentTraces.length})
-        </div>
+      <SectionCard title={`Recent Activity (${agent.recentTraces.length})`} className="mb-4">
         {agent.recentTraces.length === 0 ? (
           <div className="text-slate-600 text-[13px] p-4 text-center">
             No activity recorded yet.
@@ -348,7 +590,195 @@ export default function AgentDetailPage() {
             ))}
           </div>
         )}
-      </div>
+      </SectionCard>
+
+      {/* Evolution History */}
+      <EvolutionPanel agentId={agent.id} />
+
+      {/* Capability Profile */}
+      <CapabilityPanel agentId={agent.id} />
     </div>
+  )
+}
+
+function EvolutionPanel({ agentId }: { agentId: string }) {
+  const cyclesQuery = trpc.evolution.cycles.useQuery({ agentId, limit: 5 })
+  const versionsQuery = trpc.evolution.soulVersions.useQuery({ agentId, limit: 5 })
+  const cycles = (cyclesQuery.data ?? []) as Array<{
+    id: string
+    cycleNumber: number
+    status: string
+    preScore: number | null
+    postScore: number | null
+    scoreDelta: number | null
+    startedAt: Date
+    analysisSummary: string | null
+  }>
+  const versions = (versionsQuery.data ?? []) as Array<{
+    id: string
+    version: number
+    isActive: boolean
+    avgQualityScore: number | null
+    mutationSummary: string | null
+    createdAt: Date
+  }>
+
+  return (
+    <SectionCard title="Evolution History">
+      {cycles.length === 0 && versions.length === 0 ? (
+        <div className="text-xs text-slate-600 py-2 text-center">
+          No evolution cycles yet. Trigger via auto_evolve_all or agent_evolve tool.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {/* Soul Versions */}
+          {versions.length > 0 && (
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">
+                Soul Versions
+              </div>
+              <div className="space-y-1">
+                {versions.map((v) => (
+                  <div
+                    key={v.id}
+                    className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-elevated rounded text-xs"
+                  >
+                    <span
+                      className={`font-mono ${v.isActive ? 'text-neon-green' : 'text-slate-500'}`}
+                    >
+                      v{v.version}
+                    </span>
+                    {v.isActive && <span className="text-[9px] text-neon-green">ACTIVE</span>}
+                    <span className="flex-1 text-slate-400 truncate">
+                      {v.mutationSummary ?? 'Snapshot'}
+                    </span>
+                    {v.avgQualityScore != null && (
+                      <span className="text-[10px] text-neon-teal">
+                        {(v.avgQualityScore * 100).toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Recent Cycles */}
+          {cycles.length > 0 && (
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">
+                Recent Cycles
+              </div>
+              <div className="space-y-1">
+                {cycles.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-elevated rounded text-xs"
+                  >
+                    <span className="font-mono text-slate-400">#{c.cycleNumber}</span>
+                    <span
+                      className={`text-[9px] uppercase ${
+                        c.status === 'accepted'
+                          ? 'text-neon-green'
+                          : c.status === 'rejected'
+                            ? 'text-neon-red'
+                            : 'text-neon-yellow'
+                      }`}
+                    >
+                      {c.status}
+                    </span>
+                    {c.scoreDelta != null && (
+                      <span
+                        className={`text-[10px] ${c.scoreDelta > 0 ? 'text-neon-green' : 'text-neon-red'}`}
+                      >
+                        {c.scoreDelta > 0 ? '+' : ''}
+                        {(c.scoreDelta * 100).toFixed(1)}%
+                      </span>
+                    )}
+                    <span className="flex-1 text-slate-500 truncate text-[10px]">
+                      {c.analysisSummary ?? ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </SectionCard>
+  )
+}
+
+function CapabilityPanel({ agentId }: { agentId: string }) {
+  const capQuery = trpc.evolution.capabilities.useQuery({ agentId })
+  const cap = capQuery.data as
+    | {
+        strongTools: Array<{ tool: string; successRate: number; uses: number }>
+        weakTools: Array<{ tool: string; successRate: number; uses: number }>
+        qualityTrend: string
+        avgQuality: number
+        strengths: string[]
+        weaknesses: string[]
+      }
+    | null
+    | undefined
+
+  if (!cap) return null
+
+  return (
+    <SectionCard title="Capability Profile">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">
+            Strengths
+          </div>
+          {cap.strengths.length === 0 ? (
+            <div className="text-xs text-slate-600">Not enough data</div>
+          ) : (
+            <div className="space-y-1">
+              {cap.strengths.map((s, i) => (
+                <div key={i} className="text-xs text-neon-green">
+                  {s}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div>
+          <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">
+            Weaknesses
+          </div>
+          {cap.weaknesses.length === 0 ? (
+            <div className="text-xs text-slate-600">None detected</div>
+          ) : (
+            <div className="space-y-1">
+              {cap.weaknesses.map((w, i) => (
+                <div key={i} className="text-xs text-neon-red">
+                  {w}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-4 mt-3 text-[10px] text-slate-500">
+        <span>
+          Avg Quality: <span className="text-neon-teal">{(cap.avgQuality * 100).toFixed(0)}%</span>
+        </span>
+        <span>
+          Trend:{' '}
+          <span
+            className={
+              cap.qualityTrend === 'improving'
+                ? 'text-neon-green'
+                : cap.qualityTrend === 'declining'
+                  ? 'text-neon-red'
+                  : 'text-slate-400'
+            }
+          >
+            {cap.qualityTrend}
+          </span>
+        </span>
+      </div>
+    </SectionCard>
   )
 }

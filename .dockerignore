@@ -1,0 +1,10 @@
+node_modules
+.git
+.github
+.next
+dist
+.turbo
+.eslintcache
+.generated-test
+*.md
+!README.md

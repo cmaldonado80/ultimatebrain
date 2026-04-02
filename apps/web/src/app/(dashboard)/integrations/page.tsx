@@ -7,6 +7,9 @@
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
+import { LoadingState } from '../../../components/ui/loading-state'
+import { PageHeader } from '../../../components/ui/page-header'
+import { SectionCard } from '../../../components/ui/section-card'
 import { trpc } from '../../../utils/trpc'
 
 interface Channel {
@@ -64,11 +67,8 @@ export default function IntegrationsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-slate-50 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center text-slate-500">
-          <div className="text-2xl mb-2">Loading...</div>
-          <div className="text-[13px]">Fetching integrations</div>
-        </div>
+      <div className="p-6 text-slate-50">
+        <LoadingState message="Loading integrations..." />
       </div>
     )
   }
@@ -78,15 +78,13 @@ export default function IntegrationsPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <div className="mb-5">
-        <h2 className="m-0 text-[22px] font-bold font-orbitron">Integrations</h2>
-        <p className="mt-1 mb-0 text-[13px] text-slate-500">
-          Connect third-party services — GitHub, Slack, Jira, and custom webhooks.
-        </p>
-      </div>
+      <PageHeader
+        title="Integrations"
+        subtitle="Connect third-party services — GitHub, Slack, Jira, and custom webhooks."
+      />
 
       {/* Channels */}
-      <div className="mb-6">
+      <SectionCard title="Channels">
         <div className="flex justify-between items-center mb-2.5">
           <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide">
             Channels ({channels.length})
@@ -162,10 +160,10 @@ export default function IntegrationsPage() {
             ))}
           </div>
         )}
-      </div>
+      </SectionCard>
 
       {/* Webhooks */}
-      <div className="mb-6">
+      <SectionCard title="Webhooks" className="mt-6">
         <div className="flex justify-between items-center mb-2.5">
           <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide">
             Webhooks ({webhooks.length})
@@ -252,7 +250,7 @@ export default function IntegrationsPage() {
             ))}
           </div>
         )}
-      </div>
+      </SectionCard>
     </div>
   )
 }

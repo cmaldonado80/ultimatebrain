@@ -9,8 +9,18 @@ import { TRPCError } from '@trpc/server'
 import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
+import { computeRouting } from '../services/intelligence/agent-routing'
+import { computeAgentScorecard } from '../services/intelligence/agent-scorecard'
+import {
+  computeAgentSpecialization,
+  getAgentWorkspacePerformance,
+} from '../services/intelligence/agent-specialization'
+import {
+  computeAgentPairings,
+  computeWorkforceInsights,
+} from '../services/intelligence/workforce-intelligence'
 import { AGENT_SOULS } from '../services/orchestration/agents'
-import { protectedProcedure, router } from '../trpc'
+import { protectedProcedure, router, workspaceProcedure } from '../trpc'
 
 export const agentsRouter = router({
   list: protectedProcedure
@@ -31,7 +41,7 @@ export const agentsRouter = router({
     .query(async ({ ctx, input }) => {
       return ctx.db.query.agents.findFirst({ where: eq(agents.id, input.id) })
     }),
-  byWorkspace: protectedProcedure
+  byWorkspace: workspaceProcedure
     .input(
       z.object({
         workspaceId: z.string().uuid(),
@@ -346,5 +356,137 @@ export const agentsRouter = router({
         .catch(() => [])
 
       return { ...agent, recentTraces }
+    }),
+
+  // === Agent Performance ===
+
+  /** Get performance scorecard for a single agent */
+  getAgentScorecard: protectedProcedure
+    .input(z.object({ agentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return computeAgentScorecard(ctx.db, input.agentId)
+    }),
+
+  /** Get ranked agent performance for all agents in a workspace */
+  getWorkspaceAgentPerformance: workspaceProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const wsAgents = await ctx.db.query.agents.findMany({
+        where: eq(agents.workspaceId, input.workspaceId),
+      })
+
+      const scorecards = await Promise.all(wsAgents.map((a) => computeAgentScorecard(ctx.db, a.id)))
+
+      return scorecards
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .sort((a, b) => (b.avgQualityScore ?? 0) - (a.avgQualityScore ?? 0))
+    }),
+
+  // === Agent Specialization ===
+
+  /** Detect specialization patterns for an agent */
+  getAgentSpecialization: protectedProcedure
+    .input(z.object({ agentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return computeAgentSpecialization(ctx.db, input.agentId)
+    }),
+
+  /** Get per-agent performance comparison within a workspace */
+  getAgentWorkspacePerformance: workspaceProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return getAgentWorkspacePerformance(ctx.db, input.workspaceId)
+    }),
+
+  // === Adaptive Routing ===
+
+  /** Get routing recommendation for a task context */
+  getRoutingRecommendation: workspaceProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        workflowName: z.string().optional(),
+        taskType: z.string().optional(),
+        preferredAgentIds: z.array(z.string().uuid()).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return computeRouting(ctx.db, input)
+    }),
+
+  // === Workforce Intelligence ===
+
+  /** Get workforce insights for a workspace */
+  getWorkforceInsights: workspaceProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return computeWorkforceInsights(ctx.db, input.workspaceId)
+    }),
+
+  /** Get collaboration pairings for an agent */
+  getAgentPairings: protectedProcedure
+    .input(z.object({ agentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return computeAgentPairings(ctx.db, input.agentId)
+    }),
+
+  // === Agent Messages (Corporate Inbox) ===
+
+  messages: protectedProcedure
+    .input(
+      z
+        .object({
+          agentId: z.string().uuid().optional(),
+          limit: z.number().min(1).max(100).default(50),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const { agentMessages, agents: agentsT } = await import('@solarc/db')
+      const { desc: descOrd, eq: eqOp } = await import('drizzle-orm')
+
+      const conditions = []
+      if (input?.agentId) {
+        const { or } = await import('drizzle-orm')
+        conditions.push(
+          or(
+            eqOp(agentMessages.fromAgentId, input.agentId),
+            eqOp(agentMessages.toAgentId, input.agentId),
+          ),
+        )
+      }
+
+      const msgs = await ctx.db
+        .select({
+          id: agentMessages.id,
+          fromAgentId: agentMessages.fromAgentId,
+          toAgentId: agentMessages.toAgentId,
+          text: agentMessages.text,
+          read: agentMessages.read,
+          ackStatus: agentMessages.ackStatus,
+          createdAt: agentMessages.createdAt,
+        })
+        .from(agentMessages)
+        .where(conditions.length > 0 ? conditions[0] : undefined)
+        .orderBy(descOrd(agentMessages.createdAt))
+        .limit(input?.limit ?? 50)
+
+      // Resolve agent names
+      const agentIds = [...new Set(msgs.flatMap((m) => [m.fromAgentId, m.toAgentId]))]
+      const agentNames = new Map<string, string>()
+      if (agentIds.length > 0) {
+        const { inArray } = await import('drizzle-orm')
+        const agentRows = await ctx.db
+          .select({ id: agentsT.id, name: agentsT.name })
+          .from(agentsT)
+          .where(inArray(agentsT.id, agentIds))
+        for (const a of agentRows) agentNames.set(a.id, a.name)
+      }
+
+      return msgs.map((m) => ({
+        ...m,
+        fromAgentName: agentNames.get(m.fromAgentId) ?? 'Unknown',
+        toAgentName: agentNames.get(m.toAgentId) ?? 'Unknown',
+      }))
     }),
 })

@@ -9,8 +9,8 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 
-import type { CursorPosition, PresenceEntry } from '../../server/services/presence/manager'
-import { PRESENCE_CONFIG } from '../../server/services/presence/manager'
+import type { CursorPosition, PresenceEntry } from '../../server/services/presence/types'
+import { PRESENCE_CONFIG } from '../../server/services/presence/types'
 import { trpc } from '../../utils/trpc'
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ export default function LiveCursors({
   onCursorMove,
 }: LiveCursorsProps) {
   const { data: liveEntries } = trpc.presence.getActive.useQuery(undefined, {
-    refetchInterval: 5000,
+    refetchInterval: 2000,
     retry: false,
   })
   const entries = entriesProp ?? (liveEntries as PresenceEntry[] | undefined) ?? MOCK_ENTRIES
