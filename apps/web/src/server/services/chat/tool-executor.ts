@@ -1069,23 +1069,7 @@ export const AGENT_TOOLS = [
       required: ['claim', 'command'],
     },
   },
-  {
-    name: 'compact_context',
-    description:
-      'Compact a conversation by dropping middle messages to fit token limits. Preserves system messages and recent messages.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        sessionId: { type: 'string', description: 'Chat session UUID to compact' },
-        maxTokens: { type: 'number', description: 'Max token budget (default: 100000)' },
-        preserveRecent: {
-          type: 'number',
-          description: 'Number of recent messages to keep (default: 10)',
-        },
-      },
-      required: ['sessionId'],
-    },
-  },
+  // compact_context tool removed — compaction is now automatic in the chat pipeline
   {
     name: 'memory_smart_add',
     description:
@@ -3518,51 +3502,7 @@ async function executeToolInner(
         }
       }
 
-      case 'compact_context': {
-        if (!db) return JSON.stringify({ error: 'Database required for context compaction' })
-        const sessionId = toolInput.sessionId as string
-        const maxTokens = (toolInput.maxTokens as number) ?? 100000
-        const preserveRecent = (toolInput.preserveRecent as number) ?? 10
-        try {
-          const { chatMessages } = await import('@solarc/db')
-          const { eq, asc } = await import('drizzle-orm')
-          const { compact, needsCompaction } = await import('./context-compactor')
-
-          const messages = await db
-            .select({ role: chatMessages.role, content: chatMessages.text })
-            .from(chatMessages)
-            .where(eq(chatMessages.sessionId, sessionId))
-            .orderBy(asc(chatMessages.createdAt))
-
-          const mapped = messages.map((m) => ({
-            role: m.role ?? 'user',
-            content: m.content ?? '',
-          }))
-
-          if (!needsCompaction(mapped, { maxTokens, preserveRecent, preserveSystem: true })) {
-            return JSON.stringify({
-              compacted: false,
-              messageCount: mapped.length,
-              reason: 'Context within token limits — no compaction needed',
-            })
-          }
-
-          const result = compact(mapped, { maxTokens, preserveRecent, preserveSystem: true })
-          return JSON.stringify({
-            compacted: result.compacted,
-            originalMessages: result.originalCount,
-            keptMessages: result.compactedCount,
-            droppedMessages: result.droppedCount,
-            originalTokens: result.originalTokens,
-            compactedTokens: result.compactedTokens,
-            savedTokens: result.originalTokens - result.compactedTokens,
-          })
-        } catch (err) {
-          return JSON.stringify({
-            error: err instanceof Error ? err.message : 'Compaction failed',
-          })
-        }
-      }
+      // compact_context case removed — compaction is automatic in chat pipeline
 
       case 'memory_smart_add': {
         if (!db) return JSON.stringify({ error: 'Database required for smart memory' })
