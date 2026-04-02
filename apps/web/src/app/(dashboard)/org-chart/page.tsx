@@ -1,12 +1,12 @@
 'use client'
 
+import Link from 'next/link'
 /**
  * Corporate Org Chart — The Brain as a Corporation.
  *
  * Visualizes: Corporation → Departments → Employees → Products
  * Shows mission, team roster, performance, and lifecycle management.
  */
-
 import { useState } from 'react'
 
 import { LoadingState } from '../../../components/ui/loading-state'
@@ -267,9 +267,10 @@ export default function OrgChartPage() {
                           Products Built
                         </div>
                         {dept.products.map((prod) => (
-                          <div
+                          <Link
                             key={prod.id}
-                            className="flex items-center gap-2 bg-bg-deep rounded px-3 py-1.5"
+                            href={`/domain/${prod.id}`}
+                            className="flex items-center gap-2 bg-bg-deep rounded px-3 py-1.5 hover:bg-bg-elevated transition-colors no-underline"
                           >
                             <span className="text-[10px] text-slate-400">└</span>
                             <span className="text-[11px] text-neon-teal">{prod.name}</span>
@@ -277,7 +278,8 @@ export default function OrgChartPage() {
                               label={prod.status}
                               color={prod.status === 'active' ? 'green' : 'yellow'}
                             />
-                          </div>
+                            <span className="text-[9px] text-slate-600 ml-auto">→</span>
+                          </Link>
                         ))}
                       </>
                     )}

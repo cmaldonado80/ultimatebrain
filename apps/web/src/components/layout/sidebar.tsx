@@ -124,6 +124,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Work Products', href: '/work-products', icon: '◉' },
       { label: 'Trajectory', href: '/trajectory', icon: '⤳' },
       { label: 'Guardrails', href: '/guardrails', icon: '⛨' },
+      { label: 'Products', href: '/products', icon: '▣' },
       { label: 'Mini Brain Factory', href: '/mini-brain-factory', icon: '🏭' },
       { label: 'Topology', href: '/topology', icon: '⊡' },
       { label: 'Model Registry', href: '/model-registry', icon: '⊙' },
