@@ -822,6 +822,159 @@ export const AGENT_TOOLS = [
       required: ['name', 'nodes'],
     },
   },
+
+  // ── CEO / Org Management Tools (the corporation's hands) ──────────
+
+  {
+    name: 'file_system',
+    description:
+      'Read, write, or list files on the local filesystem. Use for creating code, configs, documentation, or reading project files. Paths are relative to the project root.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['read', 'write', 'list', 'exists'],
+          description: 'File operation',
+        },
+        path: { type: 'string', description: 'File path relative to project root' },
+        content: { type: 'string', description: 'File content (for write action)' },
+      },
+      required: ['action', 'path'],
+    },
+  },
+  {
+    name: 'git_operations',
+    description:
+      'Execute git operations: status, diff, commit, branch, log, clone. Use for managing code repositories and version control.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        operation: {
+          type: 'string',
+          enum: ['status', 'diff', 'log', 'branch', 'commit', 'checkout', 'add'],
+          description: 'Git operation to perform',
+        },
+        args: {
+          type: 'string',
+          description: 'Additional arguments (e.g., branch name, commit message, file path)',
+        },
+        cwd: { type: 'string', description: 'Working directory (default: project root)' },
+      },
+      required: ['operation'],
+    },
+  },
+  {
+    name: 'create_ticket',
+    description:
+      'Create a new ticket/task and optionally assign it to an agent. Use when breaking down a project into actionable work items.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        title: { type: 'string', description: 'Ticket title — what needs to be done' },
+        description: { type: 'string', description: 'Detailed description of the task' },
+        priority: {
+          type: 'string',
+          enum: ['low', 'medium', 'high', 'critical'],
+          description: 'Priority level',
+        },
+        assignedAgentId: { type: 'string', description: 'UUID of agent to assign (optional)' },
+        projectId: { type: 'string', description: 'UUID of parent project (optional)' },
+        workspaceId: {
+          type: 'string',
+          description: 'UUID of workspace (optional, defaults to current)',
+        },
+      },
+      required: ['title'],
+    },
+  },
+  {
+    name: 'create_project',
+    description:
+      'Create a new project with a goal. Projects contain tickets and track progress toward a strategic objective.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string', description: 'Project name' },
+        goal: { type: 'string', description: 'What this project aims to achieve' },
+      },
+      required: ['name', 'goal'],
+    },
+  },
+  {
+    name: 'assign_ticket',
+    description:
+      'Assign a ticket to a specific agent. The agent will be woken up to work on it. Uses atomic checkout to prevent race conditions.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        ticketId: { type: 'string', description: 'UUID of the ticket to assign' },
+        agentId: { type: 'string', description: 'UUID of the agent to assign it to' },
+      },
+      required: ['ticketId', 'agentId'],
+    },
+  },
+  {
+    name: 'create_department',
+    description:
+      'Create a new department (mini brain) in the corporation. Provisions entity, workspace, and orchestrator agent from a template.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string', description: 'Department name (e.g., "Frontend Engineering")' },
+        template: {
+          type: 'string',
+          enum: ['astrology', 'hospitality', 'healthcare', 'marketing', 'soc-ops'],
+          description: 'Template to use (optional — creates empty department if not specified)',
+        },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'hire_agent',
+    description:
+      'Hire a new agent into a department. Creates the agent with a role, skills, and soul (system prompt), then assigns to the department.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string', description: 'Agent name (e.g., "Senior Backend Developer")' },
+        departmentEntityId: {
+          type: 'string',
+          description: 'UUID of the department (brainEntity) to hire into',
+        },
+        role: {
+          type: 'string',
+          enum: ['primary', 'specialist', 'monitor', 'healer'],
+          description: 'Role in the department',
+        },
+        soul: {
+          type: 'string',
+          description: 'System prompt defining the agent personality and expertise',
+        },
+        skills: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Skill tags (e.g., ["typescript", "react", "api-design"])',
+        },
+      },
+      required: ['name', 'departmentEntityId', 'role'],
+    },
+  },
+  {
+    name: 'set_entity_budget',
+    description:
+      'Set daily and monthly token budget limits for a department or entity. Enforces spending controls across the corporation.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        entityId: { type: 'string', description: 'UUID of the entity/department' },
+        dailyLimitUsd: { type: 'number', description: 'Daily spending limit in USD' },
+        monthlyLimitUsd: { type: 'number', description: 'Monthly spending limit in USD' },
+      },
+      required: ['entityId'],
+    },
+  },
   {
     name: 'extract_metadata',
     description:
@@ -2758,6 +2911,287 @@ async function executeToolInner(
         } catch (err) {
           return JSON.stringify({
             error: err instanceof Error ? err.message : 'Workflow execution failed',
+          })
+        }
+      }
+
+      // ── CEO / Org Management Tool Executors ──────────────────────────
+
+      case 'file_system': {
+        const fsAction = toolInput.action as string
+        const fsPath = toolInput.path as string
+        const fsContent = toolInput.content as string | undefined
+
+        // Security: block path traversal
+        if (fsPath.includes('..') || fsPath.startsWith('/')) {
+          return JSON.stringify({ error: 'Path traversal not allowed. Use relative paths only.' })
+        }
+
+        const { auditCommand: auditFs } = await import('./sandbox-audit')
+        const fsAudit = auditFs(`file ${fsAction} ${fsPath}`)
+        if (fsAudit.verdict === 'block') {
+          return JSON.stringify({ error: `Blocked: ${fsAudit.reason}` })
+        }
+
+        const path = await import('path')
+        const fs = await import('fs/promises')
+        const fullPath = path.resolve(process.cwd(), fsPath)
+
+        try {
+          switch (fsAction) {
+            case 'read': {
+              const data = await fs.readFile(fullPath, 'utf-8')
+              return JSON.stringify({
+                path: fsPath,
+                content: data.slice(0, 50000),
+                truncated: data.length > 50000,
+              })
+            }
+            case 'write': {
+              if (!fsContent) return JSON.stringify({ error: 'Content required for write' })
+              await fs.mkdir(path.dirname(fullPath), { recursive: true })
+              await fs.writeFile(fullPath, fsContent, 'utf-8')
+              return JSON.stringify({ path: fsPath, written: true, bytes: fsContent.length })
+            }
+            case 'list': {
+              const entries = await fs.readdir(fullPath, { withFileTypes: true })
+              return JSON.stringify(
+                entries.slice(0, 100).map((e) => ({
+                  name: e.name,
+                  type: e.isDirectory() ? 'directory' : 'file',
+                })),
+              )
+            }
+            case 'exists': {
+              try {
+                await fs.access(fullPath)
+                return JSON.stringify({ exists: true, path: fsPath })
+              } catch {
+                return JSON.stringify({ exists: false, path: fsPath })
+              }
+            }
+            default:
+              return JSON.stringify({ error: 'Invalid action. Use: read, write, list, exists' })
+          }
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'File operation failed',
+          })
+        }
+      }
+
+      case 'git_operations': {
+        const gitOp = toolInput.operation as string
+        const gitArgs = (toolInput.args as string) ?? ''
+        const gitCwd = (toolInput.cwd as string) ?? process.cwd()
+
+        // Security: audit the git command
+        const { auditCommand: auditGit } = await import('./sandbox-audit')
+        const gitAudit = auditGit(`git ${gitOp} ${gitArgs}`)
+        if (gitAudit.verdict === 'block') {
+          return JSON.stringify({ error: `Blocked: ${gitAudit.reason}` })
+        }
+
+        // Only allow safe git operations
+        const safeOps = ['status', 'diff', 'log', 'branch', 'commit', 'checkout', 'add']
+        if (!safeOps.includes(gitOp)) {
+          return JSON.stringify({
+            error: `Unsupported git operation: ${gitOp}. Allowed: ${safeOps.join(', ')}`,
+          })
+        }
+
+        try {
+          const { execSync: gitExec } = await import('child_process')
+          const cmd = gitArgs ? `git ${gitOp} ${gitArgs}` : `git ${gitOp}`
+          const output = gitExec(cmd, {
+            encoding: 'utf8',
+            timeout: 30000,
+            cwd: gitCwd,
+            stdio: ['pipe', 'pipe', 'pipe'],
+          }).trim()
+          return JSON.stringify({ operation: gitOp, output: output.slice(0, 10000) })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Git operation failed',
+          })
+        }
+      }
+
+      case 'create_ticket': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const ticketTitle = toolInput.title as string
+        const ticketDesc = (toolInput.description as string) ?? null
+        const ticketPriority = (toolInput.priority as string) ?? 'medium'
+        const ticketAgent = (toolInput.assignedAgentId as string) ?? null
+        const ticketProject = (toolInput.projectId as string) ?? null
+        const ticketWs = (toolInput.workspaceId as string) ?? workspaceId ?? null
+
+        try {
+          const { tickets: ticketsT } = await import('@solarc/db')
+          const [created] = await db
+            .insert(ticketsT)
+            .values({
+              title: ticketTitle,
+              description: ticketDesc,
+              priority: ticketPriority as 'low' | 'medium' | 'high' | 'critical',
+              assignedAgentId: ticketAgent,
+              projectId: ticketProject,
+              workspaceId: ticketWs,
+            })
+            .returning({ id: ticketsT.id })
+          return JSON.stringify({
+            ticketId: created?.id,
+            title: ticketTitle,
+            assigned: ticketAgent,
+          })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Ticket creation failed',
+          })
+        }
+      }
+
+      case 'create_project': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const projName = toolInput.name as string
+        const projGoal = toolInput.goal as string
+
+        try {
+          const { projects: projectsT } = await import('@solarc/db')
+          const [created] = await db
+            .insert(projectsT)
+            .values({ name: projName, goal: projGoal })
+            .returning({ id: projectsT.id })
+          return JSON.stringify({ projectId: created?.id, name: projName, goal: projGoal })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Project creation failed',
+          })
+        }
+      }
+
+      case 'assign_ticket': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const assignTicketId = toolInput.ticketId as string
+        const assignAgentId = toolInput.agentId as string
+
+        try {
+          const { atomicCheckout } = await import('../platform/atomic-checkout')
+          const result = await atomicCheckout(db, assignTicketId, assignAgentId, null)
+          return JSON.stringify(result)
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'Assignment failed' })
+        }
+      }
+
+      case 'create_department': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const deptName = toolInput.name as string
+        const deptTemplate = toolInput.template as string | undefined
+
+        try {
+          if (deptTemplate) {
+            // Use factory smart create for templated departments
+            const { brainEntities: beT } = await import('@solarc/db')
+            const factory = await import('../mini-brain-factory/factory')
+            const f = new factory.MiniBrainFactory()
+            const tpl = f.getTemplate(deptTemplate as 'astrology')
+            if (!tpl) return JSON.stringify({ error: `Template ${deptTemplate} not found` })
+
+            // Create entity directly
+            const [entity] = await db
+              .insert(beT)
+              .values({
+                name: deptName,
+                tier: 'mini_brain',
+                domain: deptTemplate,
+                status: 'active',
+              })
+              .returning({ id: beT.id })
+            return JSON.stringify({
+              departmentId: entity?.id,
+              name: deptName,
+              template: deptTemplate,
+            })
+          }
+
+          // No template — create empty department
+          const { brainEntities: beT2 } = await import('@solarc/db')
+          const [entity] = await db
+            .insert(beT2)
+            .values({ name: deptName, tier: 'mini_brain', status: 'active' })
+            .returning({ id: beT2.id })
+          return JSON.stringify({ departmentId: entity?.id, name: deptName })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Department creation failed',
+          })
+        }
+      }
+
+      case 'hire_agent': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const hireName = toolInput.name as string
+        const hireDeptId = toolInput.departmentEntityId as string
+        const hireRole = (toolInput.role as string) ?? 'specialist'
+        const hireSoul = (toolInput.soul as string) ?? `You are ${hireName}, a specialist agent.`
+        const hireSkills = (toolInput.skills as string[]) ?? []
+
+        try {
+          const { onboardAgent } = await import('../orchestration/agent-lifecycle')
+          // Find workspace for this department
+          const { brainEntities: beT3 } = await import('@solarc/db')
+          const { eq: eqHire } = await import('drizzle-orm')
+          const dept = await db.query.brainEntities.findFirst({
+            where: eqHire(beT3.id, hireDeptId),
+          })
+          const deptConfig = (dept?.config ?? {}) as Record<string, unknown>
+          const wsId =
+            typeof deptConfig.workspaceId === 'string' ? deptConfig.workspaceId : workspaceId
+
+          if (!wsId) return JSON.stringify({ error: 'No workspace found for department' })
+
+          const result = await onboardAgent(db, {
+            name: hireName,
+            departmentEntityId: hireDeptId,
+            role: hireRole as 'primary' | 'specialist' | 'monitor' | 'healer',
+            workspaceId: wsId,
+            soul: hireSoul,
+            skills: hireSkills,
+          })
+          return JSON.stringify({
+            ...result,
+            name: hireName,
+            department: hireDeptId,
+            role: hireRole,
+          })
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'Hiring failed' })
+        }
+      }
+
+      case 'set_entity_budget': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        const budgetEntityId = toolInput.entityId as string
+        const budgetDaily = toolInput.dailyLimitUsd as number | undefined
+        const budgetMonthly = toolInput.monthlyLimitUsd as number | undefined
+
+        try {
+          const { TokenLedgerService } = await import('../platform')
+          const ledger = new TokenLedgerService(db)
+          await ledger.setBudget(budgetEntityId, {
+            dailyLimitUsd: budgetDaily,
+            monthlyLimitUsd: budgetMonthly,
+          })
+          return JSON.stringify({
+            entityId: budgetEntityId,
+            dailyLimitUsd: budgetDaily,
+            monthlyLimitUsd: budgetMonthly,
+            set: true,
+          })
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Budget setting failed',
           })
         }
       }
