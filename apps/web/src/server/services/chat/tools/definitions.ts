@@ -1289,6 +1289,26 @@ export const AGENT_TOOLS = [
   // ── Corporation Autonomy Tools (department-level self-organization) ──
 
   {
+    name: 'design_intelligence',
+    description:
+      'Search the design intelligence database for industry-specific design recommendations. Returns: recommended UI pattern, style priority, color mood, typography, effects, and anti-patterns based on 25+ product categories. Uses deterministic reasoning rules — not LLM guesses.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        query: {
+          type: 'string',
+          description:
+            'Product or industry to look up (e.g., "SaaS dashboard", "luxury fashion", "banking app", "astrology", "fitness app")',
+        },
+        includeStyles: {
+          type: 'boolean',
+          description: 'Also return matching UI style details (default: true)',
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
     name: 'delegate_to_team',
     description:
       'Break a task into sub-tasks and auto-assign to team members based on skill matching. Use when you are a department head and receive a high-level task that needs multiple specialists. Analyzes your team roster, matches skills to sub-tasks, creates tickets, and assigns them.',

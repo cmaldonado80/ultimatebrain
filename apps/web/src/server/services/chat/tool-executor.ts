@@ -2297,6 +2297,52 @@ Persona: ${userPersona}`,
         }
       }
 
+      case 'design_intelligence': {
+        const diQuery = toolInput.query as string
+        const includeStyles = (toolInput.includeStyles as boolean) ?? true
+
+        const { recommendDesignSystem, searchDesignRules, searchStyles } =
+          await import('../intelligence/design-intelligence')
+        const recommendation = recommendDesignSystem(diQuery)
+
+        if (!recommendation) {
+          const rules = searchDesignRules(diQuery, 3)
+          const styles = includeStyles ? searchStyles(diQuery, 3) : []
+          return JSON.stringify({
+            exactMatch: false,
+            rules,
+            styles,
+            note: 'No exact category match. Showing closest results.',
+          })
+        }
+
+        return JSON.stringify({
+          exactMatch: true,
+          category: recommendation.category.category,
+          recommendation: {
+            pattern: recommendation.category.pattern,
+            stylePriority: recommendation.category.stylePriority,
+            colorMood: recommendation.category.colorMood,
+            typographyMood: recommendation.category.typographyMood,
+            keyEffects: recommendation.category.keyEffects,
+            antiPatterns: recommendation.category.antiPatterns,
+          },
+          matchingStyles: includeStyles
+            ? recommendation.styles.map((s) => ({
+                name: s.name,
+                primaryColors: s.primaryColors,
+                effects: s.effects,
+                bestFor: s.bestFor,
+                doNotUseFor: s.doNotUseFor,
+                darkMode: s.darkMode,
+                accessibility: s.accessibility,
+                complexity: s.complexity,
+              }))
+            : [],
+          deliveryChecklist: recommendation.deliveryChecklist,
+        })
+      }
+
       // ── Corporation Autonomy Tool Executors ─────────────────────────
 
       case 'delegate_to_team': {
