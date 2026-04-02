@@ -332,12 +332,12 @@ export function createMiniBrainServer(config: MiniBrainConfig, routes: DomainRou
 
   app.post('/api/mesh/delegate', requireAppAuth, async (c) => {
     try {
-      const body = (await c.req.json()) as { task: string; context?: unknown }
+      const body = (await c.req.json()) as { task: string; context?: Record<string, unknown> }
       log.info('mesh_delegation_received', { task: body.task })
 
       // Find matching domain route for the task, or delegate via A2A
       const result = await brain.a2a.delegate({
-        agentId: config.entityId,
+        agent_id: config.entityId,
         task: body.task,
         context: body.context,
       })
