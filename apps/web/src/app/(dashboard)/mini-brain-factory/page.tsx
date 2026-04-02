@@ -17,6 +17,7 @@ const TEMPLATE_ICONS: Record<string, string> = {
   healthcare: '🏥',
   marketing: '📣',
   'soc-ops': '🛡',
+  design: '◈',
 }
 
 /** Database status panel per mini brain — separate component so hook runs per entity */

@@ -1160,4 +1160,72 @@ export const AGENT_TOOLS = [
       required: [],
     },
   },
+
+  // ── Design Department Tools ──────────────────────────────────────────
+
+  {
+    name: 'design_review',
+    description:
+      'Conduct a structured design review of a UI component, page, or flow. Evaluates against usability heuristics, design system compliance, accessibility, and performance. Returns actionable feedback.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        target: {
+          type: 'string',
+          description: 'What to review: component name, page URL, or flow description',
+        },
+        designSpec: {
+          type: 'string',
+          description: 'The design specification or description to evaluate',
+        },
+        criteria: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Review criteria: usability, accessibility, consistency, performance, aesthetics (default: all)',
+        },
+      },
+      required: ['target', 'designSpec'],
+    },
+  },
+  {
+    name: 'accessibility_audit',
+    description:
+      'Run a WCAG 2.1 accessibility audit on a component specification or page description. Checks contrast ratios, keyboard navigation, screen reader compatibility, and semantic HTML. Returns issues with severity and fixes.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        component: { type: 'string', description: 'Component or page name' },
+        specification: { type: 'string', description: 'The component/page specification to audit' },
+        level: {
+          type: 'string',
+          enum: ['A', 'AA', 'AAA'],
+          description: 'WCAG conformance level (default: AA)',
+        },
+      },
+      required: ['component', 'specification'],
+    },
+  },
+  {
+    name: 'generate_component_spec',
+    description:
+      'Generate a complete design system component specification including: purpose, anatomy, variants, states, design tokens, accessibility requirements, responsive behavior, and code structure.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string', description: 'Component name (e.g., "Button", "Card", "Modal")' },
+        purpose: { type: 'string', description: 'What this component does and when to use it' },
+        variants: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Component variants (e.g., "primary", "secondary", "ghost", "danger")',
+        },
+        framework: {
+          type: 'string',
+          description: 'Target framework: react, vue, svelte (default: react)',
+        },
+      },
+      required: ['name', 'purpose'],
+    },
+  },
 ]

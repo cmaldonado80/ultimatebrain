@@ -2030,6 +2030,121 @@ async function executeToolInner(
         }
       }
 
+      // ── Design Department Tool Executors ────────────────────────────
+
+      case 'design_review': {
+        if (!db) return JSON.stringify({ error: 'Database required for design review' })
+        const target = toolInput.target as string
+        const designSpec = toolInput.designSpec as string
+        const criteria = (toolInput.criteria as string[]) ?? [
+          'usability',
+          'accessibility',
+          'consistency',
+          'performance',
+          'aesthetics',
+        ]
+
+        try {
+          const { GatewayRouter: ReviewGW } = await import('../gateway')
+          const gw = new ReviewGW(db)
+          const result = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content: `You are a senior design reviewer. Evaluate the following design against these criteria: ${criteria.join(', ')}. For each criterion, rate 1-5 and provide specific, actionable feedback. Format as JSON: {"ratings": {"criterion": {"score": N, "feedback": "..."}}, "overallScore": N, "topIssues": ["..."], "strengths": ["..."]}`,
+              },
+              {
+                role: 'user',
+                content: `Target: ${target}\n\nDesign Specification:\n${designSpec}`,
+              },
+            ],
+            temperature: 0.2,
+            maxTokens: 2048,
+          })
+          return result.content
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Design review failed',
+          })
+        }
+      }
+
+      case 'accessibility_audit': {
+        const component = toolInput.component as string
+        const specification = toolInput.specification as string
+        const level = (toolInput.level as string) ?? 'AA'
+
+        if (!db) return JSON.stringify({ error: 'Database required' })
+
+        try {
+          const { GatewayRouter: AuditGW } = await import('../gateway')
+          const gw = new AuditGW(db)
+          const result = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content: `You are a WCAG 2.1 Level ${level} accessibility auditor. Analyze the component spec and return a structured audit. Check: color contrast (4.5:1 normal, 3:1 large), keyboard navigation, ARIA usage, semantic HTML, focus management, screen reader compatibility. Format as JSON: {"component": "...", "level": "${level}", "issues": [{"criterion": "WCAG X.X.X", "severity": "critical|major|minor", "description": "...", "fix": "..."}], "passes": ["..."], "score": N}`,
+              },
+              {
+                role: 'user',
+                content: `Component: ${component}\n\nSpecification:\n${specification}`,
+              },
+            ],
+            temperature: 0.1,
+            maxTokens: 2048,
+          })
+          return result.content
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Accessibility audit failed',
+          })
+        }
+      }
+
+      case 'generate_component_spec': {
+        const compName = toolInput.name as string
+        const compPurpose = toolInput.purpose as string
+        const compVariants = (toolInput.variants as string[]) ?? ['default']
+        const compFramework = (toolInput.framework as string) ?? 'react'
+
+        if (!db) return JSON.stringify({ error: 'Database required' })
+
+        try {
+          const { GatewayRouter: SpecGW } = await import('../gateway')
+          const gw = new SpecGW(db)
+          const result = await gw.chat({
+            messages: [
+              {
+                role: 'system',
+                content: `You are a design system architect. Generate a complete component specification for a ${compFramework} component. Include:
+1. **Purpose**: When to use and when NOT to use
+2. **Anatomy**: Visual breakdown of sub-elements
+3. **Variants**: ${compVariants.join(', ')} — describe each
+4. **States**: default, hover, active, focus, disabled, error, loading
+5. **Design Tokens**: Which tokens it uses (colors, spacing, typography, shadows)
+6. **Accessibility**: ARIA roles, keyboard behavior, focus management
+7. **Responsive**: How it adapts across breakpoints
+8. **Code Example**: ${compFramework} component skeleton with TypeScript props interface
+9. **Do/Don't**: Usage guidelines with examples
+
+Return as structured markdown.`,
+              },
+              {
+                role: 'user',
+                content: `Component: ${compName}\nPurpose: ${compPurpose}\nVariants: ${compVariants.join(', ')}`,
+              },
+            ],
+            temperature: 0.3,
+            maxTokens: 4096,
+          })
+          return result.content
+        } catch (err) {
+          return JSON.stringify({
+            error: err instanceof Error ? err.message : 'Spec generation failed',
+          })
+        }
+      }
+
       case 'panel_debate': {
         const topic = toolInput.topic as string
         const perspectives = (toolInput.perspectives as string[]) ?? [
