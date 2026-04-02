@@ -496,4 +496,49 @@ export const platformRouter = router({
         return result.content
       })
     }),
+
+  // === Notifications ===
+
+  notifications: protectedProcedure
+    .input(
+      z
+        .object({
+          unreadOnly: z.boolean().default(false),
+          priority: z.enum(['info', 'warning', 'urgent', 'critical']).optional(),
+          limit: z.number().min(1).max(100).default(50),
+        })
+        .optional(),
+    )
+    .query(async ({ input }) => {
+      const { getNotifications } = await import('../services/platform/notification-service')
+      return getNotifications(input)
+    }),
+
+  notificationUnreadCount: protectedProcedure.query(async () => {
+    const { getUnreadCount } = await import('../services/platform/notification-service')
+    return { count: getUnreadCount() }
+  }),
+
+  notificationMarkRead: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ input }) => {
+      const { markRead } = await import('../services/platform/notification-service')
+      markRead(input.id)
+      return { read: true }
+    }),
+
+  notificationMarkAllRead: protectedProcedure.mutation(async () => {
+    const { markAllRead } = await import('../services/platform/notification-service')
+    markAllRead()
+    return { done: true }
+  }),
+
+  // === Financial Reports ===
+
+  financialReport: protectedProcedure
+    .input(z.object({ days: z.number().min(1).max(365).default(30) }).optional())
+    .query(async ({ ctx, input }) => {
+      const { generateFinancialReport } = await import('../services/platform/financial-reports')
+      return generateFinancialReport(ctx.db, input?.days ?? 30)
+    }),
 })

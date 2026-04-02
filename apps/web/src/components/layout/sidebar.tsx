@@ -31,6 +31,8 @@ const BASE_NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Mission Control', href: '/', icon: '⊞' },
       { label: 'CEO Dashboard', href: '/ceo', icon: '⬡' },
+      { label: 'Notifications', href: '/notifications', icon: '⊙' },
+      { label: 'Finance', href: '/finance', icon: '$' },
       { label: 'Chat', href: '/chat', icon: '◉' },
     ],
   },
