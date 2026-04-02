@@ -39,7 +39,14 @@ function modelForRole(role: string): string {
 
 const ORCHESTRATOR_MODEL = 'deepseek-v3.2:cloud'
 
-const templateEnum = z.enum(['astrology', 'hospitality', 'healthcare', 'marketing', 'soc-ops'])
+const templateEnum = z.enum([
+  'astrology',
+  'hospitality',
+  'healthcare',
+  'marketing',
+  'soc-ops',
+  'design',
+])
 
 export const miniBrainFactoryRouter = router({
   /** List available Mini Brain templates */

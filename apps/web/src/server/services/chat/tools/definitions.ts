@@ -908,7 +908,7 @@ export const AGENT_TOOLS = [
         name: { type: 'string', description: 'Department name (e.g., "Frontend Engineering")' },
         template: {
           type: 'string',
-          enum: ['astrology', 'hospitality', 'healthcare', 'marketing', 'soc-ops'],
+          enum: ['astrology', 'hospitality', 'healthcare', 'marketing', 'soc-ops', 'design'],
           description: 'Template to use (optional — creates empty department if not specified)',
         },
       },
