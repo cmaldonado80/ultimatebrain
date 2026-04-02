@@ -2297,6 +2297,98 @@ Persona: ${userPersona}`,
         }
       }
 
+      case 'render_preview': {
+        const html = toolInput.html as string
+        const previewName = toolInput.name as string
+        const vpWidth = (toolInput.width as number) ?? 1280
+        const vpHeight = (toolInput.height as number) ?? 800
+        const darkBg = (toolInput.darkBackground as boolean) ?? false
+
+        if (!html.trim()) return JSON.stringify({ error: 'HTML content is required' })
+
+        try {
+          const fs = await import('fs/promises')
+          const path = await import('path')
+          const { execSync: renderExec } = await import('child_process')
+          const os = await import('os')
+
+          const tmpDir = os.tmpdir()
+          const ts = Date.now()
+          const htmlFile = path.join(tmpDir, `preview-${previewName}-${ts}.html`)
+          const screenshotFile = path.join(tmpDir, `preview-${previewName}-${ts}.png`)
+
+          // Wrap in full HTML if not complete document
+          const fullHtml = html.includes('<html')
+            ? html
+            : `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.tailwindcss.com"><\/script>
+<style>body{margin:0;padding:24px;${darkBg ? 'background:#0a0a0f;color:#e2e8f0;' : 'background:#fff;color:#1a202c;'}font-family:system-ui,-apple-system,sans-serif;}</style>
+</head><body>${html}</body></html>`
+
+          await fs.writeFile(htmlFile, fullHtml, 'utf-8')
+
+          // Playwright screenshot
+          try {
+            renderExec(
+              `npx playwright screenshot --viewport-size="${vpWidth},${vpHeight}" "file://${htmlFile}" "${screenshotFile}"`,
+              { timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] },
+            )
+          } catch (renderErr) {
+            await fs.unlink(htmlFile).catch(() => {})
+            return JSON.stringify({
+              error: `Screenshot failed: ${renderErr instanceof Error ? renderErr.message : 'Playwright error'}`,
+              hint: 'Ensure Playwright browsers are installed: npx playwright install chromium',
+            })
+          }
+
+          // Check result
+          let screenshotSize = 0
+          try {
+            const stat = await fs.stat(screenshotFile)
+            screenshotSize = stat.size
+          } catch {
+            await fs.unlink(htmlFile).catch(() => {})
+            return JSON.stringify({ error: 'Screenshot was not created' })
+          }
+
+          // Save as work product
+          let savedAs: string | null = null
+          if (db) {
+            try {
+              const imgData = await fs.readFile(screenshotFile, 'base64')
+              const { artifacts: artT } = await import('@solarc/db')
+              const [saved] = await db
+                .insert(artT)
+                .values({
+                  name: `${previewName}.png`,
+                  content: `data:image/png;base64,${imgData}`,
+                  type: 'preview|pending|0',
+                })
+                .returning({ id: artT.id })
+              savedAs = saved?.id ?? null
+            } catch {
+              // Non-critical
+            }
+          }
+
+          // Cleanup
+          await fs.unlink(htmlFile).catch(() => {})
+          await fs.unlink(screenshotFile).catch(() => {})
+
+          return JSON.stringify({
+            rendered: true,
+            name: previewName,
+            viewport: `${vpWidth}x${vpHeight}`,
+            fileSize: `${(screenshotSize / 1024).toFixed(1)}KB`,
+            savedAsArtifact: savedAs,
+            darkBackground: darkBg,
+          })
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : 'Render failed' })
+        }
+      }
+
       case 'design_intelligence': {
         const diQuery = toolInput.query as string
         const includeStyles = (toolInput.includeStyles as boolean) ?? true

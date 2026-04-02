@@ -1286,6 +1286,29 @@ export const AGENT_TOOLS = [
     },
   },
 
+  {
+    name: 'render_preview',
+    description:
+      'Render HTML/CSS code into a screenshot image. Write your component HTML with inline styles or Tailwind classes, and get a visual preview saved as a work product. Uses headless Chromium via Playwright.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        html: {
+          type: 'string',
+          description: 'Complete HTML to render (include <html>, <head> with styles, <body>)',
+        },
+        name: {
+          type: 'string',
+          description: 'Name for this preview (used as filename, e.g., "prediction-card")',
+        },
+        width: { type: 'number', description: 'Viewport width in px (default: 1280)' },
+        height: { type: 'number', description: 'Viewport height in px (default: 800)' },
+        darkBackground: { type: 'boolean', description: 'Use dark background (default: false)' },
+      },
+      required: ['html', 'name'],
+    },
+  },
+
   // ── Corporation Autonomy Tools (department-level self-organization) ──
 
   {
