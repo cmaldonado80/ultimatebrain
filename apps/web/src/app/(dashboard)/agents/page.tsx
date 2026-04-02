@@ -84,6 +84,7 @@ export default function AgentsPage() {
   )
   const { data, isLoading, error } = workspaceFilter ? wsAgentsQuery : allAgentsQuery
   const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
+  const orgQuery = trpc.org.chart.useQuery()
   const modelsQuery = trpc.models.availableModels.useQuery()
   const availableModels = (modelsQuery.data ?? []) as Array<{
     modelId: string
@@ -97,6 +98,19 @@ export default function AgentsPage() {
   const wsMap = new Map(
     (workspacesQuery.data ?? []).map((w: { id: string; name: string }) => [w.id, w.name]),
   )
+
+  // Build agent → department lookup from org chart
+  const agentDeptMap = new Map<string, { deptName: string; orgRole: string }>()
+  if (orgQuery.data) {
+    const orgData = orgQuery.data as {
+      departments: Array<{ name: string; employees: Array<{ id: string; orgRole: string }> }>
+    }
+    for (const dept of orgData.departments) {
+      for (const emp of dept.employees) {
+        agentDeptMap.set(emp.id, { deptName: dept.name, orgRole: emp.orgRole })
+      }
+    }
+  }
 
   const utils = trpc.useUtils()
   const createMut = trpc.agents.create.useMutation({
@@ -419,13 +433,25 @@ export default function AgentsPage() {
                   Del
                 </button>
               </div>
-              {/* Row 2: Workspace + Badges */}
+              {/* Row 2: Department + Role + Badges */}
               <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-                {agent.workspaceId && wsMap.get(agent.workspaceId) && (
-                  <span className="text-[10px] text-neon-blue/70 truncate max-w-[140px]">
-                    {wsMap.get(agent.workspaceId)}
+                {agentDeptMap.get(agent.id) && (
+                  <span className="text-[10px] text-neon-purple/80 truncate max-w-[140px]">
+                    {agentDeptMap.get(agent.id)!.deptName}
                   </span>
                 )}
+                {agentDeptMap.get(agent.id) && (
+                  <span className="cyber-badge text-neon-green text-[9px]">
+                    {agentDeptMap.get(agent.id)!.orgRole.replace('_', ' ')}
+                  </span>
+                )}
+                {!agentDeptMap.get(agent.id) &&
+                  agent.workspaceId &&
+                  wsMap.get(agent.workspaceId) && (
+                    <span className="text-[10px] text-neon-blue/70 truncate max-w-[140px]">
+                      {wsMap.get(agent.workspaceId)}
+                    </span>
+                  )}
                 {agent.type && (
                   <span className="cyber-badge text-neon-blue text-[9px]">{agent.type}</span>
                 )}

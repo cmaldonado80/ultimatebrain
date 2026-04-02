@@ -33,6 +33,7 @@ export default function BoardPage() {
   const ticketsQuery = trpc.tickets.list.useQuery({ limit: 200, offset: 0 })
   const agentsQuery = trpc.agents.list.useQuery({ limit: 500, offset: 0 })
   const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
+  const orgQuery = trpc.org.chart.useQuery()
 
   if (ticketsQuery.isLoading) return <LoadingState message="Loading Project Board..." />
 
@@ -49,6 +50,19 @@ export default function BoardPage() {
 
   const agentMap = new Map(agents.map((a) => [a.id, a.name]))
   const wsMap = new Map(workspaces.map((w) => [w.id, w.name]))
+
+  // Map agent → department from org chart
+  const agentDeptMap = new Map<string, string>()
+  if (orgQuery.data) {
+    const orgData = orgQuery.data as {
+      departments: Array<{ name: string; employees: Array<{ id: string }> }>
+    }
+    for (const dept of orgData.departments) {
+      for (const emp of dept.employees) {
+        agentDeptMap.set(emp.id, dept.name)
+      }
+    }
+  }
 
   return (
     <div className="p-6 text-slate-50">
@@ -98,6 +112,11 @@ export default function BoardPage() {
                         {ticket.assignedAgentId && (
                           <span className="text-[9px] text-neon-purple">
                             {agentMap.get(ticket.assignedAgentId) ?? 'Agent'}
+                          </span>
+                        )}
+                        {ticket.assignedAgentId && agentDeptMap.get(ticket.assignedAgentId) && (
+                          <span className="text-[9px] text-neon-teal/60">
+                            {agentDeptMap.get(ticket.assignedAgentId)}
                           </span>
                         )}
                         {ticket.workspaceId && (
