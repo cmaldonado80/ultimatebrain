@@ -429,4 +429,64 @@ export const agentsRouter = router({
     .query(async ({ ctx, input }) => {
       return computeAgentPairings(ctx.db, input.agentId)
     }),
+
+  // === Agent Messages (Corporate Inbox) ===
+
+  messages: protectedProcedure
+    .input(
+      z
+        .object({
+          agentId: z.string().uuid().optional(),
+          limit: z.number().min(1).max(100).default(50),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const { agentMessages, agents: agentsT } = await import('@solarc/db')
+      const { desc: descOrd, eq: eqOp } = await import('drizzle-orm')
+
+      const conditions = []
+      if (input?.agentId) {
+        const { or } = await import('drizzle-orm')
+        conditions.push(
+          or(
+            eqOp(agentMessages.fromAgentId, input.agentId),
+            eqOp(agentMessages.toAgentId, input.agentId),
+          ),
+        )
+      }
+
+      const msgs = await ctx.db
+        .select({
+          id: agentMessages.id,
+          fromAgentId: agentMessages.fromAgentId,
+          toAgentId: agentMessages.toAgentId,
+          text: agentMessages.text,
+          read: agentMessages.read,
+          ackStatus: agentMessages.ackStatus,
+          createdAt: agentMessages.createdAt,
+        })
+        .from(agentMessages)
+        .where(conditions.length > 0 ? conditions[0] : undefined)
+        .orderBy(descOrd(agentMessages.createdAt))
+        .limit(input?.limit ?? 50)
+
+      // Resolve agent names
+      const agentIds = [...new Set(msgs.flatMap((m) => [m.fromAgentId, m.toAgentId]))]
+      const agentNames = new Map<string, string>()
+      if (agentIds.length > 0) {
+        const { inArray } = await import('drizzle-orm')
+        const agentRows = await ctx.db
+          .select({ id: agentsT.id, name: agentsT.name })
+          .from(agentsT)
+          .where(inArray(agentsT.id, agentIds))
+        for (const a of agentRows) agentNames.set(a.id, a.name)
+      }
+
+      return msgs.map((m) => ({
+        ...m,
+        fromAgentName: agentNames.get(m.fromAgentId) ?? 'Unknown',
+        toAgentName: agentNames.get(m.toAgentId) ?? 'Unknown',
+      }))
+    }),
 })

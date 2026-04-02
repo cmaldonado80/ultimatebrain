@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 
+import { CommandPalette } from './command-palette'
 import LiveCursors from './layout/live-cursors'
 import Sidebar from './layout/sidebar'
 import Topbar from './layout/topbar'
@@ -68,6 +69,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </main>
           </div>
         </div>
+        <CommandPalette />
         <LiveCursors currentLocation={pathname} />
       </OrgProvider>
     </TRPCProvider>

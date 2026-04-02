@@ -119,6 +119,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Skills', href: '/skills', icon: '★' },
       { label: 'Integrations', href: '/integrations', icon: '⊕' },
       { label: 'CEO Dashboard', href: '/ceo', icon: '⬡' },
+      { label: 'Agent Inbox', href: '/inbox', icon: '✉' },
       { label: 'Org Chart', href: '/org-chart', icon: '◈' },
       { label: 'Routines', href: '/routines', icon: '⟳' },
       { label: 'Work Products', href: '/work-products', icon: '◉' },

@@ -393,7 +393,17 @@ export const platformRouter = router({
   // === Heartbeat ===
 
   heartbeatSweep: protectedProcedure.mutation(async ({ ctx }) => {
-    return runHeartbeatSweep(ctx.db)
+    const heartbeat = await runHeartbeatSweep(ctx.db)
+    // After health check, dispatch pending work to idle agents
+    const { dispatchPendingWork } = await import('../services/platform/work-dispatcher')
+    const dispatch = await dispatchPendingWork(ctx.db)
+    return { heartbeat, dispatch }
+  }),
+
+  /** Dispatch pending work without running heartbeat (manual trigger) */
+  dispatchWork: protectedProcedure.mutation(async ({ ctx }) => {
+    const { dispatchPendingWork } = await import('../services/platform/work-dispatcher')
+    return dispatchPendingWork(ctx.db)
   }),
 
   heartbeatStatus: protectedProcedure.query(async ({ ctx }) => {
