@@ -147,7 +147,12 @@ export default function OrgChartPage() {
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-[11px] text-slate-200">{emp.name}</span>
+                            <Link
+                              href={`/agents/${emp.id}`}
+                              className="text-[11px] text-slate-200 hover:text-neon-teal no-underline"
+                            >
+                              {emp.name}
+                            </Link>
                             <StatusBadge
                               label={emp.orgRole.replace('_', ' ')}
                               color={ROLE_COLORS[emp.orgRole] ?? 'slate'}

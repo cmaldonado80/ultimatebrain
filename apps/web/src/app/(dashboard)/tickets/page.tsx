@@ -4,6 +4,7 @@
  * Tickets — list all tickets from the database.
  */
 
+import Link from 'next/link'
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
@@ -296,17 +297,31 @@ export default function TicketsPage() {
                   <div className="flex gap-4">
                     <span>
                       Workspace:{' '}
-                      {t.workspaceId
-                        ? (allWorkspaces.find((w) => w.id === t.workspaceId)?.name ??
-                          t.workspaceId.slice(0, 8))
-                        : 'Unassigned'}
+                      {t.workspaceId ? (
+                        <Link
+                          href={`/workspaces/${t.workspaceId}`}
+                          className="text-neon-teal hover:underline no-underline"
+                        >
+                          {allWorkspaces.find((w) => w.id === t.workspaceId)?.name ??
+                            t.workspaceId.slice(0, 8)}
+                        </Link>
+                      ) : (
+                        'Unassigned'
+                      )}
                     </span>
                     <span>
                       Agent:{' '}
-                      {t.assignedAgentId
-                        ? (allAgents.find((a) => a.id === t.assignedAgentId)?.name ??
-                          t.assignedAgentId.slice(0, 8))
-                        : 'Unassigned'}
+                      {t.assignedAgentId ? (
+                        <Link
+                          href={`/agents/${t.assignedAgentId}`}
+                          className="text-neon-purple hover:underline no-underline"
+                        >
+                          {allAgents.find((a) => a.id === t.assignedAgentId)?.name ??
+                            t.assignedAgentId.slice(0, 8)}
+                        </Link>
+                      ) : (
+                        'Unassigned'
+                      )}
                     </span>
                     <span>Mode: {t.executionMode ?? 'auto'}</span>
                   </div>

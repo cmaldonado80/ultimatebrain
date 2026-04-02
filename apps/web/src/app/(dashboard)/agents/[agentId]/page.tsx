@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -18,6 +19,7 @@ export default function AgentDetailPage() {
   const scorecardQuery = trpc.agents.getAgentScorecard.useQuery({ agentId })
   const specQuery = trpc.agents.getAgentSpecialization.useQuery({ agentId })
   const pairingsQuery = trpc.agents.getAgentPairings.useQuery({ agentId })
+  const orgContextQuery = trpc.org.agentContext.useQuery({ agentId })
   const modelsQuery = trpc.models.availableModels.useQuery()
   const utils = trpc.useUtils()
 
@@ -112,6 +114,69 @@ export default function AgentDetailPage() {
           </div>
         }
       />
+      {/* Organization Context */}
+      {orgContextQuery.data &&
+        (orgContextQuery.data as { data: { departmentName: string | null } }).data
+          .departmentName && (
+          <SectionCard title="Organization" className="mb-4">
+            {(() => {
+              const ctx = (
+                orgContextQuery.data as {
+                  data: {
+                    corporationName: string
+                    departmentName: string | null
+                    departmentMission: string | null
+                    agentRole: string | null
+                    reportsTo: string | null
+                    teammates: string[]
+                  }
+                }
+              ).data
+              return (
+                <div className="grid grid-cols-2 gap-3 text-[11px]">
+                  <div>
+                    <span className="text-slate-500">Corporation:</span>{' '}
+                    <span className="text-slate-300">{ctx.corporationName}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Department:</span>{' '}
+                    <Link
+                      href="/org-chart"
+                      className="text-neon-purple hover:underline no-underline"
+                    >
+                      {ctx.departmentName}
+                    </Link>
+                  </div>
+                  {ctx.agentRole && (
+                    <div>
+                      <span className="text-slate-500">Role:</span>{' '}
+                      <span className="text-neon-teal">{ctx.agentRole}</span>
+                    </div>
+                  )}
+                  {ctx.reportsTo && (
+                    <div>
+                      <span className="text-slate-500">Reports To:</span>{' '}
+                      <span className="text-slate-300">{ctx.reportsTo}</span>
+                    </div>
+                  )}
+                  {ctx.departmentMission && (
+                    <div className="col-span-2">
+                      <span className="text-slate-500">Department Mission:</span>{' '}
+                      <span className="text-slate-400 italic">{ctx.departmentMission}</span>
+                    </div>
+                  )}
+                  {ctx.teammates.length > 0 && (
+                    <div className="col-span-2">
+                      <span className="text-slate-500">Team:</span>{' '}
+                      <span className="text-slate-400">{ctx.teammates.slice(0, 6).join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </SectionCard>
+        )}
+
       <div className="flex gap-2 mb-4">
         <span className="text-[11px] text-slate-600 font-mono">
           Model: {agent.model || `auto (${agent.requiredModelType ?? 'agentic'})`}
