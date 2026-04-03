@@ -33,6 +33,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Nerve Center', href: '/nerve-center', icon: '◎' },
       { label: 'CEO Dashboard', href: '/ceo', icon: '⬡' },
       { label: 'Chat', href: '/chat', icon: '◉' },
+      { label: 'Onboarding', href: '/onboarding', icon: '▷' },
     ],
   },
   {
