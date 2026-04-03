@@ -1816,7 +1816,30 @@ async function executeToolInner(
 
         const path = await import('path')
         const fs = await import('fs/promises')
-        const fullPath = path.resolve(process.cwd(), fsPath)
+
+        // Resolve path: try cwd first, then monorepo root if that fails
+        let fullPath = path.resolve(process.cwd(), fsPath)
+        try {
+          await fs.access(fullPath)
+        } catch {
+          // Path doesn't exist relative to cwd — try stripping common prefixes
+          // (agent may send "apps/web/src/..." when cwd is already apps/web/)
+          const stripped = fsPath.replace(/^apps\/web\//, '').replace(/^\.\/apps\/web\//, '')
+          const altPath = path.resolve(process.cwd(), stripped)
+          try {
+            await fs.access(altPath)
+            fullPath = altPath
+          } catch {
+            // Also try monorepo root (two levels up from apps/web/)
+            const rootPath = path.resolve(process.cwd(), '../..', fsPath)
+            try {
+              await fs.access(rootPath)
+              fullPath = rootPath
+            } catch {
+              // Keep original fullPath — will fail with clear error
+            }
+          }
+        }
 
         try {
           switch (fsAction) {
