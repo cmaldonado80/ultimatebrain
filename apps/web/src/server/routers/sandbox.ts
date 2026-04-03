@@ -78,4 +78,28 @@ export const sandboxRouter = router({
   poolStats: protectedProcedure.query(() => {
     return getSandboxOrchestrator().executor.manager.getStats()
   }),
+
+  /** Discover available tools with classifications */
+  discoverTools: protectedProcedure
+    .input(
+      z
+        .object({
+          tier: z.enum(['safe', 'privileged', 'raw']).optional(),
+          destructiveOnly: z.boolean().optional(),
+          networkOnly: z.boolean().optional(),
+        })
+        .optional(),
+    )
+    .query(({ input }) => {
+      const { discoverTools } =
+        require('../services/chat/tool-discovery') as typeof import('../services/chat/tool-discovery')
+      return discoverTools(input ?? undefined)
+    }),
+
+  /** Get documentation for a specific tool */
+  toolDoc: protectedProcedure.input(z.object({ toolName: z.string() })).query(({ input }) => {
+    const { getToolDoc } =
+      require('../services/chat/tool-discovery') as typeof import('../services/chat/tool-discovery')
+    return getToolDoc(input.toolName)
+  }),
 })

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { extractDetailLevel, shapeResponse } from '../tool-disclosure'
+import { discoverTools, getToolDoc } from '../tool-discovery'
 import { generateDryRun, shouldDryRun } from '../tool-dryrun'
 import { classifyError, toolDryRun, toolError, toolSuccess } from '../tool-envelope'
 import {
@@ -208,5 +210,105 @@ describe('Dry-Run Mode (stolen from Larksuite --dry-run)', () => {
       content: 'x'.repeat(500),
     })
     expect(JSON.stringify(preview.preview)).toContain('truncated')
+  })
+})
+
+// ── Progressive Disclosure Tests (stolen from n8n-MCP) ───────────────────
+
+describe('Progressive Disclosure (stolen from n8n-MCP)', () => {
+  it('should return full data at standard level', () => {
+    const result = shapeResponse({ count: 5, name: 'test' })
+    expect(result.detail).toBe('standard')
+    expect(result.truncated).toBe(false)
+    expect(result.data).toEqual({ count: 5, name: 'test' })
+  })
+
+  it('should strip metadata at minimal level', () => {
+    const data = { count: 5, _debug: 'info', _meta: { x: 1 }, name: 'test' }
+    const result = shapeResponse(data, { detail: 'minimal' })
+    expect(result.detail).toBe('minimal')
+    // At minimal level, metadata keys are stripped from the response
+    const serialized = JSON.stringify(result.data)
+    expect(serialized).not.toContain('_debug')
+    expect(serialized).not.toContain('_meta')
+    expect(serialized).toContain('name')
+  })
+
+  it('should truncate long responses at minimal level', () => {
+    const longString = 'x'.repeat(2000)
+    const result = shapeResponse(longString, { detail: 'minimal' })
+    expect(result.truncated).toBe(true)
+    expect((result.data as string).length).toBeLessThan(2000)
+  })
+
+  it('should not truncate at full level', () => {
+    const longString = 'x'.repeat(10000)
+    const result = shapeResponse(longString, { detail: 'full' })
+    expect(result.truncated).toBe(false)
+  })
+
+  it('should extract detail level from tool input', () => {
+    expect(extractDetailLevel({ _detail: 'minimal' })).toBe('minimal')
+    expect(extractDetailLevel({ _detail: 'full' })).toBe('full')
+    expect(extractDetailLevel({})).toBe('standard')
+    expect(extractDetailLevel({ _detail: 'invalid' })).toBe('standard')
+  })
+
+  it('should respect custom maxOutputChars', () => {
+    const result = shapeResponse('x'.repeat(100), { maxOutputChars: 50 })
+    expect(result.truncated).toBe(true)
+  })
+})
+
+// ── Tool Discovery Tests (stolen from n8n-MCP) ──────────────────────────
+
+describe('Tool Discovery (stolen from n8n-MCP self-documenting tools)', () => {
+  it('should discover all tools', () => {
+    const result = discoverTools()
+    expect(result.totalTools).toBeGreaterThan(30)
+    expect(result.tierSummary.safe).toBeGreaterThan(0)
+    expect(result.tierSummary.privileged).toBeGreaterThan(0)
+    expect(result.tierSummary.raw).toBeGreaterThan(0)
+  })
+
+  it('should filter by tier', () => {
+    const safe = discoverTools({ tier: 'safe' })
+    expect(safe.tools.every((t) => t.tier === 'safe')).toBe(true)
+
+    const raw = discoverTools({ tier: 'raw' })
+    expect(raw.tools.every((t) => t.tier === 'raw')).toBe(true)
+  })
+
+  it('should filter destructive only', () => {
+    const destructive = discoverTools({ destructiveOnly: true })
+    expect(destructive.tools.every((t) => t.destructive)).toBe(true)
+    expect(destructive.totalTools).toBeGreaterThan(0)
+  })
+
+  it('should filter network-access tools', () => {
+    const network = discoverTools({ networkOnly: true })
+    expect(network.tools.every((t) => t.networkAccess)).toBe(true)
+  })
+
+  it('should provide descriptions for all tools', () => {
+    const result = discoverTools()
+    for (const tool of result.tools) {
+      expect(tool.description.length).toBeGreaterThan(5)
+    }
+  })
+
+  it('should get documentation for a specific tool', () => {
+    const doc = getToolDoc('web_search')
+    expect(doc).not.toBeNull()
+    expect(doc!.name).toBe('web_search')
+    expect(doc!.tier).toBe('privileged')
+    expect(doc!.description.toLowerCase()).toContain('search')
+  })
+
+  it('should return null for completely unknown tools', () => {
+    const doc = getToolDoc('nonexistent_xyz_123')
+    // Unknown tools get default privileged classification
+    expect(doc).not.toBeNull()
+    expect(doc!.description).toContain('unclassified')
   })
 })
