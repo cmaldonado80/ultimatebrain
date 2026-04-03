@@ -1822,10 +1822,13 @@ async function executeToolInner(
           switch (fsAction) {
             case 'read': {
               const data = await fs.readFile(fullPath, 'utf-8')
+              // Limit output to prevent overflowing model context
+              const maxChars = 20000
               return JSON.stringify({
                 path: fsPath,
-                content: data.slice(0, 50000),
-                truncated: data.length > 50000,
+                content: data.slice(0, maxChars),
+                lines: data.split('\n').length,
+                truncated: data.length > maxChars,
               })
             }
             case 'write': {
@@ -1836,12 +1839,11 @@ async function executeToolInner(
             }
             case 'list': {
               const entries = await fs.readdir(fullPath, { withFileTypes: true })
-              return JSON.stringify(
-                entries.slice(0, 100).map((e) => ({
-                  name: e.name,
-                  type: e.isDirectory() ? 'directory' : 'file',
-                })),
-              )
+              // Compact format: directories end with /, files don't
+              const names = entries
+                .slice(0, 100)
+                .map((e) => (e.isDirectory() ? `${e.name}/` : e.name))
+              return JSON.stringify({ path: fsPath, entries: names })
             }
             case 'exists': {
               try {
