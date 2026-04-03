@@ -1861,11 +1861,16 @@ async function executeToolInner(
               return JSON.stringify({ path: fsPath, written: true, bytes: fsContent.length })
             }
             case 'list': {
+              console.warn(
+                `[file_system] LIST input="${fsPath}" resolved="${fullPath}" cwd="${process.cwd()}"`,
+              )
               const entries = await fs.readdir(fullPath, { withFileTypes: true })
-              // Compact format: directories end with /, files don't
               const names = entries
                 .slice(0, 100)
                 .map((e) => (e.isDirectory() ? `${e.name}/` : e.name))
+              console.warn(
+                `[file_system] LIST → ${names.length} entries (has healing: ${names.includes('healing/')})`,
+              )
               return JSON.stringify({ path: fsPath, entries: names })
             }
             case 'exists': {
