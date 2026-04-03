@@ -91,6 +91,23 @@ const CONTEXT_WINDOW = 50
 const MEMORY_SNAPSHOT_TTL = 5 * 60 * 1000 // 5 minutes
 const memorySnapshotCache = new Map<string, { context: string; timestamp: number }>()
 
+/** Evict stale entries from in-memory caches to prevent unbounded growth */
+function evictStaleCaches(): void {
+  const now = Date.now()
+  // Evict expired memory snapshots
+  for (const [key, entry] of memorySnapshotCache) {
+    if (now - entry.timestamp > MEMORY_SNAPSHOT_TTL) memorySnapshotCache.delete(key)
+  }
+  // Evict expired rate limit entries
+  for (const [ip, data] of ipCounts) {
+    if (now > data.resetAt) ipCounts.delete(ip)
+  }
+  // Evict old debounce entries (>10 min)
+  for (const [key, ts] of memoryDebounce) {
+    if (now - ts > 600_000) memoryDebounce.delete(key)
+  }
+}
+
 /** Load agent config from DB, including mini-brain database URL if available */
 async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: string) {
   const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) })
@@ -167,6 +184,9 @@ async function getInstinctInjection(
 }
 
 export async function POST(req: Request) {
+  // Periodic cache cleanup (lightweight, runs every request)
+  evictStaleCaches()
+
   // Auth check
   const session = await auth()
   if (!session) {
@@ -378,7 +398,7 @@ export async function POST(req: Request) {
     const { checkSessionHealth } = await import('../../../../server/services/chat/session-rotation')
     const health = await checkSessionHealth(db, body.sessionId)
     if (health.needsRotation) {
-      goalContext += `\n\n[Session Health Warning] This session is approaching limits (${health.reason}). Consider wrapping up or summarizing progress.`
+      goalContext += `\n\n[SESSION ROTATION NEEDED] This session is approaching limits (${health.reason}). You MUST summarize key progress and tell the user to start a new session.`
     }
   } catch {
     // Best-effort
@@ -608,8 +628,26 @@ export async function POST(req: Request) {
               targetAgentConfig.name,
               targetAgentConfig.agentType,
             )
+            // Load critical memories (always-inject rules)
+            let criticalBlock = ''
+            try {
+              const memSvc = new MemoryService(db)
+              const critical = await memSvc.getCriticalMemories()
+              if (critical.length > 0) {
+                criticalBlock =
+                  '\n\n## CRITICAL RULES\n' + critical.map((m) => m.content).join('\n')
+              }
+            } catch {
+              // Non-blocking
+            }
             truthBlock =
-              '\n\n' + grounded.systemRules + '\n\n' + grounded.truth + grounded.memoryHints + '\n'
+              criticalBlock +
+              '\n\n' +
+              grounded.systemRules +
+              '\n\n' +
+              grounded.truth +
+              grounded.memoryHints +
+              '\n'
             groundedInfluence = grounded.influence
             lastInfluence = groundedInfluence
           } catch {
@@ -852,7 +890,20 @@ export async function POST(req: Request) {
                 agentConfig.name,
                 agentConfig.agentType,
               )
+              // Load critical memories (always-inject rules)
+              let directCriticalBlock = ''
+              try {
+                const memSvc = new MemoryService(db)
+                const critical = await memSvc.getCriticalMemories()
+                if (critical.length > 0) {
+                  directCriticalBlock =
+                    '\n\n## CRITICAL RULES\n' + critical.map((m) => m.content).join('\n')
+                }
+              } catch {
+                // Non-blocking
+              }
               baseTruthBlock =
+                directCriticalBlock +
                 '\n\n' +
                 grounded.systemRules +
                 '\n\n' +
@@ -1090,6 +1141,29 @@ export async function POST(req: Request) {
           refreshInsights(db, runRecord.id ? undefined : undefined).catch(() => {})
           observeRunCompletion(db, runRecord.id).catch(() => {})
 
+          // Notify cortex of agent outcome (bridges chat to healing system)
+          try {
+            const { getOrCreateCortex } = await import('../../../../server/services/healing')
+            const cortex = getOrCreateCortex(db)
+            cortex.recordAgentOutcome(
+              agentConfigs[0]?.id ?? 'unknown',
+              agentConfigs[0]?.name ?? 'unknown',
+              true,
+              Date.now() - runStartTime,
+              0,
+            )
+            // Record chat completion to evidence memory
+            cortex.evidence.recordVerification({
+              passed: true,
+              score: 0.7,
+              summary: `Chat run ${runRecord.id} completed successfully`,
+              agentId: agentConfigs[0]?.id,
+            })
+            cortex.evidence.flush().catch(() => {})
+          } catch {
+            // Cortex unavailable — non-blocking
+          }
+
           // Fire-and-forget: smart memory extraction with cost throttling
           // Skip trivial conversations, debounce per-session, batch consolidation separately
           const userMsgs = history.filter((m) => m.role === 'user')
@@ -1141,6 +1215,21 @@ export async function POST(req: Request) {
           // Fire-and-forget: compute quality for failed run + observe for instincts
           computeRunQualityScore(db, runRecord.id).catch(() => {})
           observeRunCompletion(db, runRecord.id).catch(() => {})
+
+          // Notify cortex of failed agent outcome
+          try {
+            const { getOrCreateCortex } = await import('../../../../server/services/healing')
+            const cortex = getOrCreateCortex(db)
+            cortex.recordAgentOutcome(
+              agentConfigs[0]?.id ?? 'unknown',
+              agentConfigs[0]?.name ?? 'unknown',
+              false,
+              Date.now() - runStartTime,
+              0,
+            )
+          } catch {
+            // Non-blocking
+          }
         }
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`))
         controller.close()
