@@ -1106,6 +1106,20 @@ export async function POST(req: Request) {
 
             // Add this agent's response to history for the next agent
             history.push({ role: 'assistant', content: fullContent })
+
+            // Emit per-agent influence (so frontend knows what informed each agent's response)
+            if (isMultiAgent && lastInfluence) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: 'agent_influence',
+                    agentId: agentConfig.id,
+                    agentName: agentConfig.name,
+                    influence: lastInfluence,
+                  })}\n\n`,
+                ),
+              )
+            }
           }
         } // end normal execution
 
