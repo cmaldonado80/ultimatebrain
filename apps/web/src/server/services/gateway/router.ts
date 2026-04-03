@@ -662,6 +662,10 @@ class OllamaAdapter implements ProviderAdapter {
     // Structured output — pass JSON schema via format parameter
     if (params.format) body.format = params.format
 
+    console.warn(
+      `[OllamaAdapter] POST ${baseUrl}/api/chat model=${params.model} tools=${body.tools ? (body.tools as unknown[]).length : 0}`,
+    )
+
     const res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
       headers: this.buildHeaders(params.apiKey),
@@ -681,6 +685,10 @@ class OllamaAdapter implements ProviderAdapter {
       prompt_eval_count?: number
       eval_count?: number
     }
+
+    console.warn(
+      `[OllamaAdapter] Response: tool_calls=${data.message.tool_calls?.length ?? 0} content_len=${data.message.content?.length ?? 0} content_preview=${data.message.content?.slice(0, 100)}`,
+    )
 
     // Parse tool call response if present
     let toolUse: { id: string; name: string; input: Record<string, unknown> } | undefined
