@@ -663,7 +663,10 @@ export async function POST(req: Request) {
             toolMessages = [
               ...toolMessages,
               { role: 'assistant', content: `[Tool call: ${targetStep.toolName}]` },
-              { role: 'user', content: `Tool result for ${targetStep.toolName}: ${toolOutput}` },
+              { role: 'tool', content: toolOutput, tool_name: targetStep.toolName } as {
+                role: string
+                content: string
+              },
             ]
           }
 
@@ -909,9 +912,10 @@ export async function POST(req: Request) {
                   content: toolResult.content || `[Tool call: ${toolResult.toolUse.name}]`,
                 },
                 {
-                  role: 'user',
-                  content: `Tool result for ${toolResult.toolUse.name}: ${toolOutput}`,
-                },
+                  role: 'tool',
+                  content: toolOutput,
+                  tool_name: toolResult.toolUse.name,
+                } as { role: string; content: string },
               ]
             }
 

@@ -636,10 +636,15 @@ class OllamaAdapter implements ProviderAdapter {
     const baseUrl = this.getBaseUrl()
     const body: Record<string, unknown> = {
       model: params.model.replace('ollama/', ''),
-      messages: params.messages.map((m) => ({
-        role: m.role === 'agent' ? 'assistant' : m.role,
-        content: m.content,
-      })),
+      messages: params.messages.map((m) => {
+        const role = m.role === 'agent' ? 'assistant' : m.role
+        const msg: Record<string, unknown> = { role, content: m.content }
+        // Ollama API requires tool_name for role:"tool" messages (tool result)
+        if (role === 'tool' && (m as Record<string, unknown>).tool_name) {
+          msg.tool_name = (m as Record<string, unknown>).tool_name
+        }
+        return msg
+      }),
       stream: false,
     }
     if (params.temperature != null) body.temperature = params.temperature
