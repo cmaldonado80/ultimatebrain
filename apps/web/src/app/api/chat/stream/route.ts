@@ -857,6 +857,8 @@ export async function POST(req: Request) {
                 break
               }
 
+              usedTools = true
+
               // Execute the tool
               const toolExecStart = Date.now()
               const toolOutput = await executeTool(
@@ -917,6 +919,26 @@ export async function POST(req: Request) {
                   tool_name: toolResult.toolUse.name,
                 } as { role: string; content: string },
               ]
+            }
+
+            // If tool loop exhausted without a final answer, make one last
+            // call WITHOUT tools to force the model to summarize
+            if (usedTools && !fullContent) {
+              const summaryResult = await gateway.chat({
+                model: agentConfig.model,
+                messages: [
+                  ...toolMessages,
+                  {
+                    role: 'user',
+                    content:
+                      'Based on the tool results above, provide your answer now. Do not call any more tools.',
+                  },
+                ],
+                temperature: agentConfig.temperature,
+                maxTokens: agentConfig.maxTokens,
+                // No tools — force text response
+              })
+              fullContent = summaryResult.content
             }
 
             // If tool loop produced final content, stream it as a single chunk
