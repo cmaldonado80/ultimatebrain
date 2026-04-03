@@ -3,6 +3,7 @@
  */
 import { z } from 'zod'
 
+import { discoverTools, getToolDoc } from '../services/chat/tool-discovery'
 import { getSandboxOrchestrator } from '../services/sandbox'
 import { protectedProcedure, router } from '../trpc'
 
@@ -91,15 +92,11 @@ export const sandboxRouter = router({
         .optional(),
     )
     .query(({ input }) => {
-      const { discoverTools } =
-        require('../services/chat/tool-discovery') as typeof import('../services/chat/tool-discovery')
       return discoverTools(input ?? undefined)
     }),
 
   /** Get documentation for a specific tool */
   toolDoc: protectedProcedure.input(z.object({ toolName: z.string() })).query(({ input }) => {
-    const { getToolDoc } =
-      require('../services/chat/tool-discovery') as typeof import('../services/chat/tool-discovery')
     return getToolDoc(input.toolName)
   }),
 })

@@ -142,10 +142,24 @@ const ROLE_DEFAULT_SCOPES: Record<string, PermissionScope[]> = {
   ],
 }
 
+// ── Permission Audit Trail ────────────────────────────────────────────────
+
+export interface PermissionAuditEntry {
+  timestamp: number
+  agentId: string
+  action: 'check' | 'grant' | 'revoke' | 'initialize'
+  scope: string
+  result: 'allowed' | 'denied' | 'granted' | 'revoked'
+  detail?: string
+}
+
+const MAX_AUDIT_ENTRIES = 500
+
 // ── Permission Checker ───────────────────────────────────────────────────
 
 export class PermissionChecker {
   private agentPermissions = new Map<string, AgentPermissions>()
+  private auditTrail: PermissionAuditEntry[] = []
 
   /**
    * Initialize permissions for an agent based on their role.
@@ -160,6 +174,13 @@ export class PermissionChecker {
 
     const permissions: AgentPermissions = { agentId, scopes: grants }
     this.agentPermissions.set(agentId, permissions)
+    this.audit({
+      agentId,
+      action: 'initialize',
+      scope: role,
+      result: 'granted',
+      detail: `${grants.length} scopes`,
+    })
     return permissions
   }
 
@@ -174,7 +195,13 @@ export class PermissionChecker {
     const permissions = this.agentPermissions.get(agentId)
 
     if (!permissions) {
-      // Unknown agent — deny by default
+      this.audit({
+        agentId,
+        action: 'check',
+        scope: toolName,
+        result: 'denied',
+        detail: 'Unknown agent',
+      })
       return { allowed: false, missingScopes: requiredScopes }
     }
 
@@ -186,7 +213,15 @@ export class PermissionChecker {
     )
 
     const missing = requiredScopes.filter((s) => !grantedScopes.has(s))
-    return { allowed: missing.length === 0, missingScopes: missing }
+    const allowed = missing.length === 0
+    this.audit({
+      agentId,
+      action: 'check',
+      scope: toolName,
+      result: allowed ? 'allowed' : 'denied',
+      detail: allowed ? undefined : `Missing: ${missing.join(', ')}`,
+    })
+    return { allowed, missingScopes: missing }
   }
 
   /**
@@ -204,6 +239,7 @@ export class PermissionChecker {
     // Remove existing grant for this scope
     permissions.scopes = permissions.scopes.filter((g) => g.scope !== scope)
     permissions.scopes.push({ scope, granted: true, grantedBy, expiresAt })
+    this.audit({ agentId, action: 'grant', scope, result: 'granted', detail: `By ${grantedBy}` })
   }
 
   /**
@@ -215,6 +251,7 @@ export class PermissionChecker {
 
     permissions.scopes = permissions.scopes.filter((g) => g.scope !== scope)
     permissions.scopes.push({ scope, granted: false, grantedBy: 'admin' })
+    this.audit({ agentId, action: 'revoke', scope, result: 'revoked' })
   }
 
   /**
@@ -249,5 +286,24 @@ export class PermissionChecker {
    */
   static getDefaultScopesForRole(role: string): PermissionScope[] {
     return ROLE_DEFAULT_SCOPES[role] ?? ROLE_DEFAULT_SCOPES['specialist']!
+  }
+
+  /**
+   * Get the permission audit trail.
+   */
+  getAuditTrail(limit = 50): PermissionAuditEntry[] {
+    return this.auditTrail.slice(-limit)
+  }
+
+  /**
+   * Get audit entries for a specific agent.
+   */
+  getAgentAuditTrail(agentId: string, limit = 50): PermissionAuditEntry[] {
+    return this.auditTrail.filter((e) => e.agentId === agentId).slice(-limit)
+  }
+
+  private audit(entry: Omit<PermissionAuditEntry, 'timestamp'>) {
+    this.auditTrail.push({ ...entry, timestamp: Date.now() })
+    while (this.auditTrail.length > MAX_AUDIT_ENTRIES) this.auditTrail.shift()
   }
 }
