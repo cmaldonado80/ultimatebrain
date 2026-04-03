@@ -358,6 +358,8 @@ export class SandboxManager {
       clearInterval(this.evictionTimer)
       this.evictionTimer = null
     }
+    this.pool.clear()
+    this.agentToSandbox.clear()
   }
 
   private checkLimits(sandbox: SandboxInstance): SandboxViolation | null {
@@ -401,9 +403,12 @@ export class SandboxManager {
     return netTools.some((t) => toolName.includes(t)) ? 1 : 0
   }
 
-  private evict(sandboxId: string, _reason: string) {
+  private evict(sandboxId: string, reason: string) {
     const sandbox = this.pool.get(sandboxId)
     if (sandbox) {
+      console.warn(
+        `[SandboxManager] Evicting ${sandboxId} (${sandbox.config.agentName}): ${reason}`,
+      )
       sandbox.status = 'evicted'
       this.agentToSandbox.delete(sandbox.config.agentId)
       // Keep in pool briefly for forensics, then remove

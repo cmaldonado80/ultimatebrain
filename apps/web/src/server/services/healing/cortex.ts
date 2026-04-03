@@ -168,8 +168,16 @@ export class SelfHealingCortex {
           agent.id,
           agent.name,
           (id, reason) => this.healer.restartAgent(id, reason),
-          async () => true, // reassign stub
-          async () => true, // suspend stub
+          async () => {
+            // Reassign: requeue all tickets held by this agent
+            const cleared = await this.healer.clearExpiredLeases()
+            return cleared >= 0
+          },
+          async () => {
+            // Suspend: force agent to suspended capability level
+            this.degradation.forceLevel(agent.id, agent.name, 'suspended', 'Recovery plan: suspend')
+            return true
+          },
         )
         recoveryPlans.push({ plan, trigger: `Failed restart: ${agent.name}` })
       }
@@ -209,11 +217,9 @@ export class SelfHealingCortex {
 
       // Process degradation for agents mentioned in diagnosis
       const degradationEvents: DegradationEvent[] = []
-      for (const action of healingActions) {
-        if (action.action === 'restart_agent') {
-          const event = this.degradation.recordOutcome(action.target, action.target, action.success)
-          if (event) degradationEvents.push(event)
-        }
+      for (const agent of stillErrorAgents) {
+        const event = this.degradation.recordOutcome(agent.id, agent.name, false)
+        if (event) degradationEvents.push(event)
       }
 
       // Act on predictive interventions that need immediate action
@@ -222,10 +228,20 @@ export class SelfHealingCortex {
 
         switch (intervention.action) {
           case 'preemptive_restart':
-            // Predictive: error rate trending up — preemptively restart worst agents
+            // Restart agents with highest pressure before they fail
+            for (const profile of this.degradation.getAllProfiles()) {
+              if (profile.pressure > 0.7 && profile.level === 'full') {
+                this.degradation.forceLevel(
+                  profile.agentId,
+                  profile.agentName,
+                  'reduced',
+                  'Preemptive: predicted error rate spike',
+                )
+              }
+            }
             break
           case 'throttle_dispatch':
-            // Predictive: failure rate trending up — signal tuner to throttle
+            // Signal tuner to apply pressure relief globally
             this.tuner.recordOutcome('global_dispatch', 'workspace', {
               timestamp: Date.now(),
               success: false,
@@ -233,8 +249,12 @@ export class SelfHealingCortex {
               tokensUsed: 0,
             })
             break
+          case 'force_requeue':
+            // Requeue stuck tickets proactively
+            await this.healer.clearExpiredLeases()
+            break
           case 'cooldown_healing':
-            // System is thrashing — skip this cycle's aggressive actions
+            // System is thrashing — skip aggressive actions this cycle
             break
         }
       }

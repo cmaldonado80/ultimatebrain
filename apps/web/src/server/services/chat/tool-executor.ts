@@ -379,8 +379,12 @@ export async function executeTool(
       } else {
         result = sandboxResult.output
       }
-    } catch {
-      // Sandbox unavailable — fall back to direct execution
+    } catch (sandboxErr) {
+      // Sandbox unavailable — fall back to direct execution (no policy enforcement)
+      console.warn(
+        '[ToolExecutor] Sandbox unavailable, executing without isolation:',
+        sandboxErr instanceof Error ? sandboxErr.message : String(sandboxErr),
+      )
       result = await executeToolInner(toolName, toolInput, db, workspaceId)
     }
 
