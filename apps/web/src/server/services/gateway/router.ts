@@ -168,20 +168,9 @@ export interface GatewayConfig {
   cacheEnabled: boolean
 }
 
-// Pick the best default model based on available API keys
-function resolveDefaultModel(): string {
-  if (process.env.ANTHROPIC_API_KEY) return 'claude-sonnet-4-20250514'
-  if (process.env.OPENAI_API_KEY) return 'gpt-4o'
-  if (process.env.GOOGLE_API_KEY) return 'gemini-2.0-flash'
-  return 'qwen3.5:cloud' // fallback to OpenClaw
-}
-
 const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
-  primaryRoute:
-    process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.GOOGLE_API_KEY
-      ? 'direct'
-      : 'openclaw',
-  defaultModel: resolveDefaultModel(),
+  primaryRoute: 'openclaw',
+  defaultModel: 'qwen3.5:cloud',
   cacheEnabled: true,
 }
 
