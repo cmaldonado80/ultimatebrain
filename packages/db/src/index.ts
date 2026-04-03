@@ -967,6 +967,158 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       )`,
       `CREATE INDEX IF NOT EXISTS permission_scopes_agent_id_idx ON permission_scopes(agent_id)`,
       `CREATE INDEX IF NOT EXISTS permission_scopes_scope_idx ON permission_scopes(scope)`,
+
+      // Auth: workspace_members + audit_events
+      `CREATE TABLE IF NOT EXISTS workspace_members (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        workspace_id uuid NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        role text NOT NULL,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS workspace_members_user_idx ON workspace_members(user_id)`,
+      `CREATE INDEX IF NOT EXISTS workspace_members_workspace_idx ON workspace_members(workspace_id)`,
+
+      `CREATE TABLE IF NOT EXISTS audit_events (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+        action text NOT NULL,
+        resource_type text NOT NULL,
+        resource_id text,
+        metadata jsonb,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS audit_events_user_idx ON audit_events(user_id)`,
+      `CREATE INDEX IF NOT EXISTS audit_events_action_idx ON audit_events(action)`,
+
+      // Intelligence: recommendation, quality, evolution
+      `CREATE TABLE IF NOT EXISTS recommendation_events (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        session_id uuid NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+        run_id uuid,
+        recommendation_id text NOT NULL,
+        recommendation_type text NOT NULL,
+        workflow_id uuid,
+        autonomy_level text,
+        confidence real,
+        shown_at timestamp NOT NULL DEFAULT now(),
+        dismissed_at timestamp,
+        clicked_at timestamp,
+        action_type text,
+        resulting_run_id uuid,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS rec_events_session_idx ON recommendation_events(session_id)`,
+
+      `CREATE TABLE IF NOT EXISTS recommendation_outcomes (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id uuid NOT NULL REFERENCES recommendation_events(id) ON DELETE CASCADE,
+        resulting_run_id uuid NOT NULL,
+        improved boolean NOT NULL DEFAULT false,
+        faster boolean NOT NULL DEFAULT false,
+        recovered boolean NOT NULL DEFAULT false,
+        fewer_steps boolean NOT NULL DEFAULT false,
+        delta_duration_ms integer,
+        delta_step_count integer,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS rec_outcomes_event_idx ON recommendation_outcomes(event_id)`,
+
+      `CREATE TABLE IF NOT EXISTS workflow_insights (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        workflow_id uuid,
+        workflow_name text,
+        total_runs integer NOT NULL DEFAULT 0,
+        completed_runs integer NOT NULL DEFAULT 0,
+        failed_runs integer NOT NULL DEFAULT 0,
+        success_rate real NOT NULL DEFAULT 0,
+        avg_duration_ms integer,
+        avg_step_count integer,
+        retry_recovery_rate real,
+        memory_impact_score real,
+        autonomy_breakdown jsonb,
+        top_agent_ids text[],
+        top_tool_names text[],
+        avg_quality_score real,
+        high_quality_rate real,
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS run_quality (
+        run_id uuid PRIMARY KEY REFERENCES chat_runs(id) ON DELETE CASCADE,
+        score real NOT NULL,
+        label text NOT NULL,
+        success_score real NOT NULL,
+        efficiency_score real NOT NULL,
+        stability_score real NOT NULL,
+        consistency_score real NOT NULL,
+        explanation text NOT NULL,
+        computed_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS run_quality_score_idx ON run_quality(score)`,
+
+      `DO $$ BEGIN CREATE TYPE evolution_status AS ENUM ('running','evaluating','gated','applied','rejected','rolled_back'); EXCEPTION WHEN duplicate_object THEN null; END $$`,
+      `DO $$ BEGIN CREATE TYPE retry_type AS ENUM ('targeted','step','group'); EXCEPTION WHEN duplicate_object THEN null; END $$`,
+      `DO $$ BEGIN CREATE TYPE retry_scope AS ENUM ('step','group','full'); EXCEPTION WHEN duplicate_object THEN null; END $$`,
+      `DO $$ BEGIN CREATE TYPE run_autonomy AS ENUM ('manual','suggested','autonomous'); EXCEPTION WHEN duplicate_object THEN null; END $$`,
+
+      `CREATE TABLE IF NOT EXISTS agent_soul_versions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+        version integer NOT NULL,
+        soul text NOT NULL,
+        model text,
+        temperature real,
+        max_tokens integer,
+        tool_access text[],
+        avg_quality_score real,
+        success_rate real,
+        total_runs integer DEFAULT 0,
+        parent_version_id uuid,
+        cycle_id uuid,
+        mutation_summary text,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS soul_versions_agent_idx ON agent_soul_versions(agent_id)`,
+
+      `CREATE TABLE IF NOT EXISTS evolution_cycles (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+        cycle_number integer NOT NULL,
+        status evolution_status NOT NULL DEFAULT 'running',
+        observed_runs integer DEFAULT 0,
+        pre_score real,
+        failure_patterns jsonb,
+        analysis_prompt text,
+        analysis_summary text,
+        proposed_soul text,
+        mutation_diff text,
+        gate_score real,
+        gate_passed boolean,
+        applied_at timestamp,
+        rollback_at timestamp,
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS evolution_cycles_agent_idx ON evolution_cycles(agent_id)`,
+
+      `CREATE TABLE IF NOT EXISTS soul_fragments (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        title text NOT NULL,
+        content text NOT NULL,
+        category text NOT NULL,
+        source_agent_id uuid REFERENCES agents(id) ON DELETE SET NULL,
+        source_cycle_id uuid,
+        workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL,
+        proof_count integer NOT NULL DEFAULT 1,
+        adopted_by_count integer DEFAULT 0,
+        is_global boolean NOT NULL DEFAULT false,
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS soul_fragments_workspace_idx ON soul_fragments(workspace_id)`,
+      `CREATE INDEX IF NOT EXISTS soul_fragments_category_idx ON soul_fragments(category)`,
+      `CREATE INDEX IF NOT EXISTS soul_fragments_global_idx ON soul_fragments(is_global)`,
     ]
 
     for (const sql of tables) {
