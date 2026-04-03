@@ -46,6 +46,9 @@ const envSchema = z.object({
   // ── Auth ─────────────────────────────────────────────────
   AUTH_SECRET: z.string().min(16).optional(),
 
+  // ── Cron ─────────────────────────────────────────────────
+  CRON_SECRET: z.string().min(16).optional(),
+
   // ── Neon database provisioning ────────────────────────────
   NEON_API_KEY: z.string().optional(),
   NEON_PROJECT_ID: z.string().optional(),

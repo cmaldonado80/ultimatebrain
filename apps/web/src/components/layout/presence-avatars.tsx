@@ -128,6 +128,7 @@ function Avatar({
         }}
       >
         {entry.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- external avatar URL with inline styles
           <img src={entry.avatarUrl} alt={entry.name} style={styles.avatarImg} />
         ) : (
           <span style={styles.initials}>{getInitials(entry.name)}</span>
