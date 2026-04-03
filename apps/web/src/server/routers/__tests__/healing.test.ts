@@ -19,18 +19,51 @@ const mockRestartAgent = vi.fn()
 const mockClearExpiredLeases = vi.fn()
 const mockRequeuTicket = vi.fn()
 const mockGetHealingLog = vi.fn()
+const mockRunCycle = vi.fn()
+const mockGetStatus = vi.fn()
+const mockGetSubsystemStates = vi.fn()
+const mockPredict = vi.fn()
+const mockGetMetricSnapshot = vi.fn()
+const mockTuneGetAllStates = vi.fn()
+const mockTuneGetActionHistory = vi.fn()
+const mockTune = vi.fn()
+const mockRecoveryGetHistory = vi.fn()
+const mockDegradationGetAllProfiles = vi.fn()
+const mockDegradationGetRecentEvents = vi.fn()
+const mockDegradationForceLevel = vi.fn()
+const mockInstinctGetStats = vi.fn()
+const mockRecordAgentOutcome = vi.fn()
 
 vi.mock('@solarc/db', () => ({}))
 
-vi.mock('../../services/healing', () => ({
-  HealingEngine: vi.fn().mockImplementation(() => ({
-    diagnose: mockDiagnose,
-    healthCheck: mockHealthCheck,
-    autoHeal: mockAutoHeal,
-    restartAgent: mockRestartAgent,
-    clearExpiredLeases: mockClearExpiredLeases,
-    requeueTicket: mockRequeuTicket,
-    getHealingLog: mockGetHealingLog,
+vi.mock('../../services/healing/cortex', () => ({
+  SelfHealingCortex: vi.fn().mockImplementation(() => ({
+    healer: {
+      diagnose: mockDiagnose,
+      healthCheck: mockHealthCheck,
+      autoHeal: mockAutoHeal,
+      restartAgent: mockRestartAgent,
+      clearExpiredLeases: mockClearExpiredLeases,
+      requeueTicket: mockRequeuTicket,
+      getHealingLog: mockGetHealingLog,
+    },
+    runCycle: mockRunCycle,
+    getStatus: mockGetStatus,
+    getSubsystemStates: mockGetSubsystemStates,
+    predictor: { predict: mockPredict, getMetricSnapshot: mockGetMetricSnapshot },
+    tuner: {
+      getAllStates: mockTuneGetAllStates,
+      getActionHistory: mockTuneGetActionHistory,
+      tune: mockTune,
+    },
+    recovery: { getHistory: mockRecoveryGetHistory },
+    degradation: {
+      getAllProfiles: mockDegradationGetAllProfiles,
+      getRecentEvents: mockDegradationGetRecentEvents,
+      forceLevel: mockDegradationForceLevel,
+    },
+    instinctExecutor: { getStats: mockInstinctGetStats },
+    recordAgentOutcome: mockRecordAgentOutcome,
   })),
 }))
 
@@ -138,6 +171,47 @@ describe('healing router', () => {
 
       expect(mockGetHealingLog).toHaveBeenCalledWith(10)
       expect(result).toEqual(log)
+    })
+  })
+
+  describe('cortex', () => {
+    it('runs a cortex cycle', async () => {
+      const cycleResult = { timestamp: new Date(), durationMs: 100, phases: {} }
+      mockRunCycle.mockResolvedValue(cycleResult)
+
+      const trpc = caller({ db, session: { userId: 'user-1' } })
+      const result = await trpc.cortexCycle()
+
+      expect(mockRunCycle).toHaveBeenCalled()
+      expect(result).toEqual(cycleResult)
+    })
+
+    it('returns cortex status', async () => {
+      const status = { isRunning: false, systemHealth: 'autonomous' }
+      mockGetStatus.mockReturnValue(status)
+
+      const trpc = caller({ db, session: { userId: 'user-1' } })
+      const result = await trpc.cortexStatus()
+
+      expect(result).toEqual(status)
+    })
+  })
+
+  describe('degradation', () => {
+    it('forces agent to a specific level', async () => {
+      const event = { agentId: UUID, from: 'full', to: 'suspended', reason: 'test' }
+      mockDegradationForceLevel.mockReturnValue(event)
+
+      const trpc = caller({ db, session: { userId: 'user-1' } })
+      const result = await trpc.forceAgentLevel({
+        agentId: UUID,
+        agentName: 'Agent 1',
+        level: 'suspended',
+        reason: 'test',
+      })
+
+      expect(mockDegradationForceLevel).toHaveBeenCalledWith(UUID, 'Agent 1', 'suspended', 'test')
+      expect(result).toEqual(event)
     })
   })
 })

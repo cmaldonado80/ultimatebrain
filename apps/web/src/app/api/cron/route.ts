@@ -7,7 +7,7 @@ import { createDb, waitForSchema } from '@solarc/db'
 
 import { AtlasFreshnessScanner } from '../../../server/services/atlas'
 import { GatewayRouter } from '../../../server/services/gateway'
-import { HealingEngine } from '../../../server/services/healing/healing-engine'
+import { SelfHealingCortex } from '../../../server/services/healing/cortex'
 import { runInstinctPipeline } from '../../../server/services/instincts/instinct-pipeline'
 import { CronEngine, SystemOrchestrator } from '../../../server/services/orchestration'
 
@@ -29,14 +29,23 @@ export async function GET(req: Request) {
     await waitForSchema()
 
     const orchestrator = new SystemOrchestrator(db)
-    const healer = new HealingEngine(db)
+    const cortex = new SelfHealingCortex(db)
     const cronEngine = new CronEngine(db)
 
     // 1. Run health sweep
     const healthResult = await orchestrator.monitorHealth()
 
-    // 2. Auto-heal any issues found
-    const healResult = await healer.autoHeal()
+    // 2. Run Self-Healing Cortex OODA cycle (replaces simple autoHeal)
+    // This runs: predictive analysis → recovery state machine → adaptive tuning
+    //            → instinct execution → agent degradation → learning feedback
+    let cortexResult: Awaited<ReturnType<typeof cortex.runCycle>> | null = null
+    try {
+      cortexResult = await cortex.runCycle()
+    } catch (err) {
+      console.error('[Cron] Cortex cycle failed, falling back to basic autoHeal:', err)
+      // Fallback: run the base healing engine directly
+      await cortex.healer.autoHeal()
+    }
 
     // 3. Rebalance agents if any workspace is overloaded
     let rebalanceMoves: Array<{ agentId: string; from: string; to: string }> = []
@@ -59,7 +68,6 @@ export async function GET(req: Request) {
       const dueJobs = await cronEngine.getDueJobs()
       for (const job of dueJobs) {
         try {
-          // If job has an agentId, dispatch to agent via gateway
           if (job.agentId) {
             const gateway = new GatewayRouter(db)
             const result = await gateway.chat({
@@ -74,8 +82,10 @@ export async function GET(req: Request) {
               agentId: job.agentId,
             })
             await cronEngine.recordSuccess(job.id, result.content?.slice(0, 500))
+
+            // Feed outcome to Cortex for adaptive tuning + degradation
+            cortex.recordAgentOutcome(job.agentId, job.name, true, 0, 0)
           } else {
-            // Job without agent — just mark as executed
             await cronEngine.recordSuccess(job.id, 'Executed (no agent assigned)')
           }
           jobsExecuted++
@@ -83,14 +93,18 @@ export async function GET(req: Request) {
           const errMsg = jobErr instanceof Error ? jobErr.message : String(jobErr)
           await cronEngine.recordFailure(job.id, errMsg)
           jobsFailed++
+
+          // Feed failure to Cortex
+          if (job.agentId) {
+            cortex.recordAgentOutcome(job.agentId, job.name, false, 0, 0)
+          }
         }
       }
     } catch (err) {
       console.error('[Cron] job execution failed:', err)
     }
 
-    // 5. ATLAS freshness scan — run weekly (every ~2016 cron ticks at 5min intervals)
-    // Simple check: run on Sundays at the first cron tick (hour 0, minute 0-4)
+    // 5. ATLAS freshness scan — run weekly (Sundays at hour 0)
     let atlasTicketsCreated = 0
     try {
       const now = new Date()
@@ -116,6 +130,9 @@ export async function GET(req: Request) {
       console.error('[Cron] instinct pipeline failed:', err)
     }
 
+    // Build response
+    const cortexStatus = cortex.getStatus()
+
     return Response.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -123,9 +140,20 @@ export async function GET(req: Request) {
         workspacesChecked: healthResult.workspacesChecked,
         issues: healthResult.issues.length,
       },
-      healing: {
-        actions: healResult.actions?.length ?? 0,
-      },
+      cortex: cortexResult
+        ? {
+            riskLevel: cortexResult.phases.orient.riskLevel,
+            healingActions: cortexResult.phases.act.healingActions.length,
+            recoveryExecutions: cortexResult.phases.act.recoveryExecutions.length,
+            tuningActions: cortexResult.phases.act.tuningActions.length,
+            instinctExecutions: cortexResult.phases.act.instinctExecutions.length,
+            degradationEvents: cortexResult.phases.act.degradationEvents.length,
+            predictiveInterventions:
+              cortexResult.phases.observe.predictiveReport.interventions.length,
+            durationMs: cortexResult.durationMs,
+            systemHealth: cortexStatus.systemHealth,
+          }
+        : { fallback: true },
       rebalance: {
         moves: rebalanceMoves.length,
       },
