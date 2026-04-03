@@ -143,7 +143,9 @@ export class AgentInitiativeEngine {
     }
     for (const [key, count] of violationGroups) {
       if (count >= 3) {
-        const [agentId, toolName] = key.split('_')
+        const delimIdx = key.indexOf('_')
+        const agentId = delimIdx >= 0 ? key.slice(0, delimIdx) : key
+        const toolName = delimIdx >= 0 ? key.slice(delimIdx + 1) : 'unknown'
         signals.push({
           id: `violation_${key}`,
           source: 'sandbox',

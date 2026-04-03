@@ -132,9 +132,9 @@ export class WorkMarket {
     const successRate = reputation?.successRate ?? 0.5 // default 50% for new agents
     const currentLoad =
       agent.maxConcurrency > 0 ? Math.max(0, 1 - agent.currentTaskCount / agent.maxConcurrency) : 0
-    const completions = reputation?.totalCompletions ?? 0
-    const failures = reputation?.totalFailures ?? 0
-    const costEfficiency = completions + failures > 0 ? completions / (completions + failures) : 0.5
+    // Cost efficiency: faster agents score higher (inverse of avg completion time)
+    const avgMs = reputation?.avgCompletionMs ?? 30000
+    const costEfficiency = Math.min(1, 10000 / Math.max(1, avgMs)) // 10s = 1.0, 30s = 0.33
 
     // Composite score
     const score =

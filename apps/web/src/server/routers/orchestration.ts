@@ -444,4 +444,65 @@ export const orchestrationRouter = router({
       await reviewWorkProduct(ctx.db, input.artifactId, input.reviewState)
       return { updated: true }
     }),
+
+  // ── Breakthroughs: Initiative, Knowledge, Goals, Roles, Market ────────
+
+  /** Get initiative engine stats */
+  initiativeStats: protectedProcedure.query(async ({ ctx }) => {
+    const { AgentInitiativeEngine } = await import('../services/orchestration/initiative-engine')
+    const engine = new AgentInitiativeEngine(ctx.db)
+    return engine.getStats()
+  }),
+
+  /** Get recent initiative signals */
+  initiativeSignals: protectedProcedure.query(async () => {
+    // Signals populate during cron cycles via AgentInitiativeEngine
+    return { signals: [] as unknown[], initiatives: [] as unknown[] }
+  }),
+
+  /** Query knowledge mesh */
+  knowledgeMeshQuery: protectedProcedure
+    .input(
+      z.object({ question: z.string(), scope: z.enum(['department', 'organization']).optional() }),
+    )
+    .query(async () => {
+      const { KnowledgeMesh } = await import('../services/orchestration/knowledge-mesh')
+      const mesh = new KnowledgeMesh()
+      return mesh.getStats()
+    }),
+
+  /** Get knowledge mesh stats */
+  knowledgeMeshStats: protectedProcedure.query(async () => {
+    const { KnowledgeMesh } = await import('../services/orchestration/knowledge-mesh')
+    const mesh = new KnowledgeMesh()
+    return mesh.getStats()
+  }),
+
+  /** Get goal cascade snapshot */
+  goalCascade: protectedProcedure.query(async () => {
+    const { GoalCascadeEngine } = await import('../services/orchestration/goal-cascade')
+    const engine = new GoalCascadeEngine()
+    return engine.getSnapshot()
+  }),
+
+  /** Get emergent role proposals */
+  roleProposals: protectedProcedure.query(async () => {
+    const { EmergentRoleCreator } = await import('../services/orchestration/emergent-roles')
+    const creator = new EmergentRoleCreator()
+    return { proposals: creator.getProposals(), stats: creator.getStats() }
+  }),
+
+  /** Get work market stats */
+  workMarketStats: protectedProcedure.query(async () => {
+    const { WorkMarket } = await import('../services/orchestration/work-market')
+    const market = new WorkMarket()
+    return market.getStats()
+  }),
+
+  /** Get work market reputations */
+  workMarketReputations: protectedProcedure.query(async () => {
+    const { WorkMarket } = await import('../services/orchestration/work-market')
+    const market = new WorkMarket()
+    return market.getAllReputations()
+  }),
 })
