@@ -146,6 +146,14 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         PRIMARY KEY (identifier, token)
       )`,
 
+      `CREATE TABLE IF NOT EXISTS user_roles (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role text NOT NULL,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS user_roles_user_idx ON user_roles(user_id)`,
+
       // Core
       `CREATE TABLE IF NOT EXISTS workspaces (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
