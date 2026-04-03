@@ -40,7 +40,7 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       ['ticket_complexity', ['easy', 'medium', 'hard', 'critical']],
       ['execution_mode', ['quick', 'autonomous', 'deep_work']],
       ['agent_status', ['idle', 'planning', 'executing', 'reviewing', 'error', 'offline']],
-      ['memory_tier', ['core', 'recall', 'archival']],
+      ['memory_tier', ['critical', 'core', 'recall', 'archival']],
       ['approval_status', ['pending', 'approved', 'denied', 'expired']],
       ['guardrail_layer', ['input', 'tool', 'output']],
       ['entity_agent_role', ['primary', 'monitor', 'healer', 'specialist']],

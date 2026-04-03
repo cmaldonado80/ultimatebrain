@@ -257,3 +257,91 @@ export function buildSandboxSnapshot(): SandboxSnapshot {
     }
   }
 }
+
+// ── Additional Snapshot Builders ──────────────────────────────────────────
+
+export interface TaskTriageSnapshot {
+  totalTickets: number
+  byStatus: Record<string, number>
+  byPriority: Record<string, number>
+  blockedCount: number
+  oldestUnassigned: string | null
+}
+
+export interface DelegationSnapshot {
+  activeAgents: Array<{ id: string; name: string; status: string; currentTask: string | null }>
+  idleAgents: number
+  busyAgents: number
+  totalAgents: number
+}
+
+export interface ModelGovernanceSnapshot {
+  defaultModel: string
+  primaryRoute: string
+  circuitBreakerStates: Record<string, string>
+  providersConfigured: string[]
+}
+
+/**
+ * Build task triage snapshot — what work exists and its state.
+ */
+export function buildTaskTriageSnapshot(_db?: unknown): TaskTriageSnapshot {
+  // In-memory fallback when DB not available
+  return {
+    totalTickets: 0,
+    byStatus: {},
+    byPriority: {},
+    blockedCount: 0,
+    oldestUnassigned: null,
+  }
+}
+
+/**
+ * Build delegation snapshot — who's working on what.
+ */
+export function buildDelegationSnapshot(): DelegationSnapshot {
+  try {
+    const { getCortex } = require('../healing/index') as typeof import('../healing/index')
+    const cortex = getCortex()
+    if (!cortex) return { activeAgents: [], idleAgents: 0, busyAgents: 0, totalAgents: 0 }
+
+    const profiles = cortex.degradation.getAllProfiles()
+    const active = profiles.filter((p) => p.level !== 'suspended')
+    const idle = profiles.filter((p) => p.level === 'full' && p.pressure < 0.2)
+    const busy = profiles.filter((p) => p.pressure > 0.5)
+
+    return {
+      activeAgents: active.map((p) => ({
+        id: p.agentId,
+        name: p.agentName,
+        status: p.level,
+        currentTask: null, // would need AgentStateManager integration
+      })),
+      idleAgents: idle.length,
+      busyAgents: busy.length,
+      totalAgents: profiles.length,
+    }
+  } catch {
+    return { activeAgents: [], idleAgents: 0, busyAgents: 0, totalAgents: 0 }
+  }
+}
+
+/**
+ * Build model governance snapshot — LLM routing state.
+ */
+export function buildModelGovernanceSnapshot(): ModelGovernanceSnapshot {
+  const defaultModel = process.env.DEFAULT_MODEL ?? 'qwen3-coder:480b-cloud'
+  const configured: string[] = []
+  if (process.env.ANTHROPIC_API_KEY) configured.push('anthropic')
+  if (process.env.OPENAI_API_KEY) configured.push('openai')
+  if (process.env.GOOGLE_API_KEY) configured.push('google')
+  if (process.env.OLLAMA_BASE_URL || process.env.OPENCLAW_WS) configured.push('ollama/openclaw')
+
+  return {
+    defaultModel,
+    primaryRoute:
+      configured.length > 0 && !configured.includes('ollama/openclaw') ? 'direct' : 'openclaw',
+    circuitBreakerStates: {}, // would need GatewayRouter integration
+    providersConfigured: configured,
+  }
+}

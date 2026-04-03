@@ -17,14 +17,19 @@
  *   Layer 3: Response-time truth injection (this file)
  */
 
+import { EvidenceMemoryPipeline, type MemoryInfluence } from './evidence-memory'
 import {
+  buildDelegationSnapshot,
   buildHealthSnapshot,
+  buildModelGovernanceSnapshot,
   buildSandboxSnapshot,
   buildSubsystemSnapshot,
   buildWorkspaceSnapshot,
 } from './snapshot-builders'
 
 // ── Types ────────────────────────────────────────────────────────────────
+
+export type Mode = 'operations' | 'engineering' | 'research' | 'design' | 'governance'
 
 export type Intent =
   | 'system_health' // "what's wrong with the system?"
@@ -36,10 +41,12 @@ export type Intent =
   | 'general' // anything else
 
 export interface GroundedContext {
+  mode: Mode
   intent: Intent
   truth: string // structured runtime truth block
   memoryHints: string // relevant memory context
   systemRules: string // anti-hallucination rules
+  influence: MemoryInfluence // what informed this context
 }
 
 // ── Anti-Hallucination Rules (Critical Memory) ──────────────────────────
@@ -55,6 +62,33 @@ const SYSTEM_RULES = `
 - When reading files, the working directory is the web app root (apps/web/). Use paths relative to it: src/server/services/healing/cortex.ts (NOT apps/web/src/...)
 - If a tool call fails, try the alternative path format before concluding the file doesn't exist.
 `.trim()
+
+// ── Mode Classification ──────────────────────────────────────────────────
+
+export function classifyMode(message: string, agentRole?: string): Mode {
+  // Agent role takes priority
+  if (agentRole) {
+    const role = agentRole.toLowerCase()
+    if (role.includes('design') || role.includes('ui') || role.includes('ux')) return 'design'
+    if (role.includes('security') || role.includes('soc') || role.includes('ops'))
+      return 'operations'
+    if (role.includes('engineer') || role.includes('dev') || role.includes('code'))
+      return 'engineering'
+    if (role.includes('research') || role.includes('analyst')) return 'research'
+    if (role.includes('ceo') || role.includes('head') || role.includes('govern'))
+      return 'governance'
+  }
+
+  // Fall back to message content
+  const lower = message.toLowerCase()
+  if (lower.match(/design|ui|ux|layout|color|style|component|css/)) return 'design'
+  if (lower.match(/status|health|incident|alert|deploy|runtime|monitor/)) return 'operations'
+  if (lower.match(/code|file|function|class|module|refactor|bug|test|build/)) return 'engineering'
+  if (lower.match(/research|investigate|explore|analyze|compare|benchmark/)) return 'research'
+  if (lower.match(/policy|governance|permission|role|scope|budget|okr/)) return 'governance'
+
+  return 'engineering' // default for a coding system
+}
 
 // ── Intent Classification ────────────────────────────────────────────────
 
@@ -90,40 +124,81 @@ export function buildGroundedContext(
   agentName?: string,
   agentRole?: string,
 ): GroundedContext {
+  const mode = classifyMode(userMessage, agentRole)
   const intent = classifyIntent(userMessage)
   const truthBlocks: string[] = []
+  const snapshotsUsed: string[] = []
 
   // Always inject workspace truth (so agents know the file structure)
   const workspace = buildWorkspaceSnapshot()
   truthBlocks.push(formatWorkspaceTruth(workspace))
+  snapshotsUsed.push('workspace')
 
-  // Intent-specific truth
-  switch (intent) {
-    case 'system_health': {
+  // Mode-based snapshot selection (each mode gets different defaults)
+  switch (mode) {
+    case 'operations': {
       const health = buildHealthSnapshot()
       const sandbox = buildSandboxSnapshot()
+      const delegation = buildDelegationSnapshot()
       truthBlocks.push(formatHealthTruth(health))
       truthBlocks.push(formatSandboxTruth(sandbox))
+      truthBlocks.push(formatDelegationTruth(delegation))
+      snapshotsUsed.push('health', 'sandbox', 'delegation')
       break
     }
-    case 'code_review':
-    case 'file_operations': {
-      // Extract subsystem name from message if mentioned
+    case 'engineering': {
+      const model = buildModelGovernanceSnapshot()
+      truthBlocks.push(formatModelTruth(model))
+      snapshotsUsed.push('model_governance')
+      // Plus subsystem detail if mentioned
       const subsystem = extractSubsystemName(userMessage, workspace.serviceDirectories)
       if (subsystem) {
         const sub = buildSubsystemSnapshot(subsystem)
         truthBlocks.push(formatSubsystemTruth(subsystem, sub))
+        snapshotsUsed.push(`subsystem:${subsystem}`)
       }
       break
     }
-    case 'architecture': {
+    case 'governance': {
       const health = buildHealthSnapshot()
+      const delegation = buildDelegationSnapshot()
       truthBlocks.push(formatHealthTruth(health))
+      truthBlocks.push(formatDelegationTruth(delegation))
+      snapshotsUsed.push('health', 'delegation')
+      break
+    }
+    default:
+      break
+  }
+
+  // Intent-specific refinement (adds to mode defaults)
+  switch (intent) {
+    case 'system_health': {
+      if (!snapshotsUsed.includes('health')) {
+        truthBlocks.push(formatHealthTruth(buildHealthSnapshot()))
+        snapshotsUsed.push('health')
+      }
+      if (!snapshotsUsed.includes('sandbox')) {
+        truthBlocks.push(formatSandboxTruth(buildSandboxSnapshot()))
+        snapshotsUsed.push('sandbox')
+      }
+      break
+    }
+    case 'code_review':
+    case 'file_operations': {
+      const subsystem = extractSubsystemName(userMessage, workspace.serviceDirectories)
+      if (subsystem && !snapshotsUsed.includes(`subsystem:${subsystem}`)) {
+        const sub = buildSubsystemSnapshot(subsystem)
+        truthBlocks.push(formatSubsystemTruth(subsystem, sub))
+        snapshotsUsed.push(`subsystem:${subsystem}`)
+      }
       break
     }
     case 'agent_management': {
-      const health = buildHealthSnapshot()
-      truthBlocks.push(formatAgentTruth(health))
+      if (!snapshotsUsed.includes('delegation')) {
+        truthBlocks.push(formatDelegationTruth(buildDelegationSnapshot()))
+        snapshotsUsed.push('delegation')
+      }
       break
     }
     default:
@@ -132,14 +207,19 @@ export function buildGroundedContext(
 
   // Memory hints (role-based)
   const memoryHints = agentRole
-    ? `\n## Your Role\nYou are ${agentName ?? 'an agent'}, role: ${agentRole}. Act within your role's expertise.`
+    ? `\n## Your Role\nYou are ${agentName ?? 'an agent'}, mode: ${mode}, role: ${agentRole}. Act within your role's expertise.`
     : ''
 
+  // Build memory influence tracking
+  const influence = EvidenceMemoryPipeline.buildInfluence([], snapshotsUsed)
+
   return {
+    mode,
     intent,
     truth: truthBlocks.join('\n\n'),
     memoryHints,
     systemRules: SYSTEM_RULES,
+    influence,
   }
 }
 
@@ -191,11 +271,23 @@ Total files: ${sub.totalFiles}
 Path: src/server/services/${name}/`
 }
 
-function formatAgentTruth(h: ReturnType<typeof buildHealthSnapshot>): string {
-  if (h.agentProfiles.length === 0)
-    return `## RUNTIME TRUTH: Agents\nNo agent profiles tracked yet.`
-  return `## RUNTIME TRUTH: Agent Status
-${h.agentProfiles.map((a) => `- ${a.agentName}: level=${a.level}, pressure=${(a.pressure * 100).toFixed(0)}%`).join('\n')}`
+function formatDelegationTruth(d: ReturnType<typeof buildDelegationSnapshot>): string {
+  if (d.totalAgents === 0) return `## RUNTIME TRUTH: Delegation\nNo agents tracked yet.`
+  return `## RUNTIME TRUTH: Delegation
+Total agents: ${d.totalAgents}
+Idle: ${d.idleAgents}
+Busy: ${d.busyAgents}
+${d.activeAgents
+  .slice(0, 10)
+  .map((a) => `- ${a.name}: ${a.status}`)
+  .join('\n')}`
+}
+
+function formatModelTruth(m: ReturnType<typeof buildModelGovernanceSnapshot>): string {
+  return `## RUNTIME TRUTH: Model Governance
+Default model: ${m.defaultModel}
+Primary route: ${m.primaryRoute}
+Providers configured: ${m.providersConfigured.join(', ') || 'none'}`
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────

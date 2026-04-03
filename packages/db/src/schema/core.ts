@@ -50,7 +50,7 @@ export const agentStatusEnum = pgEnum('agent_status', [
   'error',
   'offline',
 ])
-export const memoryTierEnum = pgEnum('memory_tier', ['core', 'recall', 'archival'])
+export const memoryTierEnum = pgEnum('memory_tier', ['critical', 'core', 'recall', 'archival'])
 export const approvalStatusEnum = pgEnum('approval_status', [
   'pending',
   'approved',
