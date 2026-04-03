@@ -693,6 +693,53 @@ class OllamaAdapter implements ProviderAdapter {
       }
     }
 
+    // Fallback: if model returned text with tool-like syntax instead of using
+    // the tool_calls API (common with cloud-routed models via OpenClaw),
+    // try to parse tool invocations from the text content
+    if (!toolUse && params.tools && params.tools.length > 0 && data.message.content) {
+      const content = data.message.content
+      const toolNames = (params.tools as Array<{ name: string }>).map((t) => t.name)
+
+      // Match patterns like: file_system({"action":"list","path":"..."})
+      // or <tool_code> file_system.action(path="...") </tool_code>
+      // or {"name":"file_system","arguments":{"action":"list"}}
+      for (const toolName of toolNames) {
+        // Pattern 1: tool_name({"key":"value"})
+        const fnCallMatch = content.match(new RegExp(`${toolName}\\s*\\(\\s*(\\{[^}]+\\})\\s*\\)`))
+        if (fnCallMatch) {
+          try {
+            toolUse = {
+              id: `ollama-text-${Date.now()}`,
+              name: toolName,
+              input: JSON.parse(fnCallMatch[1]),
+            }
+            break
+          } catch {
+            /* not valid JSON */
+          }
+        }
+
+        // Pattern 2: action="list", path="..." after tool name mention
+        if (content.includes(toolName)) {
+          const jsonMatch = content.match(
+            /\{[^{}]*"action"\s*:\s*"[^"]+"\s*,\s*"path"\s*:\s*"[^"]+"\s*[^{}]*\}/,
+          )
+          if (jsonMatch) {
+            try {
+              toolUse = {
+                id: `ollama-text-${Date.now()}`,
+                name: toolName,
+                input: JSON.parse(jsonMatch[0]),
+              }
+              break
+            } catch {
+              /* not valid JSON */
+            }
+          }
+        }
+      }
+    }
+
     return {
       content: data.message.content,
       tokensIn: data.prompt_eval_count ?? 0,
