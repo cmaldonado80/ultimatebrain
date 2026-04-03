@@ -170,7 +170,7 @@ export interface GatewayConfig {
 
 const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
   primaryRoute: 'openclaw',
-  defaultModel: process.env.DEFAULT_MODEL ?? 'qwen3:32b',
+  defaultModel: process.env.DEFAULT_MODEL ?? 'qwen3.5:cloud',
   cacheEnabled: true,
 }
 
