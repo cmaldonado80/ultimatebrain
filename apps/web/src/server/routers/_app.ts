@@ -39,6 +39,7 @@ import { presenceRouter } from './presence'
 import { projectsRouter } from './projects'
 import { runtimeStatusRouter } from './runtime-status'
 import { runtimesRouter } from './runtimes'
+import { sandboxRouter } from './sandbox'
 import { secretsRouter } from './secrets'
 import { skillsRouter } from './skills'
 import { systemOrchestratorRouter } from './system-orchestrator'
@@ -99,6 +100,7 @@ export const appRouter = router({
   admin: adminRouter,
   mesh: meshRouter,
   org: orgRouter,
+  sandbox: sandboxRouter,
 })
 
 export type AppRouter = typeof appRouter
