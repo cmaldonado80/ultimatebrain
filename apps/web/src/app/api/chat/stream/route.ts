@@ -506,6 +506,7 @@ export async function POST(req: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      let lastInfluence: unknown = null
       try {
         // Emit run_started event
         if (runRecord) {
@@ -598,6 +599,7 @@ export async function POST(req: Request) {
 
           // ── TRUTH INJECTION: Ground agent in runtime truth before responding ──
           let truthBlock = ''
+          let groundedInfluence: unknown = null
           try {
             const { buildGroundedContext } =
               await import('../../../../server/services/intelligence/truth-injection')
@@ -608,6 +610,8 @@ export async function POST(req: Request) {
             )
             truthBlock =
               '\n\n' + grounded.systemRules + '\n\n' + grounded.truth + grounded.memoryHints + '\n'
+            groundedInfluence = grounded.influence
+            lastInfluence = groundedInfluence
           } catch {
             // Truth injection unavailable — fall back to basic reminder
             truthBlock = targetAgentConfig.soul.includes('file_system')
@@ -839,6 +843,7 @@ export async function POST(req: Request) {
             ).catch(() => '')
             // ── TRUTH INJECTION for direct path ──
             let baseTruthBlock = ''
+            let directInfluence: unknown = null
             try {
               const { buildGroundedContext } =
                 await import('../../../../server/services/intelligence/truth-injection')
@@ -854,6 +859,8 @@ export async function POST(req: Request) {
                 grounded.truth +
                 grounded.memoryHints +
                 '\n'
+              directInfluence = grounded.influence
+              lastInfluence = directInfluence
             } catch {
               baseTruthBlock = agentConfig.soul.includes('file_system')
                 ? ''
@@ -1111,7 +1118,9 @@ export async function POST(req: Request) {
           }
         }
 
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ done: true, influence: lastInfluence })}\n\n`),
+        )
         controller.close()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'

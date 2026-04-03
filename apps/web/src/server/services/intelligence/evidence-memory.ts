@@ -175,7 +175,7 @@ export class EvidenceMemoryPipeline {
         await memoryStore.store({
           key: record.key,
           content: record.content,
-          tier: record.tier === 'critical' ? 'core' : record.tier, // critical maps to core in DB (highest non-critical tier)
+          tier: record.tier, // critical tier now supported in DB schema + memory service
           sourceAgentId: record.agentId,
           workspaceId: record.workspaceId,
           confidence: record.confidence,

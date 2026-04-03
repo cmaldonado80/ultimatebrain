@@ -12,7 +12,7 @@ import type { Database } from '@solarc/db'
 import { cognitiveCandidates, memories, memoryVectors } from '@solarc/db'
 import { and, desc, eq, sql } from 'drizzle-orm'
 
-export type MemoryTier = 'core' | 'recall' | 'archival'
+export type MemoryTier = 'critical' | 'core' | 'recall' | 'archival'
 
 export interface StoreMemoryInput {
   key: string
@@ -40,6 +40,7 @@ const PROMOTION_THRESHOLDS: Record<MemoryTier, { minConfidence: number; minAcces
   archival: { minConfidence: 0.3, minAccesses: 1 },
   recall: { minConfidence: 0.6, minAccesses: 5 },
   core: { minConfidence: 0.85, minAccesses: 20 },
+  critical: { minConfidence: 1.0, minAccesses: Infinity }, // never auto-promoted
 }
 
 export class MemoryService {
@@ -241,6 +242,37 @@ export class MemoryService {
    */
   async get(id: string) {
     return this.db.query.memories.findFirst({ where: eq(memories.id, id) })
+  }
+
+  /**
+   * Get all critical-tier memories. These are always-inject rules:
+   * anti-hallucination constraints, system-safe rules, forbidden assumptions.
+   * Cached for 5 minutes to avoid per-request DB hits.
+   */
+  private criticalCache: { data: SearchResult[]; expiry: number } | null = null
+
+  async getCriticalMemories(): Promise<SearchResult[]> {
+    if (this.criticalCache && Date.now() < this.criticalCache.expiry) {
+      return this.criticalCache.data
+    }
+
+    const rows = await this.db
+      .select()
+      .from(memories)
+      .where(eq(memories.tier, 'critical'))
+      .orderBy(desc(memories.confidence))
+
+    const results: SearchResult[] = rows.map((r) => ({
+      id: r.id,
+      key: r.key,
+      content: r.content,
+      tier: r.tier as MemoryTier,
+      score: 1.0, // critical memories always have max relevance
+      createdAt: r.createdAt ?? new Date(),
+    }))
+
+    this.criticalCache = { data: results, expiry: Date.now() + 5 * 60 * 1000 }
+    return results
   }
 
   /**
@@ -455,6 +487,8 @@ function getNextTier(current: MemoryTier): MemoryTier | null {
     case 'recall':
       return 'core'
     case 'core':
-      return null
+      return null // core does not auto-promote to critical
+    case 'critical':
+      return null // critical is the ceiling
   }
 }

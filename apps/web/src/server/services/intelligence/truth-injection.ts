@@ -24,6 +24,7 @@ import {
   buildModelGovernanceSnapshot,
   buildSandboxSnapshot,
   buildSubsystemSnapshot,
+  buildTaskTriageSnapshot,
   buildWorkspaceSnapshot,
 } from './snapshot-builders'
 
@@ -201,6 +202,12 @@ export function buildGroundedContext(
       }
       break
     }
+    case 'task_management': {
+      const triage = buildTaskTriageSnapshot()
+      truthBlocks.push(formatTaskTriageTruth(triage))
+      snapshotsUsed.push('task_triage')
+      break
+    }
     default:
       break
   }
@@ -288,6 +295,22 @@ function formatModelTruth(m: ReturnType<typeof buildModelGovernanceSnapshot>): s
 Default model: ${m.defaultModel}
 Primary route: ${m.primaryRoute}
 Providers configured: ${m.providersConfigured.join(', ') || 'none'}`
+}
+
+function formatTaskTriageTruth(t: ReturnType<typeof buildTaskTriageSnapshot>): string {
+  if (t.totalTickets === 0) return `## RUNTIME TRUTH: Task Triage\nNo tickets in system.`
+  const statusLines = Object.entries(t.byStatus)
+    .map(([s, n]) => `  ${s}: ${n}`)
+    .join('\n')
+  const priorityLines = Object.entries(t.byPriority)
+    .map(([p, n]) => `  ${p}: ${n}`)
+    .join('\n')
+  return `## RUNTIME TRUTH: Task Triage
+Total tickets: ${t.totalTickets}
+Blocked: ${t.blockedCount}
+By status:\n${statusLines || '  (none)'}
+By priority:\n${priorityLines || '  (none)'}
+Oldest unassigned: ${t.oldestUnassigned ?? 'none'}`
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
