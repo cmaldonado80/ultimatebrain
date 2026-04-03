@@ -599,7 +599,19 @@ export async function POST(req: Request) {
             {
               role: 'system',
               content:
-                targetAgentConfig.soul + atlasCtx + memoryContext + goalContext + stepInstinctCtx,
+                targetAgentConfig.soul +
+                '\n\nIMPORTANT: You have access to tools. Use them proactively to accomplish tasks. Key tools available:\n' +
+                '- file_system: Read, write, or list files (action: "read"|"write"|"list"|"exists", path: relative to project root)\n' +
+                '- memory_search: Search stored knowledge by query\n' +
+                '- memory_store: Save important findings for future reference\n' +
+                '- web_search: Search the internet for information\n' +
+                '- create_ticket: Create work tickets for the team\n' +
+                '- db_query: Query the database\n' +
+                'When asked to review code, read files, or analyze the project — USE the file_system tool. Do not say you cannot access files.\n' +
+                atlasCtx +
+                memoryContext +
+                goalContext +
+                stepInstinctCtx,
             },
             ...history,
             ...priorToolMessages,
@@ -813,7 +825,19 @@ export async function POST(req: Request) {
               {
                 role: 'system',
                 content:
-                  agentConfig.soul + atlasContext + memoryContext + goalContext + instinctContext,
+                  agentConfig.soul +
+                  '\n\nIMPORTANT: You have access to tools. Use them proactively to accomplish tasks. Key tools available:\n' +
+                  '- file_system: Read, write, or list files (action: "read"|"write"|"list"|"exists", path: relative to project root)\n' +
+                  '- memory_search: Search stored knowledge by query\n' +
+                  '- memory_store: Save important findings for future reference\n' +
+                  '- web_search: Search the internet for information\n' +
+                  '- create_ticket: Create work tickets for the team\n' +
+                  '- db_query: Query the database\n' +
+                  'When asked to review code, read files, or analyze the project — USE the file_system tool. Do not say you cannot access files.\n' +
+                  atlasContext +
+                  memoryContext +
+                  goalContext +
+                  instinctContext,
               },
               ...history,
             ]
