@@ -23,6 +23,7 @@ import { medicalAstrology } from '@solarc/ephemeris'
 import { generateNatalReport } from '@solarc/ephemeris'
 
 import { MemoryService } from '../memory/memory-service'
+import { generateDryRun, shouldDryRun } from './tool-dryrun'
 import { AGENT_TOOLS } from './tools/definitions'
 
 // Re-export for consumers
@@ -231,6 +232,25 @@ import {
 } from './loop-detection'
 import { auditCommand } from './sandbox-audit'
 
+/** Shared read-only SQL validation for db_query and data_analyze */
+function validateReadOnlySQL(sql: string): { valid: boolean; error?: string } {
+  if (!sql.trim().toLowerCase().startsWith('select')) {
+    return { valid: false, error: 'Only SELECT queries are allowed (read-only)' }
+  }
+  const stripped = sql.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '')
+  if (stripped.includes(';')) {
+    return { valid: false, error: 'Multiple statements are not allowed' }
+  }
+  if (
+    /\b(drop|delete|insert|update|alter|create|truncate|grant|revoke|exec|execute)\b/i.test(
+      stripped,
+    )
+  ) {
+    return { valid: false, error: 'Only read-only SELECT queries are allowed' }
+  }
+  return { valid: true }
+}
+
 /** Per-session tool call history for loop detection */
 const sessionHistories = new Map<string, ToolCallRecord[]>()
 
@@ -252,7 +272,7 @@ function recordToolAnalytics(
   success: boolean,
   durationMs: number,
 ): void {
-  const key = `${toolName}:${workspaceId}`
+  const key = `${toolName}||${workspaceId}`
   const stats = toolAnalytics.get(key) ?? {
     successCount: 0,
     failureCount: 0,
@@ -287,7 +307,7 @@ export function getToolAnalytics(workspaceId?: string): Array<{
   }> = []
 
   for (const [key, stats] of toolAnalytics) {
-    const [tool, ws] = key.split(':')
+    const [tool, ws] = key.split('||')
     if (workspaceId && ws !== workspaceId) continue
     const total = stats.successCount + stats.failureCount
     results.push({
@@ -319,10 +339,41 @@ export async function executeTool(
   toolInput: Record<string, unknown>,
   db?: Database,
   workspaceId?: string,
+  sessionId?: string,
 ): Promise<string> {
   try {
+    // ── Dry-run gate: check if tool should preview instead of execute ──
+    const agentId = (toolInput._agentId as string) ?? undefined
+    let agentCapabilityLevel: 'full' | 'reduced' | 'minimal' | 'suspended' = 'full'
+    try {
+      const { getCortex } = await import('../healing')
+      const cortex = getCortex()
+      agentCapabilityLevel = cortex?.degradation.getProfile(agentId ?? '')?.level ?? 'full'
+    } catch {
+      // Cortex unavailable — assume full capability
+    }
+
+    if (agentCapabilityLevel === 'suspended') {
+      return JSON.stringify({
+        error: 'Agent is suspended — tool execution blocked',
+        agentCapabilityLevel,
+      })
+    }
+
+    if (
+      shouldDryRun(toolName, {
+        agentCapabilityLevel,
+        forcePreview: Boolean(toolInput._dryRun),
+      })
+    ) {
+      const preview = generateDryRun(toolName, toolInput)
+      return JSON.stringify({ dryRun: true, ...preview })
+    }
+
     // Loop detection check (before execution)
-    const sessionKey = workspaceId ?? 'default'
+    const sessionKey = sessionId
+      ? `${sessionId}:${workspaceId ?? 'default'}`
+      : (workspaceId ?? 'default')
     const history = getHistory(sessionKey)
     const loopCheck = detectToolLoop(history, toolName, toolInput, DEFAULT_LOOP_CONFIG)
 
@@ -895,26 +946,12 @@ async function executeToolInner(
       case 'db_query': {
         if (!db) return JSON.stringify({ error: 'Database not available' })
         const sql = toolInput.sql as string
-        // Sandbox audit for SQL queries
         const sqlAudit = auditCommand(sql)
         if (sqlAudit.verdict === 'block') {
           return JSON.stringify({ error: `Query blocked by sandbox audit: ${sqlAudit.reason}` })
         }
-        const sqlNormalized = sql.trim().toLowerCase()
-        if (!sqlNormalized.startsWith('select')) {
-          return JSON.stringify({ error: 'Only SELECT queries are allowed (read-only)' })
-        }
-        // Block multiple statements (SQL injection via semicolons)
-        const sqlNoStrings = sql.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '')
-        if (sqlNoStrings.includes(';')) {
-          return JSON.stringify({ error: 'Multiple statements are not allowed' })
-        }
-        // Block dangerous keywords outside of string literals
-        const dangerousPattern =
-          /\b(drop|delete|insert|update|alter|create|truncate|grant|revoke|exec|execute)\b/i
-        if (dangerousPattern.test(sqlNoStrings)) {
-          return JSON.stringify({ error: 'Only read-only SELECT queries are allowed' })
-        }
+        const sqlCheck = validateReadOnlySQL(sql)
+        if (!sqlCheck.valid) return JSON.stringify({ error: sqlCheck.error })
         try {
           const result = await (db as any).execute(sql)
           const rows = result?.rows ?? []
@@ -980,18 +1017,8 @@ async function executeToolInner(
         if (!db) return JSON.stringify({ error: 'Database not available' })
         const sqlQ = toolInput.sql as string
         const question = toolInput.question as string
-        if (!sqlQ.trim().toLowerCase().startsWith('select')) {
-          return JSON.stringify({ error: 'Only SELECT queries allowed' })
-        }
-        const sqlQNoStrings = sqlQ.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '')
-        if (sqlQNoStrings.includes(';')) {
-          return JSON.stringify({ error: 'Multiple statements are not allowed' })
-        }
-        const dangerousQ =
-          /\b(drop|delete|insert|update|alter|create|truncate|grant|revoke|exec|execute)\b/i
-        if (dangerousQ.test(sqlQNoStrings)) {
-          return JSON.stringify({ error: 'Only read-only SELECT queries are allowed' })
-        }
+        const sqlQCheck = validateReadOnlySQL(sqlQ)
+        if (!sqlQCheck.valid) return JSON.stringify({ error: sqlQCheck.error })
         try {
           const result = await (db as any).execute(sqlQ)
           const rows = result?.rows ?? []
