@@ -11,6 +11,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
+export interface GatewayProviderHealth {
+  provider: string
+  total: number
+  errors: number
+  errorRate: number
+  avgLatencyMs: number | null
+}
+
 export interface NerveStreamState {
   connected: boolean
   cortex: {
@@ -36,6 +44,9 @@ export interface NerveStreamState {
     poolSize: number
     successRate: number
   } | null
+  gatewayHealth: {
+    providers: GatewayProviderHealth[]
+  } | null
   lastUpdate: number
 }
 
@@ -45,6 +56,7 @@ const INITIAL_STATE: NerveStreamState = {
   metrics: {},
   degradation: null,
   sandbox: null,
+  gatewayHealth: null,
   lastUpdate: 0,
 }
 
@@ -94,6 +106,11 @@ export function useNerveStream(enabled = true): NerveStreamState {
       es.addEventListener('sandbox_event', (e) => {
         const data = JSON.parse(e.data)
         setState((s) => ({ ...s, sandbox: data, lastUpdate: Date.now() }))
+      })
+
+      es.addEventListener('gateway_health', (e) => {
+        const data = JSON.parse(e.data)
+        setState((s) => ({ ...s, gatewayHealth: data, lastUpdate: Date.now() }))
       })
 
       es.onerror = () => {

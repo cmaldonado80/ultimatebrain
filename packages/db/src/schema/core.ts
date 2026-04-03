@@ -235,21 +235,6 @@ export const projects = pgTable('projects', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
-export const projectWorkspaces = pgTable(
-  'project_workspaces',
-  {
-    projectId: uuid('project_id')
-      .references(() => projects.id, { onDelete: 'cascade' })
-      .notNull(),
-    workspaceId: uuid('workspace_id')
-      .references(() => workspaces.id, { onDelete: 'cascade' })
-      .notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow(),
-  },
-  (t) => [primaryKey({ columns: [t.projectId, t.workspaceId] })],
-)
-
 export const projectLog = pgTable(
   'project_log',
   {

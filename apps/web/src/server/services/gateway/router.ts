@@ -986,6 +986,7 @@ export class GatewayRouter {
       // 1. Check rate limits
       const rateCheck = this.rateLimiter.tryConsume({
         agentId: input.agentId,
+        workspaceId: input.workspaceId,
         estimatedTokens: this.estimateTokens(messages),
       })
       if (!rateCheck.allowed) {

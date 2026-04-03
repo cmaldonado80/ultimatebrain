@@ -38,8 +38,8 @@ function getVaultSecret(): string {
   )
 }
 
-/** Encrypt a plaintext API key. Returns base64-encoded ciphertext (salt:iv:tag:encrypted). */
-function encrypt(plaintext: string): string {
+/** Encrypt a plaintext string. Returns base64-encoded ciphertext (salt:iv:tag:encrypted). */
+export function encrypt(plaintext: string): string {
   const secret = getVaultSecret()
   const salt = randomBytes(SALT_LENGTH)
   const key = deriveKey(secret, salt)
@@ -53,8 +53,8 @@ function encrypt(plaintext: string): string {
   return Buffer.concat([salt, iv, tag, encrypted]).toString('base64')
 }
 
-/** Decrypt a base64-encoded ciphertext. Returns plaintext API key. */
-function decrypt(encoded: string): string {
+/** Decrypt a base64-encoded ciphertext. Returns plaintext string. */
+export function decrypt(encoded: string): string {
   const secret = getVaultSecret()
   const data = Buffer.from(encoded, 'base64')
 

@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@solarc/brain-client": "workspace:*",
     "@solarc/db": "workspace:*",
     "@solarc/engine-contracts": "workspace:*",
     "@solarc/ephemeris": "workspace:*",

@@ -2,7 +2,7 @@
  * Engagement API — track user's last-seen state per chart.
  */
 
-import { callBrainTRPC } from '../../../../lib/astrology/brain-api'
+import { callBrainTRPC } from '@solarc/brain-client'
 
 export async function GET(req: Request) {
   try {

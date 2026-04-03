@@ -2,7 +2,7 @@
  * Shared Resource API — public endpoint for viewing shared reports/relationships.
  */
 
-import { callBrainTRPC } from '../../../../../lib/astrology/brain-api'
+import { callBrainTRPC } from '@solarc/brain-client'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   try {

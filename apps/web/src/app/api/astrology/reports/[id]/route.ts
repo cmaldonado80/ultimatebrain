@@ -2,7 +2,7 @@
  * Report Detail API — get a single saved report.
  */
 
-import { callBrainTRPC } from '../../../../../lib/astrology/brain-api'
+import { callBrainTRPC } from '@solarc/brain-client'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {

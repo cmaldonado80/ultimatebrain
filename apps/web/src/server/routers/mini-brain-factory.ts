@@ -12,6 +12,7 @@ import {
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
+import { decrypt, encrypt } from '../services/gateway/key-vault'
 import { MiniBrainFactory, type MiniBrainTemplate } from '../services/mini-brain-factory/factory'
 import { createNeonBranch, deleteNeonBranch, maskConnectionUri } from '../services/neon/neon-api'
 import { getAgentSoul } from '../services/orchestration/agents'
@@ -488,8 +489,10 @@ export const miniBrainFactoryRouter = router({
       const neonConfig = config.neon as { branchId?: string } | undefined
 
       return {
-        provisioned: !!entity.databaseUrl,
-        host: entity.databaseUrl ? maskConnectionUri(entity.databaseUrl) : null,
+        provisioned: !!entity.encryptedDatabaseUrl,
+        host: entity.encryptedDatabaseUrl
+          ? maskConnectionUri(decrypt(entity.encryptedDatabaseUrl))
+          : null,
         branchId: neonConfig?.branchId ?? null,
         neonAvailable,
       }
@@ -513,7 +516,8 @@ export const miniBrainFactoryRouter = router({
         where: eq(brainEntities.id, input.entityId),
       })
       if (!entity) throw new Error('Entity not found')
-      if (entity.databaseUrl) throw new Error('Database already provisioned for this entity')
+      if (entity.encryptedDatabaseUrl)
+        throw new Error('Database already provisioned for this entity')
 
       // Set provisioning status
       await ctx.db
@@ -534,7 +538,7 @@ export const miniBrainFactoryRouter = router({
         await ctx.db
           .update(brainEntities)
           .set({
-            databaseUrl: result.connectionUri,
+            encryptedDatabaseUrl: encrypt(result.connectionUri),
             status: 'active',
             config: {
               ...existingConfig,
@@ -597,7 +601,7 @@ export const miniBrainFactoryRouter = router({
       await ctx.db
         .update(brainEntities)
         .set({
-          databaseUrl: null,
+          encryptedDatabaseUrl: null,
           config: Object.keys(restConfig).length > 0 ? restConfig : null,
         })
         .where(eq(brainEntities.id, input.entityId))

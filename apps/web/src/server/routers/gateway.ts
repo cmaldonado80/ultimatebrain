@@ -148,6 +148,32 @@ export const gatewayRouter = router({
       return gw.rateLimiter.getAgentCapacity(input.agentId)
     }),
 
+  /** Set rate limit for a workspace */
+  setWorkspaceLimit: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        maxTokens: z.number().positive(),
+        refillRatePerSecond: z.number().positive(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const gw = getGateway(ctx.db)
+      gw.rateLimiter.setWorkspaceLimit(input.workspaceId, {
+        maxTokens: input.maxTokens,
+        refillRatePerSecond: input.refillRatePerSecond,
+      })
+      return { success: true }
+    }),
+
+  /** Get rate limit capacity for a workspace */
+  workspaceLimitStatus: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const gw = getGateway(ctx.db)
+      return gw.rateLimiter.getWorkspaceCapacity(input.workspaceId)
+    }),
+
   /** Store an API key (encrypted) */
   storeKey: protectedProcedure
     .input(

@@ -24,7 +24,7 @@ import { SectionCard } from '../../../components/ui/section-card'
 import { Sparkline } from '../../../components/ui/sparkline'
 import { StatCard } from '../../../components/ui/stat-card'
 import { StatusBadge } from '../../../components/ui/status-badge'
-import { useNerveStream } from '../../../hooks/use-nerve-stream'
+import { type GatewayProviderHealth, useNerveStream } from '../../../hooks/use-nerve-stream'
 import { trpc } from '../../../utils/trpc'
 
 // ── Refresh intervals ────────────────────────────────────────────────────
@@ -325,6 +325,7 @@ export default function NerveCenterPage() {
           tuning={tuning}
           audit={audit}
           streamMetrics={stream.metrics}
+          gatewayHealth={stream.gatewayHealth}
         />
       )}
       {activeTab === 'agents' && <AgentGridTab degradations={degradations} />}
@@ -340,8 +341,10 @@ function PulseTab({
   tuning,
   audit,
   streamMetrics,
+  gatewayHealth,
 }: {
   streamMetrics: Record<string, number[]>
+  gatewayHealth: { providers: GatewayProviderHealth[] } | null
   predictive:
     | {
         trends: Array<{
@@ -523,6 +526,49 @@ function PulseTab({
           )}
         </SectionCard>
       </PageGrid>
+
+      {/* Gateway Health */}
+      <SectionCard title="Gateway Health" variant="intelligence">
+        {!gatewayHealth || gatewayHealth.providers.length === 0 ? (
+          <p className="text-slate-500 text-sm">
+            No gateway data yet. Provider metrics will appear after the first LLM request.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {gatewayHealth.providers.map((provider) => (
+              <div
+                key={provider.provider}
+                className="p-3 rounded-lg bg-bg-surface/50 border border-border-dim"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-slate-200">{provider.provider}</span>
+                  <span
+                    className={`text-xs font-bold ${
+                      provider.errorRate >= 20
+                        ? 'text-neon-red'
+                        : provider.errorRate >= 5
+                          ? 'text-neon-yellow'
+                          : 'text-neon-green'
+                    }`}
+                  >
+                    {provider.errorRate.toFixed(1)}% err
+                  </span>
+                </div>
+                <div className="flex gap-4 text-[10px] text-slate-500">
+                  <span>Requests: {provider.total}</span>
+                  <span>Errors: {provider.errors}</span>
+                  <span>
+                    Latency:{' '}
+                    {provider.avgLatencyMs !== null
+                      ? `${Math.round(provider.avgLatencyMs)}ms`
+                      : '—'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
     </div>
   )
 }

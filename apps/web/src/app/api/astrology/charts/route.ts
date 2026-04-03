@@ -5,7 +5,7 @@
  * GET /api/charts — list saved charts (calls Brain tRPC astrology.listCharts)
  */
 
-import { callBrainTRPC } from '../../../../lib/astrology/brain-api'
+import { callBrainTRPC } from '@solarc/brain-client'
 
 export async function POST(req: Request) {
   try {

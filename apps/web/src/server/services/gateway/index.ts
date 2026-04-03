@@ -5,7 +5,7 @@ export {
   type CircuitState,
 } from './circuit-breaker'
 export { type BudgetConfig, type CostResult, CostTracker, type UsageSummary } from './cost-tracker'
-export { KeyVault } from './key-vault'
+export { decrypt, encrypt, KeyVault } from './key-vault'
 export { type RateLimitConfig, RateLimiter } from './rate-limiter'
 export {
   type GatewayConfig,

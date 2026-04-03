@@ -112,7 +112,7 @@ export default function EntityDetailPage() {
     status: string
     parentId: string | null
     enginesEnabled: string[] | null
-    databaseUrl: string | null
+    encryptedDatabaseUrl: string | null
     lastHealthCheck: Date | null
     config: Record<string, unknown> | null
     createdAt: Date

@@ -11,6 +11,7 @@ import type { Database } from '@solarc/db'
 import { brainEntities, deploymentWorkflows, incidents } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
+import { encrypt } from '../gateway/key-vault'
 import { createNeonBranch } from '../neon/neon-api'
 import { auditEvent } from './audit'
 import { createSecret } from './secret-manager'
@@ -439,7 +440,7 @@ async function executeProvisionDb(
   if (!entity) throw new Error('Entity not found')
 
   // Skip if already provisioned
-  if (entity.databaseUrl) {
+  if (entity.encryptedDatabaseUrl) {
     return { skipped: true, reason: 'Database already provisioned' }
   }
 
@@ -457,7 +458,7 @@ async function executeProvisionDb(
   await db
     .update(brainEntities)
     .set({
-      databaseUrl: result.connectionUri,
+      encryptedDatabaseUrl: encrypt(result.connectionUri),
       config: {
         ...((entity.config as Record<string, unknown>) ?? {}),
         neon: {
@@ -495,7 +496,7 @@ async function executeConfigure(
       (process.env.BRAIN_URL ?? process.env.NEXT_PUBLIC_APP_URL)
         ? `${process.env.NEXT_PUBLIC_APP_URL}/api/brain`
         : 'http://localhost:3000/api/brain',
-    DATABASE_URL: entity.databaseUrl ? '(provisioned)' : '(not provisioned)',
+    DATABASE_URL: entity.encryptedDatabaseUrl ? '(provisioned)' : '(not provisioned)',
     DOMAIN_NAME: entity.domain ?? 'unknown',
     PORT: '3100',
     APP_SECRET: appSecretResult.plaintextKey,

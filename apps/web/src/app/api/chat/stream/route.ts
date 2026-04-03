@@ -23,6 +23,7 @@ import {
 } from '../../../../server/services/chat/context-compactor'
 import { AGENT_TOOLS, executeTool } from '../../../../server/services/chat/tool-executor'
 import { GatewayRouter } from '../../../../server/services/gateway'
+import { decrypt } from '../../../../server/services/gateway/key-vault'
 import { GuardrailEngine } from '../../../../server/services/guardrails'
 import { sanitizeContext } from '../../../../server/services/guardrails/input-scanner'
 import { InstinctInjector } from '../../../../server/services/instincts/injector'
@@ -146,8 +147,8 @@ async function loadAgentConfig(db: Database, gateway: GatewayRouter, agentId: st
       const entity = await db.query.brainEntities.findFirst({
         where: eq(brainEntities.id, entityLink.entityId),
       })
-      if (entity?.databaseUrl) {
-        entityDatabaseUrl = entity.databaseUrl
+      if (entity?.encryptedDatabaseUrl) {
+        entityDatabaseUrl = decrypt(entity.encryptedDatabaseUrl)
       }
     }
   } catch {

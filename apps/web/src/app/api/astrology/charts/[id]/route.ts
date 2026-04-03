@@ -2,7 +2,7 @@
  * Chart Detail API — get or delete a single chart.
  */
 
-import { callBrainTRPC } from '../../../../../lib/astrology/brain-api'
+import { callBrainTRPC } from '@solarc/brain-client'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {

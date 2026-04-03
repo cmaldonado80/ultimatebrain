@@ -2,7 +2,7 @@
  * Share API — create a share link for a report or relationship.
  */
 
-import { callBrainTRPC } from '../../../../lib/astrology/brain-api'
+import { callBrainTRPC } from '@solarc/brain-client'
 
 export async function POST(req: Request) {
   try {

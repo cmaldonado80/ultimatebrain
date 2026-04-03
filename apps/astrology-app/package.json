@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@solarc/brain-client": "workspace:*",
     "jose": "^6.0.0",
     "next": "^15.1.0",
     "react": "^19.0.0",

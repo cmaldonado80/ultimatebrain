@@ -60,7 +60,7 @@ export default function DatabasesPage() {
     name: string
     tier: string
     status: string
-    databaseUrl?: string | null
+    encryptedDatabaseUrl?: string | null
     domain?: string | null
   }>
 
@@ -110,7 +110,7 @@ export default function DatabasesPage() {
               </thead>
               <tbody>
                 {entities.map((entity) => {
-                  const hasDb = !!entity.databaseUrl
+                  const hasDb = !!entity.encryptedDatabaseUrl
                   const isSelected = selectedEntityId === entity.id
                   return (
                     <tr

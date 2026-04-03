@@ -19,6 +19,7 @@ export const LlmChatInput = z.object({
   maxTokens: z.number().min(1).max(200000).optional(),
   agentId: z.string().uuid().optional(),
   ticketId: z.string().uuid().optional(),
+  workspaceId: z.string().uuid().optional(),
 })
 export type LlmChatInput = z.infer<typeof LlmChatInput>
 

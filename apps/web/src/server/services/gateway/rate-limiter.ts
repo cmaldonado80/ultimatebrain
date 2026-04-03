@@ -46,11 +46,7 @@ export class RateLimiter {
     this.workspaceBuckets.delete(workspaceId)
   }
 
-  private getBucket(
-    buckets: Map<string, Bucket>,
-    id: string,
-    config: RateLimitConfig,
-  ): Bucket {
+  private getBucket(buckets: Map<string, Bucket>, id: string, config: RateLimitConfig): Bucket {
     let bucket = buckets.get(id)
     if (!bucket) {
       bucket = {
@@ -123,6 +119,22 @@ export class RateLimiter {
     }
 
     return { allowed: true }
+  }
+
+  /** Get remaining capacity for a workspace (for dashboard display) */
+  getWorkspaceCapacity(workspaceId: string): {
+    remaining: number
+    max: number
+    percentUsed: number
+  } {
+    const config = this.workspaceConfigs.get(workspaceId) ?? DEFAULT_WORKSPACE_LIMIT
+    const bucket = this.getBucket(this.workspaceBuckets, workspaceId, config)
+    this.refill(bucket)
+    return {
+      remaining: Math.floor(bucket.tokens),
+      max: bucket.maxTokens,
+      percentUsed: Math.round(((bucket.maxTokens - bucket.tokens) / bucket.maxTokens) * 100),
+    }
   }
 
   /** Get remaining capacity for an agent (for dashboard display) */

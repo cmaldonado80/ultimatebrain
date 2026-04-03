@@ -2,7 +2,7 @@
  * Relationships Persistence API — save and list synastry analyses.
  */
 
-import { callBrainTRPC } from '../../../../lib/astrology/brain-api'
+import { callBrainTRPC } from '@solarc/brain-client'
 
 export async function POST(req: Request) {
   try {

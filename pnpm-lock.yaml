@@ -44,6 +44,9 @@ importers:
 
   apps/astrology-app:
     dependencies:
+      '@solarc/brain-client':
+        specifier: workspace:*
+        version: link:../../packages/brain-client
       jose:
         specifier: ^6.0.0
         version: 6.2.2
@@ -92,55 +95,11 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
-  apps/legal-app:
-    dependencies:
-      jose:
-        specifier: ^6.0.0
-        version: 6.2.2
-      next:
-        specifier: ^15.1.0
-        version: 15.5.14(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react:
-        specifier: ^19.0.0
-        version: 19.2.4
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.2.4(react@19.2.4)
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.15
-      '@types/react':
-        specifier: ^19.0.0
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: ^19.0.0
-        version: 19.2.3(@types/react@19.2.14)
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-
-  apps/legal-brain:
-    dependencies:
-      '@solarc/brain-sdk':
-        specifier: workspace:*
-        version: link:../../packages/brain-sdk
-      '@solarc/mini-brain-server':
-        specifier: workspace:*
-        version: link:../../packages/mini-brain-server
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.15
-      tsx:
-        specifier: ^4.19.0
-        version: 4.21.0
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-
   apps/web:
     dependencies:
+      '@solarc/brain-client':
+        specifier: workspace:*
+        version: link:../../packages/brain-client
       '@solarc/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -168,9 +127,6 @@ importers:
       drizzle-orm:
         specifier: ^0.38.0
         version: 0.38.4(@types/pg@8.20.0)(@types/react@19.2.14)(pg@8.20.0)(react@19.2.4)
-      elkjs:
-        specifier: ^0.11.1
-        version: 0.11.1
       jose:
         specifier: ^6.2.2
         version: 6.2.2
@@ -201,9 +157,6 @@ importers:
       zod:
         specifier: ^3.24.0
         version: 3.25.76
-      zustand:
-        specifier: ^5.0.12
-        version: 5.0.12(@types/react@19.2.14)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.2.2
@@ -249,6 +202,12 @@ importers:
       tsx:
         specifier: ^4.19.0
         version: 4.21.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  packages/brain-client:
+    devDependencies:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -2058,9 +2017,6 @@ packages:
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
     engines: {node: '>= 0.4'}
-
-  elkjs@0.11.1:
-    resolution: {integrity: sha512-zxxR9k+rx5ktMwT/FwyLdPCrq7xN6e4VGGHH8hA01vVYKjTFik7nHOxBnAYtrgYUB1RpAiLvA1/U2YraWxyKKg==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -3927,24 +3883,6 @@ packages:
       react:
         optional: true
 
-  zustand@5.0.12:
-    resolution: {integrity: sha512-i77ae3aZq4dhMlRhJVCYgMLKuSiZAaUPAct2AksxQ+gOtimhGMdXljRT21P5BNpeT4kXlLIckvkPM029OljD7g==}
-    engines: {node: '>=12.20.0'}
-    peerDependencies:
-      '@types/react': '>=18.0.0'
-      immer: '>=9.0.6'
-      react: '>=18.0.0'
-      use-sync-external-store: '>=1.2.0'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      immer:
-        optional: true
-      react:
-        optional: true
-      use-sync-external-store:
-        optional: true
-
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
@@ -5222,8 +5160,6 @@ snapshots:
       call-bind-apply-helpers: 1.0.2
       es-errors: 1.3.0
       gopd: 1.2.0
-
-  elkjs@0.11.1: {}
 
   emoji-regex@10.6.0: {}
 
@@ -7663,11 +7599,5 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.14
       react: 19.2.4
-
-  zustand@5.0.12(@types/react@19.2.14)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)):
-    optionalDependencies:
-      '@types/react': 19.2.14
-      react: 19.2.4
-      use-sync-external-store: 1.6.0(react@19.2.4)
 
   zwitch@2.0.4: {}

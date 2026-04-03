@@ -7,11 +7,11 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 
-export function middleware(req: NextRequest) {
-  const token = req.cookies.get('astro-session')
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('session-token')
 
   // Allow auth routes, static assets, and the signin page
-  const { pathname } = req.nextUrl
+  const { pathname } = request.nextUrl
   if (
     pathname.startsWith('/signin') ||
     pathname.startsWith('/share') ||
@@ -23,9 +23,11 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Redirect to signin if no session
+  // Redirect to Brain's signin if no session
   if (!token) {
-    return NextResponse.redirect(new URL('/signin', req.url))
+    const brainUrl = process.env.BRAIN_URL ?? 'http://localhost:3000'
+    const signinUrl = `${brainUrl}/signin?callbackUrl=${encodeURIComponent(request.url)}`
+    return NextResponse.redirect(signinUrl)
   }
 
   return NextResponse.next()
