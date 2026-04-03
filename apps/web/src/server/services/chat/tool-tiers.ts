@@ -73,14 +73,7 @@ const TOOL_CLASSIFICATIONS: Record<string, ToolClassification> = {
     fileAccess: false,
     dryRunnable: false,
   },
-  ephemeris_houses: {
-    tier: 'safe',
-    destructive: false,
-    networkAccess: false,
-    fileAccess: false,
-    dryRunnable: false,
-  },
-  ephemeris_annual_profections: {
+  ephemeris_profections: {
     tier: 'safe',
     destructive: false,
     networkAccess: false,
@@ -94,14 +87,14 @@ const TOOL_CLASSIFICATIONS: Record<string, ToolClassification> = {
     fileAccess: false,
     dryRunnable: false,
   },
-  ephemeris_vimshottari_dasha: {
+  ephemeris_dasha: {
     tier: 'safe',
     destructive: false,
     networkAccess: false,
     fileAccess: false,
     dryRunnable: false,
   },
-  ephemeris_secondary_progressions: {
+  ephemeris_progressions: {
     tier: 'safe',
     destructive: false,
     networkAccess: false,
@@ -115,7 +108,7 @@ const TOOL_CLASSIFICATIONS: Record<string, ToolClassification> = {
     fileAccess: false,
     dryRunnable: false,
   },
-  ephemeris_aspect_patterns: {
+  ephemeris_patterns: {
     tier: 'safe',
     destructive: false,
     networkAccess: false,
@@ -136,14 +129,7 @@ const TOOL_CLASSIFICATIONS: Record<string, ToolClassification> = {
     fileAccess: false,
     dryRunnable: false,
   },
-  ephemeris_fixed_star_conjunctions: {
-    tier: 'safe',
-    destructive: false,
-    networkAccess: false,
-    fileAccess: false,
-    dryRunnable: false,
-  },
-  ephemeris_dispositor_chain: {
+  ephemeris_dispositors: {
     tier: 'safe',
     destructive: false,
     networkAccess: false,
@@ -171,7 +157,21 @@ const TOOL_CLASSIFICATIONS: Record<string, ToolClassification> = {
     fileAccess: false,
     dryRunnable: false,
   },
-  ephemeris_natal_report: {
+  ephemeris_report: {
+    tier: 'safe',
+    destructive: false,
+    networkAccess: false,
+    fileAccess: false,
+    dryRunnable: false,
+  },
+  ephemeris_horary: {
+    tier: 'safe',
+    destructive: false,
+    networkAccess: false,
+    fileAccess: false,
+    dryRunnable: false,
+  },
+  ephemeris_electional: {
     tier: 'safe',
     destructive: false,
     networkAccess: false,
@@ -239,6 +239,13 @@ const TOOL_CLASSIFICATIONS: Record<string, ToolClassification> = {
   file_write: {
     tier: 'privileged',
     destructive: true,
+    networkAccess: false,
+    fileAccess: true,
+    dryRunnable: true,
+  },
+  file_system: {
+    tier: 'privileged',
+    destructive: true, // can write/delete files
     networkAccess: false,
     fileAccess: true,
     dryRunnable: true,
