@@ -30,6 +30,9 @@ export interface TrendAnalysis {
   anomalyScore: number // 0-1, higher = more anomalous
   predictedBreachIn: number | null // ms until threshold breach, null = safe
   confidence: number // 0-1
+  // Percentile-based anomaly detection (stolen from TimesFM's quantile approach)
+  percentiles: { p10: number; p50: number; p90: number }
+  percentileAnomaly: boolean // current outside P10-P90 band
 }
 
 export interface PredictiveReport {
@@ -139,6 +142,24 @@ function rollingStdDev(samples: MetricSample[], mean: number): number {
   return Math.sqrt(variance)
 }
 
+/**
+ * Compute percentiles from samples (stolen from TimesFM's quantile approach).
+ * Uses linear interpolation for sub-sample precision.
+ */
+function computePercentiles(samples: MetricSample[]): { p10: number; p50: number; p90: number } {
+  if (samples.length === 0) return { p10: 0, p50: 0, p90: 0 }
+  const sorted = samples.map((s) => s.value).sort((a, b) => a - b)
+  const percentile = (p: number) => {
+    const idx = (p / 100) * (sorted.length - 1)
+    const lo = Math.floor(idx)
+    const hi = Math.ceil(idx)
+    if (lo === hi) return sorted[lo]!
+    const frac = idx - lo
+    return sorted[lo]! * (1 - frac) + sorted[hi]! * frac
+  }
+  return { p10: percentile(10), p50: percentile(50), p90: percentile(90) }
+}
+
 // ── Predictive Engine ────────────────────────────────────────────────────
 
 export class PredictiveHealingEngine {
@@ -231,6 +252,10 @@ export class PredictiveHealingEngine {
         }
       }
 
+      // Percentile-based anomaly detection
+      const percentiles = computePercentiles(samples)
+      const percentileAnomaly = current < percentiles.p10 || current > percentiles.p90
+
       trends.push({
         metric,
         slope,
@@ -239,6 +264,8 @@ export class PredictiveHealingEngine {
         anomalyScore,
         predictedBreachIn,
         confidence: r2,
+        percentiles,
+        percentileAnomaly,
       })
     }
 
@@ -275,6 +302,20 @@ export class PredictiveHealingEngine {
           reason: `Anomalous spike in ${trend.metric}: ${trend.current.toFixed(3)} vs baseline ${trend.baseline.toFixed(3)} (${(trend.anomalyScore * 100).toFixed(0)}% anomaly score)`,
           urgency: trend.anomalyScore > 0.9 ? 'immediate' : 'soon',
           estimatedImpact: 'Early detection of emerging issue',
+        })
+      }
+
+      // Percentile-based anomaly (stolen from TimesFM's quantile approach)
+      // More robust than σ-based: works on non-Gaussian distributions
+      if (trend.percentileAnomaly && trend.slope > 0) {
+        const { p10, p90 } = trend.percentiles
+        const side = trend.current > p90 ? 'above P90' : 'below P10'
+        interventions.push({
+          metric: trend.metric,
+          action: this.actionForMetric(trend.metric),
+          reason: `${trend.metric} is ${side}: ${trend.current.toFixed(3)} outside [${p10.toFixed(3)}, ${p90.toFixed(3)}] band`,
+          urgency: trend.current > p90 * 1.5 ? 'immediate' : 'soon',
+          estimatedImpact: 'Percentile band breach — statistically unusual behavior',
         })
       }
     }

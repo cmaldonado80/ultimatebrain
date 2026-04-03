@@ -55,53 +55,48 @@ export interface PolicyCheckResult {
   policy: string // which policy blocked/warned
 }
 
-// ── Default Policies ─────────────────────────────────────────────────────
+// ── Declarative Policy Loading ────────────────────────────────────────────
+// Policies loaded from JSON config files (stolen from ClawLess YAML pattern).
+// This makes policies editable by non-engineers.
 
-const ORG_DEFAULT_POLICY: SandboxPolicy = {
-  id: 'org_default',
-  name: 'Organization Default',
-  scope: 'org',
-  scopeId: 'brain',
-  allowedTools: [],
-  deniedTools: ['docker_manage', 'shell_exec'], // dangerous by default
-  blockedCommands: [],
-  warnCommands: [],
-  allowedDomains: [],
-  deniedDomains: [],
-  maxRequestsPerMinute: 30,
-  allowedPaths: [],
-  deniedPaths: ['/etc/*', '/root/*', '/proc/*', '/sys/*'],
-  maxFileSizeBytes: 10 * 1024 * 1024, // 10MB
-  resourceOverrides: {},
+import departmentConfigs from './policies/departments.json'
+import orgDefaultConfig from './policies/org-default.json'
+
+function buildOrgDefault(): SandboxPolicy {
+  return {
+    id: orgDefaultConfig.id,
+    name: orgDefaultConfig.name,
+    scope: 'org',
+    scopeId: 'brain',
+    allowedTools: orgDefaultConfig.allowedTools,
+    deniedTools: orgDefaultConfig.deniedTools,
+    blockedCommands: [],
+    warnCommands: [],
+    allowedDomains: orgDefaultConfig.allowedDomains,
+    deniedDomains: orgDefaultConfig.deniedDomains,
+    maxRequestsPerMinute: orgDefaultConfig.maxRequestsPerMinute,
+    allowedPaths: orgDefaultConfig.allowedPaths,
+    deniedPaths: orgDefaultConfig.deniedPaths,
+    maxFileSizeBytes: orgDefaultConfig.maxFileSizeBytes,
+    resourceOverrides: orgDefaultConfig.resourceOverrides,
+  }
 }
 
-const DEPARTMENT_POLICIES: Record<string, Partial<SandboxPolicy>> = {
-  engineering: {
-    deniedTools: [], // engineering gets all tools
-    maxRequestsPerMinute: 60,
-    allowedDomains: [], // unrestricted
-    resourceOverrides: { maxCpuTimeMs: 60000, timeoutMs: 120000 },
-  },
-  design: {
-    deniedTools: ['db_query', 'docker_manage', 'shell_exec'],
-    allowedDomains: [], // unrestricted for fetching assets
-    resourceOverrides: { maxOutputBytes: 5 * 1024 * 1024 }, // 5MB for images
-  },
-  'soc-ops': {
-    deniedTools: [],
-    maxRequestsPerMinute: 100, // security needs high throughput
-    resourceOverrides: { maxNetworkCalls: 50, maxCpuTimeMs: 45000 },
-  },
-  marketing: {
-    deniedTools: ['db_query', 'docker_manage', 'shell_exec', 'git_operations'],
-    maxRequestsPerMinute: 20,
-  },
-  healthcare: {
-    deniedTools: ['docker_manage', 'shell_exec', 'web_scrape'],
-    deniedDomains: ['*.social', '*.dating'], // compliance
-    resourceOverrides: { maxOutputBytes: 512 * 1024 }, // limit data exposure
-  },
-}
+const ORG_DEFAULT_POLICY: SandboxPolicy = buildOrgDefault()
+
+const DEPARTMENT_POLICIES: Record<string, Partial<SandboxPolicy>> = Object.fromEntries(
+  Object.entries(departmentConfigs as Record<string, Record<string, unknown>>).map(
+    ([key, config]) => [
+      key,
+      {
+        deniedTools: (config.deniedTools as string[]) ?? undefined,
+        deniedDomains: (config.deniedDomains as string[]) ?? undefined,
+        maxRequestsPerMinute: (config.maxRequestsPerMinute as number) ?? undefined,
+        resourceOverrides: (config.resourceOverrides as Record<string, number>) ?? undefined,
+      },
+    ],
+  ),
+)
 
 // ── Policy Engine ────────────────────────────────────────────────────────
 

@@ -1,0 +1,53 @@
+{
+  "engineering": {
+    "description": "Full access for software engineering. All tools available, extended timeouts.",
+    "deniedTools": [],
+    "maxRequestsPerMinute": 60,
+    "resourceOverrides": {
+      "maxCpuTimeMs": 60000,
+      "timeoutMs": 120000
+    }
+  },
+  "design": {
+    "description": "Design & UX department. No DB or system access, extended output for assets.",
+    "deniedTools": ["db_query", "docker_manage", "shell_exec"],
+    "resourceOverrides": {
+      "maxOutputBytes": 5242880
+    }
+  },
+  "soc-ops": {
+    "description": "Security operations. High throughput for scanning and monitoring.",
+    "deniedTools": [],
+    "maxRequestsPerMinute": 100,
+    "resourceOverrides": {
+      "maxNetworkCalls": 50,
+      "maxCpuTimeMs": 45000
+    }
+  },
+  "marketing": {
+    "description": "Marketing department. Limited to content tools, no infrastructure access.",
+    "deniedTools": ["db_query", "docker_manage", "shell_exec", "git_operations"],
+    "maxRequestsPerMinute": 20
+  },
+  "healthcare": {
+    "description": "Healthcare/compliance. Restricted data access, no web scraping.",
+    "deniedTools": ["docker_manage", "shell_exec", "web_scrape"],
+    "deniedDomains": ["*.social", "*.dating"],
+    "resourceOverrides": {
+      "maxOutputBytes": 524288
+    }
+  },
+  "astrology": {
+    "description": "Astrology domain. Ephemeris access, limited external tools.",
+    "deniedTools": ["docker_manage", "shell_exec"],
+    "maxRequestsPerMinute": 40,
+    "resourceOverrides": {
+      "maxCpuTimeMs": 45000
+    }
+  },
+  "hospitality": {
+    "description": "Hotel/hospitality management. Standard access with booking tools.",
+    "deniedTools": ["docker_manage", "shell_exec"],
+    "maxRequestsPerMinute": 30
+  }
+}

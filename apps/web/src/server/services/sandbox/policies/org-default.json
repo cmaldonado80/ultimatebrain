@@ -1,0 +1,15 @@
+{
+  "id": "org_default",
+  "name": "Organization Default Policy",
+  "scope": "org",
+  "description": "Base security policy for all agents. Department and agent policies layer on top.",
+  "deniedTools": ["docker_manage", "shell_exec"],
+  "allowedTools": [],
+  "deniedDomains": [],
+  "allowedDomains": [],
+  "deniedPaths": ["/etc/*", "/root/*", "/proc/*", "/sys/*"],
+  "allowedPaths": [],
+  "maxRequestsPerMinute": 30,
+  "maxFileSizeBytes": 10485760,
+  "resourceOverrides": {}
+}
