@@ -99,7 +99,10 @@ export class SelfHealingCortex {
   private totalRecoveries = 0
   private totalDegradations = 0
 
+  private readonly db: Database
+
   constructor(db: Database) {
+    this.db = db
     this.healer = new HealingEngine(db)
     this.predictor = new PredictiveHealingEngine(db)
     this.recovery = new RecoveryExecutor(db)
@@ -154,19 +157,21 @@ export class SelfHealingCortex {
         trigger: string
       }> = []
 
-      // Queue agent recovery plans for error agents that base healing couldn't fix
-      const failedRestarts = healingActions.filter(
-        (a) => a.action === 'restart_agent' && !a.success,
-      )
-      for (const failed of failedRestarts) {
+      // Queue agent recovery plans for agents that are still in error after base healing
+      const { agents: agentsTable } = await import('@solarc/db')
+      const { eq: eqOp } = await import('drizzle-orm')
+      const stillErrorAgents = await this.db.query.agents.findMany({
+        where: eqOp(agentsTable.status, 'error'),
+      })
+      for (const agent of stillErrorAgents) {
         const plan = createAgentRecoveryPlan(
-          failed.target,
-          failed.target,
+          agent.id,
+          agent.name,
           (id, reason) => this.healer.restartAgent(id, reason),
           async () => true, // reassign stub
           async () => true, // suspend stub
         )
-        recoveryPlans.push({ plan, trigger: `Failed restart: ${failed.target}` })
+        recoveryPlans.push({ plan, trigger: `Failed restart: ${agent.name}` })
       }
 
       // Queue ticket recovery for stuck tickets mentioned in predictive report

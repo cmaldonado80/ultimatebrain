@@ -35,8 +35,8 @@ export {
 let _cortex: import('./cortex').SelfHealingCortex | null = null
 let _healer: import('./healing-engine').HealingEngine | null = null
 
-export function initCortex(db: Database) {
-  const { SelfHealingCortex: Cortex } = require('./cortex') as typeof import('./cortex')
+export async function initCortex(db: Database) {
+  const { SelfHealingCortex: Cortex } = await import('./cortex')
   _cortex = new Cortex(db)
   _healer = _cortex.healer
   return _cortex

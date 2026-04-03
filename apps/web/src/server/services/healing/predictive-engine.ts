@@ -223,7 +223,7 @@ export class PredictiveHealingEngine {
       // Predict breach time
       const threshold = METRIC_THRESHOLDS[metric]
       let predictedBreachIn: number | null = null
-      if (threshold !== undefined && slope > 0 && current < threshold) {
+      if (threshold !== undefined && slope > 1e-9 && current < threshold) {
         const secondsToThreshold = (threshold - current) / slope
         const msToThreshold = secondsToThreshold * 1000
         if (msToThreshold > 0 && msToThreshold < BREACH_HORIZON_MS) {

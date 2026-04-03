@@ -154,7 +154,7 @@ eventBus.on('health.degraded', async (payload) => {
   try {
     const { getCortex } = await import('../healing/index')
     const cortex = getCortex()
-    if (cortex) {
+    if (cortex && !cortex.getStatus().isRunning) {
       const result = await cortex.runCycle()
       const totalActions =
         result.phases.act.healingActions.length +

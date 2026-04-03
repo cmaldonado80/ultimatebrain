@@ -248,6 +248,8 @@ export class AgentDegradationManager {
       const newLevel = LEVEL_ORDER[currentIdx + 1]!
       const reason = `${profile.consecutiveFailures} consecutive failures`
       this.applyLevel(profile, newLevel, reason)
+      profile.consecutiveFailures = 0 // reset to prevent immediate re-downgrade
+      profile.consecutiveSuccesses = 0
       const event: DegradationEvent = {
         agentId: profile.agentId,
         agentName: profile.agentName,
@@ -266,6 +268,7 @@ export class AgentDegradationManager {
       const reason = `${profile.consecutiveSuccesses} consecutive successes`
       this.applyLevel(profile, newLevel, reason)
       profile.consecutiveSuccesses = 0 // reset to prevent immediate re-upgrade
+      profile.consecutiveFailures = 0 // reset to prevent immediate re-downgrade
       const event: DegradationEvent = {
         agentId: profile.agentId,
         agentName: profile.agentName,
