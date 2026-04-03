@@ -63,6 +63,7 @@ export const a2aRouter = router({
         task: z.string().min(1),
         context: z.record(z.unknown()).optional(),
         callbackUrl: z.string().optional(),
+        fromAgentId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -91,6 +92,12 @@ export const a2aRouter = router({
     .input(z.object({ delegationId: z.string().uuid(), error: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return getEngine(ctx.db).fail(input.delegationId, input.error)
+    }),
+
+  cancelDelegation: protectedProcedure
+    .input(z.object({ delegationId: z.string().uuid(), reason: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      return getEngine(ctx.db).cancel(input.delegationId, input.reason)
     }),
 
   delegationStatus: protectedProcedure

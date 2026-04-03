@@ -1,6 +1,7 @@
 import { createDb } from '@solarc/db'
 import PgBoss from 'pg-boss'
 
+import { A2AEngine } from '../../web/src/server/services/a2a/a2a-engine'
 import { EvalRunner } from '../../web/src/server/services/evals/runner'
 import { SelfHealingCortex } from '../../web/src/server/services/healing/cortex'
 import { HealingEngine } from '../../web/src/server/services/healing/healing-engine'
@@ -231,10 +232,26 @@ async function main() {
     }
   })
 
+  // A2A delegation expiry — fail stale delegations older than 24h
+  await boss.work('a2a:expire', async () => {
+    console.warn('[Worker] Expiring stale A2A delegations')
+    try {
+      const a2aEngine = new A2AEngine(db)
+      const expired = await a2aEngine.expireStale(24)
+      if (expired > 0) {
+        console.warn(`[Worker] Expired ${expired} stale A2A delegations`)
+      }
+    } catch (err) {
+      console.error('[Worker] A2A expiry failed:', err)
+      throw err
+    }
+  })
+
   // === Periodic schedules (idempotent — pg-boss deduplicates by schedule name) ===
   await boss.schedule('healing:cycle', '*/10 * * * *', {}) // every 10 min
   await boss.schedule('instinct:pipeline', '0 2 * * *', {}) // daily at 02:00
   await boss.schedule('instinct:evolve', '0 3 * * 0', {}) // weekly on Sunday at 03:00
+  await boss.schedule('a2a:expire', '0 */6 * * *', {}) // every 6 hours
 
   // === Dead-letter queue handler — receives jobs that failed all retries ===
   await boss.work(DEAD_LETTER_QUEUE, async ([job]) => {

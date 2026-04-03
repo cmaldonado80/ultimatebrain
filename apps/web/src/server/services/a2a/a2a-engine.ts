@@ -3,15 +3,15 @@
  *
  * Enables agents to discover and delegate tasks to each other:
  * - Agent card registry (capability advertisement)
- * - Task delegation with context passing
- * - Callback-based result delivery
+ * - Task delegation with context passing + fromAgentId tracking
  * - Skill-based agent discovery
+ * - Delegation lifecycle: pending → accepted → in_progress → completed/failed/cancelled
  */
 
 import type { Database } from '@solarc/db'
 import { a2aDelegations, agentCards, agents } from '@solarc/db'
 import type { A2ADelegateInput } from '@solarc/engine-contracts'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, lte, sql } from 'drizzle-orm'
 
 export type DelegationStatus =
   | 'pending'
@@ -20,6 +20,7 @@ export type DelegationStatus =
   | 'completed'
   | 'failed'
   | 'rejected'
+  | 'cancelled'
 
 export interface DelegationResult {
   delegationId: string
@@ -132,17 +133,13 @@ export class A2AEngine {
     const [row] = await this.db
       .insert(a2aDelegations)
       .values({
+        fromAgentId: input.fromAgentId ?? null,
         toAgentId: input.agentId,
         task: input.task,
         context: input.context,
         status: 'pending',
       })
       .returning({ id: a2aDelegations.id })
-
-    // Notify OpenClaw of delegation (non-blocking)
-    this.notifyChannel('delegated', row.id, { task: input.task, toAgentId: input.agentId }).catch(
-      () => {},
-    )
 
     return row.id
   }
@@ -175,19 +172,13 @@ export class A2AEngine {
   }
 
   async complete(delegationId: string, result: unknown): Promise<void> {
+    const serialized = typeof result === 'string' ? result : JSON.stringify(result)
     const updated = await this.db
       .update(a2aDelegations)
-      .set({
-        status: 'completed',
-        result: typeof result === 'string' ? result : JSON.stringify(result),
-        completedAt: new Date(),
-      })
+      .set({ status: 'completed', result: serialized, completedAt: new Date() })
       .where(eq(a2aDelegations.id, delegationId))
       .returning({ id: a2aDelegations.id })
     if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
-    this.notifyChannel('completed', delegationId, {}).catch((err) =>
-      console.warn('[A2AEngine] notification failed:', err.message),
-    )
   }
 
   async fail(delegationId: string, error: string): Promise<void> {
@@ -197,9 +188,27 @@ export class A2AEngine {
       .where(eq(a2aDelegations.id, delegationId))
       .returning({ id: a2aDelegations.id })
     if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
-    this.notifyChannel('failed', delegationId, { error }).catch((err) =>
-      console.warn('[A2AEngine] notification failed:', err.message),
-    )
+  }
+
+  /** Cancel an in-progress or pending delegation. */
+  async cancel(delegationId: string, reason?: string): Promise<void> {
+    const updated = await this.db
+      .update(a2aDelegations)
+      .set({
+        status: 'cancelled',
+        error: reason ?? 'Cancelled by caller',
+        completedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(a2aDelegations.id, delegationId),
+          sql`${a2aDelegations.status} IN ('pending', 'accepted', 'in_progress')`,
+        ),
+      )
+      .returning({ id: a2aDelegations.id })
+    if (updated.length === 0) {
+      throw new Error(`Delegation ${delegationId} not found or already terminal`)
+    }
   }
 
   async getStatus(delegationId: string): Promise<DelegationResult> {
@@ -235,25 +244,30 @@ export class A2AEngine {
     }))
   }
 
-  async removeCard(agentId: string): Promise<void> {
-    await this.db.delete(agentCards).where(eq(agentCards.agentId, agentId))
+  /**
+   * Expire stale delegations that have been pending/in_progress beyond the TTL.
+   * Called by a worker cron job.
+   */
+  async expireStale(ttlHours = 24): Promise<number> {
+    const cutoff = new Date(Date.now() - ttlHours * 60 * 60 * 1000)
+    const expired = await this.db
+      .update(a2aDelegations)
+      .set({
+        status: 'failed',
+        error: `Expired after ${ttlHours}h without completion`,
+        completedAt: new Date(),
+      })
+      .where(
+        and(
+          sql`${a2aDelegations.status} IN ('pending', 'accepted', 'in_progress')`,
+          lte(a2aDelegations.createdAt, cutoff),
+        ),
+      )
+      .returning({ id: a2aDelegations.id })
+    return expired.length
   }
 
-  /** Push delegation events to OpenClaw a2a-events channel (fire-and-forget). */
-  private async notifyChannel(
-    event: string,
-    delegationId: string,
-    data: Record<string, unknown>,
-  ): Promise<void> {
-    const { getOpenClawClient } = await import('../../adapters/openclaw/bootstrap')
-    const client = getOpenClawClient()
-    if (!client?.isConnected()) return
-    const { OpenClawChannels } = await import('../../adapters/openclaw/channels')
-    const channels = new OpenClawChannels(client)
-    await channels.sendMessage(
-      'a2a-events',
-      'system',
-      JSON.stringify({ event, delegationId, ...data }),
-    )
+  async removeCard(agentId: string): Promise<void> {
+    await this.db.delete(agentCards).where(eq(agentCards.agentId, agentId))
   }
 }

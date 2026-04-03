@@ -162,6 +162,7 @@ export const A2ADelegateInput = z.object({
   task: z.string(),
   context: z.record(z.string(), z.unknown()).optional(),
   callbackUrl: z.string().optional(),
+  fromAgentId: z.string().uuid().optional(),
 })
 export type A2ADelegateInput = z.infer<typeof A2ADelegateInput>
 

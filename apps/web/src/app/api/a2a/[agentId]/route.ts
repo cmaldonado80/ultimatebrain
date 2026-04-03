@@ -3,20 +3,17 @@
  *
  * POST /api/a2a/[agentId]
  * Accepts: { task, context, callback_url? }
- * Returns:
- *   - Immediate: { status: 'accepted', task_id }
- *   - SSE stream: progress events
- *   - Final: { status: 'completed', result, artifacts }
+ * Returns: { status: 'accepted', task_id, poll_url }
  *
- * GET /api/a2a/[agentId]/tasks/[taskId]  (poll)
- * Returns current task status
+ * GET /api/a2a/[agentId]
+ * Returns all delegations for agent from DB
  */
 
-import { agents, createDb, type Database, tickets } from '@solarc/db'
-import { eq } from 'drizzle-orm'
+import { a2aDelegations, agents, createDb, type Database, tickets } from '@solarc/db'
+import { desc, eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 
-/** Lazy singleton DB pool — avoids cold-start crash if DATABASE_URL not yet set */
+/** Lazy singleton DB pool */
 let _db: Database | undefined
 function getDb(): Database {
   if (!_db) {
@@ -83,11 +80,10 @@ function isPrivateUrl(url: string): boolean {
 // ── CORS ──────────────────────────────────────────────────────────────────
 const A2A_ALLOWED_ORIGINS = process.env.A2A_ALLOWED_ORIGINS?.split(',').map((s) => s.trim()) ?? []
 
-// If no origins configured, only allow same-origin requests in production
 function resolveOrigin(): string {
   if (A2A_ALLOWED_ORIGINS.length > 0) return A2A_ALLOWED_ORIGINS.join(', ')
-  if (process.env.NODE_ENV === 'production') return '' // deny cross-origin
-  return '*' // allow all in development only
+  if (process.env.NODE_ENV === 'production') return ''
+  return '*'
 }
 
 function corsHeaders(): Record<string, string> {
@@ -102,22 +98,6 @@ function corsHeaders(): Record<string, string> {
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders() })
 }
-
-/** In-memory task store (production: use Redis or DB) */
-const taskStore = new Map<
-  string,
-  {
-    agentId: string
-    task: string
-    status: 'accepted' | 'running' | 'completed' | 'failed'
-    result?: unknown
-    artifacts?: unknown[]
-    error?: string
-    progress?: number
-    createdAt: Date
-    updatedAt: Date
-  }
->()
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = await params
@@ -136,17 +116,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
     )
   }
 
-  // Verify agent exists
   const db = getDb()
-  const agent = await db.query.agents.findFirst({
-    where: eq(agents.id, agentId),
-  })
-
+  const agent = await db.query.agents.findFirst({ where: eq(agents.id, agentId) })
   if (!agent) {
     return NextResponse.json({ error: 'Agent not found' }, { status: 404, headers: corsHeaders() })
   }
 
-  // Enforce request body size limit (64KB)
   const contentLength = req.headers.get('content-length')
   if (contentLength && parseInt(contentLength, 10) > 65_536) {
     return NextResponse.json(
@@ -155,7 +130,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
     )
   }
 
-  // Parse request body
   let body: A2ARequest
   try {
     body = await req.json()
@@ -169,7 +143,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
   if (!body.task || typeof body.task !== 'string') {
     return NextResponse.json({ error: 'task is required' }, { status: 400, headers: corsHeaders() })
   }
-
   if (body.task.length > 10000) {
     return NextResponse.json(
       { error: 'task exceeds maximum length of 10000 characters' },
@@ -200,17 +173,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
     }
   }
 
-  const taskId = crypto.randomUUID()
+  // Create DB-backed delegation record (replaces in-memory taskStore)
+  const [delegation] = await db
+    .insert(a2aDelegations)
+    .values({
+      toAgentId: agentId,
+      task: body.task,
+      context: { ...body.context, callback_url: body.callback_url ?? null },
+      status: 'accepted',
+    })
+    .returning()
 
-  // Register task
-  taskStore.set(taskId, {
-    agentId,
-    task: body.task,
-    status: 'accepted',
-    progress: 0,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  })
+  const taskId = delegation.id
 
   // Create internal ticket assigned to the agent
   const [insertedTicket] = await db
@@ -223,22 +197,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
       complexity: 'medium',
       assignedAgentId: agentId,
       ...(agent.workspaceId ? { workspaceId: agent.workspaceId } : {}),
-      metadata: {
-        a2a: true,
-        taskId,
-        context: body.context ?? {},
-        callback_url: body.callback_url ?? null,
-      },
+      metadata: { a2a: true, delegationId: taskId },
     })
     .returning()
 
   // If streaming requested, return SSE
   if (body.stream || req.headers.get('accept')?.includes('text/event-stream')) {
-    return streamTaskProgress(taskId, agentId, body)
+    return streamTaskProgress(db, taskId, agentId, body, insertedTicket.id)
   }
 
   // Start background execution
-  executeTaskInBackground(taskId, agentId, body, insertedTicket.id).catch((err) => {
+  executeTaskInBackground(db, taskId, agentId, body, insertedTicket.id).catch((err) => {
     console.error(`[A2A] Background execution failed for task ${taskId}:`, err)
   })
 
@@ -255,18 +224,53 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = await params
+  const db = getDb()
 
-  // List all tasks for this agent
-  const tasks = Array.from(taskStore.entries())
-    .filter(([, t]) => t.agentId === agentId)
-    .map(([id, t]) => ({ task_id: id, ...t }))
+  const delegations = await db
+    .select({
+      id: a2aDelegations.id,
+      task: a2aDelegations.task,
+      status: a2aDelegations.status,
+      result: a2aDelegations.result,
+      error: a2aDelegations.error,
+      createdAt: a2aDelegations.createdAt,
+      completedAt: a2aDelegations.completedAt,
+    })
+    .from(a2aDelegations)
+    .where(eq(a2aDelegations.toAgentId, agentId))
+    .orderBy(desc(a2aDelegations.createdAt))
+    .limit(50)
+
+  const tasks = delegations.map((d) => ({
+    task_id: d.id,
+    task: d.task,
+    status: d.status,
+    result: d.result ? safeJsonParse(d.result) : undefined,
+    error: d.error ?? undefined,
+    created_at: d.createdAt.toISOString(),
+    completed_at: d.completedAt?.toISOString() ?? null,
+  }))
 
   return NextResponse.json({ tasks }, { headers: corsHeaders() })
 }
 
+function safeJsonParse(str: string): unknown {
+  try {
+    return JSON.parse(str)
+  } catch {
+    return str
+  }
+}
+
 // ── SSE Streaming ─────────────────────────────────────────────────────────
 
-function streamTaskProgress(taskId: string, agentId: string, body: A2ARequest): Response {
+function streamTaskProgress(
+  db: Database,
+  taskId: string,
+  agentId: string,
+  body: A2ARequest,
+  ticketId: string,
+): Response {
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
@@ -278,58 +282,51 @@ function streamTaskProgress(taskId: string, agentId: string, body: A2ARequest): 
 
       send('accepted', { task_id: taskId, status: 'accepted' })
 
-      // Simulate execution with progress events
-      // Real impl: subscribe to ticket status changes via pg-boss or polling
-      const steps = [
-        { progress: 10, message: 'Analyzing task...' },
-        { progress: 30, message: 'Retrieving relevant memory...' },
-        { progress: 50, message: 'Executing with tools...' },
-        { progress: 75, message: 'Validating results...' },
-        { progress: 90, message: 'Preparing output...' },
-      ]
+      // Execute via ModeRouter and stream progress
+      try {
+        await db
+          .update(a2aDelegations)
+          .set({ status: 'in_progress' })
+          .where(eq(a2aDelegations.id, taskId))
 
-      for (const step of steps) {
-        await new Promise((r) => setTimeout(r, 500))
-        const task = taskStore.get(taskId)
-        if (!task || task.status === 'failed') break
+        send('progress', { task_id: taskId, progress: 10, message: 'Routing to agent...' })
 
-        taskStore.set(taskId, {
-          ...task,
-          status: 'running',
-          progress: step.progress,
-          updatedAt: new Date(),
+        const { ModeRouter } = await import('../../../../server/services/task-runner/mode-router')
+        const modeRouter = new ModeRouter(db)
+
+        send('progress', { task_id: taskId, progress: 30, message: 'Executing task...' })
+
+        const execResult = await modeRouter.route(ticketId, body.task, {
+          forceMode: 'autonomous',
         })
-        send('progress', { task_id: taskId, progress: step.progress, message: step.message })
-      }
 
-      // Final result
-      const finalResult = {
-        summary: `Task completed by agent ${agentId}`,
-        task: body.task,
-        context: body.context,
-      }
+        const result = {
+          summary: `Task completed by agent ${agentId} (mode=${execResult.mode}, ${execResult.latencyMs}ms)`,
+          task: body.task,
+          completedAt: new Date().toISOString(),
+        }
 
-      const task = taskStore.get(taskId)
-      if (task) {
-        taskStore.set(taskId, {
-          ...task,
-          status: 'completed',
-          result: finalResult,
-          progress: 100,
-          updatedAt: new Date(),
-        })
-      }
+        await db
+          .update(a2aDelegations)
+          .set({
+            status: 'completed',
+            result: JSON.stringify(result),
+            completedAt: new Date(),
+          })
+          .where(eq(a2aDelegations.id, taskId))
 
-      send('completed', {
-        task_id: taskId,
-        status: 'completed',
-        result: finalResult,
-        artifacts: [],
-      })
+        send('completed', { task_id: taskId, status: 'completed', result, artifacts: [] })
 
-      // Deliver callback if provided
-      if (body.callback_url) {
-        deliverCallback(body.callback_url, taskId, finalResult)
+        if (body.callback_url) {
+          deliverCallback(body.callback_url, taskId, result)
+        }
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err)
+        await db
+          .update(a2aDelegations)
+          .set({ status: 'failed', error: errorMsg, completedAt: new Date() })
+          .where(eq(a2aDelegations.id, taskId))
+        send('failed', { task_id: taskId, status: 'failed', error: errorMsg })
       }
 
       controller.close()
@@ -350,20 +347,20 @@ function streamTaskProgress(taskId: string, agentId: string, body: A2ARequest): 
 // ── Background Execution ──────────────────────────────────────────────────
 
 async function executeTaskInBackground(
+  db: Database,
   taskId: string,
   agentId: string,
   body: A2ARequest,
   ticketId: string,
 ): Promise<void> {
-  const task = taskStore.get(taskId)
-  if (!task) return
-
-  taskStore.set(taskId, { ...task, status: 'running', progress: 10, updatedAt: new Date() })
+  await db
+    .update(a2aDelegations)
+    .set({ status: 'in_progress' })
+    .where(eq(a2aDelegations.id, taskId))
 
   try {
-    // Delegate to ModeRouter for real execution
     const { ModeRouter } = await import('../../../../server/services/task-runner/mode-router')
-    const modeRouter = new ModeRouter(getDb())
+    const modeRouter = new ModeRouter(db)
 
     let executionResult
     try {
@@ -381,24 +378,23 @@ async function executeTaskInBackground(
       completedAt: new Date().toISOString(),
     }
 
-    taskStore.set(taskId, {
-      ...task,
-      status: 'completed',
-      result,
-      progress: 100,
-      updatedAt: new Date(),
-    })
+    await db
+      .update(a2aDelegations)
+      .set({ status: 'completed', result: JSON.stringify(result), completedAt: new Date() })
+      .where(eq(a2aDelegations.id, taskId))
 
     if (body.callback_url) {
       await deliverCallback(body.callback_url, taskId, result)
     }
   } catch (err) {
-    taskStore.set(taskId, {
-      ...task,
-      status: 'failed',
-      error: err instanceof Error ? err.message : String(err),
-      updatedAt: new Date(),
-    })
+    await db
+      .update(a2aDelegations)
+      .set({
+        status: 'failed',
+        error: err instanceof Error ? err.message : String(err),
+        completedAt: new Date(),
+      })
+      .where(eq(a2aDelegations.id, taskId))
   }
 }
 
@@ -409,14 +405,21 @@ async function deliverCallback(
   taskId: string,
   result: unknown,
 ): Promise<void> {
-  try {
-    await fetch(callbackUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ task_id: taskId, status: 'completed', result }),
-      signal: AbortSignal.timeout(5000),
-    })
-  } catch (err) {
-    console.error(`[A2A] Callback delivery failed for task ${taskId}:`, err)
+  // Retry up to 3 times with backoff
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(callbackUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id: taskId, status: 'completed', result }),
+        signal: AbortSignal.timeout(5000),
+      })
+      if (res.ok) return
+      console.warn(`[A2A] Callback ${callbackUrl} returned ${res.status} (attempt ${attempt + 1})`)
+    } catch (err) {
+      console.warn(`[A2A] Callback delivery attempt ${attempt + 1} failed:`, err)
+    }
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
   }
+  console.error(`[A2A] Callback delivery failed after 3 attempts for task ${taskId}`)
 }

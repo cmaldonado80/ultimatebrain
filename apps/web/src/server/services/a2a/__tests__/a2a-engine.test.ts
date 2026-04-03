@@ -22,6 +22,7 @@ vi.mock('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val }),
   and: (...conditions: unknown[]) => ({ and: conditions }),
   desc: (col: string) => ({ desc: col }),
+  lte: (col: string, val: unknown) => ({ lte: { col, val } }),
   sql: (...args: unknown[]) => args,
 }))
 
@@ -463,6 +464,72 @@ describe('A2AEngine', () => {
 
       expect(db.delete).toHaveBeenCalled()
       expect(db._mock.deleteWhereFn).toHaveBeenCalled()
+    })
+  })
+
+  // ── cancel ────────────────────────────────────────────────────────────
+
+  describe('cancel', () => {
+    it('should update status to cancelled with reason', async () => {
+      await engine.cancel('delegation-1', 'No longer needed')
+
+      expect(db.update).toHaveBeenCalled()
+      expect(db._mock.setFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'cancelled',
+          error: 'No longer needed',
+        }),
+      )
+    })
+
+    it('should throw for non-existent or terminal delegationId', async () => {
+      db._mock.updateReturningFn.mockResolvedValue([])
+
+      await expect(engine.cancel('nonexistent')).rejects.toThrow('not found or already terminal')
+    })
+  })
+
+  // ── expireStale ───────────────────────────────────────────────────────
+
+  describe('expireStale', () => {
+    it('should return count of expired delegations', async () => {
+      db._mock.updateReturningFn.mockResolvedValue([{ id: 'del-1' }, { id: 'del-2' }])
+
+      const expired = await engine.expireStale(24)
+      expect(expired).toBe(2)
+    })
+
+    it('should return 0 when no stale delegations exist', async () => {
+      db._mock.updateReturningFn.mockResolvedValue([])
+
+      const expired = await engine.expireStale(24)
+      expect(expired).toBe(0)
+    })
+  })
+
+  // ── delegate with fromAgentId ─────────────────────────────────────────
+
+  describe('delegate with fromAgentId', () => {
+    it('should pass fromAgentId to DB insert', async () => {
+      await engine.delegate(makeDelegateInput({ fromAgentId: 'caller-agent-id' }))
+
+      expect(db.insert).toHaveBeenCalled()
+      expect(db._mock.valuesFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fromAgentId: 'caller-agent-id',
+          toAgentId: 'agent-1',
+        }),
+      )
+    })
+
+    it('should set fromAgentId to null when not provided', async () => {
+      await engine.delegate(makeDelegateInput())
+
+      expect(db._mock.valuesFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fromAgentId: null,
+        }),
+      )
     })
   })
 })
