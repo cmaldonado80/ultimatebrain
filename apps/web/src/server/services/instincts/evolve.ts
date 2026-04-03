@@ -32,6 +32,7 @@
  * Wire up an actual LLM call (e.g. Anthropic Messages API) before production use.
  */
 
+import { MODEL_STRATEGY, resolveModel } from '@solarc/engine-contracts'
 import { randomUUID } from 'crypto'
 
 import type { GatewayRouter } from '../gateway'
@@ -166,7 +167,7 @@ export class InstinctEvolver {
     if (this.gateway) {
       try {
         const result = await this.gateway.chat({
-          model: 'qwen3.5:cloud',
+          model: resolveModel(MODEL_STRATEGY['instinct-evolve'] ?? 'opus'),
           messages: [
             {
               role: 'system',
@@ -223,7 +224,7 @@ export class InstinctEvolver {
     if (this.gateway) {
       try {
         const result = await this.gateway.chat({
-          model: 'qwen3.5:cloud',
+          model: resolveModel(MODEL_STRATEGY['instinct-evolve'] ?? 'opus'),
           messages: [
             {
               role: 'system',

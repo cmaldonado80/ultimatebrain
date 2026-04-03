@@ -988,6 +988,7 @@ export class GatewayRouter {
         agentId: input.agentId,
         workspaceId: input.workspaceId,
         estimatedTokens: this.estimateTokens(messages),
+        priority: input.priority,
       })
       if (!rateCheck.allowed) {
         throw new GatewayError(

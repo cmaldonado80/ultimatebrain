@@ -20,6 +20,7 @@ export const LlmChatInput = z.object({
   agentId: z.string().uuid().optional(),
   ticketId: z.string().uuid().optional(),
   workspaceId: z.string().uuid().optional(),
+  priority: z.enum(['normal', 'high']).optional(),
 })
 export type LlmChatInput = z.infer<typeof LlmChatInput>
 

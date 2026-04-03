@@ -10,15 +10,28 @@ import { InstinctObserver } from '../../web/src/server/services/instincts/observ
 import { MemoryService } from '../../web/src/server/services/memory/memory-service'
 import { CronEngine } from '../../web/src/server/services/orchestration/cron-engine'
 import { TicketExecutionEngine } from '../../web/src/server/services/orchestration/ticket-engine'
+import { notify } from '../../web/src/server/services/platform/notification-service'
 import { ModeRouter } from '../../web/src/server/services/task-runner/mode-router'
 
 const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://postgres:dev@localhost:5432/solarc'
+
+// Retry config for job handlers: 3 retries with exponential backoff starting at 60s
+const RETRY_OPTIONS = { retryLimit: 3, retryDelay: 60, retryBackoff: true }
+const DEAD_LETTER_QUEUE = '__dead_letter__'
 
 async function main() {
   console.warn('[Worker] Starting pg-boss worker...')
 
   const db = createDb(DATABASE_URL)
-  const boss = new PgBoss(DATABASE_URL)
+  const boss = new PgBoss({
+    connectionString: DATABASE_URL,
+    // Global retry defaults — individual handlers can override
+    retryLimit: RETRY_OPTIONS.retryLimit,
+    retryDelay: RETRY_OPTIONS.retryDelay,
+    retryBackoff: RETRY_OPTIONS.retryBackoff,
+    // Monitoring interval for state checks
+    monitorStateIntervalSeconds: 60,
+  })
 
   boss.on('error', (err) => console.error('[Worker] pg-boss error:', err))
 
@@ -222,6 +235,38 @@ async function main() {
   await boss.schedule('healing:cycle', '*/10 * * * *', {}) // every 10 min
   await boss.schedule('instinct:pipeline', '0 2 * * *', {}) // daily at 02:00
   await boss.schedule('instinct:evolve', '0 3 * * 0', {}) // weekly on Sunday at 03:00
+
+  // === Dead-letter queue handler — receives jobs that failed all retries ===
+  await boss.work(DEAD_LETTER_QUEUE, async ([job]) => {
+    const jobName = (job.data as Record<string, unknown>)?.__jobName ?? 'unknown'
+    const error = (job.data as Record<string, unknown>)?.__error ?? 'Unknown error'
+    console.error(`[Worker] Dead letter: job=${jobName}, error=${error}`)
+
+    // Fire notification to ops team
+    try {
+      await notify(
+        db,
+        'deployment_failed',
+        `Worker Job Failed: ${jobName}`,
+        `Job ${job.id} failed after ${RETRY_OPTIONS.retryLimit} retries.\nError: ${String(error).slice(0, 500)}`,
+        'critical',
+        { channels: ['inbox', 'webhook'] },
+      )
+    } catch {
+      console.error(`[Worker] Failed to send dead-letter notification for job ${job.id}`)
+    }
+  })
+
+  // === Monitor: log queue state periodically ===
+  boss.on('monitor-states', (states: unknown) => {
+    const s = states as Record<string, number>
+    if (s.failed > 0 || s.expired > 0) {
+      console.warn(
+        `[Worker] Queue health: active=${s.active ?? 0} completed=${s.completed ?? 0} ` +
+          `failed=${s.failed ?? 0} expired=${s.expired ?? 0}`,
+      )
+    }
+  })
 
   console.warn('[Worker] All job handlers registered. Waiting for jobs...')
 
