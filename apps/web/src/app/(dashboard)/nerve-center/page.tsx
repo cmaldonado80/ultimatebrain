@@ -21,8 +21,10 @@ import { LoadingState } from '../../../components/ui/loading-state'
 import { PageGrid } from '../../../components/ui/page-grid'
 import { PageHeader } from '../../../components/ui/page-header'
 import { SectionCard } from '../../../components/ui/section-card'
+import { Sparkline } from '../../../components/ui/sparkline'
 import { StatCard } from '../../../components/ui/stat-card'
 import { StatusBadge } from '../../../components/ui/status-badge'
+import { useNerveStream } from '../../../hooks/use-nerve-stream'
 import { trpc } from '../../../utils/trpc'
 
 // ── Refresh intervals ────────────────────────────────────────────────────
@@ -57,6 +59,9 @@ const LEVEL_COLORS: Record<string, string> = {
 
 export default function NerveCenterPage() {
   const [activeTab, setActiveTab] = useState<'pulse' | 'agents' | 'activity'>('pulse')
+
+  // Real-time SSE stream
+  const stream = useNerveStream()
 
   // Core data queries with auto-refresh
   const cortexQuery = trpc.healing.cortexStatus.useQuery(undefined, {
@@ -186,10 +191,49 @@ export default function NerveCenterPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <PageHeader
-        title="Nerve Center"
-        subtitle="Real-time autonomous nervous system — observe, orient, decide, act"
-      />
+      <div className="flex items-center gap-3 mb-2">
+        <PageHeader
+          title="Nerve Center"
+          subtitle="Real-time autonomous nervous system — observe, orient, decide, act"
+        />
+        <div className="ml-auto flex items-center gap-2">
+          <span
+            className={`w-2 h-2 rounded-full ${stream.connected ? 'bg-neon-green animate-pulse' : 'bg-slate-600'}`}
+          />
+          <span className="text-[10px] text-slate-500">
+            {stream.connected ? 'LIVE' : 'CONNECTING...'}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Live Sparklines (from SSE stream) ─────────────────────── */}
+      {Object.keys(stream.metrics).length > 0 && (
+        <div className="flex gap-4 mb-4 overflow-x-auto pb-1">
+          {Object.entries(stream.metrics).map(([metric, values]) => (
+            <div key={metric} className="flex items-center gap-2 min-w-0">
+              <span className="text-[9px] text-slate-500 whitespace-nowrap">
+                {metric.replace('_', ' ')}
+              </span>
+              <Sparkline
+                data={values}
+                width={100}
+                height={24}
+                color={
+                  metric.includes('error') || metric.includes('fail')
+                    ? 'red'
+                    : metric.includes('healing')
+                      ? 'yellow'
+                      : 'blue'
+                }
+                showDot
+              />
+              <span className="text-[10px] text-slate-400 font-mono">
+                {values.length > 0 ? values[values.length - 1]!.toFixed(2) : '—'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── System Vital Signs ──────────────────────────────────────── */}
       <PageGrid cols="6" className="mb-6">
@@ -275,7 +319,14 @@ export default function NerveCenterPage() {
       </div>
 
       {/* ── Tab Content ────────────────────────────────────────────── */}
-      {activeTab === 'pulse' && <PulseTab predictive={predictive} tuning={tuning} audit={audit} />}
+      {activeTab === 'pulse' && (
+        <PulseTab
+          predictive={predictive}
+          tuning={tuning}
+          audit={audit}
+          streamMetrics={stream.metrics}
+        />
+      )}
       {activeTab === 'agents' && <AgentGridTab degradations={degradations} />}
       {activeTab === 'activity' && <ActivityTab cortex={cortex} audit={audit} />}
     </div>
@@ -288,7 +339,9 @@ function PulseTab({
   predictive,
   tuning,
   audit,
+  streamMetrics,
 }: {
+  streamMetrics: Record<string, number[]>
   predictive:
     | {
         trends: Array<{
@@ -361,22 +414,15 @@ function PulseTab({
                     </span>
                   </div>
                 </div>
-                {/* Visual bar showing current within percentile band */}
-                <div className="w-32 h-6 rounded bg-bg-deep relative overflow-hidden">
-                  <div
-                    className="absolute h-full bg-neon-blue/15 rounded"
-                    style={{
-                      left: `${Math.max(0, (trend.percentiles.p10 / (trend.percentiles.p90 * 1.5 || 1)) * 100)}%`,
-                      width: `${Math.max(5, ((trend.percentiles.p90 - trend.percentiles.p10) / (trend.percentiles.p90 * 1.5 || 1)) * 100)}%`,
-                    }}
-                  />
-                  <div
-                    className={`absolute w-1.5 h-full rounded ${trend.percentileAnomaly ? 'bg-neon-red' : 'bg-neon-green'}`}
-                    style={{
-                      left: `${Math.min(95, Math.max(2, (trend.current / (trend.percentiles.p90 * 1.5 || 1)) * 100))}%`,
-                    }}
-                  />
-                </div>
+                {/* Sparkline chart with percentile band */}
+                <Sparkline
+                  data={streamMetrics[trend.metric] ?? [trend.current]}
+                  width={140}
+                  height={28}
+                  color={trend.percentileAnomaly ? 'red' : trend.slope > 0 ? 'yellow' : 'green'}
+                  percentileBand={trend.percentiles}
+                  showDot
+                />
               </div>
             ))}
           </div>
