@@ -13,6 +13,7 @@
  * Everything auto-refreshes. Every metric is actionable.
  */
 
+import Link from 'next/link'
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
@@ -228,6 +229,22 @@ export default function NerveCenterPage() {
           sub={`${instincts?.activeInstincts ?? 0} active patterns`}
         />
       </PageGrid>
+
+      {/* ── Sub-Page Links ───────────────────────────────────────── */}
+      <div className="flex gap-2 mb-4">
+        <Link
+          href="/nerve-center/tools"
+          className="text-xs px-3 py-1.5 rounded-lg bg-bg-card border border-border-dim text-slate-400 hover:text-neon-blue hover:border-neon-blue/30 transition-colors no-underline"
+        >
+          Tool Catalog
+        </Link>
+        <Link
+          href="/nerve-center/agent"
+          className="text-xs px-3 py-1.5 rounded-lg bg-bg-card border border-border-dim text-slate-400 hover:text-neon-purple hover:border-neon-purple/30 transition-colors no-underline"
+        >
+          Agent Forensics ({degradations.length} agents)
+        </Link>
+      </div>
 
       {/* ── Tab Navigation ─────────────────────────────────────────── */}
       <div className="flex gap-2 mb-6">
