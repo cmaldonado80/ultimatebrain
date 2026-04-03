@@ -247,6 +247,118 @@ export const healingLogs = pgTable('healing_logs', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+// ── Persistence: Self-Healing Cortex State ────────────────────────────────
+
+export const capabilityLevelEnum = pgEnum('capability_level', [
+  'full',
+  'reduced',
+  'minimal',
+  'suspended',
+])
+
+export const degradationProfiles = pgTable(
+  'degradation_profiles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: uuid('agent_id')
+      .references(() => agents.id, { onDelete: 'cascade' })
+      .notNull(),
+    level: capabilityLevelEnum('level').default('full').notNull(),
+    pressure: real('pressure').default(0).notNull(),
+    consecutiveFailures: integer('consecutive_failures').default(0).notNull(),
+    consecutiveSuccesses: integer('consecutive_successes').default(0).notNull(),
+    modelOverride: text('model_override'),
+    lastTransitionAt: timestamp('last_transition_at'),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [index('degradation_profiles_agent_id_idx').on(t.agentId)],
+)
+
+export const tuningStates = pgTable(
+  'tuning_states',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    entityId: text('entity_id').notNull(),
+    entityType: text('entity_type').notNull(), // 'agent' | 'provider' | 'workspace'
+    pressure: real('pressure').default(0).notNull(),
+    successRate: real('success_rate').default(1).notNull(),
+    avgLatencyMs: real('avg_latency_ms').default(0).notNull(),
+    currentProfile: jsonb('current_profile').notNull(), // TuningProfile
+    baselineProfile: jsonb('baseline_profile').notNull(),
+    adjustmentCount: integer('adjustment_count').default(0).notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [index('tuning_states_entity_id_idx').on(t.entityId)],
+)
+
+export const sandboxAuditEntries = pgTable(
+  'sandbox_audit_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sandboxId: text('sandbox_id').notNull(),
+    agentId: uuid('agent_id'),
+    agentName: text('agent_name').notNull(),
+    toolName: text('tool_name').notNull(),
+    durationMs: integer('duration_ms').notNull(),
+    success: boolean('success').notNull(),
+    policyVerdict: text('policy_verdict').notNull(), // 'pass' | 'warn' | 'block'
+    violations: jsonb('violations').default([]),
+    outputSizeBytes: integer('output_size_bytes').default(0),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('sandbox_audit_agent_id_idx').on(t.agentId),
+    index('sandbox_audit_created_at_idx').on(t.createdAt),
+  ],
+)
+
+export const agentTaskStates = pgTable(
+  'agent_task_states',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: uuid('agent_id')
+      .references(() => agents.id, { onDelete: 'cascade' })
+      .notNull(),
+    workspaceId: uuid('workspace_id').notNull(),
+    currentPhase: text('current_phase'),
+    currentTaskId: text('current_task_id'),
+    currentTaskTitle: text('current_task_title'),
+    currentTaskStatus: text('current_task_status'), // pending | in_progress | completed | failed | blocked
+    taskQueue: jsonb('task_queue').default([]),
+    completedTasks: jsonb('completed_tasks').default([]),
+    decisions: jsonb('decisions').default([]),
+    findings: jsonb('findings').default([]),
+    recentFiles: jsonb('recent_files').default([]),
+    sessionCount: integer('session_count').default(0).notNull(),
+    totalTasksCompleted: integer('total_tasks_completed').default(0).notNull(),
+    lastVerificationPassed: boolean('last_verification_passed'),
+    lastVerificationScore: real('last_verification_score'),
+    lastVerificationSummary: text('last_verification_summary'),
+    lastActiveAt: timestamp('last_active_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [index('agent_task_states_agent_id_idx').on(t.agentId)],
+)
+
+export const permissionScopes = pgTable(
+  'permission_scopes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: uuid('agent_id')
+      .references(() => agents.id, { onDelete: 'cascade' })
+      .notNull(),
+    scope: text('scope').notNull(), // e.g. 'tools:read', 'tools:write', 'network:external'
+    granted: boolean('granted').default(true).notNull(),
+    grantedBy: text('granted_by'), // 'system' | 'admin' | 'department_head'
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('permission_scopes_agent_id_idx').on(t.agentId),
+    index('permission_scopes_scope_idx').on(t.scope),
+  ],
+)
+
 // ── Persistence: Journey Execution State ──────────────────────────────────
 
 export const journeyExecutionStatusEnum = pgEnum('journey_execution_status', [

@@ -77,6 +77,7 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       ['chat_run_status', ['running', 'completed', 'failed', 'retried']],
       ['chat_step_type', ['agent', 'tool', 'synthesis']],
       ['chat_step_status', ['running', 'completed', 'failed']],
+      ['capability_level', ['full', 'reduced', 'minimal', 'suspended']],
     ]
 
     for (const [name, values] of enums) {
@@ -879,6 +880,85 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         behavior_weights jsonb,
         updated_at timestamp NOT NULL DEFAULT now()
       )`,
+
+      // Self-Healing Cortex persistence
+      `CREATE TABLE IF NOT EXISTS degradation_profiles (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+        level capability_level NOT NULL DEFAULT 'full',
+        pressure real NOT NULL DEFAULT 0,
+        consecutive_failures integer NOT NULL DEFAULT 0,
+        consecutive_successes integer NOT NULL DEFAULT 0,
+        model_override text,
+        last_transition_at timestamp,
+        updated_at timestamp DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS degradation_profiles_agent_id_idx ON degradation_profiles(agent_id)`,
+
+      `CREATE TABLE IF NOT EXISTS tuning_states (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        entity_id text NOT NULL,
+        entity_type text NOT NULL,
+        pressure real NOT NULL DEFAULT 0,
+        success_rate real NOT NULL DEFAULT 1,
+        avg_latency_ms real NOT NULL DEFAULT 0,
+        current_profile jsonb NOT NULL,
+        baseline_profile jsonb NOT NULL,
+        adjustment_count integer NOT NULL DEFAULT 0,
+        updated_at timestamp DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS tuning_states_entity_id_idx ON tuning_states(entity_id)`,
+
+      `CREATE TABLE IF NOT EXISTS sandbox_audit_entries (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        sandbox_id text NOT NULL,
+        agent_id uuid,
+        agent_name text NOT NULL,
+        tool_name text NOT NULL,
+        duration_ms integer NOT NULL,
+        success boolean NOT NULL,
+        policy_verdict text NOT NULL,
+        violations jsonb DEFAULT '[]',
+        output_size_bytes integer DEFAULT 0,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS sandbox_audit_agent_id_idx ON sandbox_audit_entries(agent_id)`,
+      `CREATE INDEX IF NOT EXISTS sandbox_audit_created_at_idx ON sandbox_audit_entries(created_at)`,
+
+      `CREATE TABLE IF NOT EXISTS agent_task_states (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+        workspace_id uuid NOT NULL,
+        current_phase text,
+        current_task_id text,
+        current_task_title text,
+        current_task_status text,
+        task_queue jsonb DEFAULT '[]',
+        completed_tasks jsonb DEFAULT '[]',
+        decisions jsonb DEFAULT '[]',
+        findings jsonb DEFAULT '[]',
+        recent_files jsonb DEFAULT '[]',
+        session_count integer NOT NULL DEFAULT 0,
+        total_tasks_completed integer NOT NULL DEFAULT 0,
+        last_verification_passed boolean,
+        last_verification_score real,
+        last_verification_summary text,
+        last_active_at timestamp DEFAULT now(),
+        updated_at timestamp DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS agent_task_states_agent_id_idx ON agent_task_states(agent_id)`,
+
+      `CREATE TABLE IF NOT EXISTS permission_scopes (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+        scope text NOT NULL,
+        granted boolean NOT NULL DEFAULT true,
+        granted_by text,
+        expires_at timestamp,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS permission_scopes_agent_id_idx ON permission_scopes(agent_id)`,
+      `CREATE INDEX IF NOT EXISTS permission_scopes_scope_idx ON permission_scopes(scope)`,
     ]
 
     for (const sql of tables) {
