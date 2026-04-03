@@ -20,11 +20,14 @@
  * 2. ORIENT   — classify severity, match against instincts
  * 3. DECIDE   — choose recovery plan, select parameters
  * 4. ACT      — execute recovery, tune resources, degrade/upgrade agents
- * 5. LEARN    — feed outcomes back into instincts and adaptive tuner
+ * 5. LEARN    — feed outcomes back into instincts, tuner, and memory
  */
 
 import type { Database } from '@solarc/db'
+import { agents as agentsTable } from '@solarc/db'
+import { eq as eqOp } from 'drizzle-orm'
 
+import { EvidenceMemoryPipeline } from '../intelligence/evidence-memory'
 import type { TuningAction } from './adaptive-tuner'
 import { AdaptiveResourceTuner } from './adaptive-tuner'
 import type { DegradationEvent } from './agent-degradation'
@@ -36,7 +39,16 @@ import { InstinctActionExecutor } from './instinct-executor'
 import type { PredictiveReport } from './predictive-engine'
 import { PredictiveHealingEngine } from './predictive-engine'
 import type { RecoveryExecution } from './recovery-state-machine'
-import { createAgentRecoveryPlan, RecoveryExecutor } from './recovery-state-machine'
+import {
+  createAgentRecoveryPlan,
+  createTicketRecoveryPlan,
+  RecoveryExecutor,
+} from './recovery-state-machine'
+
+// ── Constants ───────────────────────────────────────────────────────────
+
+const CYCLE_TIMEOUT_MS = 60_000 // 1 minute max per cycle
+const STALE_CYCLE_MS = 10 * 60 * 1000 // 10 minutes = stale
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -75,6 +87,7 @@ export interface CortexCycleResult {
 export interface CortexStatus {
   isRunning: boolean
   lastCycle: CortexCycleResult | null
+  lastCycleAgeMs: number | null
   cycleCount: number
   totalHealingActions: number
   totalRecoveries: number
@@ -91,6 +104,7 @@ export class SelfHealingCortex {
   readonly tuner: AdaptiveResourceTuner
   readonly instinctExecutor: InstinctActionExecutor
   readonly degradation: AgentDegradationManager
+  readonly evidence: EvidenceMemoryPipeline
 
   private lastCycle: CortexCycleResult | null = null
   private cycleCount = 0
@@ -109,10 +123,11 @@ export class SelfHealingCortex {
     this.tuner = new AdaptiveResourceTuner()
     this.instinctExecutor = new InstinctActionExecutor(db)
     this.degradation = new AgentDegradationManager(db)
+    this.evidence = new EvidenceMemoryPipeline()
   }
 
   /**
-   * Run one full OODA cycle.
+   * Run one full OODA cycle with timeout protection.
    */
   async runCycle(): Promise<CortexCycleResult> {
     if (this.isRunning) {
@@ -120,204 +135,14 @@ export class SelfHealingCortex {
     }
 
     this.isRunning = true
-    const start = Date.now()
 
     try {
-      // ── PHASE 1: OBSERVE ─────────────────────────────────────────
-      const predictiveReport = await this.predictor.predict()
-
-      // ── PHASE 2: ORIENT ──────────────────────────────────────────
-      const immediateThreats = predictiveReport.interventions.filter(
-        (i) => i.urgency === 'immediate',
-      ).length
-      let instinctMatches = 0
-
-      // Process predictive interventions through instinct executor
-      for (const intervention of predictiveReport.interventions) {
-        const results = await this.instinctExecutor.processEvent({
-          eventType: `prediction.${intervention.metric}`,
-          domain: 'healing',
-          payload: {
-            metric: intervention.metric,
-            action: intervention.action,
-            urgency: intervention.urgency,
-            reason: intervention.reason,
-          },
-        })
-        instinctMatches += results.length
-      }
-
-      // ── PHASE 3: DECIDE ──────────────────────────────────────────
-      // Run base healing engine
-      const { actions: healingActions } = await this.healer.autoHeal()
-
-      // Determine recovery plans needed
-      const recoveryPlans: Array<{
-        plan: ReturnType<typeof createAgentRecoveryPlan>
-        trigger: string
-      }> = []
-
-      // Queue agent recovery plans for agents that are still in error after base healing
-      const { agents: agentsTable } = await import('@solarc/db')
-      const { eq: eqOp } = await import('drizzle-orm')
-      const stillErrorAgents = await this.db.query.agents.findMany({
-        where: eqOp(agentsTable.status, 'error'),
-      })
-      for (const agent of stillErrorAgents) {
-        const plan = createAgentRecoveryPlan(
-          agent.id,
-          agent.name,
-          (id, reason) => this.healer.restartAgent(id, reason),
-          async () => {
-            // Reassign: requeue all tickets held by this agent
-            const cleared = await this.healer.clearExpiredLeases()
-            return cleared >= 0
-          },
-          async () => {
-            // Suspend: force agent to suspended capability level
-            this.degradation.forceLevel(agent.id, agent.name, 'suspended', 'Recovery plan: suspend')
-            return true
-          },
-        )
-        recoveryPlans.push({ plan, trigger: `Failed restart: ${agent.name}` })
-      }
-
-      // Queue ticket recovery for stuck tickets mentioned in predictive report
-      if (predictiveReport.interventions.some((i) => i.metric === 'ticket.stuck_count')) {
-        // The base healer already handles requeue, but predictive can trigger
-        // more aggressive recovery
-      }
-
-      // ── PHASE 4: ACT ────────────────────────────────────────────
-      const recoveryExecutions: RecoveryExecution[] = []
-      for (const { plan, trigger } of recoveryPlans) {
-        const execution = await this.recovery.execute(plan, trigger)
-        recoveryExecutions.push(execution)
-      }
-
-      // Run adaptive tuner
-      const tuningActions = this.tuner.tune()
-
-      // Process all instinct-triggered actions
-      const allInstinctExecutions: ExecutionRecord[] = []
-
-      // Feed healing events through instinct executor
-      for (const action of healingActions) {
-        const results = await this.instinctExecutor.processEvent({
-          eventType: `healing.${action.action}`,
-          domain: 'healing',
-          payload: {
-            target: action.target,
-            reason: action.reason,
-            success: action.success,
-          },
-        })
-        allInstinctExecutions.push(...results)
-      }
-
-      // Process degradation for agents mentioned in diagnosis
-      const degradationEvents: DegradationEvent[] = []
-      for (const agent of stillErrorAgents) {
-        const event = this.degradation.recordOutcome(agent.id, agent.name, false)
-        if (event) degradationEvents.push(event)
-      }
-
-      // Act on predictive interventions that need immediate action
-      for (const intervention of predictiveReport.interventions) {
-        if (intervention.urgency !== 'immediate') continue
-
-        switch (intervention.action) {
-          case 'preemptive_restart':
-            // Restart agents with highest pressure before they fail
-            for (const profile of this.degradation.getAllProfiles()) {
-              if (profile.pressure > 0.7 && profile.level === 'full') {
-                this.degradation.forceLevel(
-                  profile.agentId,
-                  profile.agentName,
-                  'reduced',
-                  'Preemptive: predicted error rate spike',
-                )
-              }
-            }
-            break
-          case 'throttle_dispatch':
-            // Signal tuner to apply pressure relief globally
-            this.tuner.recordOutcome('global_dispatch', 'workspace', {
-              timestamp: Date.now(),
-              success: false,
-              latencyMs: 0,
-              tokensUsed: 0,
-            })
-            break
-          case 'force_requeue':
-            // Requeue stuck tickets proactively
-            await this.healer.clearExpiredLeases()
-            break
-          case 'cooldown_healing':
-            // System is thrashing — skip aggressive actions this cycle
-            break
-        }
-      }
-
-      // ── PHASE 5: LEARN ───────────────────────────────────────────
-      let outcomesRecorded = 0
-      let confidenceUpdates = 0
-
-      // Feed recovery outcomes to adaptive tuner
-      for (const execution of recoveryExecutions) {
-        this.tuner.recordOutcome('recovery_system', 'workspace', {
-          timestamp: Date.now(),
-          success: execution.status === 'succeeded',
-          latencyMs: execution.completedAt
-            ? execution.completedAt.getTime() - execution.startedAt.getTime()
-            : 0,
-          tokensUsed: 0,
-        })
-        outcomesRecorded++
-      }
-
-      // Feed instinct execution outcomes back
-      confidenceUpdates = allInstinctExecutions.length // confidence updated in executor
-
-      // ── BUILD RESULT ─────────────────────────────────────────────
-      this.totalHealingActions += healingActions.length
-      this.totalRecoveries += recoveryExecutions.length
-      this.totalDegradations += degradationEvents.length
-      this.cycleCount++
-
-      const result: CortexCycleResult = {
-        timestamp: new Date(),
-        durationMs: Date.now() - start,
-        phases: {
-          observe: {
-            predictiveReport,
-            metricsCollected: true,
-          },
-          orient: {
-            riskLevel: predictiveReport.riskLevel,
-            immediateThreats,
-            instinctMatches,
-          },
-          decide: {
-            recoveryPlansQueued: recoveryPlans.length,
-            tuningActionsPlanned: tuningActions.length,
-            degradationsPending: degradationEvents.length,
-          },
-          act: {
-            healingActions,
-            recoveryExecutions,
-            tuningActions,
-            instinctExecutions: allInstinctExecutions,
-            degradationEvents,
-          },
-          learn: {
-            outcomesRecorded,
-            confidenceUpdates,
-          },
-        },
-      }
-
-      this.lastCycle = result
+      const result = await Promise.race([
+        this._executeCycle(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Cortex cycle timed out')), CYCLE_TIMEOUT_MS),
+        ),
+      ])
       return result
     } finally {
       this.isRunning = false
@@ -359,13 +184,19 @@ export class SelfHealingCortex {
   }
 
   /**
-   * Get current cortex status.
+   * Get current cortex status with stale cycle detection.
    */
   getStatus(): CortexStatus {
     const lastRisk = this.lastCycle?.phases.orient.riskLevel ?? 'low'
+    const lastCycleAgeMs = this.lastCycle ? Date.now() - this.lastCycle.timestamp.getTime() : null
+    const isStale = lastCycleAgeMs === null || lastCycleAgeMs > STALE_CYCLE_MS
+
     let systemHealth: CortexStatus['systemHealth']
 
-    if (lastRisk === 'low') {
+    if (isStale && this.cycleCount > 0) {
+      // Had cycles before but data is stale — can't trust it
+      systemHealth = 'degraded'
+    } else if (lastRisk === 'low') {
       systemHealth = 'autonomous'
     } else if (lastRisk === 'medium') {
       systemHealth = 'assisted'
@@ -378,6 +209,7 @@ export class SelfHealingCortex {
     return {
       isRunning: this.isRunning,
       lastCycle: this.lastCycle,
+      lastCycleAgeMs,
       cycleCount: this.cycleCount,
       totalHealingActions: this.totalHealingActions,
       totalRecoveries: this.totalRecoveries,
@@ -402,6 +234,312 @@ export class SelfHealingCortex {
         profiles: this.degradation.getAllProfiles(),
         events: this.degradation.getRecentEvents().slice(-20),
       },
+      evidence: {
+        queue: this.evidence.getQueue().length,
+        recentLog: this.evidence.getLog(10),
+      },
     }
+  }
+
+  // ── Private ─────────────────────────────────────────────────────────────
+
+  /**
+   * Execute a phase with error isolation. If a phase throws, log and return fallback.
+   */
+  private async safePhase<T>(name: string, fn: () => Promise<T> | T, fallback: T): Promise<T> {
+    try {
+      return await fn()
+    } catch (error) {
+      console.error(`[Cortex] ${name} phase failed:`, error)
+      return fallback
+    }
+  }
+
+  /**
+   * The actual OODA cycle logic, separated for timeout wrapping.
+   */
+  private async _executeCycle(): Promise<CortexCycleResult> {
+    const start = Date.now()
+
+    const DEFAULT_REPORT: PredictiveReport = {
+      timestamp: new Date(),
+      trends: [],
+      riskLevel: 'low',
+      interventions: [],
+    }
+
+    // ── PHASE 1: OBSERVE ─────────────────────────────────────────
+    const predictiveReport = await this.safePhase(
+      'observe',
+      () => this.predictor.predict(),
+      DEFAULT_REPORT,
+    )
+
+    // ── PHASE 2: ORIENT ──────────────────────────────────────────
+    const { immediateThreats, instinctMatches } = await this.safePhase(
+      'orient',
+      async () => {
+        const threats = predictiveReport.interventions.filter(
+          (i) => i.urgency === 'immediate',
+        ).length
+        let matches = 0
+
+        for (const intervention of predictiveReport.interventions) {
+          const results = await this.instinctExecutor.processEvent({
+            eventType: `prediction.${intervention.metric}`,
+            domain: 'healing',
+            payload: {
+              metric: intervention.metric,
+              action: intervention.action,
+              urgency: intervention.urgency,
+              reason: intervention.reason,
+            },
+          })
+          matches += results.length
+        }
+
+        return { immediateThreats: threats, instinctMatches: matches }
+      },
+      { immediateThreats: 0, instinctMatches: 0 },
+    )
+
+    // ── PHASE 3: DECIDE ──────────────────────────────────────────
+    const { healingActions, recoveryPlans, stillErrorAgents } = await this.safePhase(
+      'decide',
+      async () => {
+        const { actions } = await this.healer.autoHeal()
+
+        const plans: Array<{
+          plan: ReturnType<typeof createAgentRecoveryPlan>
+          trigger: string
+        }> = []
+
+        // Queue agent recovery plans for agents still in error after base healing
+        const errorAgents = await this.db.query.agents.findMany({
+          where: eqOp(agentsTable.status, 'error'),
+        })
+        for (const agent of errorAgents) {
+          const plan = createAgentRecoveryPlan(
+            agent.id,
+            agent.name,
+            (id, reason) => this.healer.restartAgent(id, reason),
+            async () => {
+              const cleared = await this.healer.clearExpiredLeases()
+              return cleared >= 0
+            },
+            async () => {
+              this.degradation.forceLevel(
+                agent.id,
+                agent.name,
+                'suspended',
+                'Recovery plan: suspend',
+              )
+              return true
+            },
+          )
+          plans.push({ plan, trigger: `Failed restart: ${agent.name}` })
+        }
+
+        // Aggressive ticket recovery when predictive engine flags stuck tickets
+        for (const intervention of predictiveReport.interventions) {
+          if (
+            intervention.metric === 'ticket.stuck_count' &&
+            intervention.urgency === 'immediate'
+          ) {
+            await this.healer.clearExpiredLeases()
+            const ticketPlan = createTicketRecoveryPlan(
+              `stuck-tickets-${Date.now()}`,
+              (id, reason) => this.healer.requeueTicket(id, reason),
+              async () => true, // cancel fallback — just acknowledge
+            )
+            plans.push({ plan: ticketPlan, trigger: intervention.reason })
+          }
+        }
+
+        return { healingActions: actions, recoveryPlans: plans, stillErrorAgents: errorAgents }
+      },
+      {
+        healingActions: [] as HealingRecord[],
+        recoveryPlans: [] as Array<{
+          plan: ReturnType<typeof createAgentRecoveryPlan>
+          trigger: string
+        }>,
+        stillErrorAgents: [] as Array<{ id: string; name: string }>,
+      },
+    )
+
+    // ── PHASE 4: ACT ────────────────────────────────────────────
+    const { recoveryExecutions, tuningActions, allInstinctExecutions, degradationEvents } =
+      await this.safePhase(
+        'act',
+        async () => {
+          const executions: RecoveryExecution[] = []
+          for (const { plan, trigger } of recoveryPlans) {
+            const execution = await this.recovery.execute(plan, trigger)
+            executions.push(execution)
+          }
+
+          const tuning = this.tuner.tune()
+
+          const instinctExecs: ExecutionRecord[] = []
+          for (const action of healingActions) {
+            const results = await this.instinctExecutor.processEvent({
+              eventType: `healing.${action.action}`,
+              domain: 'healing',
+              payload: {
+                target: action.target,
+                reason: action.reason,
+                success: action.success,
+              },
+            })
+            instinctExecs.push(...results)
+          }
+
+          const degradations: DegradationEvent[] = []
+          for (const agent of stillErrorAgents) {
+            const event = this.degradation.recordOutcome(agent.id, agent.name, false)
+            if (event) degradations.push(event)
+          }
+
+          // Act on predictive interventions that need immediate action
+          let cooldownActive = false
+
+          for (const intervention of predictiveReport.interventions) {
+            if (intervention.urgency !== 'immediate') continue
+
+            switch (intervention.action) {
+              case 'cooldown_healing':
+                cooldownActive = true
+                break
+              case 'preemptive_restart':
+                if (cooldownActive) break
+                for (const profile of this.degradation.getAllProfiles()) {
+                  if (profile.pressure > 0.7 && profile.level === 'full') {
+                    this.degradation.forceLevel(
+                      profile.agentId,
+                      profile.agentName,
+                      'reduced',
+                      'Preemptive: predicted error rate spike',
+                    )
+                  }
+                }
+                break
+              case 'throttle_dispatch':
+                if (cooldownActive) break
+                this.tuner.recordOutcome('global_dispatch', 'workspace', {
+                  timestamp: Date.now(),
+                  success: false,
+                  latencyMs: 0,
+                  tokensUsed: 0,
+                })
+                break
+              case 'force_requeue':
+                if (cooldownActive) break
+                await this.healer.clearExpiredLeases()
+                break
+            }
+          }
+
+          return {
+            recoveryExecutions: executions,
+            tuningActions: tuning,
+            allInstinctExecutions: instinctExecs,
+            degradationEvents: degradations,
+          }
+        },
+        {
+          recoveryExecutions: [] as RecoveryExecution[],
+          tuningActions: [] as TuningAction[],
+          allInstinctExecutions: [] as ExecutionRecord[],
+          degradationEvents: [] as DegradationEvent[],
+        },
+      )
+
+    // ── PHASE 5: LEARN ───────────────────────────────────────────
+    const { outcomesRecorded, confidenceUpdates } = await this.safePhase(
+      'learn',
+      async () => {
+        let outcomes = 0
+        const confidence = allInstinctExecutions.length
+
+        // Feed recovery outcomes to adaptive tuner
+        for (const execution of recoveryExecutions) {
+          this.tuner.recordOutcome('recovery_system', 'workspace', {
+            timestamp: Date.now(),
+            success: execution.status === 'succeeded',
+            latencyMs: execution.completedAt
+              ? execution.completedAt.getTime() - execution.startedAt.getTime()
+              : 0,
+            tokensUsed: 0,
+          })
+          outcomes++
+        }
+
+        // Write healing outcomes to evidence memory pipeline
+        for (const action of healingActions) {
+          this.evidence.recordHealingOutcome({
+            action: action.action,
+            target: action.target,
+            success: action.success,
+            reason: action.reason,
+          })
+        }
+        for (const execution of recoveryExecutions) {
+          this.evidence.recordHealingOutcome({
+            action: 'recovery_plan',
+            target: execution.planName,
+            success: execution.status === 'succeeded',
+            reason: `Recovery ${execution.status}: ${execution.steps.length} steps`,
+          })
+        }
+
+        // Fire-and-forget flush to memory store
+        this.evidence.flush().catch(() => {})
+
+        return { outcomesRecorded: outcomes, confidenceUpdates: confidence }
+      },
+      { outcomesRecorded: 0, confidenceUpdates: 0 },
+    )
+
+    // ── BUILD RESULT ─────────────────────────────────────────────
+    this.totalHealingActions += healingActions.length
+    this.totalRecoveries += recoveryExecutions.length
+    this.totalDegradations += degradationEvents.length
+    this.cycleCount++
+
+    const result: CortexCycleResult = {
+      timestamp: new Date(),
+      durationMs: Date.now() - start,
+      phases: {
+        observe: {
+          predictiveReport,
+          metricsCollected: true,
+        },
+        orient: {
+          riskLevel: predictiveReport.riskLevel,
+          immediateThreats,
+          instinctMatches,
+        },
+        decide: {
+          recoveryPlansQueued: recoveryPlans.length,
+          tuningActionsPlanned: tuningActions.length,
+          degradationsPending: degradationEvents.length,
+        },
+        act: {
+          healingActions,
+          recoveryExecutions,
+          tuningActions,
+          instinctExecutions: allInstinctExecutions,
+          degradationEvents,
+        },
+        learn: {
+          outcomesRecorded,
+          confidenceUpdates,
+        },
+      },
+    }
+
+    this.lastCycle = result
+    return result
   }
 }
