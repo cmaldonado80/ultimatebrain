@@ -595,15 +595,32 @@ export async function POST(req: Request) {
             targetAgentConfig.workspaceId ?? 'universal',
             body.text,
           ).catch(() => '')
-          const stepToolReminder = targetAgentConfig.soul.includes('file_system')
-            ? ''
-            : '\n\nREMINDER: You have tools including file_system, memory_search, web_search, create_ticket, db_query. USE them. Do not say you cannot access files.\n'
+
+          // ── TRUTH INJECTION: Ground agent in runtime truth before responding ──
+          let truthBlock = ''
+          try {
+            const { buildGroundedContext } =
+              await import('../../../../server/services/intelligence/truth-injection')
+            const grounded = buildGroundedContext(
+              body.text,
+              targetAgentConfig.name,
+              targetAgentConfig.agentType,
+            )
+            truthBlock =
+              '\n\n' + grounded.systemRules + '\n\n' + grounded.truth + grounded.memoryHints + '\n'
+          } catch {
+            // Truth injection unavailable — fall back to basic reminder
+            truthBlock = targetAgentConfig.soul.includes('file_system')
+              ? ''
+              : '\n\nREMINDER: You have tools including file_system, memory_search, web_search, create_ticket, db_query. USE them. Do not say you cannot access files.\n'
+          }
+
           const stepBaseMessages = [
             {
               role: 'system',
               content:
                 targetAgentConfig.soul +
-                stepToolReminder +
+                truthBlock +
                 atlasCtx +
                 memoryContext +
                 goalContext +
@@ -820,15 +837,35 @@ export async function POST(req: Request) {
               agentConfig.workspaceId ?? 'universal',
               body.text,
             ).catch(() => '')
-            const baseToolReminder = agentConfig.soul.includes('file_system')
-              ? ''
-              : '\n\nREMINDER: You have tools including file_system, memory_search, web_search, create_ticket, db_query. USE them. Do not say you cannot access files.\n'
+            // ── TRUTH INJECTION for direct path ──
+            let baseTruthBlock = ''
+            try {
+              const { buildGroundedContext } =
+                await import('../../../../server/services/intelligence/truth-injection')
+              const grounded = buildGroundedContext(
+                body.text,
+                agentConfig.name,
+                agentConfig.agentType,
+              )
+              baseTruthBlock =
+                '\n\n' +
+                grounded.systemRules +
+                '\n\n' +
+                grounded.truth +
+                grounded.memoryHints +
+                '\n'
+            } catch {
+              baseTruthBlock = agentConfig.soul.includes('file_system')
+                ? ''
+                : '\n\nREMINDER: You have tools. USE them.\n'
+            }
+
             const baseMessages = [
               {
                 role: 'system',
                 content:
                   agentConfig.soul +
-                  baseToolReminder +
+                  baseTruthBlock +
                   atlasContext +
                   memoryContext +
                   goalContext +
