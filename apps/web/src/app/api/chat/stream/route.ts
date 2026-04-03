@@ -595,19 +595,15 @@ export async function POST(req: Request) {
             targetAgentConfig.workspaceId ?? 'universal',
             body.text,
           ).catch(() => '')
+          const stepToolReminder = targetAgentConfig.soul.includes('file_system')
+            ? ''
+            : '\n\nREMINDER: You have tools including file_system, memory_search, web_search, create_ticket, db_query. USE them. Do not say you cannot access files.\n'
           const stepBaseMessages = [
             {
               role: 'system',
               content:
                 targetAgentConfig.soul +
-                '\n\nIMPORTANT: You have access to tools. Use them proactively to accomplish tasks. Key tools available:\n' +
-                '- file_system: Read, write, or list files (action: "read"|"write"|"list"|"exists", path: relative to project root)\n' +
-                '- memory_search: Search stored knowledge by query\n' +
-                '- memory_store: Save important findings for future reference\n' +
-                '- web_search: Search the internet for information\n' +
-                '- create_ticket: Create work tickets for the team\n' +
-                '- db_query: Query the database\n' +
-                'When asked to review code, read files, or analyze the project — USE the file_system tool. Do not say you cannot access files.\n' +
+                stepToolReminder +
                 atlasCtx +
                 memoryContext +
                 goalContext +
@@ -821,19 +817,15 @@ export async function POST(req: Request) {
               agentConfig.workspaceId ?? 'universal',
               body.text,
             ).catch(() => '')
+            const baseToolReminder = agentConfig.soul.includes('file_system')
+              ? ''
+              : '\n\nREMINDER: You have tools including file_system, memory_search, web_search, create_ticket, db_query. USE them. Do not say you cannot access files.\n'
             const baseMessages = [
               {
                 role: 'system',
                 content:
                   agentConfig.soul +
-                  '\n\nIMPORTANT: You have access to tools. Use them proactively to accomplish tasks. Key tools available:\n' +
-                  '- file_system: Read, write, or list files (action: "read"|"write"|"list"|"exists", path: relative to project root)\n' +
-                  '- memory_search: Search stored knowledge by query\n' +
-                  '- memory_store: Save important findings for future reference\n' +
-                  '- web_search: Search the internet for information\n' +
-                  '- create_ticket: Create work tickets for the team\n' +
-                  '- db_query: Query the database\n' +
-                  'When asked to review code, read files, or analyze the project — USE the file_system tool. Do not say you cannot access files.\n' +
+                  baseToolReminder +
                   atlasContext +
                   memoryContext +
                   goalContext +

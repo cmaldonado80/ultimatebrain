@@ -99,4 +99,25 @@ export const entitiesRouter = router({
       await ctx.db.delete(brainEntities).where(eq(brainEntities.id, input.id))
       return { deleted: true }
     }),
+
+  /** Update entity config (merge with existing) */
+  updateConfig: protectedProcedure
+    .input(
+      z.object({
+        entityId: z.string().uuid(),
+        config: z.record(z.unknown()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const entity = await ctx.db.query.brainEntities.findFirst({
+        where: eq(brainEntities.id, input.entityId),
+      })
+      const existingConfig = (entity?.config as Record<string, unknown>) ?? {}
+      const merged = { ...existingConfig, ...input.config }
+      await ctx.db
+        .update(brainEntities)
+        .set({ config: merged })
+        .where(eq(brainEntities.id, input.entityId))
+      return { updated: true }
+    }),
 })

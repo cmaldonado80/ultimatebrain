@@ -79,6 +79,9 @@ export default function OnboardingPage() {
   const [budgetDaily, setBudgetDaily] = useState('10')
   const [budgetMonthly, setBudgetMonthly] = useState('200')
 
+  // Save corporation mission to the brain entity config
+  const updateEntityMutation = trpc.entities.updateConfig.useMutation()
+
   const smartCreateMutation = trpc.factory.smartCreate.useMutation({
     onSuccess: (data) => {
       const result = data as { entity: { id: string }; agentCount: number; template: string }
@@ -87,6 +90,16 @@ export default function OnboardingPage() {
         name: selectedTemplate ?? 'department',
         agentCount: result.agentCount,
       })
+      // Save corporation name and mission to the entity config
+      if (mission || corpName) {
+        updateEntityMutation.mutate({
+          entityId: result.entity.id,
+          config: {
+            corporationName: corpName,
+            mission: mission,
+          },
+        })
+      }
       setStep(3)
     },
   })

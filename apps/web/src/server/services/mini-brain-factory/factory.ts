@@ -118,9 +118,30 @@ When you receive a high-level task:
 
 You operate AUTONOMOUSLY. Don't wait for the CEO to assign every task. When work arrives at your department, own it — plan it, delegate it, review it, ship it.`
 
+const TOOL_AWARENESS_DIRECTIVE = `
+
+## Available Tools
+You have access to the following tools — use them proactively to accomplish tasks:
+- file_system: Read, write, list, or check files (action: "read"|"write"|"list"|"exists", path relative to project root)
+- memory_search: Search stored knowledge and past findings by query
+- memory_store: Save important findings, decisions, or insights for future reference
+- web_search: Search the internet for information and documentation
+- web_scrape: Fetch and parse web pages for content
+- create_ticket: Create work tickets for yourself or teammates
+- db_query: Query the database for data
+- vision_analyze: Analyze images with AI vision
+- delegate_to_team: Delegate work to other agents in your department
+
+IMPORTANT: When asked to review code, read files, analyze the project, or look at the codebase — USE the file_system tool with action "list" or "read". Never say you cannot access files.`
+
 /** Enhance a department head's soul with self-organization capabilities */
 function enhanceDepartmentHead(soul: string): string {
-  return soul + DEPARTMENT_HEAD_DIRECTIVE
+  return soul + DEPARTMENT_HEAD_DIRECTIVE + TOOL_AWARENESS_DIRECTIVE
+}
+
+/** Add tool awareness to any agent soul */
+function enhanceWithToolAwareness(soul: string): string {
+  return soul + TOOL_AWARENESS_DIRECTIVE
 }
 
 // ── Template Registry ───────────────────────────────────────────────────
@@ -1352,12 +1373,19 @@ export class MiniBrainFactory {
   /** Enhance template: inject department head autonomy into first agent's soul */
   private _enhanceTemplate(tpl: TemplateDefinition): TemplateDefinition {
     if (tpl.agents.length === 0) return tpl
-    const enhanced = { ...tpl, agents: [...tpl.agents] }
-    const head = { ...enhanced.agents[0]! }
-    if (head.soul) {
-      head.soul = enhanceDepartmentHead(head.soul)
+    const enhanced = {
+      ...tpl,
+      agents: tpl.agents.map((agent, i) => {
+        const copy = { ...agent }
+        if (copy.soul) {
+          copy.soul =
+            i === 0
+              ? enhanceDepartmentHead(copy.soul) // head gets both directives
+              : enhanceWithToolAwareness(copy.soul) // specialists get tool awareness
+        }
+        return copy
+      }),
     }
-    enhanced.agents[0] = head
     return enhanced
   }
 
