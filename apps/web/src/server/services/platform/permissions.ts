@@ -99,6 +99,20 @@ export async function can(
     where: eq(userRoles.userId, userId),
   })
 
+  // If NO roles exist for this user, check if they're the only user (first-time bootstrap).
+  // First user gets full access to complete onboarding.
+  if (roles.length === 0) {
+    const allRoles = await db.query.userRoles.findMany()
+    if (allRoles.length === 0) {
+      // No roles in system at all — bootstrap: grant platform_owner to this user
+      await db
+        .insert(userRoles)
+        .values({ userId, role: 'platform_owner' })
+        .catch(() => {})
+      return true
+    }
+  }
+
   for (const role of roles) {
     const allowed = GLOBAL_ROLE_ACTIONS[role.role]
     if (allowed?.has(action)) return true
