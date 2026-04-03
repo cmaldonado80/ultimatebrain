@@ -308,7 +308,7 @@ export default function OnboardingPage() {
                 Chat with Agents
               </button>
               <button
-                onClick={() => router.push('/onboarding')}
+                onClick={() => router.push('/mini-brain-factory')}
                 className="cyber-btn-secondary cyber-btn-sm"
               >
                 Add More Departments
