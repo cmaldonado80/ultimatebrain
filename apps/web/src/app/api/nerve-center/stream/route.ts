@@ -11,7 +11,8 @@
 
 export const dynamic = 'force-dynamic'
 
-import { createDb, waitForSchema } from '@solarc/db'
+import { createDb, gatewayMetrics, waitForSchema } from '@solarc/db'
+import { gte, sql } from 'drizzle-orm'
 
 import { getOrCreateCortex } from '../../../../server/services/healing/index'
 import { getSandboxOrchestrator } from '../../../../server/services/sandbox/index'
@@ -37,10 +38,11 @@ export async function GET() {
 
       // Initialize DB + Cortex
       let cortex: ReturnType<typeof getOrCreateCortex> | null = null
+      let db: ReturnType<typeof createDb> | null = null
       try {
         const url = process.env.DATABASE_URL
         if (url) {
-          const db = createDb(url)
+          db = createDb(url)
           await waitForSchema()
           cortex = getOrCreateCortex(db)
         }
@@ -102,6 +104,36 @@ export async function GET() {
             poolSize: sandboxStatus.poolStats.total,
             successRate: sandboxStatus.audit.successRate,
           })
+
+          // Gateway health — per-provider error rates from last 5 minutes
+          if (db) {
+            try {
+              const since = new Date(Date.now() - 5 * 60 * 1000)
+              const rows = await db
+                .select({
+                  provider: gatewayMetrics.provider,
+                  total: sql<number>`count(*)`,
+                  errors: sql<number>`count(*) filter (where ${gatewayMetrics.error} is not null)`,
+                  avgLatencyMs: sql<number>`avg(${gatewayMetrics.latencyMs})`,
+                })
+                .from(gatewayMetrics)
+                .where(gte(gatewayMetrics.createdAt, since))
+                .groupBy(gatewayMetrics.provider)
+              if (rows.length > 0) {
+                send('gateway_health', {
+                  providers: rows.map((r) => ({
+                    provider: r.provider,
+                    total: Number(r.total),
+                    errors: Number(r.errors),
+                    errorRate: r.total > 0 ? Number(r.errors) / Number(r.total) : 0,
+                    avgLatencyMs: r.avgLatencyMs ? Math.round(Number(r.avgLatencyMs)) : null,
+                  })),
+                })
+              }
+            } catch {
+              // Non-critical — skip gateway health this tick
+            }
+          }
         } catch {
           // Non-critical — skip this tick
         }

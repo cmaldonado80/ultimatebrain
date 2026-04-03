@@ -2,7 +2,10 @@ import { createDb } from '@solarc/db'
 import PgBoss from 'pg-boss'
 
 import { EvalRunner } from '../../web/src/server/services/evals/runner'
+import { SelfHealingCortex } from '../../web/src/server/services/healing/cortex'
 import { HealingEngine } from '../../web/src/server/services/healing/healing-engine'
+import { InstinctEvolver } from '../../web/src/server/services/instincts/evolve'
+import { runInstinctPipeline } from '../../web/src/server/services/instincts/instinct-pipeline'
 import { InstinctObserver } from '../../web/src/server/services/instincts/observer'
 import { MemoryService } from '../../web/src/server/services/memory/memory-service'
 import { CronEngine } from '../../web/src/server/services/orchestration/cron-engine'
@@ -76,14 +79,18 @@ async function main() {
     }
   })
 
-  // Memory compaction — process pending promotions for a workspace
+  // Memory compaction — process pending promotions and decay stale memories
   await boss.work<{ workspaceId: string }>('memory:compact', async ([job]) => {
     const { workspaceId } = job.data
     console.warn(`[Worker] Compacting memory for workspace: ${workspaceId}`)
     try {
-      const result = await memoryService.processPromotions()
+      const [promotions, decay] = await Promise.all([
+        memoryService.processPromotions(),
+        memoryService.decayConfidence(),
+      ])
       console.warn(
-        `[Worker] Memory compaction done: ${result.promoted} promoted, ${result.rejected} rejected`,
+        `[Worker] Memory compaction done: ${promotions.promoted} promoted, ` +
+          `${promotions.rejected} rejected, ${decay.decayed} confidence-decayed`,
       )
     } catch (err) {
       console.error(`[Worker] Memory compaction failed for workspace ${workspaceId}:`, err)
@@ -130,7 +137,6 @@ async function main() {
       const observer = new InstinctObserver({
         onFlush: async (observations) => {
           console.warn(`[Worker] Flushed ${observations.length} instinct observations`)
-          // In production, wire this to PatternDetector.detectPatterns()
         },
       })
       await observer.flush()
@@ -140,6 +146,82 @@ async function main() {
       throw err
     }
   })
+
+  // Self-healing cortex — full OODA cycle (Observe/Orient/Decide/Act/Learn)
+  // Flushes evidence pipeline, runs recovery state machine, adaptive tuning,
+  // degradation checks. Scheduled every 10 minutes.
+  await boss.work('healing:cycle', async () => {
+    console.warn('[Worker] Running cortex OODA cycle')
+    try {
+      const cortex = new SelfHealingCortex(db)
+      const result = await cortex.runCycle()
+      const actionsCount = result.phases.act?.healingActions?.length ?? 0
+      const riskLevel = result.phases.orient?.riskLevel ?? 'unknown'
+      console.warn(
+        `[Worker] Cortex cycle complete: ${actionsCount} healing actions, risk=${riskLevel}`,
+      )
+    } catch (err) {
+      console.error('[Worker] Cortex cycle failed:', err)
+      throw err
+    }
+  })
+
+  // Instinct pipeline — daily sweep: detect patterns, score confidence, promote candidates
+  await boss.work('instinct:pipeline', async () => {
+    console.warn('[Worker] Running instinct pipeline sweep')
+    try {
+      const result = await runInstinctPipeline(db)
+      console.warn(
+        `[Worker] Instinct pipeline done: ${result.observationsProcessed} obs processed, ` +
+          `${result.candidatesCreated} candidates, ${result.promoted} promoted, ` +
+          `${result.decayed} decayed`,
+      )
+    } catch (err) {
+      console.error('[Worker] Instinct pipeline failed:', err)
+      throw err
+    }
+  })
+
+  // Instinct evolution — weekly sweep: cluster mature instincts into Skills and Commands
+  await boss.work('instinct:evolve', async () => {
+    console.warn('[Worker] Running instinct evolution sweep')
+    try {
+      const allInstincts = await db.query.instincts.findMany({
+        orderBy: (t, { desc }) => [desc(t.confidence)],
+        limit: 500,
+      })
+
+      const evolver = new InstinctEvolver()
+      const clusters = evolver.findRelatedClusters(
+        allInstincts.map((i) => ({
+          ...i,
+          domain: i.domain ?? 'universal',
+          entityId: i.entityId ?? '',
+          evidenceCount: i.evidenceCount ?? 1,
+          lastObservedAt: i.lastObservedAt ?? new Date(),
+          createdAt: i.createdAt,
+          updatedAt: i.updatedAt,
+        })),
+      )
+
+      let evolved = 0
+      for (const cluster of clusters) {
+        const result = await evolver.evolveToSkill(cluster)
+        if (result) evolved++
+      }
+      console.warn(
+        `[Worker] Instinct evolution done: ${clusters.length} clusters, ${evolved} evolved to skills`,
+      )
+    } catch (err) {
+      console.error('[Worker] Instinct evolution failed:', err)
+      throw err
+    }
+  })
+
+  // === Periodic schedules (idempotent — pg-boss deduplicates by schedule name) ===
+  await boss.schedule('healing:cycle', '*/10 * * * *', {}) // every 10 min
+  await boss.schedule('instinct:pipeline', '0 2 * * *', {}) // daily at 02:00
+  await boss.schedule('instinct:evolve', '0 3 * * 0', {}) // weekly on Sunday at 03:00
 
   console.warn('[Worker] All job handlers registered. Waiting for jobs...')
 

@@ -296,20 +296,24 @@ export const tickets = pgTable(
   ],
 )
 
-export const ticketExecution = pgTable('ticket_execution', {
-  ticketId: uuid('ticket_id')
-    .references(() => tickets.id, { onDelete: 'cascade' })
-    .primaryKey(),
-  runId: text('run_id'),
-  lockOwner: uuid('lock_owner').references(() => agents.id, { onDelete: 'set null' }),
-  lockedAt: timestamp('locked_at'),
-  leaseUntil: timestamp('lease_until'),
-  leaseSeconds: integer('lease_seconds'),
-  wakePendingCount: integer('wake_pending_count').default(0),
-  lastWakeAt: timestamp('last_wake_at'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-})
+export const ticketExecution = pgTable(
+  'ticket_execution',
+  {
+    ticketId: uuid('ticket_id')
+      .references(() => tickets.id, { onDelete: 'cascade' })
+      .primaryKey(),
+    runId: text('run_id'),
+    lockOwner: uuid('lock_owner').references(() => agents.id, { onDelete: 'set null' }),
+    lockedAt: timestamp('locked_at'),
+    leaseUntil: timestamp('lease_until'),
+    leaseSeconds: integer('lease_seconds'),
+    wakePendingCount: integer('wake_pending_count').default(0),
+    lastWakeAt: timestamp('last_wake_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [index('ticket_execution_lock_owner_idx').on(t.lockOwner)],
+)
 
 export const ticketStatusHistory = pgTable(
   'ticket_status_history',

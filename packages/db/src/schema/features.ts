@@ -207,14 +207,18 @@ export const instincts = pgTable('instincts', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
-export const instinctObservations = pgTable('instinct_observations', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  instinctId: uuid('instinct_id').references(() => instincts.id, { onDelete: 'cascade' }),
-  eventType: text('event_type').notNull(),
-  payload: jsonb('payload'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-})
+export const instinctObservations = pgTable(
+  'instinct_observations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    instinctId: uuid('instinct_id').references(() => instincts.id, { onDelete: 'cascade' }),
+    eventType: text('event_type').notNull(),
+    payload: jsonb('payload'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [index('instinct_observations_instinct_id_idx').on(t.instinctId)],
+)
 
 // A2A Delegations (persisted — replaces in-memory Map)
 export const a2aDelegations = pgTable(

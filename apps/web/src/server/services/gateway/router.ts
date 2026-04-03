@@ -825,6 +825,12 @@ class OllamaAdapter implements ProviderAdapter {
 
 // === Gateway Router ===
 
+/** Callback invoked when a notable gateway event occurs (circuit trips, budget exceeded). */
+export type GatewayEventCallback = (
+  type: 'circuit_open' | 'circuit_close' | 'budget_exceeded' | 'all_providers_failed',
+  ctx: { provider?: string; agentId?: string; message: string },
+) => void
+
 export class GatewayRouter {
   readonly circuitBreaker: CircuitBreakerRegistry
   readonly costTracker: CostTracker
@@ -834,6 +840,12 @@ export class GatewayRouter {
   private adapters = new Map<ProviderName, ProviderAdapter>()
   private config: GatewayConfig
   private tracer?: Tracer
+  private onEvent?: GatewayEventCallback
+
+  /** Inject an event listener for circuit/budget events (used by evidence pipeline). */
+  setEventCallback(cb: GatewayEventCallback): void {
+    this.onEvent = cb
+  }
 
   constructor(_db: Database, config?: Partial<GatewayConfig>, tracer?: Tracer) {
     this.config = { ...DEFAULT_GATEWAY_CONFIG, ...config }
@@ -988,10 +1000,9 @@ export class GatewayRouter {
       if (input.agentId) {
         const budget = await this.costTracker.checkBudget(input.agentId)
         if (!budget.allowed) {
-          throw new GatewayError(
-            'BUDGET_EXCEEDED',
-            `Agent budget exceeded. Remaining: $${budget.remainingUsd.toFixed(2)}`,
-          )
+          const msg = `Agent budget exceeded. Remaining: $${budget.remainingUsd.toFixed(2)}`
+          this.onEvent?.('budget_exceeded', { agentId: input.agentId, message: msg })
+          throw new GatewayError('BUDGET_EXCEEDED', msg)
         }
       }
 
@@ -1151,6 +1162,11 @@ export class GatewayRouter {
         } catch (err) {
           lastError = err instanceof Error ? err : new Error(String(err))
           this.circuitBreaker.recordFailure(provider)
+          this.onEvent?.('circuit_open', {
+            provider,
+            agentId: input.agentId,
+            message: `Provider ${provider} failure recorded: ${lastError.message}`,
+          })
 
           providerSpan?.recordError(lastError)
           await providerSpan?.end()
@@ -1169,10 +1185,9 @@ export class GatewayRouter {
         }
       }
 
-      throw new GatewayError(
-        'ALL_PROVIDERS_FAILED',
-        `All providers failed for model ${model}. Last error: ${lastError?.message}`,
-      )
+      const allFailedMsg = `All providers failed for model ${model}. Last error: ${lastError?.message}`
+      this.onEvent?.('all_providers_failed', { agentId: input.agentId, message: allFailedMsg })
+      throw new GatewayError('ALL_PROVIDERS_FAILED', allFailedMsg)
     } catch (err) {
       rootSpan?.recordError(err)
       throw err

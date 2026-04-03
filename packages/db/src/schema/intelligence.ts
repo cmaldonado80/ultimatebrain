@@ -109,7 +109,10 @@ export const runMemoryUsage = pgTable(
     tier: memoryTierEnum('tier'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
-  (t) => [index('run_memory_usage_run_idx').on(t.runId)],
+  (t) => [
+    index('run_memory_usage_run_idx').on(t.runId),
+    index('run_memory_usage_memory_id_idx').on(t.memoryId),
+  ],
 )
 
 export const memories = pgTable(

@@ -81,7 +81,24 @@ function getDb(): Database {
 
 let _gateway: GatewayRouter | undefined
 function getGateway(): GatewayRouter {
-  return (_gateway ??= new GatewayRouter(getDb()))
+  if (!_gateway) {
+    _gateway = new GatewayRouter(getDb())
+    // Wire gateway events into cortex evidence pipeline (fire-and-forget)
+    _gateway.setEventCallback((type, ctx) => {
+      import('../../../../server/services/healing')
+        .then(({ getOrCreateCortex }) => {
+          const cortex = getOrCreateCortex(getDb())
+          return cortex.evidence.recordVerification({
+            passed: type === 'circuit_close',
+            score: type === 'circuit_close' ? 0.8 : 0.0,
+            summary: `[gateway:${type}] ${ctx.message}`,
+            agentId: ctx.agentId,
+          })
+        })
+        .catch(() => {})
+    })
+  }
+  return _gateway
 }
 
 const CONTEXT_WINDOW = 50
