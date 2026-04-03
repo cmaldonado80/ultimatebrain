@@ -81,13 +81,18 @@ function isPrivateUrl(url: string): boolean {
 }
 
 // ── CORS ──────────────────────────────────────────────────────────────────
-const A2A_ALLOWED_ORIGINS = process.env.A2A_ALLOWED_ORIGINS?.split(',').map((s) => s.trim()) ?? [
-  '*',
-]
+const A2A_ALLOWED_ORIGINS = process.env.A2A_ALLOWED_ORIGINS?.split(',').map((s) => s.trim()) ?? []
+
+// If no origins configured, only allow same-origin requests in production
+function resolveOrigin(): string {
+  if (A2A_ALLOWED_ORIGINS.length > 0) return A2A_ALLOWED_ORIGINS.join(', ')
+  if (process.env.NODE_ENV === 'production') return '' // deny cross-origin
+  return '*' // allow all in development only
+}
 
 function corsHeaders(): Record<string, string> {
   return {
-    'Access-Control-Allow-Origin': A2A_ALLOWED_ORIGINS.join(', '),
+    'Access-Control-Allow-Origin': resolveOrigin(),
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',

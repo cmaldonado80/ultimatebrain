@@ -162,8 +162,9 @@ export class SandboxAuditBridge {
       if (entry.toolName.includes('web_') || entry.toolName.includes('api_')) {
         cortex.recordProviderOutcome('sandbox_network', entry.success, entry.durationMs)
       }
-    } catch {
-      // Non-critical
+    } catch (err) {
+      // Non-critical — log but don't propagate
+      if (process.env.NODE_ENV !== 'production') console.warn('[AuditBridge]', err)
     }
   }
 
@@ -205,8 +206,9 @@ export class SandboxAuditBridge {
           entityId: entry.agentId,
         })
       }
-    } catch {
-      // Non-critical
+    } catch (err) {
+      // Non-critical — log but don't propagate
+      if (process.env.NODE_ENV !== 'production') console.warn('[AuditBridge]', err)
     }
   }
 
@@ -225,8 +227,9 @@ export class SandboxAuditBridge {
           toolName: entry.toolName,
         })
       }
-    } catch {
-      // Non-critical
+    } catch (err) {
+      // Non-critical — log but don't propagate
+      if (process.env.NODE_ENV !== 'production') console.warn('[AuditBridge]', err)
     }
   }
 }

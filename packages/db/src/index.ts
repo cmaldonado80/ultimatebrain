@@ -1614,6 +1614,13 @@ export function createDb(connectionString: string) {
   // Start schema sync immediately; store promise so callers can await it
   _schemaPromise = ensureSchema(pool).catch(() => {})
 
+  // Graceful shutdown — close pool to avoid connection leaks
+  const shutdown = () => {
+    pool.end().catch(() => {})
+  }
+  process.once('SIGTERM', shutdown)
+  process.once('SIGINT', shutdown)
+
   return drizzle(pool, { schema })
 }
 
