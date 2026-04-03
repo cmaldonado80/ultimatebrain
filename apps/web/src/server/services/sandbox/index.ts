@@ -24,13 +24,13 @@ export { type PolicyCheckResult, type SandboxPolicy, SandboxPolicyEngine } from 
 
 // ── Singleton ────────────────────────────────────────────────────────────
 
-let _orchestrator: import('./sandbox-orchestrator').SandboxOrchestrator | null = null
+import { SandboxOrchestrator as OrchestratorClass } from './sandbox-orchestrator'
+
+let _orchestrator: InstanceType<typeof OrchestratorClass> | null = null
 
 export function getSandboxOrchestrator() {
   if (!_orchestrator) {
-    _orchestrator = new (
-      require('./sandbox-orchestrator') as typeof import('./sandbox-orchestrator')
-    ).SandboxOrchestrator()
+    _orchestrator = new OrchestratorClass()
   }
   return _orchestrator
 }

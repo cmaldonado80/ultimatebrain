@@ -7,12 +7,11 @@
 import type { Database } from '@solarc/db'
 import { z } from 'zod'
 
-import { SelfHealingCortex } from '../services/healing/cortex'
+import { getOrCreateCortex } from '../services/healing/index'
 import { protectedProcedure, router } from '../trpc'
 
-let cortex: SelfHealingCortex | null = null
 function getCortex(db: Database) {
-  return (cortex ??= new SelfHealingCortex(db))
+  return getOrCreateCortex(db)
 }
 
 function getEngine(db: Database) {

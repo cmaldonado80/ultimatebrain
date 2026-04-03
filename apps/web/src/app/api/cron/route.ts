@@ -7,7 +7,7 @@ import { createDb, waitForSchema } from '@solarc/db'
 
 import { AtlasFreshnessScanner } from '../../../server/services/atlas'
 import { GatewayRouter } from '../../../server/services/gateway'
-import { SelfHealingCortex } from '../../../server/services/healing/cortex'
+import { getOrCreateCortex } from '../../../server/services/healing/index'
 import { runInstinctPipeline } from '../../../server/services/instincts/instinct-pipeline'
 import { CronEngine, SystemOrchestrator } from '../../../server/services/orchestration'
 
@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     await waitForSchema()
 
     const orchestrator = new SystemOrchestrator(db)
-    const cortex = new SelfHealingCortex(db)
+    const cortex = getOrCreateCortex(db)
     const cronEngine = new CronEngine(db)
 
     // 1. Run health sweep

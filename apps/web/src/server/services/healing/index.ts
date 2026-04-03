@@ -31,17 +31,30 @@ export {
 } from './recovery-state-machine'
 
 // ── Singleton ────────────────────────────────────────────────────────────
+// One cortex instance shared by: healing router, event bus, sandbox audit,
+// cron job. Auto-initializes on first access with a db connection.
 
 let _cortex: import('./cortex').SelfHealingCortex | null = null
 let _healer: import('./healing-engine').HealingEngine | null = null
 
-export async function initCortex(db: Database) {
-  const { SelfHealingCortex: Cortex } = await import('./cortex')
-  _cortex = new Cortex(db)
-  _healer = _cortex.healer
+/**
+ * Get or create the cortex singleton. Lazy-initializes on first call.
+ * This is the ONLY way to get the cortex — ensures all consumers share one instance.
+ */
+export function getOrCreateCortex(db: Database): import('./cortex').SelfHealingCortex {
+  if (!_cortex) {
+    // Synchronous import to avoid async initialization races
+
+    const { SelfHealingCortex: Cortex } = require('./cortex') as typeof import('./cortex')
+    _cortex = new Cortex(db)
+    _healer = _cortex.healer
+  }
   return _cortex
 }
 
+/**
+ * Get the cortex if already initialized (for event bus and other non-db contexts).
+ */
 export function getCortex() {
   return _cortex
 }

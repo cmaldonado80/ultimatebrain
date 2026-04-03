@@ -36,8 +36,8 @@ const mockRecordAgentOutcome = vi.fn()
 
 vi.mock('@solarc/db', () => ({}))
 
-vi.mock('../../services/healing/cortex', () => ({
-  SelfHealingCortex: vi.fn().mockImplementation(() => ({
+vi.mock('../../services/healing/index', () => ({
+  getOrCreateCortex: vi.fn().mockImplementation(() => ({
     healer: {
       diagnose: mockDiagnose,
       healthCheck: mockHealthCheck,

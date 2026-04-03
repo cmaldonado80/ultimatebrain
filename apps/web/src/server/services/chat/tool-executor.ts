@@ -345,9 +345,45 @@ export async function executeTool(
     // Record the call (even if warning — we still execute but warn)
     recordToolCall(history, toolName, toolInput, DEFAULT_LOOP_CONFIG)
 
-    // Execute the tool with analytics tracking
+    // ── Sandbox + Policy + Dry-Run Integration ──────────────────────────
+    // Route through sandbox orchestrator for policy enforcement, resource
+    // tracking, and audit. Falls back to direct execution if sandbox
+    // is unavailable (e.g., during tests or before initialization).
+
     const execStart = Date.now()
-    const result = await executeToolInner(toolName, toolInput, db, workspaceId)
+    let result: string
+
+    try {
+      const { getSandboxOrchestrator } = await import('../sandbox/index')
+      const orchestrator = getSandboxOrchestrator()
+
+      // Build execution context from available info
+      const ctx = {
+        agentId: (toolInput._agentId as string) ?? 'unknown',
+        agentName: (toolInput._agentName as string) ?? 'unknown',
+        workspaceId: workspaceId ?? 'default',
+        departmentDomain: toolInput._departmentDomain as string | undefined,
+        orgRole: toolInput._orgRole as string | undefined,
+        toolAccess: [] as string[], // empty = allow all (filtered upstream)
+      }
+
+      const sandboxResult = await orchestrator.execute(ctx, toolName, toolInput, (name, input) =>
+        executeToolInner(name, input, db, workspaceId),
+      )
+
+      if (sandboxResult.blocked) {
+        // Return structured error for blocked tools
+        const { classifyError } = await import('./tool-envelope')
+        const envelope = classifyError(toolName, sandboxResult.output, toolInput)
+        result = JSON.stringify(envelope)
+      } else {
+        result = sandboxResult.output
+      }
+    } catch {
+      // Sandbox unavailable — fall back to direct execution
+      result = await executeToolInner(toolName, toolInput, db, workspaceId)
+    }
+
     const execDuration = Date.now() - execStart
 
     // Record the outcome for no-progress detection
@@ -369,8 +405,15 @@ export async function executeTool(
 
     return result
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    return JSON.stringify({ error: `Tool execution failed: ${message}` })
+    // Structured error envelope for unhandled failures
+    try {
+      const { classifyError } = await import('./tool-envelope')
+      const message = err instanceof Error ? err.message : String(err)
+      return JSON.stringify(classifyError(toolName, message, toolInput))
+    } catch {
+      const message = err instanceof Error ? err.message : String(err)
+      return JSON.stringify({ error: `Tool execution failed: ${message}` })
+    }
   }
 }
 
