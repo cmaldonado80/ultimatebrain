@@ -82,6 +82,7 @@ export class KnowledgeMesh {
     const findings: KnowledgeFinding[] = []
     const queryWords = query.question
       .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '') // strip punctuation
       .split(/\s+/)
       .filter((w) => w.length > 3)
 
