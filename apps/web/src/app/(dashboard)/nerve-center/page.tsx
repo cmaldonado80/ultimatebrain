@@ -228,7 +228,7 @@ export default function NerveCenterPage() {
                 showDot
               />
               <span className="text-[10px] text-slate-400 font-mono">
-                {values.length > 0 ? values[values.length - 1]!.toFixed(2) : '—'}
+                {values.length > 0 ? Number(values[values.length - 1] ?? 0).toFixed(2) : '—'}
               </span>
             </div>
           ))}
