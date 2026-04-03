@@ -505,4 +505,37 @@ export const orchestrationRouter = router({
     const market = new WorkMarket()
     return market.getAllReputations()
   }),
+
+  /** Preview a codebase review (dry-run) */
+  reviewPreview: protectedProcedure.query(async () => {
+    const { CodebaseMapper } = await import('../services/orchestration/codebase-mapper')
+    const mapper = new CodebaseMapper()
+    const rootDir = process.cwd()
+    const map = mapper.scan(rootDir)
+    const tickets = mapper.generateReviewTickets(map)
+    return {
+      totalFiles: map.totalFiles,
+      totalLines: map.totalLines,
+      subsystems: map.subsystems.map((s) => ({
+        name: s.name,
+        category: s.category,
+        department: s.department,
+        totalFiles: s.totalFiles,
+        totalLines: s.totalLines,
+      })),
+      ticketCount: tickets.length,
+      tickets: tickets.map((t) => ({
+        title: t.title,
+        department: t.department,
+        priority: t.priority,
+      })),
+    }
+  }),
+
+  /** Run a full codebase review — creates real tickets */
+  runReview: protectedProcedure.mutation(async ({ ctx }) => {
+    const { AutoReviewEngine } = await import('../services/orchestration/auto-review')
+    const engine = new AutoReviewEngine(ctx.db)
+    return engine.runReview(process.cwd())
+  }),
 })
