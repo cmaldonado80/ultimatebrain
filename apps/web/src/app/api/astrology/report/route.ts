@@ -4,6 +4,7 @@
  */
 import { waitForSchema } from '@solarc/db'
 
+import { logger } from '../../../../lib/logger'
 import { generateNatalReport } from '../../../../server/services/engines/swiss-ephemeris/report-generator'
 
 export async function POST(req: Request) {
@@ -37,14 +38,12 @@ export async function POST(req: Request) {
 
     return Response.json(report)
   } catch (err) {
-    console.error('[Astrology/report] Report generation failed:', err)
+    logger.error(
+      { err: err instanceof Error ? err : undefined },
+      'astrology report generation failed',
+    )
     return Response.json(
-      {
-        error:
-          err instanceof Error
-            ? err.message
-            : 'Report generation failed. Please check your inputs.',
-      },
+      { error: 'Report generation failed. Please check your inputs.' },
       { status: 500 },
     )
   }

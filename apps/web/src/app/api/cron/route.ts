@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 
 import { createDb, waitForSchema } from '@solarc/db'
 
+import { logger } from '../../../lib/logger'
 import { AtlasFreshnessScanner } from '../../../server/services/atlas'
 import { GatewayRouter } from '../../../server/services/gateway'
 import { getOrCreateCortex } from '../../../server/services/healing/index'
@@ -42,7 +43,7 @@ export async function GET(req: Request) {
     try {
       cortexResult = await cortex.runCycle()
     } catch (err) {
-      console.error('[Cron] Cortex cycle failed, falling back to basic autoHeal:', err)
+      logger.warn({ err }, 'cron: cortex cycle failed, falling back to autoHeal')
       // Fallback: run the base healing engine directly
       await cortex.healer.autoHeal()
     }
@@ -58,7 +59,7 @@ export async function GET(req: Request) {
         rebalanceMoves = await orchestrator.rebalanceAgents()
       }
     } catch (err) {
-      console.error('[Cron] rebalance failed:', err)
+      logger.warn({ err }, 'cron: rebalance failed')
     }
 
     // 4. Execute due user-defined cron jobs
@@ -101,7 +102,7 @@ export async function GET(req: Request) {
         }
       }
     } catch (err) {
-      console.error('[Cron] job execution failed:', err)
+      logger.warn({ err }, 'cron: job execution failed')
     }
 
     // 5. ATLAS freshness scan — run weekly (Sundays at hour 0)
@@ -113,13 +114,18 @@ export async function GET(req: Request) {
         const scanResult = await scanner.scan()
         if (scanResult.uncoveredFiles.length > 0) {
           atlasTicketsCreated = await scanner.createDiscoveryTickets(scanResult)
-          console.warn(
-            `[ATLAS] Freshness scan: ${scanResult.coveredFiles}/${scanResult.totalFiles} covered, ${atlasTicketsCreated} tickets created`,
+          logger.info(
+            {
+              covered: scanResult.coveredFiles,
+              total: scanResult.totalFiles,
+              ticketsCreated: atlasTicketsCreated,
+            },
+            'atlas freshness scan complete',
           )
         }
       }
     } catch (err) {
-      console.error('[Cron] ATLAS freshness scan failed:', err)
+      logger.warn({ err }, 'cron: atlas freshness scan failed')
     }
 
     // 6. Instinct pipeline — detect patterns, score confidence, promote
@@ -127,7 +133,7 @@ export async function GET(req: Request) {
     try {
       instinctResult = await runInstinctPipeline(db)
     } catch (err) {
-      console.error('[Cron] instinct pipeline failed:', err)
+      logger.warn({ err }, 'cron: instinct pipeline failed')
     }
 
     // Build response

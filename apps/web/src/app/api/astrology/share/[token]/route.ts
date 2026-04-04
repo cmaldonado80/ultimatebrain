@@ -4,6 +4,8 @@
 
 import { callBrainTRPC } from '@solarc/brain-client'
 
+import { logger } from '../../../../../lib/logger'
+
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await params
@@ -14,9 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     )
     return Response.json(result)
   } catch (err) {
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Not found or revoked' },
-      { status: 404 },
-    )
+    logger.error({ err: err instanceof Error ? err : undefined }, 'get shared resource failed')
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

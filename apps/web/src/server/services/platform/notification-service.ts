@@ -15,6 +15,8 @@
 import type { Database } from '@solarc/db'
 import { agentMessages } from '@solarc/db'
 
+import { logger } from '../../../lib/logger'
+
 // ── Types ─────────────────────────────────────────────────────────────
 
 export type NotificationPriority = 'info' | 'warning' | 'urgent' | 'critical'
@@ -119,7 +121,7 @@ export async function notify(
                 read: false,
                 ackStatus: 'pending',
               })
-              .catch(() => {}) // Best effort — FK may fail if agent doesn't exist
+              .catch((err) => logger.warn({ err }, 'notification: inbox delivery failed'))
           }
           break
 
@@ -129,7 +131,7 @@ export async function notify(
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(notification),
-            }).catch(() => {}) // Fire and forget
+            }).catch((err) => logger.warn({ err }, 'notification: webhook delivery failed'))
           }
           break
 

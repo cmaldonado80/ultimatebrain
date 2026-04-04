@@ -142,7 +142,7 @@ export default function ChatPage() {
     if (lastRunId && lastRecEventId) {
       linkRecToRun
         .mutateAsync({ eventId: lastRecEventId, resultingRunId: lastRunId })
-        .catch(() => {})
+        .catch((err) => console.warn('chat: link recommendation to run failed', err))
       setLastRecEventId(null) // Only link once
     }
   }, [lastRunId]) // eslint-disable-line react-hooks/exhaustive-deps

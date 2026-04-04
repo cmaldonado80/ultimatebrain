@@ -77,15 +77,24 @@ export async function POST(req: Request) {
       toolUse: result.toolUse ?? null,
     })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
+    const internal = err instanceof Error ? err.message : 'Unknown error'
     const status =
-      message.includes('Unauthorized') || message.includes('Invalid API key')
+      internal.includes('Unauthorized') || internal.includes('Invalid API key')
         ? 401
-        : message.includes('suspended')
+        : internal.includes('suspended')
           ? 403
-          : message.includes('budget')
+          : internal.includes('budget')
             ? 429
             : 500
-    return Response.json({ error: message }, { status })
+    // Safe client-facing messages per status code — never expose internals
+    const clientMessage =
+      status === 401
+        ? 'Unauthorized'
+        : status === 403
+          ? 'Agent suspended'
+          : status === 429
+            ? 'Budget exceeded'
+            : 'LLM request failed'
+    return Response.json({ error: clientMessage }, { status })
   }
 }

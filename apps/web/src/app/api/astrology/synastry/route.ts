@@ -4,6 +4,7 @@
  */
 import { waitForSchema } from '@solarc/db'
 
+import { logger } from '../../../../lib/logger'
 import { synastryAspects } from '../../../../server/services/engines/swiss-ephemeris/composite'
 import {
   run,
@@ -92,15 +93,7 @@ export async function POST(req: Request) {
       })),
     })
   } catch (err) {
-    console.error('[Astrology/synastry] Computation failed:', err)
-    return Response.json(
-      {
-        error:
-          err instanceof Error
-            ? err.message
-            : 'Synastry computation failed. Please check your inputs.',
-      },
-      { status: 500 },
-    )
+    logger.error({ err: err instanceof Error ? err : undefined }, 'synastry computation failed')
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

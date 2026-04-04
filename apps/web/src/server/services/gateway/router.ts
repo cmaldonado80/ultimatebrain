@@ -15,6 +15,8 @@
 import type { Database } from '@solarc/db'
 import type { LlmChatInput, LlmChatOutput } from '@solarc/engine-contracts'
 
+import { logger } from '../../../lib/logger'
+
 // Tracer types — inline stubs (tracing service removed as dead code)
 interface Span {
   traceId: string
@@ -572,7 +574,7 @@ class OllamaAdapter implements ProviderAdapter {
     const baseUrl = this.getBaseUrl()
     const url = `${baseUrl}/api/pull`
     const hasKey = !!apiKey
-    console.warn(`[Ollama] pull → ${url} (model=${model}, auth=${hasKey ? 'yes' : 'none'})`)
+    logger.info({ model, auth: hasKey }, 'ollama pull started')
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -665,8 +667,9 @@ class OllamaAdapter implements ProviderAdapter {
     // Structured output — pass JSON schema via format parameter
     if (params.format) body.format = params.format
 
-    console.warn(
-      `[OllamaAdapter] POST ${baseUrl}/api/chat model=${params.model} tools=${body.tools ? (body.tools as unknown[]).length : 0}`,
+    logger.debug(
+      { model: params.model, tools: body.tools ? (body.tools as unknown[]).length : 0 },
+      'ollama chat request',
     )
 
     const res = await fetch(`${baseUrl}/api/chat`, {
@@ -689,8 +692,12 @@ class OllamaAdapter implements ProviderAdapter {
       eval_count?: number
     }
 
-    console.warn(
-      `[OllamaAdapter] Response: tool_calls=${data.message.tool_calls?.length ?? 0} content_len=${data.message.content?.length ?? 0} content_preview=${data.message.content?.slice(0, 100)}`,
+    logger.debug(
+      {
+        toolCalls: data.message.tool_calls?.length ?? 0,
+        contentLen: data.message.content?.length ?? 0,
+      },
+      'ollama chat response',
     )
 
     // Parse tool call response if present
@@ -864,9 +871,7 @@ export class GatewayRouter {
     this.adapters.set('ollama', new OllamaAdapter())
 
     // Wire OpenClaw adapter if daemon URL is configured
-    this.initOpenClawAdapter().catch((err) =>
-      console.warn('[Gateway] operation failed:', err.message),
-    )
+    this.initOpenClawAdapter().catch((err) => logger.warn({ err }, 'gateway: OpenClaw init failed'))
   }
 
   /** Lazily connect the OpenClaw adapter (non-blocking, startup continues). */
@@ -881,10 +886,13 @@ export class GatewayRouter {
       const ocProviders = getOpenClawProviders()
       if (ocProviders) {
         this.adapters.set('openclaw', ocProviders)
-        console.warn('[Gateway] OpenClaw adapter registered')
+        logger.info('gateway: OpenClaw adapter registered')
       }
     } catch (err) {
-      console.warn('[Gateway] OpenClaw adapter not available:', err)
+      logger.debug(
+        { err: err instanceof Error ? err : undefined },
+        'gateway: OpenClaw not available',
+      )
     }
   }
 
@@ -1145,7 +1153,7 @@ export class GatewayRouter {
                 result.tokensOut,
                 cacheEmbedding,
               )
-              .catch((err) => console.warn('[Gateway] cache store failed:', err.message))
+              .catch((err) => logger.warn({ err }, 'gateway: cache store failed'))
           }
 
           return {

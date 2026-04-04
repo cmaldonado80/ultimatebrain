@@ -10,6 +10,8 @@
 import { createDb, type Database } from '@solarc/db'
 import { NextRequest, NextResponse } from 'next/server'
 
+import { logger } from '../../../../lib/logger'
+
 export const dynamic = 'force-dynamic'
 
 /** Lazy singleton DB pool — reused across requests */
@@ -58,9 +60,7 @@ export async function GET(req: NextRequest) {
       },
     )
   } catch (err) {
-    return NextResponse.json(
-      { error: 'Failed to generate agent cards', detail: String(err) },
-      { status: 500 },
-    )
+    logger.error({ err: err instanceof Error ? err : undefined }, 'agent card generation failed')
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

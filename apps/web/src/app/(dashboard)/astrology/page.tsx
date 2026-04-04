@@ -59,7 +59,7 @@ export default function Home() {
       .then((charts) => {
         if (charts.length === 0) setShowOnboarding(true)
       })
-      .catch(() => {})
+      .catch((err) => console.warn('astrology: chart list fetch failed', err))
       .finally(() => setCheckingOnboarding(false))
   }, [])
 

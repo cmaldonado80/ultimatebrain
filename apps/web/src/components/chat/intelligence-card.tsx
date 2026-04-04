@@ -182,7 +182,7 @@ export function IntelligenceCard({
             setEventIds((prev) => new Map([...prev, [rec.id, result.eventId!]]))
           }
         })
-        .catch(() => {})
+        .catch((err) => console.warn('intelligence-card: log recommendation failed', err))
     }
   }, [recommendations.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -190,7 +190,9 @@ export function IntelligenceCard({
     setDismissedIds((prev) => new Set([...prev, recId]))
     const eventId = eventIds.get(recId)
     if (eventId) {
-      logDismissed.mutateAsync({ eventId }).catch(() => {})
+      logDismissed
+        .mutateAsync({ eventId })
+        .catch((err) => console.warn('intelligence-card: log dismissed failed', err))
     }
   }
 
@@ -198,7 +200,9 @@ export function IntelligenceCard({
     if (!rec.action) return
     const eventId = eventIds.get(rec.id)
     if (eventId) {
-      logAction.mutateAsync({ eventId, actionType: rec.action.type }).catch(() => {})
+      logAction
+        .mutateAsync({ eventId, actionType: rec.action.type })
+        .catch((err) => console.warn('intelligence-card: log action failed', err))
     }
     onAction(rec.action, eventId)
   }

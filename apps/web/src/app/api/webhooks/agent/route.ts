@@ -14,6 +14,7 @@ import {
 } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
+import { logger } from '../../../../lib/logger'
 import { GatewayRouter } from '../../../../server/services/gateway'
 
 let _db: Database | undefined
@@ -94,10 +95,7 @@ export async function POST(req: Request) {
       tokensUsed: (result.tokensIn ?? 0) + (result.tokensOut ?? 0),
     })
   } catch (err) {
-    console.error('[Webhook/agent] Error:', err)
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Webhook execution failed' },
-      { status: 500 },
-    )
+    logger.error({ err: err instanceof Error ? err : undefined }, 'webhook agent execution failed')
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

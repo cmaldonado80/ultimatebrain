@@ -11,6 +11,7 @@ import type { Database } from '@solarc/db'
 import { brainEntities, deploymentWorkflows, incidents } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import { encrypt } from '../gateway/key-vault'
 import { createNeonBranch } from '../neon/neon-api'
 import { auditEvent } from './audit'
@@ -546,7 +547,10 @@ async function executeVerify(db: Database, entityId: string): Promise<Record<str
 
     if (!res.ok) throw new Error(`Health check returned ${res.status}`)
 
-    const body = await res.json().catch(() => null)
+    const body = await res.json().catch((err: unknown) => {
+      logger.warn({ err }, 'deployment: health check JSON parse failed')
+      return null
+    })
     const status = body?.status ?? 'unknown'
 
     if (status !== 'ok' && status !== 'degraded') {

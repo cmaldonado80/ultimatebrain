@@ -4,6 +4,7 @@
  */
 import { waitForSchema } from '@solarc/db'
 
+import { logger } from '../../../../lib/logger'
 import { run } from '../../../../server/services/engines/swiss-ephemeris/engine'
 
 function longitudeToSign(longitude: number): string {
@@ -79,14 +80,12 @@ export async function POST(req: Request) {
       })),
     })
   } catch (err) {
-    console.error('[Astrology/chart] Computation failed:', err)
+    logger.error(
+      { err: err instanceof Error ? err : undefined },
+      'astrology chart computation failed',
+    )
     return Response.json(
-      {
-        error:
-          err instanceof Error
-            ? err.message
-            : 'Chart computation failed. Please check your inputs.',
-      },
+      { error: 'Chart computation failed. Please check your inputs.' },
       { status: 500 },
     )
   }

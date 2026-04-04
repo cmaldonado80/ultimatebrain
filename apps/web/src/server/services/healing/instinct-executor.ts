@@ -16,6 +16,8 @@ import type { Database } from '@solarc/db'
 import { healingLogs, instincts } from '@solarc/db'
 import { and, eq, gte } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
+
 // ── Types ────────────────────────────────────────────────────────────────
 
 export interface InstinctEvent {
@@ -163,7 +165,7 @@ export class InstinctActionExecutor {
           reason: `Auto-executed instinct action: ${instinct.action} (confidence: ${instinct.confidence.toFixed(2)})`,
           success,
         })
-        .catch(() => {})
+        .catch((err) => logger.warn({ err }, 'instinct executor: persist healing log failed'))
 
       // Update instinct confidence based on outcome
       const confidenceDelta = success ? 0.02 : -0.05
@@ -176,7 +178,7 @@ export class InstinctActionExecutor {
           updatedAt: new Date(),
         })
         .where(eq(instincts.id, instinct.id))
-        .catch(() => {})
+        .catch((err) => logger.warn({ err }, 'instinct executor: confidence update failed'))
     }
 
     return results

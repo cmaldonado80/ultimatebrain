@@ -4,15 +4,15 @@
 
 import { callBrainTRPC } from '@solarc/brain-client'
 
+import { logger } from '../../../../lib/logger'
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
     const result = await callBrainTRPC('astrology.createShareToken', body)
     return Response.json(result)
   } catch (err) {
-    return Response.json(
-      { error: err instanceof Error ? err.message : 'Failed to create share link' },
-      { status: 500 },
-    )
+    logger.error({ err: err instanceof Error ? err : undefined }, 'create share link failed')
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

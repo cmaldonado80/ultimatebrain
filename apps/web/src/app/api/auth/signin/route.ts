@@ -4,6 +4,7 @@ import { userRoles, users } from '@solarc/db'
 import { eq, sql } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 
+import { logger } from '../../../../lib/logger'
 import { COOKIE_NAMES, createSession } from '../../../../server/auth'
 
 let _db: Database | undefined
@@ -69,9 +70,7 @@ export async function POST(req: Request) {
     })
     return res
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      { status: 500 },
-    )
+    logger.error({ err: err instanceof Error ? err : undefined }, 'signin failed')
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

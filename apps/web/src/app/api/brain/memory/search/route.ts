@@ -43,8 +43,11 @@ export async function POST(req: Request) {
 
     return Response.json({ results, entityId: entity.id })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    const status = message.includes('Invalid API key') ? 401 : 500
-    return Response.json({ error: message }, { status })
+    const internal = err instanceof Error ? err.message : 'Unknown error'
+    const status = internal.includes('Invalid API key') ? 401 : 500
+    return Response.json(
+      { error: status === 401 ? 'Unauthorized' : 'Memory search failed' },
+      { status },
+    )
   }
 }

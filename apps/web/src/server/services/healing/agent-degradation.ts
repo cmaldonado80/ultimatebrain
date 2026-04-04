@@ -15,6 +15,8 @@ import type { Database } from '@solarc/db'
 import { agents, healingLogs } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
+
 // ── Types ────────────────────────────────────────────────────────────────
 
 export type CapabilityLevel = 'full' | 'reduced' | 'minimal' | 'suspended'
@@ -306,14 +308,24 @@ export class AgentDegradationManager {
         .update(agents)
         .set({ status: 'offline', updatedAt: new Date() })
         .where(eq(agents.id, profile.agentId))
-        .catch(() => {})
+        .catch((err) =>
+          logger.warn(
+            { err, agentId: profile.agentId },
+            'degradation: DB status update to offline failed',
+          ),
+        )
     } else if (from === 'suspended') {
       // Reactivate
       this.db
         .update(agents)
         .set({ status: 'idle', updatedAt: new Date() })
         .where(eq(agents.id, profile.agentId))
-        .catch(() => {})
+        .catch((err) =>
+          logger.warn(
+            { err, agentId: profile.agentId },
+            'degradation: DB status update to idle failed',
+          ),
+        )
     }
   }
 
@@ -331,6 +343,11 @@ export class AgentDegradationManager {
         reason: event.reason,
         success: true,
       })
-      .catch(() => {})
+      .catch((err) =>
+        logger.warn(
+          { err, agentId: event.agentId },
+          'degradation: persist transition to healing log failed',
+        ),
+      )
   }
 }

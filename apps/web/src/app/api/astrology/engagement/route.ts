@@ -4,6 +4,8 @@
 
 import { callBrainTRPC } from '@solarc/brain-client'
 
+import { logger } from '../../../../lib/logger'
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
@@ -11,8 +13,9 @@ export async function GET(req: Request) {
     if (!chartId) return Response.json(null)
     const result = await callBrainTRPC('astrology.getLastSeen', { chartId }, { method: 'query' })
     return Response.json(result)
-  } catch {
-    return Response.json(null)
+  } catch (err) {
+    logger.error({ err: err instanceof Error ? err : undefined }, 'get last seen failed')
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -21,7 +24,8 @@ export async function POST(req: Request) {
     const body = await req.json()
     const result = await callBrainTRPC('astrology.updateLastSeen', body)
     return Response.json(result)
-  } catch {
-    return Response.json(null)
+  } catch (err) {
+    logger.error({ err: err instanceof Error ? err : undefined }, 'update last seen failed')
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

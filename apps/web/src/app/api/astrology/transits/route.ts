@@ -4,6 +4,7 @@
  */
 import { waitForSchema } from '@solarc/db'
 
+import { logger } from '../../../../lib/logger'
 import {
   calcAllPlanets,
   julianDay,
@@ -115,14 +116,12 @@ export async function POST(req: Request) {
       aspects,
     })
   } catch (err) {
-    console.error('[Astrology/transits] Computation failed:', err)
+    logger.error(
+      { err: err instanceof Error ? err : undefined },
+      'astrology transit computation failed',
+    )
     return Response.json(
-      {
-        error:
-          err instanceof Error
-            ? err.message
-            : 'Transit computation failed. Please check your inputs.',
-      },
+      { error: 'Transit computation failed. Please check your inputs.' },
       { status: 500 },
     )
   }

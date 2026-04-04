@@ -108,9 +108,18 @@ export default function DashboardPage() {
 
     // 4. Fetch fresh data
     const [c, t, tl] = await Promise.all([
-      fetchNatalSummary(birthData).catch(() => null),
-      fetchTransits(birthData, { days: 7 }).catch(() => null),
-      fetchTimeline(birthData, '7d').catch(() => null),
+      fetchNatalSummary(birthData).catch((err) => {
+        console.warn('astrology dashboard: natal summary fetch failed', err)
+        return null
+      }),
+      fetchTransits(birthData, { days: 7 }).catch((err) => {
+        console.warn('astrology dashboard: transits fetch failed', err)
+        return null
+      }),
+      fetchTimeline(birthData, '7d').catch((err) => {
+        console.warn('astrology dashboard: timeline fetch failed', err)
+        return null
+      }),
     ])
     setChart(c)
     setTransits(t)
@@ -119,7 +128,9 @@ export default function DashboardPage() {
 
     // 5. Update last-seen
     if (chartId) {
-      updateLastSeen(chartId).catch(() => {})
+      updateLastSeen(chartId).catch((err) =>
+        console.warn('astrology dashboard: updateLastSeen failed', err),
+      )
     }
   }
 

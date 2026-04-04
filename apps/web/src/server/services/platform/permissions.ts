@@ -11,6 +11,8 @@ import { organizationMembers, userRoles, workspaceMembers } from '@solarc/db'
 import { TRPCError } from '@trpc/server'
 import { and, eq } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
+
 export type Action =
   | 'read'
   | 'write'
@@ -108,7 +110,7 @@ export async function can(
       await db
         .insert(userRoles)
         .values({ userId, role: 'platform_owner' })
-        .catch(() => {})
+        .catch((err) => logger.warn({ err }, 'permissions: bootstrap role grant failed'))
       return true
     }
   }

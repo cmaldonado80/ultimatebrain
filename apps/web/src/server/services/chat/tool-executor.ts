@@ -22,6 +22,7 @@ import { lunarReturn } from '@solarc/ephemeris'
 import { medicalAstrology } from '@solarc/ephemeris'
 import { generateNatalReport } from '@solarc/ephemeris'
 
+import { logger } from '../../../lib/logger'
 import { MemoryService } from '../memory/memory-service'
 import { generateDryRun, shouldDryRun } from './tool-dryrun'
 import { AGENT_TOOLS } from './tools/definitions'
@@ -2595,7 +2596,9 @@ Return as structured markdown.`,
               { timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] },
             )
           } catch (renderErr) {
-            await fs.unlink(htmlFile).catch(() => {})
+            await fs
+              .unlink(htmlFile)
+              .catch((err) => logger.warn({ err }, 'tool-executor: html temp file cleanup failed'))
             return JSON.stringify({
               error: `Screenshot failed: ${renderErr instanceof Error ? renderErr.message : 'Playwright error'}`,
               hint: 'Ensure Playwright browsers are installed: npx playwright install chromium',
@@ -2608,7 +2611,9 @@ Return as structured markdown.`,
             const stat = await fs.stat(screenshotFile)
             screenshotSize = stat.size
           } catch {
-            await fs.unlink(htmlFile).catch(() => {})
+            await fs
+              .unlink(htmlFile)
+              .catch((err) => logger.warn({ err }, 'tool-executor: html temp file cleanup failed'))
             return JSON.stringify({ error: 'Screenshot was not created' })
           }
 
@@ -2633,8 +2638,14 @@ Return as structured markdown.`,
           }
 
           // Cleanup
-          await fs.unlink(htmlFile).catch(() => {})
-          await fs.unlink(screenshotFile).catch(() => {})
+          await fs
+            .unlink(htmlFile)
+            .catch((err) => logger.warn({ err }, 'tool-executor: html temp file cleanup failed'))
+          await fs
+            .unlink(screenshotFile)
+            .catch((err) =>
+              logger.warn({ err }, 'tool-executor: screenshot temp file cleanup failed'),
+            )
 
           return JSON.stringify({
             rendered: true,

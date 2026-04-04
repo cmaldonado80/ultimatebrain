@@ -12,6 +12,7 @@
  *     → Event Bus (system-wide notification)
  */
 
+import { logger } from '../../../lib/logger'
 import type { SandboxViolation } from './sandbox-manager'
 import type { PolicyCheckResult } from './sandbox-policy'
 
@@ -59,13 +60,17 @@ export class SandboxAuditBridge {
     while (this.entries.length > MAX_AUDIT_ENTRIES) this.entries.shift()
 
     // Feed to healing cortex (async, non-blocking)
-    this.feedCortex(entry).catch(() => {})
+    this.feedCortex(entry).catch((err) => logger.warn({ err }, 'sandbox audit: feedCortex failed'))
 
     // Feed to instinct observer (async, non-blocking)
-    this.feedInstincts(entry).catch(() => {})
+    this.feedInstincts(entry).catch((err) =>
+      logger.warn({ err }, 'sandbox audit: feedInstincts failed'),
+    )
 
     // Feed to event bus (async, non-blocking)
-    this.feedEventBus(entry).catch(() => {})
+    this.feedEventBus(entry).catch((err) =>
+      logger.warn({ err }, 'sandbox audit: feedEventBus failed'),
+    )
   }
 
   /**

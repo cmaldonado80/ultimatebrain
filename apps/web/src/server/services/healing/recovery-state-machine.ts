@@ -12,9 +12,10 @@
  * - Escalation: When a path exhausts retries, escalate to next severity level
  * - Rollback: On critical failure, unwind completed steps in reverse
  */
-
 import type { Database } from '@solarc/db'
 import { healingLogs } from '@solarc/db'
+
+import { logger } from '../../../lib/logger'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -215,7 +216,7 @@ export class RecoveryExecutor {
         reason: `${execution.steps.length} steps, status: ${execution.status}`,
         success: execution.status === 'succeeded',
       })
-      .catch(() => {})
+      .catch((err) => logger.warn({ err }, 'recovery: persist execution to healing log failed'))
   }
 
   getHistory(): RecoveryExecution[] {

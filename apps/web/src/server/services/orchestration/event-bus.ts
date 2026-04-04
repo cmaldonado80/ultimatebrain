@@ -8,6 +8,8 @@
  * predictive analysis, adaptive tuning, instinct execution, and degradation.
  */
 
+import { logger } from '../../../lib/logger'
+
 type EventType =
   | 'ticket.created'
   | 'ticket.completed'
@@ -103,7 +105,9 @@ eventBus.on('ticket.failed', async (payload) => {
           payload: payload as Record<string, unknown>,
           entityId: payload.agentId as string | undefined,
         })
-        .catch(() => {})
+        .catch((err) =>
+          logger.warn({ err, event: 'ticket.failed' }, 'eventbus: instinct processEvent failed'),
+        )
     }
   } catch {
     // Non-critical
@@ -127,7 +131,9 @@ eventBus.on('agent.error', async (payload) => {
           payload: payload as Record<string, unknown>,
           entityId: payload.agentId as string | undefined,
         })
-        .catch(() => {})
+        .catch((err) =>
+          logger.warn({ err, event: 'agent.error' }, 'eventbus: instinct processEvent failed'),
+        )
 
       // Record as failure for degradation tracking
       if (payload.agentId && payload.agentName) {

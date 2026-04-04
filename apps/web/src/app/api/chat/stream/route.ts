@@ -14,6 +14,7 @@ import {
 } from '@solarc/db'
 import { desc, eq, sql } from 'drizzle-orm'
 
+import { logger } from '../../../../lib/logger'
 import { auth } from '../../../../server/auth'
 import { buildAtlasContext } from '../../../../server/services/atlas'
 import {
@@ -96,7 +97,7 @@ function getGateway(): GatewayRouter {
             agentId: ctx.agentId,
           })
         })
-        .catch(() => {})
+        .catch((err) => logger.warn({ err }, 'post-chat: gateway evidence recording failed'))
     })
   }
   return _gateway
@@ -320,7 +321,10 @@ export async function POST(req: Request) {
         ?.findFirst({
           where: eq(brainEntityAgents.agentId, agentConfig.id),
         })
-        .catch(() => null)
+        .catch((err: unknown) => {
+          logger.warn({ err }, 'post-chat: budget entity link query failed')
+          return null
+        })
       if (entityLink) {
         const budgetStatus = await ledger.checkBudget(entityLink.entityId)
         if (budgetStatus.overBudget) {
@@ -633,7 +637,10 @@ export async function POST(req: Request) {
             db,
             targetAgentConfig.workspaceId ?? 'universal',
             body.text,
-          ).catch(() => '')
+          ).catch((err: unknown) => {
+            logger.warn({ err }, 'post-chat: step instinct injection failed')
+            return ''
+          })
 
           // ── TRUTH INJECTION: Ground agent in runtime truth before responding ──
           let truthBlock = ''
@@ -896,7 +903,10 @@ export async function POST(req: Request) {
               db,
               agentConfig.workspaceId ?? 'universal',
               body.text,
-            ).catch(() => '')
+            ).catch((err: unknown) => {
+              logger.warn({ err }, 'post-chat: direct instinct injection failed')
+              return ''
+            })
             // ── TRUTH INJECTION for direct path ──
             let baseTruthBlock = ''
             let directInfluence: unknown = null
@@ -1169,9 +1179,15 @@ export async function POST(req: Request) {
           )
 
           // Fire-and-forget: compute quality + refresh insights + observe for instincts
-          computeRunQualityScore(db, runRecord.id).catch(() => {})
-          refreshInsights(db, runRecord.id ? undefined : undefined).catch(() => {})
-          observeRunCompletion(db, runRecord.id).catch(() => {})
+          computeRunQualityScore(db, runRecord.id).catch((err) =>
+            logger.warn({ err }, 'post-chat: quality score failed'),
+          )
+          refreshInsights(db, runRecord.id ? undefined : undefined).catch((err) =>
+            logger.warn({ err }, 'post-chat: insights refresh failed'),
+          )
+          observeRunCompletion(db, runRecord.id).catch((err) =>
+            logger.warn({ err }, 'post-chat: run observation failed'),
+          )
 
           // Notify cortex of agent outcome (bridges chat to healing system)
           try {
@@ -1191,7 +1207,9 @@ export async function POST(req: Request) {
               summary: `Chat run ${runRecord.id} completed successfully`,
               agentId: agentConfigs[0]?.id,
             })
-            cortex.evidence.flush().catch(() => {})
+            cortex.evidence
+              .flush()
+              .catch((err) => logger.warn({ err }, 'post-chat: evidence flush failed'))
           } catch {
             // Cortex unavailable — non-blocking
           }
@@ -1218,7 +1236,7 @@ export async function POST(req: Request) {
               smartMemoryAdd(db, gateway, autoMemoryMessages, {
                 workspaceId: primaryWorkspaceId ?? undefined,
                 sourceAgentId: agentConfigs[0]?.id || undefined,
-              }).catch(() => {})
+              }).catch((err) => logger.warn({ err }, 'post-chat: smart memory add failed'))
               // Consolidation runs separately via cron (not inline) to save cost
             }
           }
@@ -1245,8 +1263,12 @@ export async function POST(req: Request) {
             // Non-blocking
           }
           // Fire-and-forget: compute quality for failed run + observe for instincts
-          computeRunQualityScore(db, runRecord.id).catch(() => {})
-          observeRunCompletion(db, runRecord.id).catch(() => {})
+          computeRunQualityScore(db, runRecord.id).catch((err) =>
+            logger.warn({ err }, 'post-chat: quality score failed (error path)'),
+          )
+          observeRunCompletion(db, runRecord.id).catch((err) =>
+            logger.warn({ err }, 'post-chat: run observation failed (error path)'),
+          )
 
           // Notify cortex of failed agent outcome
           try {
@@ -1268,7 +1290,7 @@ export async function POST(req: Request) {
         // Emit agent error event (non-blocking)
         eventBus
           .emit('agent.error', { agentId: agentConfigs[0]?.id, error: message })
-          .catch(() => {})
+          .catch((err) => logger.warn({ err }, 'post-chat: agent error event emit failed'))
       }
     },
   })

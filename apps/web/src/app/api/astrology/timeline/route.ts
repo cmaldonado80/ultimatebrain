@@ -4,6 +4,7 @@
  */
 import { waitForSchema } from '@solarc/db'
 
+import { logger } from '../../../../lib/logger'
 import {
   run,
   type SwissEphemerisInput,
@@ -58,15 +59,7 @@ export async function POST(req: Request) {
       events,
     })
   } catch (err) {
-    console.error('[Astrology/timeline] Computation failed:', err)
-    return Response.json(
-      {
-        error:
-          err instanceof Error
-            ? err.message
-            : 'Timeline computation failed. Please check your inputs.',
-      },
-      { status: 500 },
-    )
+    logger.error({ err: err instanceof Error ? err : undefined }, 'timeline computation failed')
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

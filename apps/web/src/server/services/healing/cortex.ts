@@ -22,11 +22,11 @@
  * 4. ACT      — execute recovery, tune resources, degrade/upgrade agents
  * 5. LEARN    — feed outcomes back into instincts, tuner, and memory
  */
-
 import type { Database } from '@solarc/db'
 import { agents as agentsTable } from '@solarc/db'
 import { eq as eqOp } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import { EvidenceMemoryPipeline } from '../intelligence/evidence-memory'
 import type { TuningAction } from './adaptive-tuner'
 import { AdaptiveResourceTuner } from './adaptive-tuner'
@@ -494,7 +494,7 @@ export class SelfHealingCortex {
         }
 
         // Fire-and-forget flush to memory store
-        this.evidence.flush().catch(() => {})
+        this.evidence.flush().catch((err) => logger.warn({ err }, 'cortex: evidence flush failed'))
 
         return { outcomesRecorded: outcomes, confidenceUpdates: confidence }
       },

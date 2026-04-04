@@ -7,11 +7,11 @@
  * - Context window management (sliding window + summarization hook)
  * - Session compaction for long conversations
  */
-
 import type { Database } from '@solarc/db'
 import { chatMessages, chatSessions } from '@solarc/db'
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import { GatewayRouter } from '../gateway'
 
 export interface ChatMessage {
@@ -245,7 +245,7 @@ export class ChatSessionManager {
               content: fact,
               tier: 'core',
             })
-            .catch(() => {}) // Non-blocking
+            .catch((err) => logger.warn({ err }, 'chat-session: memory store failed'))
         }
       }
     } catch {
