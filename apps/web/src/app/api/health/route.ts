@@ -1,7 +1,11 @@
 import { createDb } from '@solarc/db'
 import { sql } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
+
 export const dynamic = 'force-dynamic'
+
+const startedAt = Date.now()
 
 async function checkOllama(): Promise<{ status: string; latencyMs?: number; error?: string }> {
   const baseUrl = process.env.OLLAMA_BASE_URL
@@ -61,17 +65,24 @@ export async function GET() {
       status: overallStatus,
       timestamp: new Date().toISOString(),
       latencyMs: Date.now() - start,
-      version: process.env.BRAIN_VERSION ?? '1.0.0',
+      version:
+        process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 8) ?? process.env.BRAIN_VERSION ?? '1.0.0',
+      uptime_ms: Date.now() - startedAt,
       checks: {
         database: { status: 'ok', latencyMs: dbLatencyMs },
         ollama,
       },
     })
   } catch (err) {
+    const error = err instanceof Error ? err.message : 'Unknown error'
+    logger.error(
+      { err: err instanceof Error ? err : undefined, latencyMs: Date.now() - start },
+      'health check failed',
+    )
     return Response.json(
       {
         status: 'error',
-        error: err instanceof Error ? err.message : 'Unknown error',
+        error,
         timestamp: new Date().toISOString(),
         latencyMs: Date.now() - start,
       },

@@ -571,10 +571,8 @@ class OllamaAdapter implements ProviderAdapter {
   async pullModel(model: string, apiKey?: string): Promise<{ status: string; error?: string }> {
     const baseUrl = this.getBaseUrl()
     const url = `${baseUrl}/api/pull`
-    const keyPreview = apiKey
-      ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)} (len=${apiKey.length})`
-      : 'none'
-    console.warn(`[Ollama] pull → ${url} (model=${model}, key=${keyPreview})`)
+    const hasKey = !!apiKey
+    console.warn(`[Ollama] pull → ${url} (model=${model}, auth=${hasKey ? 'yes' : 'none'})`)
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -585,7 +583,7 @@ class OllamaAdapter implements ProviderAdapter {
         const err = await res.text()
         return {
           status: 'error',
-          error: `Ollama pull failed (${res.status}): ${err} [url=${url}, key=${keyPreview}]`,
+          error: `Ollama pull failed (${res.status}): ${err}`,
         }
       }
       const data = (await res.json()) as { status?: string; error?: string }
