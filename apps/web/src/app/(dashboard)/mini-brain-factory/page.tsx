@@ -44,7 +44,8 @@ function DatabaseStatusPanel({ entityId }: { entityId: string }) {
     return <div className="ml-8 mt-2 text-[10px] text-slate-600">Checking database status...</div>
   }
 
-  if (!status) return null
+  if (!status)
+    return <div className="ml-8 mt-2 text-[10px] text-slate-600">Loading database status...</div>
 
   return (
     <div className="ml-8 mt-2 bg-bg-deep rounded px-3 py-2">
@@ -221,7 +222,9 @@ function EntityHealthPanel({ entityId }: { entityId: string }) {
     details: Record<string, unknown> | null
   } | null
 
-  if (healthQuery.isLoading || !health) return null
+  if (healthQuery.isLoading)
+    return <div className="text-[10px] text-slate-600 py-2">Loading health data...</div>
+  if (!health) return null
 
   const statusColor: 'green' | 'yellow' | 'red' | 'slate' =
     health.status === 'healthy'
@@ -280,7 +283,8 @@ function TokenBudgetPanel({ entityId }: { entityId: string }) {
     costUsd: number
   }>
 
-  if (budgetQuery.isLoading && usageQuery.isLoading) return null
+  if (budgetQuery.isLoading && usageQuery.isLoading)
+    return <div className="ml-8 mt-2 text-[10px] text-slate-600">Loading cost data...</div>
 
   return (
     <div className="ml-8 mt-2 bg-bg-deep rounded px-3 py-2">
@@ -410,7 +414,9 @@ function DeploymentPanel({ entityId }: { entityId: string }) {
   // Filter to this entity's workflows
   const entityWorkflows = workflows.filter((w) => w.entityId === entityId)
 
-  if (deploymentsQuery.isLoading || entityWorkflows.length === 0) return null
+  if (deploymentsQuery.isLoading)
+    return <div className="text-[10px] text-slate-600 py-2">Loading deployments...</div>
+  if (entityWorkflows.length === 0) return null
 
   const statusColors: Record<string, 'green' | 'blue' | 'yellow' | 'red' | 'slate'> = {
     pending: 'yellow',
@@ -497,7 +503,9 @@ function LiveStatusPanel({ entityId }: { entityId: string }) {
     throughputBuckets: Array<{ bucket: string; requests: number; tokens: number; costUsd: number }>
   } | null
 
-  if (statsQuery.isLoading || !stats) return null
+  if (statsQuery.isLoading)
+    return <div className="text-[10px] text-slate-600 py-2">Loading stats...</div>
+  if (!stats) return null
 
   // Heartbeat freshness indicator
   const heartbeatAge = stats.lastHeartbeat

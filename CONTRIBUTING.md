@@ -1,114 +1,112 @@
 # Contributing to Solarc Brain
 
-Thank you for your interest in contributing to Solarc Brain. This guide will help you get started.
-
 ## Prerequisites
 
-- **Node.js** 20 or higher
-- **pnpm** (package manager)
-- **PostgreSQL** (local instance or connection string to a remote database)
+- **Node.js** 22+
+- **pnpm** 10.29+
+- **PostgreSQL** (local or Neon connection string)
 
 ## Setup
 
-1. Clone the repository:
+```bash
+git clone <repo-url>
+cd ultimatebrain
+pnpm install
+cp apps/web/.env.example apps/web/.env.local
+# Edit .env.local — set DATABASE_URL + at least one LLM API key
+pnpm dev
+```
 
-   ```bash
-   git clone <repo-url>
-   cd ultimatebrain
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   pnpm install
-   ```
-
-3. Configure environment variables:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Fill in the required values (at minimum `DATABASE_URL`).
-
-4. Set up the database:
-
-   ```bash
-   pnpm db:push   # apply schema to your database
-   ```
+Database schema auto-syncs on startup via `ensureSchema()` — no manual migrations needed.
 
 ## Development Workflow
 
-1. Create a branch from `main` using the following naming conventions:
-   - `feature/<description>` -- new features
-   - `fix/<description>` -- bug fixes
-   - `docs/<description>` -- documentation changes
+1. **Branch** from `main` — use `feature/`, `fix/`, `docs/` prefixes
+2. **Develop** — `pnpm dev` starts the web app with Turbopack on port 3000
+3. **Test** — `pnpm test` (995+ tests across 3 packages)
+4. **Typecheck** — `pnpm typecheck` (18 packages in parallel via Turborepo)
+5. **Lint** — `pnpm lint` (ESLint across all packages)
+6. **Commit** — Husky pre-commit hooks run lint-staged (ESLint --fix + Prettier)
+7. **PR** — CI runs: typecheck → lint → test → brain:validate
 
-2. Make your changes and ensure they build cleanly.
-
-3. Open a pull request against `main`.
-
-## Code Standards
-
-- **TypeScript** in strict mode across the entire codebase.
-- **ESLint** for linting -- run `pnpm lint` to check.
-- **Prettier** for formatting -- run `pnpm format` to auto-format.
-
-Please fix all lint and type errors before submitting a pull request.
-
-## Commit Conventions
-
-We follow [Conventional Commits](https://www.conventionalcommits.org/). Every commit message must start with a type prefix:
-
-| Prefix     | Purpose                                 |
-| ---------- | --------------------------------------- |
-| `feat`     | A new feature                           |
-| `fix`      | A bug fix                               |
-| `refactor` | Code restructuring (no behavior change) |
-| `docs`     | Documentation only                      |
-| `test`     | Adding or updating tests                |
-
-Examples:
-
-```
-feat: add workspace invite flow
-fix: correct JWT expiry calculation
-docs: update API key rotation instructions
-```
-
-## Pull Request Process
-
-1. Every PR must include a description of what changed and why.
-2. TypeScript type-checking must pass (`pnpm typecheck`).
-3. Link the related issue in the PR description (e.g., `Closes #123`).
-4. Request a review from at least one maintainer.
-
-## Testing
-
-We use [Vitest](https://vitest.dev/) as the test runner.
-
-```bash
-pnpm test          # run all tests
-pnpm test --watch  # run in watch mode
-```
-
-Write tests for new functionality and ensure existing tests pass before opening a PR.
-
-## Architecture Overview
-
-Solarc Brain is organized as a **pnpm monorepo**:
+## Monorepo Structure
 
 ```
 apps/
-  web/             -- main Next.js web application
-  astrology-app/   -- astrology-focused frontend
-  worker/          -- background job runner
+  web/              ← Main Next.js 15 app (50 tRPC routers, 85 pages)
+  worker/           ← Background jobs (pg-boss, 6 scheduled cron jobs)
+  astrology-app/    ← Astrology frontend (auth delegates to Brain)
+  astrology-brain/  ← Astrology Mini Brain (5 computation routes)
+
 packages/
-  db/              -- shared Drizzle ORM schema and database utilities
-  brain-sdk/       -- SDK for interacting with brain services
-  types/           -- shared TypeScript types
-  engine-contracts/-- contracts between engine components
-  eslint-config/   -- shared ESLint configuration
+  db/               ← PostgreSQL schema (Drizzle ORM, 103 tables)
+  brain-sdk/        ← SDK for Mini Brain → Brain communication
+  brain-client/     ← Shared tRPC client for Brain API calls
+  mini-brain-sdk/   ← Client SDK for Mini Brain connections
+  mini-brain-server/← Hono HTTP server for Mini Brains
+  engine-contracts/ ← Shared Zod schemas and model strategy
+  ephemeris/        ← Swiss Ephemeris wrapper
+  types/            ← Shared TypeScript types
+  eslint-config/    ← Shared ESLint configuration
 ```
 
-Most feature work happens in `apps/web`. Database schema changes go in `packages/db`. Shared types and utilities live in the corresponding package under `packages/`.
+## Key Architecture
+
+- **Truth Injection** — agents receive grounded runtime context before responding (never hallucinate topology)
+- **Self-Healing Cortex** — OODA loop runs every 10 min: observe, orient, decide, act, learn
+- **Evidence Pipeline** — healing outcomes, verifications, instinct promotions flow to tiered memory
+- **Gateway** — multi-provider LLM router with circuit breaker, rate limiter, cost tracking
+- **A2A Protocol** — DB-backed agent-to-agent delegation with TTL expiry and cancellation
+- **Sandbox** — tool execution goes through permission check → policy → execute → audit
+
+## Observability
+
+- **Structured logger** (`apps/web/src/lib/logger.ts`) — JSON in production, pretty in dev
+- **Request context** — AsyncLocalStorage injects requestId, userId, workspaceId into all logs
+- **Slow query detection** — `trackQuery()` warns at 500ms, errors at 2000ms
+- **Error boundaries** — `app/error.tsx` and `app/global-error.tsx` never expose internals
+
+## Testing
+
+```bash
+pnpm test                          # All tests
+cd apps/web && npx vitest run      # Web app only
+npx vitest run src/server/services/healing/  # Subset
+```
+
+Tests use mocked DB — no real PostgreSQL needed. Patterns:
+
+```typescript
+vi.mock('@solarc/db', () => ({ agents: { id: 'id', ... } }))
+vi.mock('drizzle-orm', () => ({ eq: (c, v) => ({ c, v }), ... }))
+```
+
+## Code Rules
+
+- TypeScript strict mode
+- No `console.log` in production — use `logger` from `@/lib/logger`
+- No `as any` without justification
+- No `.catch(() => {})` — all catches must log via `logger.warn`
+- Error responses never expose `err.message` to external callers
+- Do NOT commit `.env.local` or log API keys/tokens/PII
+
+## Commit Conventions
+
+[Conventional Commits](https://www.conventionalcommits.org/):
+
+| Prefix     | Purpose                   |
+| ---------- | ------------------------- |
+| `feat`     | New feature               |
+| `fix`      | Bug fix                   |
+| `refactor` | Code restructuring        |
+| `test`     | Tests                     |
+| `docs`     | Documentation             |
+| `chore`    | Maintenance, dependencies |
+
+## Environment Variables
+
+See `apps/web/.env.example` for the full documented list. Required:
+
+- `DATABASE_URL` — PostgreSQL connection string
+- `AUTH_SECRET` — JWT signing (required in production)
+- At least one of: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`
