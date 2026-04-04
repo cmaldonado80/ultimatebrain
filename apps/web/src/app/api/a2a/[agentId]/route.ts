@@ -39,12 +39,20 @@ const MAX_REQUESTS_PER_AGENT = 100
 const ipRequestCounts = new Map<string, { count: number; resetAt: number }>()
 const agentRequestCounts = new Map<string, { count: number; resetAt: number }>()
 
+const MAX_RATE_LIMIT_ENTRIES = 500
+
 function checkRateLimit(
   key: string,
   store: Map<string, { count: number; resetAt: number }>,
   max: number,
 ): boolean {
   const now = Date.now()
+  // Evict expired entries and enforce size cap
+  if (store.size > MAX_RATE_LIMIT_ENTRIES) {
+    for (const [k, v] of store) {
+      if (now > v.resetAt) store.delete(k)
+    }
+  }
   const entry = store.get(key)
   if (!entry || now > entry.resetAt) {
     store.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })

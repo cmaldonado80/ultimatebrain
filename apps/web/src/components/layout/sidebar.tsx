@@ -378,9 +378,13 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
         <div className="border-t border-border pt-3 px-2 mt-2">
           <button
             onClick={() =>
-              fetch('/api/auth/signout', { method: 'POST' }).then(() => {
-                window.location.href = '/auth/signin'
-              })
+              fetch('/api/auth/signout', { method: 'POST' })
+                .then(() => {
+                  window.location.href = '/auth/signin'
+                })
+                .catch(() => {
+                  window.location.href = '/auth/signin'
+                })
             }
             className="text-[11px] text-slate-600 hover:text-slate-400 bg-transparent border-none cursor-pointer transition-colors py-1 block w-full text-left"
           >

@@ -108,6 +108,7 @@ const CONTEXT_WINDOW = 50
 // Hermes-inspired frozen memory snapshot cache — preserves LLM prefix cache within a session.
 // Memory writes during the session update DB but don't change the injected context until TTL expires.
 const MEMORY_SNAPSHOT_TTL = 5 * 60 * 1000 // 5 minutes
+const MAX_CACHE_SIZE = 500 // hard cap on in-memory cache entries
 const memorySnapshotCache = new Map<string, { context: string; timestamp: number }>()
 
 /** Evict stale entries from in-memory caches to prevent unbounded growth */
@@ -117,9 +118,25 @@ function evictStaleCaches(): void {
   for (const [key, entry] of memorySnapshotCache) {
     if (now - entry.timestamp > MEMORY_SNAPSHOT_TTL) memorySnapshotCache.delete(key)
   }
+  // Hard cap: if still over limit, evict oldest entries
+  if (memorySnapshotCache.size > MAX_CACHE_SIZE) {
+    const entries = [...memorySnapshotCache.entries()].sort(
+      (a, b) => a[1].timestamp - b[1].timestamp,
+    )
+    for (let i = 0; i < entries.length - MAX_CACHE_SIZE; i++) {
+      memorySnapshotCache.delete(entries[i]![0])
+    }
+  }
   // Evict expired rate limit entries
   for (const [ip, data] of ipCounts) {
     if (now > data.resetAt) ipCounts.delete(ip)
+  }
+  // Hard cap on IP entries (prevent DDoS-style memory exhaustion)
+  if (ipCounts.size > MAX_CACHE_SIZE) {
+    const oldest = [...ipCounts.entries()].sort((a, b) => a[1].resetAt - b[1].resetAt)
+    for (let i = 0; i < oldest.length - MAX_CACHE_SIZE; i++) {
+      ipCounts.delete(oldest[i]![0])
+    }
   }
   // Evict old debounce entries (>10 min)
   for (const [key, ts] of memoryDebounce) {

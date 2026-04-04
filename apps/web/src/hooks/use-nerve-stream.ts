@@ -85,32 +85,52 @@ export function useNerveStream(enabled = true): NerveStreamState {
       })
 
       es.addEventListener('cortex_status', (e) => {
-        const data = JSON.parse(e.data)
-        setState((s) => ({ ...s, cortex: data, lastUpdate: Date.now() }))
+        try {
+          const data = JSON.parse(e.data)
+          setState((s) => ({ ...s, cortex: data, lastUpdate: Date.now() }))
+        } catch {
+          /* malformed SSE data — skip */
+        }
       })
 
       es.addEventListener('metric_update', (e) => {
-        const data = JSON.parse(e.data)
-        setState((s) => ({
-          ...s,
-          metrics: { ...s.metrics, ...data.metrics },
-          lastUpdate: Date.now(),
-        }))
+        try {
+          const data = JSON.parse(e.data)
+          setState((s) => ({
+            ...s,
+            metrics: { ...s.metrics, ...data.metrics },
+            lastUpdate: Date.now(),
+          }))
+        } catch {
+          /* malformed SSE data — skip */
+        }
       })
 
       es.addEventListener('degradation_summary', (e) => {
-        const data = JSON.parse(e.data)
-        setState((s) => ({ ...s, degradation: data, lastUpdate: Date.now() }))
+        try {
+          const data = JSON.parse(e.data)
+          setState((s) => ({ ...s, degradation: data, lastUpdate: Date.now() }))
+        } catch {
+          /* malformed SSE data — skip */
+        }
       })
 
       es.addEventListener('sandbox_event', (e) => {
-        const data = JSON.parse(e.data)
-        setState((s) => ({ ...s, sandbox: data, lastUpdate: Date.now() }))
+        try {
+          const data = JSON.parse(e.data)
+          setState((s) => ({ ...s, sandbox: data, lastUpdate: Date.now() }))
+        } catch {
+          /* malformed SSE data — skip */
+        }
       })
 
       es.addEventListener('gateway_health', (e) => {
-        const data = JSON.parse(e.data)
-        setState((s) => ({ ...s, gatewayHealth: data, lastUpdate: Date.now() }))
+        try {
+          const data = JSON.parse(e.data)
+          setState((s) => ({ ...s, gatewayHealth: data, lastUpdate: Date.now() }))
+        } catch {
+          /* malformed SSE data — skip */
+        }
       })
 
       es.onerror = () => {
