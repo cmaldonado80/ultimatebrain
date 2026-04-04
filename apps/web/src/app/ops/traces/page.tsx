@@ -49,7 +49,7 @@ export default function TracesPage() {
         <EmptyState title="No traces found" message="Traces appear as agents execute tasks." />
       ) : (
         <div className="cyber-table-scroll">
-          <div className="bg-bg-elevated rounded-lg border border-border overflow-hidden min-w-[700px]">
+          <div className="bg-bg-elevated rounded-lg border border-border overflow-x-auto">
             {/* Header */}
             <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border">
               <span className="flex-[2] text-[11px] font-bold text-slate-500 uppercase tracking-wide">

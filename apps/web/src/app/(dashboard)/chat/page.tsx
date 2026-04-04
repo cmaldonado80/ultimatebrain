@@ -386,7 +386,7 @@ export default function ChatPage() {
       <div className="flex-1 flex min-h-0">
         {/* Left panel -- session sidebar */}
         {sidebarOpen && (
-          <div className="w-64 flex-shrink-0 border-r border-border bg-bg-surface flex flex-col overflow-hidden">
+          <div className="hidden md:flex w-64 flex-shrink-0 border-r border-border bg-bg-surface flex-col overflow-hidden">
             <div className="p-3">
               <button onClick={handleNewSession} className="cyber-btn-primary cyber-btn-sm w-full">
                 + New Session
