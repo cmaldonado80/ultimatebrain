@@ -89,7 +89,7 @@ export default function CeoDashboardPage() {
         />
       </PageGrid>
 
-      <div className="grid grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
         {/* Department Health */}
         <SectionCard title="Department Health">
           {org?.departments.length === 0 ? (

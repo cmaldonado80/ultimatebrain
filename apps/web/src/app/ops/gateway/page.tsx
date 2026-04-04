@@ -62,7 +62,7 @@ export default function GatewayPage() {
   return (
     <div className="p-6 text-slate-100">
       <PageHeader title="Gateway" subtitle="API costs, latency, and provider health." />
-      <div className="grid grid-cols-6 gap-2.5 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-5">
         <div className="cyber-card p-3.5 text-center">
           <div
             className={`text-lg font-bold ${health?.status === 'healthy' ? 'text-neon-green' : 'text-neon-yellow'}`}
@@ -96,8 +96,8 @@ export default function GatewayPage() {
       {metrics.length === 0 ? (
         <EmptyState title="No gateway metrics yet" />
       ) : (
-        <div className="cyber-card overflow-hidden">
-          <div className="flex px-4 py-2.5 bg-bg-elevated border-b border-border">
+        <div className="cyber-card overflow-x-auto">
+          <div className="flex px-4 py-2.5 bg-bg-elevated border-b border-border min-w-[600px]">
             <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Provider
             </span>
@@ -118,7 +118,10 @@ export default function GatewayPage() {
             </span>
           </div>
           {metrics.map((m) => (
-            <div key={m.id} className="flex px-4 py-2.5 border-b border-border-dim items-center">
+            <div
+              key={m.id}
+              className="flex px-4 py-2.5 border-b border-border-dim items-center min-w-[600px]"
+            >
               <span className="flex-1 text-xs">{m.provider}</span>
               <span className="flex-1 text-[11px] font-mono">{m.model}</span>
               <span className="flex-1 text-xs">{(m.tokensIn ?? 0) + (m.tokensOut ?? 0)}</span>

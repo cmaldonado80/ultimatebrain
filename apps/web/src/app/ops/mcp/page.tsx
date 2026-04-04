@@ -107,7 +107,7 @@ export default function McpPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
         <div className="cyber-card p-3 text-center">
           <div className="text-xl font-bold text-neon-blue font-orbitron">{allTools.length}</div>
           <div className="text-[10px] text-slate-500">Tools</div>

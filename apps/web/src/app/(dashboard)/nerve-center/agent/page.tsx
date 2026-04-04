@@ -140,7 +140,7 @@ export default function AgentForensicsPage() {
             <>
               {/* Vitals */}
               <SectionCard title={`${selected.agentName} — Vitals`} variant="highlighted">
-                <div className="grid grid-cols-4 gap-4 text-center">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-center">
                   <div>
                     <div
                       className={`text-xl font-bold font-orbitron ${LEVEL_COLORS[selected.level] ?? ''}`}

@@ -382,7 +382,7 @@ export default function AgentDetailPage() {
       {/* Performance Scorecard */}
       {scorecardQuery.data && scorecardQuery.data.totalRuns > 0 && (
         <SectionCard title="Performance" className="mb-4">
-          <div className="grid grid-cols-5 gap-4 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
             <div>
               <div className="text-lg font-mono text-slate-200">
                 {scorecardQuery.data.totalRuns}
@@ -726,7 +726,7 @@ function CapabilityPanel({ agentId }: { agentId: string }) {
 
   return (
     <SectionCard title="Capability Profile">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">
             Strengths

@@ -199,7 +199,7 @@ const SpotlightSearch = memo(function SpotlightSearch({
       onClick={onClose}
     >
       <div
-        className="cyber-card w-[520px] max-h-96 overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+        className="cyber-card w-full max-w-[520px] mx-4 max-h-96 overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
         <input

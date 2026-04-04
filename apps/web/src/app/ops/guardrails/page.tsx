@@ -55,7 +55,7 @@ export default function GuardrailsPage() {
     <div className="p-6 text-slate-50">
       <PageHeader title="Guardrails" />
       {stats && (
-        <div className="cyber-grid grid-cols-3 gap-2.5 mb-5">
+        <div className="cyber-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-5">
           <div className="cyber-card p-3.5 text-center">
             <div className="text-[22px] font-bold">{stats.total}</div>
             <div className="text-[11px] text-slate-500 mt-0.5">Total Checks</div>
@@ -74,8 +74,8 @@ export default function GuardrailsPage() {
       {logs.length === 0 ? (
         <EmptyState title="No guardrail logs yet" />
       ) : (
-        <div className="cyber-card overflow-hidden">
-          <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border">
+        <div className="cyber-card overflow-x-auto">
+          <div className="flex px-4 py-2.5 bg-bg-deep border-b border-border min-w-[600px]">
             <span className="flex-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
               Layer
             </span>
@@ -93,7 +93,10 @@ export default function GuardrailsPage() {
             </span>
           </div>
           {logs.map((l) => (
-            <div key={l.id} className="flex px-4 py-2.5 border-b border-bg-surface items-center">
+            <div
+              key={l.id}
+              className="flex px-4 py-2.5 border-b border-bg-surface items-center min-w-[600px]"
+            >
               <span className="flex-1 text-[13px]">
                 <span className="cyber-badge text-[10px]">{l.layer}</span>
               </span>
