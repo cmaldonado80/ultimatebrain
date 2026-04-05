@@ -196,6 +196,32 @@ export class A2AEngine {
       .where(eq(a2aDelegations.id, delegationId))
       .returning({ id: a2aDelegations.id })
     if (updated.length === 0) throw new Error(`Delegation ${delegationId} not found`)
+
+    // Feed delegation result into knowledge mesh for peer discovery
+    try {
+      const delegation = await this.db.query.a2aDelegations.findFirst({
+        where: eq(a2aDelegations.id, delegationId),
+      })
+      if (delegation?.fromAgentId && delegation?.toAgentId) {
+        const { KnowledgeMesh } = await import('../orchestration/knowledge-mesh')
+        const mesh = new KnowledgeMesh(this.db)
+        await mesh.persistExchange({
+          askingAgentId: delegation.fromAgentId,
+          question: delegation.task,
+          scope: 'organization',
+          findings: [
+            {
+              sourceAgentId: delegation.toAgentId,
+              content: serialized,
+              relevanceScore: 0.7,
+              source: 'delegation',
+            },
+          ],
+        })
+      }
+    } catch {
+      // best-effort — don't block delegation completion
+    }
   }
 
   async fail(delegationId: string, error: string): Promise<void> {

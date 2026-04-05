@@ -494,6 +494,22 @@ export const knowledgeExchanges = pgTable(
   (t) => [index('knowledge_exchanges_asking_agent_idx').on(t.askingAgentId)],
 )
 
+/** Tool execution statistics — persisted from in-memory analytics */
+export const toolExecutionStats = pgTable(
+  'tool_execution_stats',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    toolName: text('tool_name').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    successCount: integer('success_count').default(0).notNull(),
+    failureCount: integer('failure_count').default(0).notNull(),
+    totalDurationMs: integer('total_duration_ms').default(0).notNull(),
+    lastUsedAt: timestamp('last_used_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [index('tool_execution_stats_tool_idx').on(t.toolName, t.workspaceId)],
+)
+
 // NOTE: Debate tables (debateSessions, debateNodes, debateEdges, debateElo)
 // and token tables (tokenLedger, tokenBudgets) are defined in platform.ts
 // with proper FK constraints to agents and brainEntities.

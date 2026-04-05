@@ -232,6 +232,39 @@ async function main() {
     }
   })
 
+  // Tool analytics flush — persist in-memory tool stats to DB
+  await boss.work('tools:flush', async () => {
+    console.warn('[Worker] Flushing tool analytics')
+    try {
+      const { flushToolAnalytics } =
+        await import('../../web/src/server/services/chat/tool-executor')
+      const flushed = await flushToolAnalytics(db)
+      if (flushed > 0) {
+        console.warn(`[Worker] tools: flushed ${flushed} analytics entries to DB`)
+      }
+    } catch (err) {
+      console.error('[Worker] Tool analytics flush failed:', err)
+      throw err
+    }
+  })
+
+  // Evolution validation — compare post-evolution quality vs baseline, auto-rollback harmful mutations
+  await boss.work('evolution:validate', async () => {
+    console.warn('[Worker] Running evolution validation sweep')
+    try {
+      const { validatePendingEvolutions } =
+        await import('../../web/src/server/services/evolution/post-evolution-validator')
+      const result = await validatePendingEvolutions(db)
+      console.warn(
+        `[Worker] Evolution validation done: ${result.validated} validated, ` +
+          `${result.rolledBack} rolled back, ${result.pending} pending`,
+      )
+    } catch (err) {
+      console.error('[Worker] Evolution validation failed:', err)
+      throw err
+    }
+  })
+
   // A2A delegation expiry — fail stale delegations older than 24h
   await boss.work('a2a:expire', async () => {
     console.warn('[Worker] Expiring stale A2A delegations')
@@ -269,6 +302,8 @@ async function main() {
   await boss.schedule('instinct:pipeline', '0 2 * * *', {}) // daily at 02:00
   await boss.schedule('instinct:evolve', '0 3 * * 0', {}) // weekly on Sunday at 03:00
   await boss.schedule('a2a:expire', '0 */6 * * *', {}) // every 6 hours
+  await boss.schedule('tools:flush', '*/10 * * * *', {}) // every 10 min
+  await boss.schedule('evolution:validate', '0 4 * * *', {}) // daily at 04:00
 
   // === Dead-letter queue handler — receives jobs that failed all retries ===
   await boss.work(DEAD_LETTER_QUEUE, async ([job]) => {

@@ -324,19 +324,41 @@ export class KnowledgeMesh {
 
   /**
    * Persist an exchange to the DB.
+   * Accepts either a full KnowledgeQuery + findings, or a simplified delegation-style input.
    */
-  private async persistExchange(
-    query: KnowledgeQuery,
-    findings: KnowledgeFinding[],
+  async persistExchange(
+    queryOrInput:
+      | KnowledgeQuery
+      | {
+          askingAgentId: string
+          question: string
+          scope: 'department' | 'organization'
+          findings: Array<{
+            sourceAgentId: string
+            content: string
+            relevanceScore: number
+            source: string
+          }>
+        },
+    findingsArg?: KnowledgeFinding[],
   ): Promise<void> {
+    // Normalize: two-arg form (query, findings) or single-arg form with embedded findings
+    const askingAgentId = queryOrInput.askingAgentId
+    const question = queryOrInput.question
+    const scope = queryOrInput.scope
+    const findings: Array<Record<string, unknown>> = findingsArg
+      ? (findingsArg as unknown as Array<Record<string, unknown>>)
+      : (('findings' in queryOrInput ? queryOrInput.findings : []) as Array<
+          Record<string, unknown>
+        >)
     if (!this.db) return
 
     try {
       await this.db.insert(knowledgeExchanges).values({
-        askingAgentId: query.askingAgentId,
-        question: query.question,
-        scope: query.scope,
-        findings: findings as unknown as Record<string, unknown>[],
+        askingAgentId,
+        question,
+        scope,
+        findings: findings as Record<string, unknown>[],
       })
     } catch (err) {
       logger.warn(

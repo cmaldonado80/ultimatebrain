@@ -4,6 +4,7 @@
  */
 
 import type { Database } from '@solarc/db'
+import { instinctObservations, toolExecutionStats } from '@solarc/db'
 import type { ZodiacSign } from '@solarc/ephemeris'
 import { synastryAspects } from '@solarc/ephemeris'
 import { run as ephemerisRun } from '@solarc/ephemeris'
@@ -324,6 +325,50 @@ export function getToolAnalytics(workspaceId?: string): Array<{
   }
 
   return results.sort((a, b) => b.totalCalls - a.totalCalls)
+}
+
+/** Flush in-memory tool analytics to DB for persistence. Called periodically by worker. */
+export async function flushToolAnalytics(db: Database): Promise<number> {
+  let flushed = 0
+  for (const [key, stats] of toolAnalytics.entries()) {
+    const [toolName, workspaceId] = key.split('||')
+    if (!toolName) continue
+    try {
+      await db
+        .insert(toolExecutionStats)
+        .values({
+          toolName,
+          workspaceId: workspaceId ?? 'default',
+          successCount: stats.successCount,
+          failureCount: stats.failureCount,
+          totalDurationMs: stats.totalDurationMs,
+          lastUsedAt: new Date(stats.lastUsed),
+        })
+        .onConflictDoNothing()
+
+      // Detect tool failure patterns for instinct learning
+      const totalCalls = stats.successCount + stats.failureCount
+      if (totalCalls >= 10 && stats.failureCount / totalCalls > 0.6) {
+        await db
+          .insert(instinctObservations)
+          .values({
+            eventType: 'tool_failure_pattern',
+            payload: {
+              toolName,
+              workspaceId: workspaceId ?? 'default',
+              failureRate: stats.failureCount / totalCalls,
+              totalCalls,
+            },
+          })
+          .catch(() => {})
+      }
+
+      flushed++
+    } catch {
+      // best-effort
+    }
+  }
+  return flushed
 }
 
 /** Get or create a tool call history for a session/workspace */
@@ -1145,9 +1190,10 @@ async function executeToolInner(
             const res = await fetch(`${dockerSocket}/containers/json?all=true`, {
               signal: AbortSignal.timeout(5000),
             })
-            const containers = await res.json()
+            const containers = (await res.json()) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
             return JSON.stringify(
               containers.map((c: any) => ({
+                // eslint-disable-line @typescript-eslint/no-explicit-any
                 id: c.Id?.slice(0, 12),
                 names: c.Names,
                 state: c.State,

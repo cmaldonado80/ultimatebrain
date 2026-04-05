@@ -7,10 +7,11 @@
  */
 
 import type { Database } from '@solarc/db'
-import { evalDatasets, evalRuns } from '@solarc/db'
+import { evalDatasets, evalRuns, instinctObservations } from '@solarc/db'
 import type { EvalScores } from '@solarc/engine-contracts'
 import { eq } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import { WebhookService } from '../integrations/integrations-service'
 
 export interface DriftReport {
@@ -178,6 +179,44 @@ export class DriftDetector {
         }
       } catch (err) {
         console.warn(`[DriftDetector] OpenClaw channel alert failed:`, err)
+      }
+
+      // Trigger instinct observation for regression pattern
+      try {
+        await this.db.insert(instinctObservations).values({
+          eventType: 'eval_regression',
+          payload: {
+            datasetId: alert.datasetId,
+            regressions: alert.regressions.map((r) => ({
+              dimension: r.dimension,
+              dropPct: Math.abs(r.deltaPercent),
+            })),
+          },
+        })
+      } catch {
+        // best-effort — don't block alert dispatch
+      }
+
+      // Critical regression (>15% drop on any dimension): trigger immediate evolution
+      const maxDropPct = Math.max(...alert.regressions.map((r) => Math.abs(r.deltaPercent)))
+      if (maxDropPct > 15) {
+        try {
+          const { evolveAgent } = await import('../evolution/evolution-service')
+          // Evolution requires an agentId — attempt to find the agent associated with this dataset
+          // For now, log the critical regression for manual follow-up
+          logger.warn(
+            { datasetId: alert.datasetId, dropPct: maxDropPct },
+            'eval: critical regression detected (>15% drop) — evolution may be needed',
+          )
+          // If a dataset-to-agent mapping exists, trigger evolution:
+          // await evolveAgent(this.db, agentId)
+          void evolveAgent // reference to suppress unused import warning
+        } catch (err) {
+          logger.warn(
+            { err: err instanceof Error ? err : undefined },
+            'eval: evolution trigger failed',
+          )
+        }
       }
     }
   }

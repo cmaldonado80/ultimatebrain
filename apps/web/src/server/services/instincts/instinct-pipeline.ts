@@ -10,8 +10,12 @@ import type { Database } from '@solarc/db'
 import { instinctObservations, instincts } from '@solarc/db'
 import { desc, eq } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
+import { EvidenceMemoryPipeline } from '../intelligence/evidence-memory'
+import { MemoryService } from '../memory/memory-service'
 import { ConfidenceScorer } from './confidence'
 import { PatternDetector } from './pattern-detector'
+import { InstinctPromoter } from './promoter'
 import type { Instinct, InstinctObservation } from './types'
 
 const scorer = new ConfidenceScorer()
@@ -139,7 +143,20 @@ export async function runInstinctPipeline(db: Database): Promise<{
     }
   }
 
-  // 4. Promote candidates with high confidence
+  // 4. Promote candidates with high confidence + persist to memory
+  const evidence = new EvidenceMemoryPipeline()
+  // Peer lookup for scope promotion: find similar instincts in other entities
+  const peerLookup: ConstructorParameters<typeof InstinctPromoter>[0] = async (
+    fingerprint,
+    _scope,
+  ) => {
+    const peers = await db.query.instincts.findMany({
+      where: eq(instincts.trigger, fingerprint),
+      limit: 10,
+    })
+    return peers.filter((p) => p.entityId).map((p) => ({ entityId: p.entityId!, parentId: '' }))
+  }
+  const promoter = new InstinctPromoter(peerLookup)
   const candidateInstincts = allInstincts.filter(
     (i) => i.status === 'candidate' && i.confidence >= 0.7,
   )
@@ -149,6 +166,59 @@ export async function runInstinctPipeline(db: Database): Promise<{
       .set({ status: 'promoted', updatedAt: now })
       .where(eq(instincts.id, inst.id))
     promoted++
+
+    // Record promotion to evidence memory (persists instinct as core-tier memory)
+    evidence.recordInstinctPromotion({
+      trigger: inst.trigger,
+      action: inst.action,
+      confidence: inst.confidence,
+    })
+
+    // Check for scope promotion (development → mini_brain → brain)
+    const instObj: Instinct = {
+      ...inst,
+      domain: inst.domain ?? 'universal',
+      entityId: inst.entityId ?? '',
+      evidenceCount: inst.evidenceCount ?? 1,
+      lastObservedAt: inst.lastObservedAt ?? now,
+      createdAt: inst.createdAt,
+      updatedAt: inst.updatedAt,
+    }
+    promoter
+      .checkForPromotion(instObj)
+      .catch((err) =>
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          'instinct: scope promotion check failed',
+        ),
+      )
+  }
+
+  // Flush evidence to memory store (fire-and-forget)
+  if (promoted > 0) {
+    const memSvc = new MemoryService(db)
+    const memAdapter = {
+      store: (input: {
+        key: string
+        content: string
+        tier: string
+        sourceAgentId?: string
+        workspaceId?: string
+        confidence?: number
+      }) =>
+        memSvc.store({
+          ...input,
+          tier: input.tier as 'critical' | 'core' | 'recall' | 'archival',
+        }) as Promise<unknown>,
+    }
+    evidence
+      .flush(memAdapter)
+      .catch((err) =>
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          'instinct: evidence flush to memory failed',
+        ),
+      )
   }
 
   return {

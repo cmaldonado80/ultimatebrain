@@ -15,6 +15,7 @@ import { GatewayRouter } from '../gateway'
 import { consolidateMemories } from '../memory/memory-intelligence'
 import { analyzeAgentPerformance } from './analyzer'
 import { evolveAgent } from './evolution-service'
+import { registerPendingValidation } from './post-evolution-validator'
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -106,6 +107,9 @@ export async function runAutoEvolution(
       if (analysis.recommendation === 'evolve') {
         const evoResult = await evolveAgent(db, agent.id, { windowDays: cfg.windowDays })
         if (evoResult.status === 'accepted') {
+          // Register for post-evolution validation — compare future quality
+          // against the pre-evolution baseline to auto-rollback harmful mutations
+          registerPendingValidation(agent.id, analysis.avgScore, evoResult.fromVersion)
           result.agentsEvolved.push(`${agent.name}: evolved (${evoResult.summary})`)
           evolvedCount++
         } else {
