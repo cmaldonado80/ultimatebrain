@@ -6,6 +6,7 @@ import { userPreferences } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
+import { logger } from '../../lib/logger'
 import type {
   ContextSignal,
   PanelId,
@@ -68,7 +69,10 @@ async function savePreferences(db: unknown, userId: string, prefs: UserPreferenc
         },
       })
   } catch (err) {
-    console.error('[Adaptive] Failed to save preferences:', err)
+    logger.error(
+      { err: err instanceof Error ? err : undefined },
+      '[Adaptive] Failed to save preferences',
+    )
   }
 }
 

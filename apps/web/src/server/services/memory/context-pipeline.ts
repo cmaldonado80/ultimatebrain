@@ -10,6 +10,7 @@
 
 import type { Database } from '@solarc/db'
 
+import { logger } from '../../../lib/logger'
 import { GatewayRouter } from '../gateway'
 import type { EmbedFunction } from './memory-service'
 import { MemoryService } from './memory-service'
@@ -163,7 +164,10 @@ export class ContextPipeline {
         }))
       }
     } catch (err) {
-      console.error('[ContextPipeline] RAG search failed, returning empty:', err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        '[ContextPipeline] RAG search failed, returning empty',
+      )
     }
     return []
   }
@@ -184,7 +188,10 @@ export class ContextPipeline {
         }))
       }
     } catch (err) {
-      console.error('[ContextPipeline] Memory recall failed, returning empty:', err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        '[ContextPipeline] Memory recall failed, returning empty',
+      )
     }
     return []
   }
@@ -239,9 +246,9 @@ export class ContextPipeline {
           }
         })
       } catch (err) {
-        console.error(
-          '[ContextPipeline] LLM reranking failed, falling back to keyword scoring:',
-          err,
+        logger.error(
+          { err: err instanceof Error ? err : undefined },
+          '[ContextPipeline] LLM reranking failed, falling back to keyword scoring',
         )
       }
     }

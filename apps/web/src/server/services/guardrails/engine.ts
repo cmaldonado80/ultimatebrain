@@ -7,6 +7,7 @@ import type { Database } from '@solarc/db'
 import { guardrailLogs } from '@solarc/db'
 import type { GuardrailCheckOutput } from '@solarc/engine-contracts'
 
+import { logger } from '../../../lib/logger'
 import { BUILTIN_RULES, type GuardrailLayer, type GuardrailRule, type Violation } from './rules'
 
 export interface GuardrailEngineConfig {
@@ -73,7 +74,10 @@ export class GuardrailEngine {
 
     // Log violations to DB (fire-and-forget)
     this.logViolations(violations, layer, options?.agentId, options?.ticketId).catch((err) => {
-      console.error('[Guardrails] Failed to log violations:', err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        '[Guardrails] Failed to log violations',
+      )
     })
 
     const hasCritical = violations.some((v) => v.severity === 'critical')

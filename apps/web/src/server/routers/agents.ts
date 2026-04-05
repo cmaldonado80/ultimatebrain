@@ -193,7 +193,7 @@ export const agentsRouter = router({
       vision: 'llama-3.2-11b-vision:cloud',
       guard: 'llama-guard-3:cloud',
     }
-    const allAgents = await ctx.db.query.agents.findMany()
+    const allAgents = await ctx.db.query.agents.findMany({ limit: 2000 })
     let updated = 0
     for (const agent of allAgents) {
       if (agent.model) continue // already has explicit model
@@ -209,7 +209,7 @@ export const agentsRouter = router({
 
   /** Sync agent souls from .md files into the database */
   syncSouls: protectedProcedure.mutation(async ({ ctx }) => {
-    const allAgents = await ctx.db.query.agents.findMany()
+    const allAgents = await ctx.db.query.agents.findMany({ limit: 2000 })
     const orchestratorSoul = AGENT_SOULS.get('workflow-orchestrator')
     let synced = 0
     let skipped = 0

@@ -5,7 +5,7 @@
  */
 import { organizationMembers, organizations, userRoles, users } from '@solarc/db'
 import { TRPCError } from '@trpc/server'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { auditEvent } from '../services/platform/audit'
@@ -20,8 +20,9 @@ export const organizationsRouter = router({
     if (memberships.length === 0) return []
 
     const orgIds = memberships.map((m) => m.organizationId)
-    const orgs = await ctx.db.query.organizations.findMany()
-    const memberOrgs = orgs.filter((o) => orgIds.includes(o.id))
+    const memberOrgs = await ctx.db.query.organizations.findMany({
+      where: inArray(organizations.id, orgIds),
+    })
 
     return memberOrgs.map((org) => ({
       ...org,

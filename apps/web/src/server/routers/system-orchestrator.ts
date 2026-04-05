@@ -5,6 +5,7 @@
 import type { Database } from '@solarc/db'
 import { z } from 'zod'
 
+import { logger } from '../../lib/logger'
 import { SystemOrchestrator } from '../services/orchestration'
 import { protectedProcedure, router } from '../trpc'
 
@@ -14,7 +15,12 @@ function getSystemOrchestrator(db: Database) {
   if (!systemOrchestrator) {
     systemOrchestrator = new SystemOrchestrator(db)
     // Bootstrap system workspace on first access (idempotent)
-    systemOrchestrator.ensureSystemWorkspace().catch(console.error)
+    systemOrchestrator.ensureSystemWorkspace().catch((err) => {
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        '[SystemOrchestrator] Failed to bootstrap system workspace',
+      )
+    })
   }
   return systemOrchestrator
 }

@@ -13,6 +13,8 @@
  * while allowing LLM reasoning within each state.
  */
 
+import { logger } from '../../../lib/logger'
+
 export interface JourneyDefinition {
   id: string
   name: string
@@ -161,7 +163,10 @@ export class JourneyEngine {
     if (this.db && !_dbLoaded) {
       _dbLoaded = true
       this.loadFromDb().catch((err) => {
-        console.error('[JourneyEngine] Failed to load from DB:', err)
+        logger.error(
+          { err: err instanceof Error ? err : undefined },
+          '[JourneyEngine] Failed to load from DB',
+        )
       })
     }
   }
@@ -222,7 +227,10 @@ export class JourneyEngine {
           })
       })
       .catch((err) => {
-        console.error('[JourneyEngine] DB persist failed:', err)
+        logger.error(
+          { err: err instanceof Error ? err : undefined },
+          '[JourneyEngine] DB persist failed',
+        )
       })
   }
 

@@ -90,11 +90,19 @@ function getTracer(): Tracer {
 function getGateway(): GatewayRouter {
   if (!_gateway) {
     _gateway = new GatewayRouter(getDb(), undefined, getTracer())
-    // Wire gateway events into cortex evidence pipeline (fire-and-forget)
+    // Wire gateway events into cortex evidence pipeline + provider outcomes (fire-and-forget)
     _gateway.setEventCallback((type, ctx) => {
       import('../../../../server/services/healing')
         .then(({ getOrCreateCortex }) => {
           const cortex = getOrCreateCortex(getDb())
+          // Feed provider outcomes to cortex tuner for adaptive resource allocation
+          if (ctx.provider && (type === 'circuit_close' || type === 'circuit_open')) {
+            cortex.recordProviderOutcome(
+              ctx.provider,
+              type === 'circuit_close',
+              0, // latency not available in event context — tuner uses for trend only
+            )
+          }
           return cortex.evidence.recordVerification({
             passed: type === 'circuit_close',
             score: type === 'circuit_close' ? 0.8 : 0.0,

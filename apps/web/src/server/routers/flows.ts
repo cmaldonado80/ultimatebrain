@@ -9,6 +9,7 @@ import { flows as flowsTable, tickets } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
+import { logger } from '../../lib/logger'
 import {
   type AgentDefinition,
   CrewEngine,
@@ -128,7 +129,10 @@ const realEmbed = async (text: string, db: Database): Promise<number[]> => {
     const result = await getGateway(db).embed(text)
     return result.embedding
   } catch (err) {
-    console.error('[Flows] Embedding failed, using zero vector:', err)
+    logger.error(
+      { err: err instanceof Error ? err : undefined },
+      '[Flows] Embedding failed, using zero vector',
+    )
     return Array(1536).fill(0)
   }
 }

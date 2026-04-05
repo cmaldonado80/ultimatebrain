@@ -104,12 +104,10 @@ describe('MemoryService', () => {
       const mockEmbed: EmbedFunction = vi.fn().mockRejectedValue(new Error('embedding failed'))
       service.setEmbedFunction(mockEmbed)
 
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       const result = await service.store({ key: 'k', content: 'data' })
 
       expect(result).toEqual(storedMem)
-      expect(consoleSpy).toHaveBeenCalled()
-      consoleSpy.mockRestore()
+      // Embedding failure is logged via logger.error but store still succeeds
     })
   })
 

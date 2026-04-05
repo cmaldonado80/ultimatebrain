@@ -9,6 +9,7 @@ import { TRPCError } from '@trpc/server'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
+import { logger } from '../../lib/logger'
 import { eventBus } from '../services/orchestration/event-bus'
 import { protectedProcedure, router } from '../trpc'
 
@@ -59,7 +60,10 @@ export const ticketsRouter = router({
       if (!ticket)
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create ticket' })
       eventBus.emit('ticket.created', { ticketId: ticket.id }).catch((err) => {
-        console.error('[Tickets] Failed to emit ticket.created event:', err)
+        logger.error(
+          { err: err instanceof Error ? err : undefined },
+          '[Tickets] Failed to emit ticket.created event',
+        )
       })
       return ticket
     }),

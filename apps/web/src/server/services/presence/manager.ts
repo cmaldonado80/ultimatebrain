@@ -7,6 +7,7 @@
  * CLIENT COMPONENTS: import types/constants from './types' instead.
  */
 
+import { logger } from '../../../lib/logger'
 import type {
   CursorPosition,
   EntityType,
@@ -44,7 +45,10 @@ export class PresenceManager {
     // Load existing entries from DB if available
     if (this.db) {
       this.loadFromDb().catch((err) => {
-        console.error('[PresenceManager] Failed to load from DB:', err)
+        logger.error(
+          { err: err instanceof Error ? err : undefined },
+          '[PresenceManager] Failed to load from DB',
+        )
       })
     }
   }
@@ -114,7 +118,10 @@ export class PresenceManager {
           })
       })
       .catch((err) => {
-        console.error('[PresenceManager] DB persist failed:', err)
+        logger.error(
+          { err: err instanceof Error ? err : undefined },
+          '[PresenceManager] DB persist failed',
+        )
       })
   }
 
@@ -128,7 +135,10 @@ export class PresenceManager {
         await db.delete(presenceEntries).where(eq(presenceEntries.id, entityId))
       })
       .catch((err) => {
-        console.error('[PresenceManager] DB remove failed:', err)
+        logger.error(
+          { err: err instanceof Error ? err : undefined },
+          '[PresenceManager] DB remove failed',
+        )
       })
   }
 

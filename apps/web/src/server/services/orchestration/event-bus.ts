@@ -42,7 +42,10 @@ class EventBus {
       try {
         await handler(payload)
       } catch (err) {
-        console.error(`[EventBus] handler error for ${event}:`, err)
+        logger.error(
+          { err: err instanceof Error ? err : undefined },
+          `[EventBus] handler error for ${event}`,
+        )
       }
     }
   }

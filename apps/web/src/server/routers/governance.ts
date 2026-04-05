@@ -19,8 +19,9 @@ export const governanceRouter = router({
     await assertPermission(ctx.db, ctx.session.userId, 'admin')
     const allUsers = await ctx.db.query.users.findMany({
       orderBy: desc(users.createdAt),
+      limit: 500,
     })
-    const allRoles = await ctx.db.query.userRoles.findMany()
+    const allRoles = await ctx.db.query.userRoles.findMany({ limit: 5000 })
     const roleMap = new Map<string, string[]>()
     for (const r of allRoles) {
       const existing = roleMap.get(r.userId) ?? []

@@ -6,6 +6,7 @@
 
 import type { Database } from '@solarc/db'
 
+import { logger } from '../../../lib/logger'
 import { GatewayRouter } from '../gateway'
 
 let _gateway: GatewayRouter | null = null
@@ -24,7 +25,10 @@ export function createEmbedFn(db: Database): (text: string) => Promise<number[]>
       const result = await getGateway(db).embed(text)
       return result.embedding
     } catch (err) {
-      console.error('[EmbedHelper] Embedding failed, using zero vector:', err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        '[EmbedHelper] Embedding failed, using zero vector',
+      )
       return Array(1536).fill(0)
     }
   }

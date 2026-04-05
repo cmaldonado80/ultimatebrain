@@ -12,6 +12,7 @@ import type { Database } from '@solarc/db'
 import { cognitiveCandidates, memories, memoryVectors } from '@solarc/db'
 import { and, desc, eq, sql } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import type { Span, Tracer } from '../platform/tracer'
 
 export type MemoryTier = 'critical' | 'core' | 'recall' | 'archival'
@@ -80,7 +81,10 @@ export class MemoryService {
           embedding,
         })
       } catch (err) {
-        console.error('[Memory] Embedding failed, stored without vector:', err)
+        logger.error(
+          { err: err instanceof Error ? err : undefined },
+          '[Memory] Embedding failed, stored without vector',
+        )
       }
     }
 

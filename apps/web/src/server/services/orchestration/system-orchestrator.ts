@@ -21,6 +21,7 @@ import {
 } from '@solarc/db'
 import { and, desc, eq, or } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import { NotFoundError, ValidationError } from '../../errors'
 
 // ── Types ───────────────────────────────────────────────────────────────
@@ -672,7 +673,10 @@ export class SystemOrchestrator {
         .delete(workspaces)
         .where(eq(workspaces.id, ws.id))
         .catch((err) => {
-          console.error('[SystemOrchestrator] Failed to delete workspace:', err)
+          logger.error(
+            { err: err instanceof Error ? err : undefined },
+            '[SystemOrchestrator] Failed to delete workspace',
+          )
         })
     }
 

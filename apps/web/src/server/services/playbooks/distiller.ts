@@ -10,6 +10,7 @@
 
 import type { Database } from '@solarc/db'
 
+import { logger } from '../../../lib/logger'
 import { GatewayRouter } from '../gateway'
 import type { PlaybookStep, SavedPlaybook } from './recorder'
 
@@ -184,7 +185,10 @@ export class PlaybookDistiller {
         }
       }
     } catch (err) {
-      console.error('[PlaybookDistiller] LLM analysis failed, using heuristic fallback:', err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        '[PlaybookDistiller] LLM analysis failed, using heuristic fallback',
+      )
     }
 
     // Fallback: heuristic-based analysis

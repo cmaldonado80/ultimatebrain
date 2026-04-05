@@ -17,6 +17,7 @@ import type { Database } from '@solarc/db'
 import { agents, tickets } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import { assertNever } from '../../utils/exhaustive'
 import { GatewayRouter } from '../gateway'
 import { WebhookService } from '../integrations'
@@ -350,7 +351,10 @@ export class ModeRouter {
       })
       return result.content
     } catch (err) {
-      console.error('[ModeRouter] Quick LLM call failed, returning fallback:', err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        '[ModeRouter] Quick LLM call failed, returning fallback',
+      )
       return `[Quick] Responded to: ${prompt.slice(0, 80)} (context: ${context.slice(0, 40)})`
     }
   }
@@ -432,7 +436,10 @@ export class ModeRouter {
       const steps = executionResult.content.split('\n').filter((l) => /^\d+[\.\)]/.test(l.trim()))
       return Math.max(steps.length, 1)
     } catch (err) {
-      console.error('[ModeRouter] Autonomous pipeline failed, returning fallback:', err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        '[ModeRouter] Autonomous pipeline failed, returning fallback',
+      )
       return 3
     }
   }
@@ -483,7 +490,10 @@ export class ModeRouter {
         generatedAt: new Date(),
       }
     } catch (err) {
-      console.error('[ModeRouter] Plan generation via LLM failed, returning fallback plan:', err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        '[ModeRouter] Plan generation via LLM failed, returning fallback plan',
+      )
       // Fallback: generic plan
       const steps: PlanStep[] = [
         {
@@ -569,7 +579,10 @@ export class ModeRouter {
         }
       }
     } catch (err) {
-      console.error(`[ModeRouter] Step ${step.index} execution failed:`, err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        `[ModeRouter] Step ${step.index} execution failed`,
+      )
       // Leave step as in_progress so caller can detect the failure
     }
   }

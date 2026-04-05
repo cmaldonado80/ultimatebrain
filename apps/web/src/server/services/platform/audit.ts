@@ -10,6 +10,8 @@
 import type { Database } from '@solarc/db'
 import { auditEvents } from '@solarc/db'
 
+import { logger } from '../../../lib/logger'
+
 export async function auditEvent(
   db: Database,
   userId: string | null,
@@ -28,6 +30,6 @@ export async function auditEvent(
     })
   } catch (err) {
     // Audit failures must not block operations
-    console.error('[Audit] Failed to log event:', err instanceof Error ? err.message : err)
+    logger.error({ err: err instanceof Error ? err : undefined }, '[Audit] Failed to log event')
   }
 }

@@ -10,6 +10,7 @@
 
 import type { Database } from '@solarc/db'
 
+import { logger } from '../../../lib/logger'
 import { GatewayRouter } from '../gateway'
 import type { QARecording, QAVerdict, RecordingFrame } from './recorder'
 
@@ -313,7 +314,10 @@ export class VisualQAReviewer {
         }
       }
     } catch (err) {
-      console.error('[VisualQAReviewer] LLM fix generation failed, using keyword fallback:', err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        '[VisualQAReviewer] LLM fix generation failed, using keyword fallback',
+      )
     }
 
     // Fallback: keyword-based categorization
@@ -404,7 +408,10 @@ export class VisualQAReviewer {
         }
       }
     } catch (err) {
-      console.error('[VisualQAReviewer] LLM frame analysis failed, using fallback:', err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        '[VisualQAReviewer] LLM frame analysis failed, using fallback',
+      )
     }
 
     // Fallback: optimistic stub

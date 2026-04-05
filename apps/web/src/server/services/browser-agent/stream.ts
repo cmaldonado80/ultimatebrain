@@ -86,12 +86,30 @@ const SCREENSHOT_RETENTION_HOURS = 24
 
 const activeSessions = new Map<string, BrowserSession>()
 const storedScreenshots: StoredScreenshot[] = []
+const MAX_SESSION_AGE_MS = 30 * 60 * 1000 // 30 minutes — auto-cleanup zombie sessions
+const MAX_STORED_SCREENSHOTS = 500
 
 export class BrowserAgentStream {
+  /** Prune sessions that have been running longer than MAX_SESSION_AGE_MS */
+  private pruneZombieSessions() {
+    const now = Date.now()
+    for (const [id, session] of activeSessions) {
+      if (now - session.startedAt.getTime() > MAX_SESSION_AGE_MS) {
+        if (session.captureInterval) clearInterval(session.captureInterval)
+        activeSessions.delete(id)
+      }
+    }
+    // Also cap stored screenshots
+    if (storedScreenshots.length > MAX_STORED_SCREENSHOTS) {
+      storedScreenshots.splice(0, storedScreenshots.length - MAX_STORED_SCREENSHOTS)
+    }
+  }
+
   // ── Session Lifecycle ─────────────────────────────────────────────────
 
   /** Start a new browser streaming session */
   startSession(agentId: string, agentName: string, initialUrl: string = 'about:blank'): string {
+    this.pruneZombieSessions()
     const sessionId = crypto.randomUUID()
 
     const session: BrowserSession = {

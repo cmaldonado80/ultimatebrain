@@ -13,6 +13,7 @@ import { agents, brainEntities, healingLogs, ticketExecution, tickets } from '@s
 import type { HealthCheckOutput } from '@solarc/engine-contracts'
 import { and, desc, eq, lte, sql } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import { eventBus } from '../orchestration/event-bus'
 
 export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy'
@@ -198,7 +199,10 @@ export class HealingEngine {
           issueCount: checks.filter((c) => c.status !== 'pass').length,
         })
         .catch((err) => {
-          console.error('[HealingEngine] Failed to emit health.check event:', err)
+          logger.error(
+            { err: err instanceof Error ? err : undefined },
+            '[HealingEngine] Failed to emit health.check event',
+          )
         })
     }
 

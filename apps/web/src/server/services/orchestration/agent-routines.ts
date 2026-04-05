@@ -64,6 +64,16 @@ export interface DispatchResult {
 
 const activeRuns = new Map<string, RoutineRun>()
 const runHistory = new Map<string, RoutineRun[]>()
+const MAX_ACTIVE_RUN_AGE_MS = 60 * 60 * 1000 // 1 hour — evict stale runs
+
+function pruneStaleRuns() {
+  const now = Date.now()
+  for (const [id, run] of activeRuns) {
+    if (now - run.startedAt > MAX_ACTIVE_RUN_AGE_MS) {
+      activeRuns.delete(id)
+    }
+  }
+}
 
 // ── Routine Management ──────────────────────────────────────────────
 
@@ -177,6 +187,9 @@ export async function dispatchRoutine(
         break
     }
   }
+
+  // Prune any stale runs before creating a new one
+  pruneStaleRuns()
 
   // Create run
   const run: RoutineRun = {

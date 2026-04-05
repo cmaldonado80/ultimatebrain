@@ -13,6 +13,7 @@ import type { Database } from '@solarc/db'
 import { memories } from '@solarc/db'
 import { and, desc, eq, sql } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import type { GatewayRouter } from '../gateway'
 import { MemoryService } from './memory-service'
 
@@ -307,7 +308,10 @@ export async function smartMemoryAdd(
         }
       }
     } catch (err) {
-      console.error(`[MemoryIntelligence] Failed to execute ${decision.action}:`, err)
+      logger.error(
+        { err: err instanceof Error ? err : undefined },
+        `[MemoryIntelligence] Failed to execute ${decision.action}`,
+      )
     }
   }
 
@@ -486,7 +490,7 @@ export async function consolidateMemories(
       })
       observationsCreated++
     } catch (err) {
-      console.error('[Consolidation] CREATE failed:', err)
+      logger.error({ err: err instanceof Error ? err : undefined }, '[Consolidation] CREATE failed')
     }
   }
 
@@ -514,7 +518,7 @@ export async function consolidateMemories(
         .where(eq(memories.id, u.observation_id))
       observationsUpdated++
     } catch (err) {
-      console.error('[Consolidation] UPDATE failed:', err)
+      logger.error({ err: err instanceof Error ? err : undefined }, '[Consolidation] UPDATE failed')
     }
   }
 
@@ -527,7 +531,7 @@ export async function consolidateMemories(
       await db.delete(memories).where(eq(memories.id, d.observation_id))
       observationsDeleted++
     } catch (err) {
-      console.error('[Consolidation] DELETE failed:', err)
+      logger.error({ err: err instanceof Error ? err : undefined }, '[Consolidation] DELETE failed')
     }
   }
 

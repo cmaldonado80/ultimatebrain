@@ -28,6 +28,7 @@ import { eq as eqOp } from 'drizzle-orm'
 
 import { logger } from '../../../lib/logger'
 import { EvidenceMemoryPipeline } from '../intelligence/evidence-memory'
+import { MemoryService } from '../memory/memory-service'
 import type { TuningAction } from './adaptive-tuner'
 import { AdaptiveResourceTuner } from './adaptive-tuner'
 import type { DegradationEvent } from './agent-degradation'
@@ -250,7 +251,10 @@ export class SelfHealingCortex {
     try {
       return await fn()
     } catch (error) {
-      console.error(`[Cortex] ${name} phase failed:`, error)
+      logger.error(
+        { err: error instanceof Error ? error : undefined },
+        `[Cortex] ${name} phase failed`,
+      )
       return fallback
     }
   }
@@ -494,7 +498,24 @@ export class SelfHealingCortex {
         }
 
         // Fire-and-forget flush to memory store
-        this.evidence.flush().catch((err) => logger.warn({ err }, 'cortex: evidence flush failed'))
+        const memSvc = new MemoryService(this.db)
+        const memAdapter = {
+          store: (input: {
+            key: string
+            content: string
+            tier: string
+            sourceAgentId?: string
+            workspaceId?: string
+            confidence?: number
+          }) =>
+            memSvc.store({
+              ...input,
+              tier: input.tier as 'critical' | 'core' | 'recall' | 'archival',
+            }) as Promise<unknown>,
+        }
+        this.evidence
+          .flush(memAdapter)
+          .catch((err) => logger.warn({ err }, 'cortex: evidence flush failed'))
 
         return { outcomesRecorded: outcomes, confidenceUpdates: confidence }
       },

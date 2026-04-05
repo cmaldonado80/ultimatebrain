@@ -18,6 +18,7 @@ import {
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
+import { logger } from '../../lib/logger'
 import { GatewayRouter } from '../services/gateway'
 import {
   AgentMessagingService,
@@ -1341,7 +1342,7 @@ export const intelligenceRouter = router({
               .set({ status: 'failed', completedAt: new Date() })
               .where(eq(chatRuns.id, run.id))
           }
-          console.error('[backgroundChat] Error:', err)
+          logger.error({ err: err instanceof Error ? err : undefined }, '[backgroundChat] Error')
         })
 
       return { sessionId: session.id, runId: run?.id, status: 'dispatched' }
