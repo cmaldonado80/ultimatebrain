@@ -96,9 +96,10 @@ export default function AppsPage() {
     )
   }
 
-  const agents = (data as any[]) ?? []
+  const agents = (data as any[]) ?? [] // eslint-disable-line @typescript-eslint/no-explicit-any
 
   const apps: DisplayApp[] = agents.map((a: any) => ({
+    // eslint-disable-line @typescript-eslint/no-explicit-any
     id: a.id,
     name: a.name ?? `Agent ${a.id.slice(0, 8)}`,
     type: a.type ?? 'agent',

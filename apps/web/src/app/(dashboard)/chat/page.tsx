@@ -104,7 +104,9 @@ export default function ChatPage() {
   }, [selectedAgents, agentMap, createSession, utils])
 
   const handleCreateSession = useCallback(() => {
-    createSession.mutateAsync({})
+    createSession.mutateAsync({}).catch(() => {
+      /* handled by tRPC error boundary */
+    })
   }, [createSession])
 
   useChatKeyboardShortcuts({

@@ -39,7 +39,7 @@ export async function GET() {
     return Response.json(
       {
         status: 'error',
-        error: err instanceof Error ? err.message : 'Unknown error',
+        error: 'Health check failed',
         timestamp: new Date().toISOString(),
         latencyMs: Date.now() - start,
       },

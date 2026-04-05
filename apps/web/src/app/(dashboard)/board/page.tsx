@@ -36,6 +36,10 @@ export default function BoardPage() {
   const orgQuery = trpc.org.chart.useQuery()
 
   if (ticketsQuery.isLoading) return <LoadingState message="Loading Project Board..." />
+  if (ticketsQuery.error)
+    return (
+      <div className="p-6 text-neon-red text-sm">Failed to load project board. Please retry.</div>
+    )
 
   const allTickets = (ticketsQuery.data ?? []) as Array<{
     id: string

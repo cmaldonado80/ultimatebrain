@@ -12,6 +12,7 @@ import {
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
+import { logger } from '../../lib/logger'
 import { decrypt, encrypt } from '../services/gateway/key-vault'
 import { MiniBrainFactory, type MiniBrainTemplate } from '../services/mini-brain-factory/factory'
 import { createNeonBranch, deleteNeonBranch, maskConnectionUri } from '../services/neon/neon-api'
@@ -195,9 +196,9 @@ export const miniBrainFactoryRouter = router({
                 role: 'primary',
               })
             } catch (linkErr) {
-              console.error(
-                `[smartCreate] Failed to link agent ${agent.id} to entity ${entity.id}:`,
-                linkErr,
+              logger.error(
+                { err: linkErr instanceof Error ? linkErr : undefined },
+                `[smartCreate] Failed to link agent ${agent.id} to entity ${entity.id}`,
               )
             }
           }
@@ -242,9 +243,9 @@ export const miniBrainFactoryRouter = router({
         await advanceWorkflow(ctx.db, workflowId, ctx.session.userId)
       } catch (err) {
         // Deployment failed — rollback entity to failed state so it's visible in UI
-        console.error(
-          `[smartCreate] Deployment workflow failed for ${txResult.entity.id}, marking as failed:`,
-          err,
+        logger.error(
+          { err: err instanceof Error ? err : undefined },
+          `[smartCreate] Deployment workflow failed for ${txResult.entity.id}, marking as failed`,
         )
         await ctx.db
           .update(brainEntities)
@@ -418,9 +419,9 @@ export const miniBrainFactoryRouter = router({
                 .insert(brainEntityAgents)
                 .values({ entityId: entity.id, agentId: agent.id, role: 'primary' })
             } catch (linkErr) {
-              console.error(
-                `[smartCreateDev] Failed to link agent ${agent.id} to entity ${entity.id}:`,
-                linkErr,
+              logger.error(
+                { err: linkErr instanceof Error ? linkErr : undefined },
+                `[smartCreateDev] Failed to link agent ${agent.id} to entity ${entity.id}`,
               )
             }
           }
@@ -454,7 +455,10 @@ export const miniBrainFactoryRouter = router({
         )
         await advanceWorkflow(ctx.db, workflowId, ctx.session.userId)
       } catch (err) {
-        console.error(`[smartCreateDev] Deployment workflow failed for ${txResult.entity.id}:`, err)
+        logger.error(
+          { err: err instanceof Error ? err : undefined },
+          `[smartCreateDev] Deployment workflow failed for ${txResult.entity.id}`,
+        )
       }
 
       return {
@@ -685,7 +689,10 @@ export const miniBrainFactoryRouter = router({
             enabled: true,
           })
         } catch (bindErr) {
-          console.error(`[reprovision] Failed to create binding:`, bindErr)
+          logger.error(
+            { err: bindErr instanceof Error ? bindErr : undefined },
+            '[reprovision] Failed to create binding',
+          )
         }
       }
 
@@ -758,7 +765,10 @@ export const miniBrainFactoryRouter = router({
               .insert(brainEntityAgents)
               .values({ entityId: input.entityId, agentId: orch.id, role: 'primary' })
           } catch (linkErr) {
-            console.error(`[reprovision] Failed to link orchestrator:`, linkErr)
+            logger.error(
+              { err: linkErr instanceof Error ? linkErr : undefined },
+              '[reprovision] Failed to link orchestrator',
+            )
           }
           added++
         }
@@ -795,9 +805,9 @@ export const miniBrainFactoryRouter = router({
               .insert(brainEntityAgents)
               .values({ entityId: input.entityId, agentId: agent.id, role: 'primary' })
           } catch (linkErr) {
-            console.error(
-              `[reprovision] Failed to link agent ${agent.id} to entity ${input.entityId}:`,
-              linkErr,
+            logger.error(
+              { err: linkErr instanceof Error ? linkErr : undefined },
+              `[reprovision] Failed to link agent ${agent.id} to entity ${input.entityId}`,
             )
           }
           added++

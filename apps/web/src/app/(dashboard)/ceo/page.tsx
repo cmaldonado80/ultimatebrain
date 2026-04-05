@@ -22,6 +22,12 @@ export default function CeoDashboardPage() {
   const lifecycleQuery = trpc.org.lifecycleLog.useQuery()
 
   if (orgQuery.isLoading) return <LoadingState message="Loading Corporation Overview..." />
+  if (orgQuery.error)
+    return (
+      <div className="p-6 text-neon-red text-sm">
+        Failed to load corporation data. Please retry.
+      </div>
+    )
 
   const org = orgQuery.data
   const heartbeats = (heartbeatQuery.data ?? []) as Array<{

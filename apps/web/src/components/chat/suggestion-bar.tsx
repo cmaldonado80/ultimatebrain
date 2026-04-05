@@ -111,6 +111,12 @@ export function SuggestionBar(props: SuggestionBarProps) {
   const [autoCountdown, setAutoCountdown] = useState<number | null>(null)
   const [autoAction, setAutoAction] = useState<string | null>(null)
 
+  // Stable ref to avoid stale closures in auto/assist effects
+  const onActionRef = useRef(props.onAction)
+  onActionRef.current = props.onAction
+  const suggestionsRef = useRef(suggestions)
+  suggestionsRef.current = suggestions
+
   // Load persisted level
   useEffect(() => {
     const saved = localStorage.getItem('autonomy-level') as AutonomyLevel | null
@@ -124,8 +130,8 @@ export function SuggestionBar(props: SuggestionBarProps) {
 
   // Auto mode: start countdown for first primary suggestion
   useEffect(() => {
-    if (level !== 'auto' || suggestions.length === 0) return
-    const firstAction = suggestions[0]
+    if (level !== 'auto' || suggestionsRef.current.length === 0) return
+    const firstAction = suggestionsRef.current[0]
     if (!firstAction) return
 
     setAutoAction(firstAction.action)
@@ -135,7 +141,7 @@ export function SuggestionBar(props: SuggestionBarProps) {
       setAutoCountdown((prev) => {
         if (prev === null || prev <= 1) {
           clearInterval(interval)
-          props.onAction(firstAction.action)
+          onActionRef.current(firstAction.action)
           setAutoCountdown(null)
           setAutoAction(null)
           return null
@@ -149,7 +155,7 @@ export function SuggestionBar(props: SuggestionBarProps) {
       setAutoCountdown(null)
       setAutoAction(null)
     }
-  }, [level, suggestions.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [level, suggestions.length])
 
   // Assist mode: auto-execute low-risk actions once (not on every render)
   const assistExecutedRef = useRef(false)
@@ -159,12 +165,12 @@ export function SuggestionBar(props: SuggestionBarProps) {
       return
     }
     if (assistExecutedRef.current) return
-    const lowRisk = suggestions.filter((s) => s.lowRisk)
+    const lowRisk = suggestionsRef.current.filter((s) => s.lowRisk)
     if (lowRisk.length > 0 && lowRisk[0].action === 'copy') {
       assistExecutedRef.current = true
-      props.onAction('copy')
+      onActionRef.current('copy')
     }
-  }, [level]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [level])
 
   if (suggestions.length === 0) return null
 

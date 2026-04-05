@@ -16,6 +16,12 @@ export default function FinancePage() {
   const reportQuery = trpc.platform.financialReport.useQuery({ days: 30 })
 
   if (reportQuery.isLoading) return <LoadingState message="Generating Financial Report..." />
+  if (reportQuery.error)
+    return (
+      <div className="p-6 text-neon-red text-sm">
+        Failed to load financial report. Please retry.
+      </div>
+    )
 
   const report = reportQuery.data as {
     period: string
@@ -73,7 +79,7 @@ export default function FinancePage() {
         />
       </PageGrid>
 
-      <div className="grid grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Department Spending */}
         <SectionCard title="Department Spending">
           {report.departments.length === 0 ? (

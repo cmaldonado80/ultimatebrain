@@ -177,9 +177,7 @@ export async function GET(req: Request) {
       },
     })
   } catch (err) {
-    return Response.json(
-      { status: 'error', error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 },
-    )
+    logger.error({ err: err instanceof Error ? err : undefined }, 'cron cycle failed')
+    return Response.json({ status: 'error', error: 'Internal cron error' }, { status: 500 })
   }
 }

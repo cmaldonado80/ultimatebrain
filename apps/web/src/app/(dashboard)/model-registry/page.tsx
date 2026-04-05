@@ -6,6 +6,14 @@ import { trpc } from '../../../utils/trpc'
 
 export default function ModelRegistryPage() {
   const modelsQuery = trpc.models.list.useQuery()
+
+  if (modelsQuery.isLoading)
+    return <div className="p-6 text-slate-500 text-sm">Loading models...</div>
+  if (modelsQuery.error)
+    return (
+      <div className="p-6 text-neon-red text-sm">Failed to load model registry. Please retry.</div>
+    )
+
   const models = (modelsQuery.data ?? []) as Array<{
     id: string
     modelId: string
