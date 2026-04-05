@@ -4,6 +4,7 @@
  * Flows — list saved flow definitions and run crews.
  */
 
+import Link from 'next/link'
 import { useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
@@ -83,12 +84,17 @@ export default function FlowsPage() {
         subtitle="Define and monitor multi-step agent workflows, crew runs, and recall chains."
         count={flows.length}
         actions={
-          <button
-            className={showRun ? 'cyber-btn-secondary' : 'cyber-btn-primary'}
-            onClick={() => setShowRun(!showRun)}
-          >
-            {showRun ? 'Cancel' : 'Run Crew'}
-          </button>
+          <div className="flex gap-2">
+            <Link href="/workflows/builder" className="cyber-btn-primary no-underline">
+              Visual Builder
+            </Link>
+            <button
+              className={showRun ? 'cyber-btn-secondary' : 'cyber-btn-secondary'}
+              onClick={() => setShowRun(!showRun)}
+            >
+              {showRun ? 'Cancel' : 'Run Crew'}
+            </button>
+          </div>
         }
       />
 
