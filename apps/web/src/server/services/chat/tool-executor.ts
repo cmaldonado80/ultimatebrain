@@ -24,6 +24,7 @@ import { generateNatalReport } from '@solarc/ephemeris'
 
 import { logger } from '../../../lib/logger'
 import { MemoryService } from '../memory/memory-service'
+import type { Span, Tracer } from '../platform/tracer'
 import { generateDryRun, shouldDryRun } from './tool-dryrun'
 import { AGENT_TOOLS } from './tools/definitions'
 
@@ -341,7 +342,15 @@ export async function executeTool(
   db?: Database,
   workspaceId?: string,
   sessionId?: string,
+  tracer?: Tracer,
+  parentSpan?: Span,
 ): Promise<string> {
+  const span = tracer?.start(`tool.${toolName}`, {
+    traceId: parentSpan?.traceId,
+    parentSpanId: parentSpan?.spanId,
+  })
+  span?.setAttribute('tool.name', toolName)
+
   try {
     // ── Dry-run gate: check if tool should preview instead of execute ──
     const agentId = (toolInput._agentId as string) ?? undefined
@@ -459,8 +468,19 @@ export async function executeTool(
       }
     }
 
+    // Set tier attribute if span is active
+    if (span) {
+      try {
+        const { classifyTool } = await import('./tool-tiers')
+        span.setAttribute('tool.tier', classifyTool(toolName).tier)
+      } catch {
+        // tier classification unavailable
+      }
+    }
+
     return result
   } catch (err) {
+    span?.recordError(err)
     // Structured error envelope for unhandled failures
     try {
       const { classifyError } = await import('./tool-envelope')
@@ -470,6 +490,8 @@ export async function executeTool(
       const message = err instanceof Error ? err.message : String(err)
       return JSON.stringify({ error: `Tool execution failed: ${message}` })
     }
+  } finally {
+    span?.end()
   }
 }
 

@@ -29,6 +29,7 @@ export interface RequestContext {
   userId?: string
   workspaceId?: string
   path?: string
+  traceId?: string
 }
 
 const requestStore = new AsyncLocalStorage<RequestContext>()
@@ -85,6 +86,7 @@ function formatEntry(level: LogLevel, data: Record<string, unknown>, msg: string
   if (ctx?.userId) entry.userId = ctx.userId
   if (ctx?.workspaceId) entry.workspaceId = ctx.workspaceId
   if (ctx?.path) entry.path = ctx.path
+  if (ctx?.traceId) entry.traceId = ctx.traceId
   return entry
 }
 

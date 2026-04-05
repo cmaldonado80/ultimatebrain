@@ -13,6 +13,8 @@ import { a2aDelegations, agentCards, agents } from '@solarc/db'
 import type { A2ADelegateInput } from '@solarc/engine-contracts'
 import { and, desc, eq, lte, sql } from 'drizzle-orm'
 
+import type { Span, Tracer } from '../platform/tracer'
+
 export type DelegationStatus =
   | 'pending'
   | 'accepted'
@@ -129,19 +131,34 @@ export class A2AEngine {
 
   // === Task Delegation (DB-backed) ===
 
-  async delegate(input: A2ADelegateInput): Promise<string> {
-    const [row] = await this.db
-      .insert(a2aDelegations)
-      .values({
-        fromAgentId: input.fromAgentId ?? null,
-        toAgentId: input.agentId,
-        task: input.task,
-        context: input.context,
-        status: 'pending',
-      })
-      .returning({ id: a2aDelegations.id })
+  async delegate(input: A2ADelegateInput, tracer?: Tracer, parentSpan?: Span): Promise<string> {
+    const span = tracer?.start('a2a.delegate', {
+      traceId: parentSpan?.traceId,
+      parentSpanId: parentSpan?.spanId,
+    })
+    span?.setAttribute('a2a.toAgentId', input.agentId)
+    span?.setAttribute('a2a.task', input.task.slice(0, 100))
 
-    return row.id
+    try {
+      const [row] = await this.db
+        .insert(a2aDelegations)
+        .values({
+          fromAgentId: input.fromAgentId ?? null,
+          toAgentId: input.agentId,
+          task: input.task,
+          context: input.context,
+          status: 'pending',
+        })
+        .returning({ id: a2aDelegations.id })
+
+      span?.setAttribute('a2a.delegationId', row.id)
+      return row.id
+    } catch (err) {
+      span?.recordError(err)
+      throw err
+    } finally {
+      span?.end()
+    }
   }
 
   async accept(delegationId: string): Promise<void> {

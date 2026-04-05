@@ -17,6 +17,7 @@
  *   Layer 3: Response-time truth injection (this file)
  */
 
+import type { Span, Tracer } from '../platform/tracer'
 import { EvidenceMemoryPipeline, type MemoryInfluence } from './evidence-memory'
 import {
   buildDelegationSnapshot,
@@ -124,109 +125,126 @@ export function buildGroundedContext(
   userMessage: string,
   agentName?: string,
   agentRole?: string,
+  tracer?: Tracer,
+  parentSpan?: Span,
 ): GroundedContext {
-  const mode = classifyMode(userMessage, agentRole)
-  const intent = classifyIntent(userMessage)
-  const truthBlocks: string[] = []
-  const snapshotsUsed: string[] = []
+  const span = tracer?.start('truth.inject', {
+    traceId: parentSpan?.traceId,
+    parentSpanId: parentSpan?.spanId,
+  })
 
-  // Always inject workspace truth (so agents know the file structure)
-  const workspace = buildWorkspaceSnapshot()
-  truthBlocks.push(formatWorkspaceTruth(workspace))
-  snapshotsUsed.push('workspace')
+  try {
+    const mode = classifyMode(userMessage, agentRole)
+    const intent = classifyIntent(userMessage)
+    const truthBlocks: string[] = []
+    const snapshotsUsed: string[] = []
 
-  // Mode-based snapshot selection (each mode gets different defaults)
-  switch (mode) {
-    case 'operations': {
-      const health = buildHealthSnapshot()
-      const sandbox = buildSandboxSnapshot()
-      const delegation = buildDelegationSnapshot()
-      truthBlocks.push(formatHealthTruth(health))
-      truthBlocks.push(formatSandboxTruth(sandbox))
-      truthBlocks.push(formatDelegationTruth(delegation))
-      snapshotsUsed.push('health', 'sandbox', 'delegation')
-      break
-    }
-    case 'engineering': {
-      const model = buildModelGovernanceSnapshot()
-      truthBlocks.push(formatModelTruth(model))
-      snapshotsUsed.push('model_governance')
-      // Plus subsystem detail if mentioned
-      const subsystem = extractSubsystemName(userMessage, workspace.serviceDirectories)
-      if (subsystem) {
-        const sub = buildSubsystemSnapshot(subsystem)
-        truthBlocks.push(formatSubsystemTruth(subsystem, sub))
-        snapshotsUsed.push(`subsystem:${subsystem}`)
+    // Always inject workspace truth (so agents know the file structure)
+    const workspace = buildWorkspaceSnapshot()
+    truthBlocks.push(formatWorkspaceTruth(workspace))
+    snapshotsUsed.push('workspace')
+
+    // Mode-based snapshot selection (each mode gets different defaults)
+    switch (mode) {
+      case 'operations': {
+        const health = buildHealthSnapshot()
+        const sandbox = buildSandboxSnapshot()
+        const delegation = buildDelegationSnapshot()
+        truthBlocks.push(formatHealthTruth(health))
+        truthBlocks.push(formatSandboxTruth(sandbox))
+        truthBlocks.push(formatDelegationTruth(delegation))
+        snapshotsUsed.push('health', 'sandbox', 'delegation')
+        break
       }
-      break
-    }
-    case 'governance': {
-      const health = buildHealthSnapshot()
-      const delegation = buildDelegationSnapshot()
-      truthBlocks.push(formatHealthTruth(health))
-      truthBlocks.push(formatDelegationTruth(delegation))
-      snapshotsUsed.push('health', 'delegation')
-      break
-    }
-    default:
-      break
-  }
-
-  // Intent-specific refinement (adds to mode defaults)
-  switch (intent) {
-    case 'system_health': {
-      if (!snapshotsUsed.includes('health')) {
-        truthBlocks.push(formatHealthTruth(buildHealthSnapshot()))
-        snapshotsUsed.push('health')
+      case 'engineering': {
+        const model = buildModelGovernanceSnapshot()
+        truthBlocks.push(formatModelTruth(model))
+        snapshotsUsed.push('model_governance')
+        // Plus subsystem detail if mentioned
+        const subsystem = extractSubsystemName(userMessage, workspace.serviceDirectories)
+        if (subsystem) {
+          const sub = buildSubsystemSnapshot(subsystem)
+          truthBlocks.push(formatSubsystemTruth(subsystem, sub))
+          snapshotsUsed.push(`subsystem:${subsystem}`)
+        }
+        break
       }
-      if (!snapshotsUsed.includes('sandbox')) {
-        truthBlocks.push(formatSandboxTruth(buildSandboxSnapshot()))
-        snapshotsUsed.push('sandbox')
+      case 'governance': {
+        const health = buildHealthSnapshot()
+        const delegation = buildDelegationSnapshot()
+        truthBlocks.push(formatHealthTruth(health))
+        truthBlocks.push(formatDelegationTruth(delegation))
+        snapshotsUsed.push('health', 'delegation')
+        break
       }
-      break
+      default:
+        break
     }
-    case 'code_review':
-    case 'file_operations': {
-      const subsystem = extractSubsystemName(userMessage, workspace.serviceDirectories)
-      if (subsystem && !snapshotsUsed.includes(`subsystem:${subsystem}`)) {
-        const sub = buildSubsystemSnapshot(subsystem)
-        truthBlocks.push(formatSubsystemTruth(subsystem, sub))
-        snapshotsUsed.push(`subsystem:${subsystem}`)
+
+    // Intent-specific refinement (adds to mode defaults)
+    switch (intent) {
+      case 'system_health': {
+        if (!snapshotsUsed.includes('health')) {
+          truthBlocks.push(formatHealthTruth(buildHealthSnapshot()))
+          snapshotsUsed.push('health')
+        }
+        if (!snapshotsUsed.includes('sandbox')) {
+          truthBlocks.push(formatSandboxTruth(buildSandboxSnapshot()))
+          snapshotsUsed.push('sandbox')
+        }
+        break
       }
-      break
-    }
-    case 'agent_management': {
-      if (!snapshotsUsed.includes('delegation')) {
-        truthBlocks.push(formatDelegationTruth(buildDelegationSnapshot()))
-        snapshotsUsed.push('delegation')
+      case 'code_review':
+      case 'file_operations': {
+        const subsystem = extractSubsystemName(userMessage, workspace.serviceDirectories)
+        if (subsystem && !snapshotsUsed.includes(`subsystem:${subsystem}`)) {
+          const sub = buildSubsystemSnapshot(subsystem)
+          truthBlocks.push(formatSubsystemTruth(subsystem, sub))
+          snapshotsUsed.push(`subsystem:${subsystem}`)
+        }
+        break
       }
-      break
+      case 'agent_management': {
+        if (!snapshotsUsed.includes('delegation')) {
+          truthBlocks.push(formatDelegationTruth(buildDelegationSnapshot()))
+          snapshotsUsed.push('delegation')
+        }
+        break
+      }
+      case 'task_management': {
+        const triage = buildTaskTriageSnapshot()
+        truthBlocks.push(formatTaskTriageTruth(triage))
+        snapshotsUsed.push('task_triage')
+        break
+      }
+      default:
+        break
     }
-    case 'task_management': {
-      const triage = buildTaskTriageSnapshot()
-      truthBlocks.push(formatTaskTriageTruth(triage))
-      snapshotsUsed.push('task_triage')
-      break
+
+    // Memory hints (role-based)
+    const memoryHints = agentRole
+      ? `\n## Your Role\nYou are ${agentName ?? 'an agent'}, mode: ${mode}, role: ${agentRole}. Act within your role's expertise.`
+      : ''
+
+    // Build memory influence tracking
+    const influence = EvidenceMemoryPipeline.buildInfluence([], snapshotsUsed)
+
+    span?.setAttribute('mode', mode)
+    span?.setAttribute('snapshotCount', snapshotsUsed.length)
+
+    return {
+      mode,
+      intent,
+      truth: truthBlocks.join('\n\n'),
+      memoryHints,
+      systemRules: SYSTEM_RULES,
+      influence,
     }
-    default:
-      break
-  }
-
-  // Memory hints (role-based)
-  const memoryHints = agentRole
-    ? `\n## Your Role\nYou are ${agentName ?? 'an agent'}, mode: ${mode}, role: ${agentRole}. Act within your role's expertise.`
-    : ''
-
-  // Build memory influence tracking
-  const influence = EvidenceMemoryPipeline.buildInfluence([], snapshotsUsed)
-
-  return {
-    mode,
-    intent,
-    truth: truthBlocks.join('\n\n'),
-    memoryHints,
-    systemRules: SYSTEM_RULES,
-    influence,
+  } catch (err) {
+    span?.recordError(err)
+    throw err
+  } finally {
+    span?.end()
   }
 }
 

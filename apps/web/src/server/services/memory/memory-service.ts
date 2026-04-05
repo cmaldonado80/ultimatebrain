@@ -12,6 +12,8 @@ import type { Database } from '@solarc/db'
 import { cognitiveCandidates, memories, memoryVectors } from '@solarc/db'
 import { and, desc, eq, sql } from 'drizzle-orm'
 
+import type { Span, Tracer } from '../platform/tracer'
+
 export type MemoryTier = 'critical' | 'core' | 'recall' | 'archival'
 
 export interface StoreMemoryInput {
@@ -96,97 +98,115 @@ export class MemoryService {
   async search(
     query: string,
     options?: { tier?: MemoryTier; workspaceId?: string; limit?: number },
+    tracer?: Tracer,
+    parentSpan?: Span,
   ): Promise<SearchResult[]> {
-    if (!this.embedFn) {
-      // Fallback to keyword search
-      return this.keywordSearch(query, options)
+    const span = tracer?.start('memory.search', {
+      traceId: parentSpan?.traceId,
+      parentSpanId: parentSpan?.spanId,
+    })
+    span?.setAttribute('memory.query', query.slice(0, 100))
+
+    try {
+      if (!this.embedFn) {
+        // Fallback to keyword search
+        const results = await this.keywordSearch(query, options)
+        span?.setAttribute('memory.resultCount', results.length)
+        return results
+      }
+
+      const queryEmbedding = await this.embedFn(query)
+      const limit = options?.limit ?? 10
+
+      // Build conditions
+      const conditions = []
+      if (options?.tier) conditions.push(eq(memories.tier, options.tier))
+      if (options?.workspaceId) conditions.push(eq(memories.workspaceId, options.workspaceId))
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined
+
+      // Cosine similarity search via pgvector, boosted by proof count
+      // Observations with higher proof counts rank higher (proof-weighted recall)
+      const results = await this.db
+        .select({
+          id: memories.id,
+          key: memories.key,
+          content: memories.content,
+          tier: memories.tier,
+          createdAt: memories.createdAt,
+          factType: memories.factType,
+          proofCount: memories.proofCount,
+          rawScore: sql<number>`1 - (${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector)`,
+        })
+        .from(memories)
+        .innerJoin(memoryVectors, eq(memories.id, memoryVectors.memoryId))
+        .where(whereClause)
+        .orderBy(sql`${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
+        .limit(limit * 2) // Over-fetch then re-rank
+
+      // Re-rank with three scoring dimensions:
+      // 1. Proof-weighted: observations with high proof counts rank higher
+      // 2. Temporal layers (DeerFlow-inspired): recent memories boosted, old ones decay
+      // 3. Type weighting: consolidated facts deprioritized
+      const now = Date.now()
+      const mapped = results
+        .map((r) => {
+          let score = r.rawScore
+
+          // 1. Boost observations by log2(proofCount)
+          if (r.factType === 'observation' && r.proofCount > 1) {
+            score *= 1 + Math.log2(r.proofCount)
+          }
+
+          // 2. Temporal recency boost (DeerFlow-inspired layers)
+          // topOfMind: created < 1hr ago → 2x boost
+          // recent: created < 7 days → 1.5x boost
+          // earlier: created < 30 days → 1x (no change)
+          // longTerm: older → 0.8x decay
+          const ageMs = now - (r.createdAt?.getTime() ?? 0)
+          const ONE_HOUR = 60 * 60 * 1000
+          const ONE_WEEK = 7 * 24 * ONE_HOUR
+          const ONE_MONTH = 30 * 24 * ONE_HOUR
+          if (ageMs < ONE_HOUR) {
+            score *= 2.0 // topOfMind
+          } else if (ageMs < ONE_WEEK) {
+            score *= 1.5 // recent
+          } else if (ageMs > ONE_MONTH) {
+            score *= 0.8 // longTerm decay
+          }
+
+          // 3. Deprioritize consolidated raw facts (noise)
+          if (r.factType === 'consolidated') {
+            score *= 0.3
+          }
+
+          return {
+            id: r.id,
+            key: r.key,
+            content: r.content,
+            tier: r.tier as MemoryTier,
+            score,
+            createdAt: r.createdAt,
+          }
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+
+      // Track access for returned results (fire-and-forget)
+      if (mapped.length > 0) {
+        this.trackAccess(mapped.map((m) => m.id)).catch((err) =>
+          console.warn('[MemoryService] operation failed:', err.message),
+        )
+      }
+
+      span?.setAttribute('memory.resultCount', mapped.length)
+      return mapped
+    } catch (err) {
+      span?.recordError(err)
+      throw err
+    } finally {
+      span?.end()
     }
-
-    const queryEmbedding = await this.embedFn(query)
-    const limit = options?.limit ?? 10
-
-    // Build conditions
-    const conditions = []
-    if (options?.tier) conditions.push(eq(memories.tier, options.tier))
-    if (options?.workspaceId) conditions.push(eq(memories.workspaceId, options.workspaceId))
-
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined
-
-    // Cosine similarity search via pgvector, boosted by proof count
-    // Observations with higher proof counts rank higher (proof-weighted recall)
-    const results = await this.db
-      .select({
-        id: memories.id,
-        key: memories.key,
-        content: memories.content,
-        tier: memories.tier,
-        createdAt: memories.createdAt,
-        factType: memories.factType,
-        proofCount: memories.proofCount,
-        rawScore: sql<number>`1 - (${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector)`,
-      })
-      .from(memories)
-      .innerJoin(memoryVectors, eq(memories.id, memoryVectors.memoryId))
-      .where(whereClause)
-      .orderBy(sql`${memoryVectors.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
-      .limit(limit * 2) // Over-fetch then re-rank
-
-    // Re-rank with three scoring dimensions:
-    // 1. Proof-weighted: observations with high proof counts rank higher
-    // 2. Temporal layers (DeerFlow-inspired): recent memories boosted, old ones decay
-    // 3. Type weighting: consolidated facts deprioritized
-    const now = Date.now()
-    const mapped = results
-      .map((r) => {
-        let score = r.rawScore
-
-        // 1. Boost observations by log2(proofCount)
-        if (r.factType === 'observation' && r.proofCount > 1) {
-          score *= 1 + Math.log2(r.proofCount)
-        }
-
-        // 2. Temporal recency boost (DeerFlow-inspired layers)
-        // topOfMind: created < 1hr ago → 2x boost
-        // recent: created < 7 days → 1.5x boost
-        // earlier: created < 30 days → 1x (no change)
-        // longTerm: older → 0.8x decay
-        const ageMs = now - (r.createdAt?.getTime() ?? 0)
-        const ONE_HOUR = 60 * 60 * 1000
-        const ONE_WEEK = 7 * 24 * ONE_HOUR
-        const ONE_MONTH = 30 * 24 * ONE_HOUR
-        if (ageMs < ONE_HOUR) {
-          score *= 2.0 // topOfMind
-        } else if (ageMs < ONE_WEEK) {
-          score *= 1.5 // recent
-        } else if (ageMs > ONE_MONTH) {
-          score *= 0.8 // longTerm decay
-        }
-
-        // 3. Deprioritize consolidated raw facts (noise)
-        if (r.factType === 'consolidated') {
-          score *= 0.3
-        }
-
-        return {
-          id: r.id,
-          key: r.key,
-          content: r.content,
-          tier: r.tier as MemoryTier,
-          score,
-          createdAt: r.createdAt,
-        }
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-
-    // Track access for returned results (fire-and-forget)
-    if (mapped.length > 0) {
-      this.trackAccess(mapped.map((m) => m.id)).catch((err) =>
-        console.warn('[MemoryService] operation failed:', err.message),
-      )
-    }
-
-    return mapped
   }
 
   /**

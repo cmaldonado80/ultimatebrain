@@ -40,6 +40,7 @@ import { smartMemoryAdd } from '../../../../server/services/memory/memory-intell
 import { MemoryService } from '../../../../server/services/memory/memory-service'
 import { eventBus } from '../../../../server/services/orchestration/event-bus'
 import { TokenLedgerService } from '../../../../server/services/platform/token-ledger'
+import { createDbTracer, type Tracer } from '../../../../server/services/platform/tracer'
 
 // ── Tool Access Control ─────────────────────────────────────────────────
 
@@ -82,9 +83,13 @@ function getDb(): Database {
 }
 
 let _gateway: GatewayRouter | undefined
+let _tracer: Tracer | undefined
+function getTracer(): Tracer {
+  return (_tracer ??= createDbTracer(getDb(), 'chat'))
+}
 function getGateway(): GatewayRouter {
   if (!_gateway) {
-    _gateway = new GatewayRouter(getDb())
+    _gateway = new GatewayRouter(getDb(), undefined, getTracer())
     // Wire gateway events into cortex evidence pipeline (fire-and-forget)
     _gateway.setEventCallback((type, ctx) => {
       import('../../../../server/services/healing')
@@ -566,6 +571,8 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       let lastInfluence: unknown = null
+      const tracer = getTracer()
+      const rootSpan = tracer.start('chat.request', { agentId: agentConfigs[0]?.id })
       try {
         // Emit run_started event
         if (runRecord) {
@@ -1259,11 +1266,17 @@ export async function POST(req: Request) {
           }
         }
 
+        // End root trace span with final attributes
+        rootSpan?.setAttribute('chat.status', 'completed')
+        rootSpan?.end().catch(() => {})
+
         controller.enqueue(
           encoder.encode(`data: ${JSON.stringify({ done: true, influence: lastInfluence })}\n\n`),
         )
         controller.close()
       } catch (err) {
+        rootSpan?.recordError(err)
+        rootSpan?.end().catch(() => {})
         const message = err instanceof Error ? err.message : 'Unknown error'
         // Mark run as failed
         if (runRecord) {
