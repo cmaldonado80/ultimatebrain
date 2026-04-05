@@ -393,6 +393,12 @@ export async function POST(req: Request) {
       if (pipelineResult.synthesizedContext) {
         memoryContext = '\n\n' + pipelineResult.synthesizedContext
       }
+      // Capture memory source IDs for effectiveness tracking
+      for (const src of pipelineResult.includedSources ?? []) {
+        if ((src.type === 'memory' || src.type === 'rag') && src.name) {
+          capturedMemoryIds.push(src.name) // source name contains memory key/id
+        }
+      }
     } catch {
       try {
         const memoryService = new MemoryService(memoryDb)
@@ -582,7 +588,6 @@ export async function POST(req: Request) {
     async start(controller) {
       let lastInfluence: unknown = null
       let injectedInstinctIds: string[] = []
-      const usedMemoryIds: string[] = []
       const tracer = getTracer()
       const rootSpan = tracer.start('chat.request', { agentId: agentConfigs[0]?.id })
       try {
@@ -1269,11 +1274,10 @@ export async function POST(req: Request) {
           }
 
           // Record context effectiveness for memory self-optimization
-          const effectiveMemoryIds = [...capturedMemoryIds, ...usedMemoryIds]
-          if (effectiveMemoryIds.length > 0) {
+          if (capturedMemoryIds.length > 0) {
             import('../../../../server/services/memory/context-feedback')
               .then(({ recordContextEffectiveness }) =>
-                recordContextEffectiveness(db, runRecord.id, effectiveMemoryIds, 0.7),
+                recordContextEffectiveness(db, runRecord.id, capturedMemoryIds, 0.7),
               )
               .catch((err) =>
                 logger.warn({ err }, 'post-chat: context effectiveness recording failed'),
