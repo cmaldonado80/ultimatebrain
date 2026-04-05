@@ -336,8 +336,8 @@ describe('WorkMarket', () => {
     market = new WorkMarket()
   })
 
-  it('should list a ticket', () => {
-    const listing = market.list({
+  it('should list a ticket', async () => {
+    const listing = await market.list({
       ticketId: 't1',
       title: 'Build auth',
       requiredSkills: ['typescript', 'jwt'],
@@ -348,15 +348,15 @@ describe('WorkMarket', () => {
     expect(listing.bids).toHaveLength(0)
   })
 
-  it('should accept bids from qualified agents', () => {
-    market.list({
+  it('should accept bids from qualified agents', async () => {
+    await market.list({
       ticketId: 't1',
       title: 'Build auth',
       requiredSkills: ['typescript'],
       priority: 'high',
     })
 
-    const bid = market.bid('t1', {
+    const bid = await market.bid('t1', {
       agentId: 'a1',
       agentName: 'Agent 1',
       skills: ['typescript', 'react'],
@@ -369,8 +369,8 @@ describe('WorkMarket', () => {
     expect(bid!.score).toBeGreaterThan(0)
   })
 
-  it('should award to highest-scoring bidder', () => {
-    market.list({
+  it('should award to highest-scoring bidder', async () => {
+    await market.list({
       ticketId: 't1',
       title: 'Build auth',
       requiredSkills: ['typescript'],
@@ -378,7 +378,7 @@ describe('WorkMarket', () => {
     })
 
     // Agent 1: good skill match, idle
-    market.bid('t1', {
+    await market.bid('t1', {
       agentId: 'a1',
       agentName: 'Agent 1',
       skills: ['typescript'],
@@ -387,7 +387,7 @@ describe('WorkMarket', () => {
     })
 
     // Agent 2: no skill match, busy
-    market.bid('t1', {
+    await market.bid('t1', {
       agentId: 'a2',
       agentName: 'Agent 2',
       skills: ['python'],
@@ -395,22 +395,22 @@ describe('WorkMarket', () => {
       maxConcurrency: 3,
     })
 
-    const winner = market.award('t1')
+    const winner = await market.award('t1')
     expect(winner).not.toBeNull()
     expect(winner!.agentId).toBe('a1') // better skill match + lower load
   })
 
-  it('should prevent duplicate bids', () => {
-    market.list({ ticketId: 't1', title: 'Task', requiredSkills: [], priority: 'medium' })
+  it('should prevent duplicate bids', async () => {
+    await market.list({ ticketId: 't1', title: 'Task', requiredSkills: [], priority: 'medium' })
 
-    market.bid('t1', {
+    await market.bid('t1', {
       agentId: 'a1',
       agentName: 'Agent 1',
       skills: [],
       currentTaskCount: 0,
       maxConcurrency: 3,
     })
-    const dup = market.bid('t1', {
+    const dup = await market.bid('t1', {
       agentId: 'a1',
       agentName: 'Agent 1',
       skills: [],
@@ -421,52 +421,52 @@ describe('WorkMarket', () => {
     expect(dup).toBeNull()
   })
 
-  it('should track reputation from completions', () => {
-    market.list({ ticketId: 't1', title: 'Task', requiredSkills: [], priority: 'medium' })
-    market.bid('t1', {
+  it('should track reputation from completions', async () => {
+    await market.list({ ticketId: 't1', title: 'Task', requiredSkills: [], priority: 'medium' })
+    await market.bid('t1', {
       agentId: 'a1',
       agentName: 'Agent 1',
       skills: [],
       currentTaskCount: 0,
       maxConcurrency: 3,
     })
-    market.award('t1')
+    await market.award('t1')
 
-    market.recordCompletion('a1', true, 5000)
-    market.recordCompletion('a1', true, 3000)
-    market.recordCompletion('a1', false, 10000)
+    await market.recordCompletion('a1', true, 5000)
+    await market.recordCompletion('a1', true, 3000)
+    await market.recordCompletion('a1', false, 10000)
 
-    const rep = market.getReputation('a1')
+    const rep = await market.getReputation('a1')
     expect(rep).not.toBeNull()
     expect(rep!.totalCompletions).toBe(2)
     expect(rep!.totalFailures).toBe(1)
     expect(rep!.successRate).toBeCloseTo(2 / 3, 2)
   })
 
-  it('should return open listings filtered by skills', () => {
-    market.list({
+  it('should return open listings filtered by skills', async () => {
+    await market.list({
       ticketId: 't1',
       title: 'TS task',
       requiredSkills: ['typescript'],
       priority: 'high',
     })
-    market.list({
+    await market.list({
       ticketId: 't2',
       title: 'Python task',
       requiredSkills: ['python'],
       priority: 'medium',
     })
 
-    const tsListings = market.getOpenListings(['typescript'])
-    const pyListings = market.getOpenListings(['python'])
+    const tsListings = await market.getOpenListings(['typescript'])
+    const pyListings = await market.getOpenListings(['python'])
 
     expect(tsListings.some((l) => l.ticketId === 't1')).toBe(true)
     expect(pyListings.some((l) => l.ticketId === 't2')).toBe(true)
   })
 
-  it('should provide market statistics', () => {
-    market.list({ ticketId: 't1', title: 'Task', requiredSkills: [], priority: 'medium' })
-    market.bid('t1', {
+  it('should provide market statistics', async () => {
+    await market.list({ ticketId: 't1', title: 'Task', requiredSkills: [], priority: 'medium' })
+    await market.bid('t1', {
       agentId: 'a1',
       agentName: 'Agent 1',
       skills: [],
@@ -474,7 +474,7 @@ describe('WorkMarket', () => {
       maxConcurrency: 3,
     })
 
-    const stats = market.getStats()
+    const stats = await market.getStats()
     expect(stats.totalListings).toBe(1)
     expect(stats.openListings).toBe(1)
     expect(stats.avgBidsPerListing).toBe(1)

@@ -134,6 +134,7 @@ export const memories = pgTable(
     occurredStart: timestamp('occurred_start'),
     occurredEnd: timestamp('occurred_end'),
     supersedes: uuid('supersedes'), // ID of memory this one replaced (temporal contradiction)
+    effectivenessWeight: real('effectiveness_weight').default(0.5),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },
@@ -154,6 +155,20 @@ export const memoryVectors = pgTable('memory_vectors', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })
+
+/** Context effectiveness — tracks quality correlation per memory source */
+export const contextEffectiveness = pgTable(
+  'context_effectiveness',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memoryId: uuid('memory_id').references(() => memories.id, { onDelete: 'cascade' }),
+    runId: uuid('run_id'),
+    qualityScore: real('quality_score'),
+    sourceType: text('source_type'), // 'rag' | 'memory' | 'peer' | 'critical'
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [index('context_effectiveness_memory_id_idx').on(t.memoryId)],
+)
 
 export const chatSessions = pgTable(
   'chat_sessions',

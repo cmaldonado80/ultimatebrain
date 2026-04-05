@@ -184,6 +184,13 @@ export class MemoryService {
             score *= 0.3
           }
 
+          // TODO: Blend context effectiveness weight if available.
+          // The effectivenessWeight column on the memory row is pre-computed
+          // periodically by the worker memory:compact job. When available,
+          // multiply score by effectivenessWeight (default 0.5 = neutral).
+          // Actual blending deferred: per-memory async DB lookup would slow search.
+          // Better approach: use the pre-computed effectivenessWeight from the memory row itself.
+
           return {
             id: r.id,
             key: r.key,

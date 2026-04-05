@@ -11,7 +11,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
-import { agents, guardrailLayerEnum, instinctScopeEnum } from './core'
+import { agents, guardrailLayerEnum, instinctScopeEnum, tickets } from './core'
 
 // === Enums ===
 export const flowStatusEnum = pgEnum('flow_status', ['draft', 'active', 'paused', 'archived'])
@@ -432,6 +432,67 @@ export const documents = pgTable('documents', {
   organizationId: uuid('organization_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
+
+// ── Persistence: Work Market ────────────────────────────────────────────
+
+/** Market listings — tracks active ticket auctions */
+export const marketListings = pgTable(
+  'market_listings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ticketId: uuid('ticket_id')
+      .references(() => tickets.id, { onDelete: 'cascade' })
+      .notNull(),
+    status: text('status').default('open').notNull(), // 'open' | 'awarded' | 'expired'
+    bids: jsonb('bids').default([]), // AgentBid[]
+    winnerId: uuid('winner_id').references(() => agents.id, { onDelete: 'set null' }),
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('market_listings_ticket_id_idx').on(t.ticketId),
+    index('market_listings_status_idx').on(t.status),
+  ],
+)
+
+/** Agent reputations — persistent track record for market bidding */
+export const agentReputations = pgTable(
+  'agent_reputations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: uuid('agent_id')
+      .references(() => agents.id, { onDelete: 'cascade' })
+      .notNull()
+      .unique(),
+    totalBids: integer('total_bids').default(0).notNull(),
+    totalWins: integer('total_wins').default(0).notNull(),
+    totalCompletions: integer('total_completions').default(0).notNull(),
+    totalFailures: integer('total_failures').default(0).notNull(),
+    successRate: real('success_rate').default(0).notNull(),
+    avgCompletionMs: real('avg_completion_ms').default(0).notNull(),
+    skills: text('skills').array(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [index('agent_reputations_agent_id_idx').on(t.agentId)],
+)
+
+// ── Persistence: Knowledge Mesh ─────────────────────────────────────────
+
+/** Knowledge exchanges — peer learning history */
+export const knowledgeExchanges = pgTable(
+  'knowledge_exchanges',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    askingAgentId: uuid('asking_agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    question: text('question').notNull(),
+    scope: text('scope').default('organization'), // 'department' | 'organization'
+    findings: jsonb('findings').default([]), // KnowledgeFinding[]
+    feedback: text('feedback'), // 'helpful' | 'not_helpful'
+    qualityImpact: real('quality_impact'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [index('knowledge_exchanges_asking_agent_idx').on(t.askingAgentId)],
+)
 
 // NOTE: Debate tables (debateSessions, debateNodes, debateEdges, debateElo)
 // and token tables (tokenLedger, tokenBudgets) are defined in platform.ts

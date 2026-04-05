@@ -43,7 +43,7 @@ const TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
 }
 
 export interface AssignmentStrategy {
-  type: 'round_robin' | 'least_loaded' | 'skill_match' | 'affinity'
+  type: 'round_robin' | 'least_loaded' | 'skill_match' | 'affinity' | 'market'
 }
 
 export class TicketExecutionEngine {
@@ -268,6 +268,40 @@ export class TicketExecutionEngine {
         availableAgents.sort((a, b) => (loadMap.get(a.id) ?? 0) - (loadMap.get(b.id) ?? 0))
         selectedAgent = availableAgents[0]!
         break
+      }
+      case 'market': {
+        // Auto-bid all available agents and award to highest scorer
+        const { WorkMarket } = await import('./work-market')
+        const market = new WorkMarket(this.db)
+        const listing = await market.list({
+          ticketId,
+          title: ticket.title ?? ticketId,
+          requiredSkills:
+            ((ticket.metadata as Record<string, unknown> | null)?.requiredSkills as string[]) ?? [],
+          priority: ticket.priority ?? 'medium',
+          complexity: (ticket.complexity as 'easy' | 'medium' | 'hard') ?? 'medium',
+        })
+        for (const agent of availableAgents) {
+          await market.bid(listing.ticketId, {
+            agentId: agent.id,
+            agentName: agent.name,
+            skills: (agent.skills as string[]) ?? [],
+            currentLoad: 0.5, // TODO: compute from active tickets
+            avgCompletionMs: 10000,
+          })
+        }
+        const winner = await market.award(listing.ticketId)
+        if (winner) {
+          await this.db
+            .update(tickets)
+            .set({
+              assignedAgentId: winner.agentId,
+              updatedAt: new Date(),
+            })
+            .where(eq(tickets.id, ticketId))
+          return winner.agentId
+        }
+        return null
       }
       default: // round_robin, affinity — fall through to first available
         selectedAgent = availableAgents[0]!

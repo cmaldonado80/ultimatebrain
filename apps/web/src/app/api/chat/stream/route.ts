@@ -207,12 +207,12 @@ async function getInstinctInjection(
   db: Database,
   domain: string,
   userText: string,
-): Promise<string> {
+): Promise<{ text: string; instinctIds: string[] }> {
   const promoted = await db.query.instincts.findMany({
     where: eq(instincts.status, 'promoted'),
     limit: 50,
   })
-  if (promoted.length === 0) return ''
+  if (promoted.length === 0) return { text: '', instinctIds: [] }
 
   const injector = new InstinctInjector()
   const instinctList: Instinct[] = promoted.map((i) => ({
@@ -225,7 +225,7 @@ async function getInstinctInjection(
     updatedAt: i.updatedAt,
   }))
 
-  return injector.inject(instinctList, {
+  return injector.injectWithIds(instinctList, {
     domain,
     trigger: userText.slice(0, 200),
     minConfidence: 0.5,
@@ -375,6 +375,7 @@ export async function POST(req: Request) {
   const entityDbUrl = agentConfigs[0]?.entityDatabaseUrl
   const memoryDb = entityDbUrl ? createMiniBrainDb(entityDbUrl) : db
   let memoryContext = ''
+  const capturedMemoryIds: string[] = []
 
   const snapshotKey = `${body.sessionId}:${primaryWorkspaceId ?? 'default'}`
   const cachedSnapshot = memorySnapshotCache.get(snapshotKey)
@@ -403,6 +404,7 @@ export async function POST(req: Request) {
           memoryContext =
             '\n\nRelevant memories from past interactions:\n' +
             recalled.map((m) => `- [${m.tier}] ${m.content}`).join('\n')
+          capturedMemoryIds.push(...recalled.map((m) => m.id))
         }
       } catch {
         // Best-effort
@@ -579,6 +581,8 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       let lastInfluence: unknown = null
+      let injectedInstinctIds: string[] = []
+      const usedMemoryIds: string[] = []
       const tracer = getTracer()
       const rootSpan = tracer.start('chat.request', { agentId: agentConfigs[0]?.id })
       try {
@@ -665,14 +669,18 @@ export async function POST(req: Request) {
             capability: targetAgentConfig.capability,
             skills: targetAgentConfig.skills,
           })
-          const stepInstinctCtx = await getInstinctInjection(
+          const stepInstinctResult = await getInstinctInjection(
             db,
             targetAgentConfig.workspaceId ?? 'universal',
             body.text,
           ).catch((err: unknown) => {
             logger.warn({ err }, 'post-chat: step instinct injection failed')
-            return ''
+            return { text: '', instinctIds: [] as string[] }
           })
+          const stepInstinctCtx = stepInstinctResult.text
+          if (stepInstinctResult.instinctIds.length > 0) {
+            injectedInstinctIds = stepInstinctResult.instinctIds
+          }
 
           // ── TRUTH INJECTION: Ground agent in runtime truth before responding ──
           let truthBlock = ''
@@ -680,10 +688,23 @@ export async function POST(req: Request) {
           try {
             const { buildGroundedContext } =
               await import('../../../../server/services/intelligence/truth-injection')
+            // Check degradation level for this agent
+            let agentDegradationLevel: 'full' | 'reduced' | 'minimal' | 'suspended' | undefined
+            try {
+              const { getOrCreateCortex } = await import('../../../../server/services/healing')
+              const cortex = getOrCreateCortex(db)
+              const profile = cortex.degradation.getProfile(targetAgentConfig.id)
+              agentDegradationLevel = profile?.level
+            } catch {
+              /* degradation check is best-effort */
+            }
             const grounded = buildGroundedContext(
               body.text,
               targetAgentConfig.name,
               targetAgentConfig.agentType,
+              undefined,
+              undefined,
+              agentDegradationLevel,
             )
             // Load critical memories (always-inject rules)
             let criticalBlock = ''
@@ -931,24 +952,41 @@ export async function POST(req: Request) {
               skills: agentConfig.skills,
             })
             // Inject promoted instincts as behavioral guidance (fire-and-forget safe)
-            const instinctContext = await getInstinctInjection(
+            const instinctResult = await getInstinctInjection(
               db,
               agentConfig.workspaceId ?? 'universal',
               body.text,
             ).catch((err: unknown) => {
               logger.warn({ err }, 'post-chat: direct instinct injection failed')
-              return ''
+              return { text: '', instinctIds: [] as string[] }
             })
+            const instinctContext = instinctResult.text
+            if (instinctResult.instinctIds.length > 0) {
+              injectedInstinctIds = instinctResult.instinctIds
+            }
             // ── TRUTH INJECTION for direct path ──
             let baseTruthBlock = ''
             let directInfluence: unknown = null
             try {
               const { buildGroundedContext } =
                 await import('../../../../server/services/intelligence/truth-injection')
+              // Check degradation level for direct-path agent
+              let directDegLevel: 'full' | 'reduced' | 'minimal' | 'suspended' | undefined
+              try {
+                const { getOrCreateCortex } = await import('../../../../server/services/healing')
+                const cortex = getOrCreateCortex(db)
+                const profile = cortex.degradation.getProfile(agentConfig.id)
+                directDegLevel = profile?.level
+              } catch {
+                /* best-effort */
+              }
               const grounded = buildGroundedContext(
                 body.text,
                 agentConfig.name,
                 agentConfig.agentType,
+                undefined,
+                undefined,
+                directDegLevel,
               )
               // Load critical memories (always-inject rules)
               let directCriticalBlock = ''
@@ -1220,6 +1258,27 @@ export async function POST(req: Request) {
           observeRunCompletion(db, runRecord.id).catch((err) =>
             logger.warn({ err }, 'post-chat: run observation failed'),
           )
+
+          // Score instinct effectiveness (closed-loop learning)
+          if (injectedInstinctIds.length > 0) {
+            import('../../../../server/services/instincts/outcome-scorer')
+              .then(({ scoreInstinctOutcomes }) =>
+                scoreInstinctOutcomes(db, injectedInstinctIds, 0.7, runRecord.id),
+              )
+              .catch((err) => logger.warn({ err }, 'post-chat: instinct scoring failed'))
+          }
+
+          // Record context effectiveness for memory self-optimization
+          const effectiveMemoryIds = [...capturedMemoryIds, ...usedMemoryIds]
+          if (effectiveMemoryIds.length > 0) {
+            import('../../../../server/services/memory/context-feedback')
+              .then(({ recordContextEffectiveness }) =>
+                recordContextEffectiveness(db, runRecord.id, effectiveMemoryIds, 0.7),
+              )
+              .catch((err) =>
+                logger.warn({ err }, 'post-chat: context effectiveness recording failed'),
+              )
+          }
 
           // Notify cortex of agent outcome (bridges chat to healing system)
           try {

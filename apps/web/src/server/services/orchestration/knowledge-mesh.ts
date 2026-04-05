@@ -12,6 +12,12 @@
  *   LEARN   → track which findings were useful (feedback loop)
  */
 
+import type { Database } from '@solarc/db'
+import { knowledgeExchanges } from '@solarc/db'
+import { desc, eq, sql } from 'drizzle-orm'
+
+import { logger } from '../../../lib/logger'
+
 // ── Types ────────────────────────────────────────────────────────────────
 
 export interface KnowledgeQuery {
@@ -33,6 +39,7 @@ export interface KnowledgeFinding {
 }
 
 export interface KnowledgeExchange {
+  id?: string
   query: KnowledgeQuery
   findings: KnowledgeFinding[]
   queriedAt: number
@@ -51,8 +58,13 @@ export interface MeshStats {
 const MAX_EXCHANGE_HISTORY = 200
 
 export class KnowledgeMesh {
+  private db: Database | null
   private exchanges: KnowledgeExchange[] = []
   private contributionCounts = new Map<string, { name: string; count: number }>()
+
+  constructor(db?: Database) {
+    this.db = db ?? null
+  }
 
   /**
    * Query the knowledge mesh for relevant findings from peer agents.
@@ -79,6 +91,23 @@ export class KnowledgeMesh {
       workspaceId?: string,
     ) => Promise<Array<{ content: string; score: number; source?: string }>>,
   ): Promise<KnowledgeFinding[]> {
+    // 0. Check DB for similar past exchanges with helpful feedback
+    if (this.db) {
+      try {
+        const dbFindings = await this.lookupSimilarExchanges(query.question, query.maxResults ?? 10)
+        if (dbFindings.length > 0) {
+          // Persist this exchange too (for stats)
+          await this.persistExchange(query, dbFindings)
+          return dbFindings
+        }
+      } catch (err) {
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          'knowledge-mesh: DB lookup failed, continuing with in-memory search',
+        )
+      }
+    }
+
     const findings: KnowledgeFinding[] = []
     const queryWords = query.question
       .toLowerCase()
@@ -182,7 +211,7 @@ export class KnowledgeMesh {
       }
     }
 
-    // 5. Record exchange
+    // 5. Record exchange (in-memory + DB)
     const exchange: KnowledgeExchange = {
       query,
       findings: limited,
@@ -191,15 +220,39 @@ export class KnowledgeMesh {
     this.exchanges.push(exchange)
     while (this.exchanges.length > MAX_EXCHANGE_HISTORY) this.exchanges.shift()
 
+    // Persist to DB
+    await this.persistExchange(query, limited)
+
     return limited
   }
 
   /**
    * Record feedback on whether findings were helpful.
    */
-  recordFeedback(queryIndex: number, feedback: 'helpful' | 'not_helpful') {
-    const exchange = this.exchanges[queryIndex]
-    if (exchange) exchange.feedbackGiven = feedback
+  async recordFeedback(
+    queryIndexOrId: number | string,
+    feedback: 'helpful' | 'not_helpful',
+  ): Promise<void> {
+    // In-memory update
+    if (typeof queryIndexOrId === 'number') {
+      const exchange = this.exchanges[queryIndexOrId]
+      if (exchange) exchange.feedbackGiven = feedback
+    }
+
+    // DB update
+    if (this.db && typeof queryIndexOrId === 'string') {
+      try {
+        await this.db
+          .update(knowledgeExchanges)
+          .set({ feedback })
+          .where(eq(knowledgeExchanges.id, queryIndexOrId))
+      } catch (err) {
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          'knowledge-mesh: DB feedback update failed',
+        )
+      }
+    }
   }
 
   /**
@@ -222,5 +275,74 @@ export class KnowledgeMesh {
 
   getRecentExchanges(limit = 10): KnowledgeExchange[] {
     return this.exchanges.slice(-limit)
+  }
+
+  // ── Private helpers ────────────────────────────────────────────────────
+
+  /**
+   * Look up similar past exchanges in DB that had helpful feedback.
+   */
+  private async lookupSimilarExchanges(
+    question: string,
+    maxResults: number,
+  ): Promise<KnowledgeFinding[]> {
+    if (!this.db) return []
+
+    // Extract significant words for ILIKE matching
+    const words = question
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter((w) => w.length > 3)
+      .slice(0, 5) // limit to top 5 significant words
+
+    if (words.length === 0) return []
+
+    // Build ILIKE conditions for each word
+    const likePattern = `%${words.join('%')}%`
+
+    const rows = await this.db
+      .select()
+      .from(knowledgeExchanges)
+      .where(
+        sql`${knowledgeExchanges.feedback} = 'helpful' AND lower(${knowledgeExchanges.question}) LIKE ${likePattern}`,
+      )
+      .orderBy(desc(knowledgeExchanges.createdAt))
+      .limit(maxResults)
+
+    if (rows.length === 0) return []
+
+    // Flatten findings from matched exchanges
+    const findings: KnowledgeFinding[] = []
+    for (const row of rows) {
+      const rowFindings = (row.findings ?? []) as KnowledgeFinding[]
+      findings.push(...rowFindings)
+    }
+
+    return findings.slice(0, maxResults)
+  }
+
+  /**
+   * Persist an exchange to the DB.
+   */
+  private async persistExchange(
+    query: KnowledgeQuery,
+    findings: KnowledgeFinding[],
+  ): Promise<void> {
+    if (!this.db) return
+
+    try {
+      await this.db.insert(knowledgeExchanges).values({
+        askingAgentId: query.askingAgentId,
+        question: query.question,
+        scope: query.scope,
+        findings: findings as unknown as Record<string, unknown>[],
+      })
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        'knowledge-mesh: DB persist failed',
+      )
+    }
   }
 }

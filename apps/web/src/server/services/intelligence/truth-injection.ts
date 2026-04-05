@@ -127,6 +127,7 @@ export function buildGroundedContext(
   agentRole?: string,
   tracer?: Tracer,
   parentSpan?: Span,
+  degradationLevel?: 'full' | 'reduced' | 'minimal' | 'suspended',
 ): GroundedContext {
   const span = tracer?.start('truth.inject', {
     traceId: parentSpan?.traceId,
@@ -222,9 +223,22 @@ export function buildGroundedContext(
     }
 
     // Memory hints (role-based)
-    const memoryHints = agentRole
+    let memoryHints = agentRole
       ? `\n## Your Role\nYou are ${agentName ?? 'an agent'}, mode: ${mode}, role: ${agentRole}. Act within your role's expertise.`
       : ''
+
+    // Degradation awareness — informs agent of reduced capabilities
+    if (degradationLevel && degradationLevel !== 'full') {
+      const degradationGuidance: Record<string, string> = {
+        reduced:
+          '⚠ You are operating in REDUCED mode. Conserve tokens. Prefer concise responses. Use simpler approaches when possible.',
+        minimal:
+          '⚠ You are operating in MINIMAL mode. Only handle simple tasks. Keep responses very short. Delegate complex work to peers.',
+        suspended:
+          '⚠ You are SUSPENDED. Do not attempt complex operations. Report your status and wait for recovery.',
+      }
+      memoryHints += `\n\n## Operating Status\n${degradationGuidance[degradationLevel] ?? ''}`
+    }
 
     // Build memory influence tracking
     const influence = EvidenceMemoryPipeline.buildInfluence([], snapshotsUsed)

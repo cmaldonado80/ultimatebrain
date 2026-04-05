@@ -204,6 +204,18 @@ export class ContextPipeline {
     return []
   }
 
+  /**
+   * Gather from peer knowledge mesh.
+   * TODO: wire when mesh has DB access via constructor — for now, the main
+   * integration point is ModeRouter.executeAutonomous().
+   */
+  async gatherFromPeers(_query: string): Promise<ContextSource[]> {
+    // Knowledge mesh integration: the main integration point is
+    // ModeRouter.executeAutonomous(). This method is a placeholder for
+    // future direct pipeline integration when mesh has DB access via constructor.
+    return []
+  }
+
   // ── Stage 2: Evaluate ─────────────────────────────────────────────────
 
   private async evaluate(

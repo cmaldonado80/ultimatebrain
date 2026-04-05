@@ -413,7 +413,40 @@ export class ModeRouter {
         console.warn('[ModeRouter] OpenClaw skill invocation failed:', err)
       }
 
-      // Step 3: Execute via LLM with tools (+ skill context if available)
+      // Step 2.5: Consult knowledge mesh for peer solutions
+      let peerContext = ''
+      try {
+        const { KnowledgeMesh } = await import('../orchestration/knowledge-mesh')
+        const mesh = new KnowledgeMesh(this.db)
+        const agentId = _options.agentId ?? ticket?.assignedAgentId ?? undefined
+        const findings = await mesh.query(
+          {
+            askingAgentId: agentId ?? 'system',
+            question: taskDescription,
+            context: ticket?.title ?? '',
+            scope: 'organization',
+            maxResults: 3,
+          },
+          [],
+        ) // empty agent states — DB-backed now
+        if (findings.length > 0) {
+          peerContext =
+            '\n\n## Peer Knowledge\nSimilar problems solved by peers:\n' +
+            findings
+              .map(
+                (f, i) =>
+                  `${i + 1}. ${f.content} (relevance: ${(f.relevanceScore * 100).toFixed(0)}%)`,
+              )
+              .join('\n')
+        }
+      } catch (err) {
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          'mode-router: peer knowledge lookup failed',
+        )
+      }
+
+      // Step 3: Execute via LLM with tools (+ skill context + peer context if available)
       // Use the assigned agent's model and soul if available
       const agentConfig = await this.resolveAgentConfig(ticketId)
       const executionResult = await this.gateway.chat({
@@ -428,7 +461,10 @@ export class ModeRouter {
               'You are an autonomous agent executing a task. ' +
                 'Describe the steps you would take and their outcomes.',
           },
-          { role: 'user', content: `Execute this task: ${taskDescription}${skillContext}` },
+          {
+            role: 'user',
+            content: `Execute this task: ${taskDescription}${skillContext}${peerContext}`,
+          },
         ],
       })
 

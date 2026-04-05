@@ -16,6 +16,7 @@ import { agents, healingLogs } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
 import { logger } from '../../../lib/logger'
+import { broadcastDegradation } from './degradation-broadcaster'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -261,6 +262,7 @@ export class AgentDegradationManager {
       }
       this.recordEvent(event)
       this.persistTransition(event)
+      broadcastDegradation(event, this.db).catch(() => {})
       return event
     }
 
@@ -280,6 +282,7 @@ export class AgentDegradationManager {
       }
       this.recordEvent(event)
       this.persistTransition(event)
+      broadcastDegradation(event, this.db).catch(() => {})
       return event
     }
 

@@ -175,6 +175,21 @@ export class InstinctInjector {
     return this.buildPromptInjection(relevant, now)
   }
 
+  /**
+   * Like inject() but also returns the IDs of injected instincts for outcome tracking.
+   */
+  injectWithIds(
+    allInstincts: Instinct[],
+    context: InjectionContext,
+    now: Date = new Date(),
+  ): { text: string; instinctIds: string[] } {
+    const relevant = this.getRelevantInstincts(allInstincts, context, now)
+    return {
+      text: this.buildPromptInjection(relevant, now),
+      instinctIds: relevant.map((i) => i.id),
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Internal helpers
   // -------------------------------------------------------------------------

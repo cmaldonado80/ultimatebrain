@@ -247,7 +247,24 @@ async function main() {
     }
   })
 
+  // Market sweep — process expired listings, auto-award
+  await boss.work('market:sweep', async () => {
+    console.warn('[Worker] Running market sweep')
+    try {
+      const { WorkMarket } = await import('../../web/src/server/services/orchestration/work-market')
+      const market = new WorkMarket(db)
+      const expired = await market.processExpired()
+      if (expired.length > 0) {
+        console.warn(`[Worker] market: processed ${expired.length} expired listings`)
+      }
+    } catch (err) {
+      console.error('[Worker] Market sweep failed:', err)
+      throw err
+    }
+  })
+
   // === Periodic schedules (idempotent — pg-boss deduplicates by schedule name) ===
+  await boss.schedule('market:sweep', '*/5 * * * *', {}) // every 5 min
   await boss.schedule('healing:cycle', '*/10 * * * *', {}) // every 10 min
   await boss.schedule('instinct:pipeline', '0 2 * * *', {}) // daily at 02:00
   await boss.schedule('instinct:evolve', '0 3 * * 0', {}) // weekly on Sunday at 03:00
