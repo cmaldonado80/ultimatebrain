@@ -68,9 +68,17 @@ export default function WorkProductsPage() {
         </div>
       </SectionCard>
 
-      {submitted && (
+      {submitted && productsQuery.error && (
+        <div className="text-neon-red text-sm mb-4">
+          Failed to load work products. Please retry.
+        </div>
+      )}
+
+      {submitted && !productsQuery.error && (
         <SectionCard title={`Deliverables (${products.length})`}>
-          {products.length === 0 ? (
+          {productsQuery.isLoading ? (
+            <div className="text-xs text-slate-500 py-6 text-center">Loading...</div>
+          ) : products.length === 0 ? (
             <div className="text-xs text-slate-600 py-6 text-center">
               No work products for this ticket.
             </div>

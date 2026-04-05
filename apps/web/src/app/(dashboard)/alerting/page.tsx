@@ -9,6 +9,14 @@ import { trpc } from '../../../utils/trpc'
 export default function AlertingPage() {
   const rulesQuery = trpc.alerting.getAlertRules.useQuery()
   const incidentsQuery = trpc.alerting.getActiveIncidents.useQuery()
+
+  if (rulesQuery.isLoading)
+    return <div className="p-6 text-slate-500 text-sm">Loading alerts...</div>
+  if (rulesQuery.error || incidentsQuery.error)
+    return (
+      <div className="p-6 text-neon-red text-sm">Failed to load alerting data. Please retry.</div>
+    )
+
   const rules = (rulesQuery.data ?? []) as Array<{
     id: string
     name: string

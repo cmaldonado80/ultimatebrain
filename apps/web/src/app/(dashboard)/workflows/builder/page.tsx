@@ -10,8 +10,10 @@ import { trpc } from '../../../../utils/trpc'
 export default function WorkflowBuilderPage() {
   const router = useRouter()
   const [name, setName] = useState('Untitled Workflow')
+  const [saveError, setSaveError] = useState<string | null>(null)
   const createMut = trpc.flows.create.useMutation({
     onSuccess: () => router.push('/flows'),
+    onError: () => setSaveError('Failed to save workflow. Please try again.'),
   })
 
   const handleSave = (workflow: WorkflowDefinition) => {
@@ -34,6 +36,19 @@ export default function WorkflowBuilderPage() {
 
   return (
     <div className="h-[calc(100vh-56px)] flex flex-col overflow-hidden">
+      {saveError && (
+        <div className="bg-neon-red/10 border border-neon-red/30 text-neon-red text-xs px-4 py-2">
+          {saveError}
+          <button className="ml-2 underline" onClick={() => setSaveError(null)}>
+            dismiss
+          </button>
+        </div>
+      )}
+      {createMut.isPending && (
+        <div className="bg-neon-teal/10 text-neon-teal text-xs px-4 py-2 text-center">
+          Saving workflow...
+        </div>
+      )}
       <WorkflowCanvas workflowName={name} onNameChange={setName} onSave={handleSave} />
     </div>
   )

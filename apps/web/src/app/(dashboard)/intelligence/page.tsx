@@ -50,8 +50,9 @@ function DocumentUploadCard() {
       setName('')
       setContent('')
       setFile(null)
-    } catch {
+    } catch (err) {
       setStatus('error')
+      setResult(null)
     }
   }
 

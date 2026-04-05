@@ -62,6 +62,7 @@ const INITIAL_STATE: NerveStreamState = {
 
 const MAX_RECONNECT_DELAY = 30000
 const BASE_RECONNECT_DELAY = 2000
+const MAX_METRIC_HISTORY = 120 // keep ~2 minutes of per-second metrics
 
 // ── Hook ─────────────────────────────────────────────────────────────────
 
@@ -96,11 +97,18 @@ export function useNerveStream(enabled = true): NerveStreamState {
       es.addEventListener('metric_update', (e) => {
         try {
           const data = JSON.parse(e.data)
-          setState((s) => ({
-            ...s,
-            metrics: { ...s.metrics, ...data.metrics },
-            lastUpdate: Date.now(),
-          }))
+          setState((s) => {
+            const merged = { ...s.metrics }
+            for (const [key, values] of Object.entries(data.metrics as Record<string, number[]>)) {
+              const existing = merged[key] ?? []
+              const combined = [...existing, ...values]
+              merged[key] =
+                combined.length > MAX_METRIC_HISTORY
+                  ? combined.slice(combined.length - MAX_METRIC_HISTORY)
+                  : combined
+            }
+            return { ...s, metrics: merged, lastUpdate: Date.now() }
+          })
         } catch {
           /* malformed SSE data — skip */
         }

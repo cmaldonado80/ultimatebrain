@@ -173,8 +173,11 @@ export default function CeoDashboardPage() {
           <div className="text-xs text-slate-600 py-4 text-center">No activity yet</div>
         ) : (
           <div className="space-y-1">
-            {lifecycle.slice(0, 20).map((event, i) => (
-              <div key={i} className="flex items-center gap-2 text-[10px] py-0.5">
+            {lifecycle.slice(0, 20).map((event) => (
+              <div
+                key={`${event.timestamp}-${event.agentName}`}
+                className="flex items-center gap-2 text-[10px] py-0.5"
+              >
                 <span className="text-slate-600 w-16">
                   {new Date(event.timestamp).toLocaleTimeString()}
                 </span>
