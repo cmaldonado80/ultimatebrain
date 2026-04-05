@@ -15,9 +15,9 @@ This is NOT a simple CRUD app. It's a full operating system for autonomous AI ag
 | Database        | PostgreSQL via Neon (Drizzle ORM)                        |
 | Hosting         | Vercel                                                   |
 | Package Manager | pnpm 10.29 (monorepo with Turborepo)                     |
-| Testing         | Vitest (905 tests)                                       |
+| Testing         | Vitest (995+ tests)                                      |
 | Styling         | Tailwind CSS v4 (dark theme, neon color palette)         |
-| API             | tRPC (84 routers)                                        |
+| API             | tRPC (50 routers)                                        |
 | LLM Gateway     | Multi-provider (Anthropic, OpenAI, Google, Ollama cloud) |
 
 ## Monorepo Structure
@@ -148,20 +148,23 @@ The Next.js app working directory is `apps/web/`. File paths in tools should be 
 - `src/server/services/healing/cortex.ts` (correct)
 - `apps/web/src/server/services/healing/cortex.ts` (also works — auto-stripped)
 
-## UI
+## UI & Design System
 
+- **Full design spec in `DESIGN.md`** — read it before generating any UI
 - Dark theme with neon color palette (cyber aesthetic)
 - Shared components in `apps/web/src/components/ui/` (13 components)
-- Pages in `apps/web/src/app/(dashboard)/` (96 pages)
+- Pages in `apps/web/src/app/(dashboard)/` (85+ pages)
 - Nerve Center: real-time dashboard with SSE streaming + SVG sparklines
 - Tool Catalog: browsable directory of all 43 classified tools
 - Agent Forensics: deep-dive into agent health and transition history
+- All grids use responsive breakpoints (never hardcode `grid-cols-N` without `sm:/md:/lg:`)
+- Use `cyber-card`, `cyber-btn-primary`, `cyber-input` classes — not raw Tailwind
 
 ## Testing
 
 ```bash
-pnpm test          # Run all 905 tests
-pnpm typecheck     # TypeScript strict check (17 packages)
+pnpm test          # Run all 995+ tests
+pnpm typecheck     # TypeScript strict check (18 packages)
 pnpm lint          # ESLint (14 packages)
 pnpm brain:validate # Template validation pipeline
 ```
@@ -177,3 +180,7 @@ pnpm brain:validate # Template validation pipeline
 - Do NOT add `unsafe-eval` to CSP in production
 - Do NOT push to main without PR (branch protection enabled)
 - Do NOT commit `.env.local` (contains secrets)
+- Do NOT generate UI without reading `DESIGN.md` first — follow the design system
+- Do NOT use `console.log` in production — use `logger` from `@/lib/logger`
+- Do NOT use `.catch(() => {})` — all catches must log via `logger.warn`
+- Do NOT expose `err.message` to clients — use generic error messages
