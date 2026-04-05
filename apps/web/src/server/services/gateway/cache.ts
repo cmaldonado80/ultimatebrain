@@ -177,18 +177,18 @@ export class SemanticCache {
     // Slow path: semantic similarity via embedding
     if (!embedding || embedding.length === 0) return null
 
-    const vectorStr = `[${embedding.join(',')}]`
+    const vectorParam = JSON.stringify(embedding)
     const threshold = this.config.similarityThreshold
 
     const semanticRows = await this.db.execute(sql`
       SELECT response, model, tokens_in, tokens_out,
-             1 - (embedding <=> ${vectorStr}::vector) as similarity
+             1 - (embedding <=> ${vectorParam}::vector) as similarity
       FROM gateway_cache
       WHERE model = ${model}
         AND embedding IS NOT NULL
         AND created_at + (ttl_ms || ' milliseconds')::interval > now()
-        AND 1 - (embedding <=> ${vectorStr}::vector) > ${threshold}
-      ORDER BY embedding <=> ${vectorStr}::vector ASC
+        AND 1 - (embedding <=> ${vectorParam}::vector) > ${threshold}
+      ORDER BY embedding <=> ${vectorParam}::vector ASC
       LIMIT 1
     `)
     const semanticMatch = (semanticRows as { rows: any[] }).rows?.[0]
@@ -220,10 +220,10 @@ export class SemanticCache {
     const ttl = ttlMs ?? this.config.defaultTtlMs
 
     if (embedding && embedding.length > 0) {
-      const vectorStr = `[${embedding.join(',')}]`
+      const vectorParam = JSON.stringify(embedding)
       await this.db.execute(sql`
         INSERT INTO gateway_cache (prompt_hash, model, response, tokens_in, tokens_out, embedding, ttl_ms)
-        VALUES (${hash}, ${model}, ${response}, ${tokensIn}, ${tokensOut}, ${vectorStr}::vector, ${ttl})
+        VALUES (${hash}, ${model}, ${response}, ${tokensIn}, ${tokensOut}, ${vectorParam}::vector, ${ttl})
       `)
     } else {
       await this.db.execute(sql`

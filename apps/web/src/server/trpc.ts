@@ -17,10 +17,17 @@ const t = initTRPC.context<TRPCContext>().create({
 
 export const router = t.router
 export const publicProcedure = t.procedure
-/** Input sanitization — escapes HTML in string inputs to prevent stored XSS. */
+/** Max payload size for tRPC inputs (1MB). Prevents memory exhaustion via oversized strings. */
+const MAX_INPUT_SIZE = 1_000_000
+
+/** Input sanitization — escapes HTML in string inputs to prevent stored XSS + enforces size limit. */
 const inputSanitization = t.middleware(async ({ next, getRawInput }) => {
   const rawInput = await getRawInput()
   if (rawInput && typeof rawInput === 'object') {
+    const size = JSON.stringify(rawInput).length
+    if (size > MAX_INPUT_SIZE) {
+      throw new TRPCError({ code: 'PAYLOAD_TOO_LARGE', message: 'Input too large' })
+    }
     // Sanitize in-place — tRPC will re-parse through Zod, but strings are now safe
     sanitizeInput(rawInput)
   }

@@ -78,10 +78,19 @@ function isPrivateUrl(url: string): boolean {
   try {
     const parsed = new URL(url)
     const hostname = parsed.hostname.toLowerCase()
-    if (['localhost', '0.0.0.0', '[::1]', '::1'].includes(hostname)) return true
+    // Block localhost variants
+    if (['localhost', '0.0.0.0', '[::1]', '::1', '127.0.0.1'].includes(hostname)) return true
+    // Block octal/hex IP notations (0x7f.0.0.1, 0177.0.0.1, etc.)
+    if (/^0[xo]/.test(hostname) || /^[0-9]+$/.test(hostname)) return true
+    // Block cloud metadata endpoints
+    if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal') return true
+    // Block dangerous ports
+    const port = parsed.port ? parseInt(parsed.port, 10) : 0
+    const blockedPorts = [22, 23, 25, 53, 135, 139, 445, 3306, 5432, 6379, 27017]
+    if (port && blockedPorts.includes(port)) return true
     return PRIVATE_IP_PATTERNS.some((p) => p.test(hostname))
   } catch {
-    return false
+    return true // Invalid URLs default to blocked (fail-closed)
   }
 }
 

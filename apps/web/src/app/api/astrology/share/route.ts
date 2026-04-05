@@ -8,8 +8,9 @@ import { logger } from '../../../../lib/logger'
 
 export async function POST(req: Request) {
   try {
+    const cookie = req.headers.get('cookie') ?? undefined
     const body = await req.json()
-    const result = await callBrainTRPC('astrology.createShareToken', body)
+    const result = await callBrainTRPC('astrology.createShareToken', body, { cookie })
     return Response.json(result)
   } catch (err) {
     logger.error({ err: err instanceof Error ? err : undefined }, 'create share link failed')

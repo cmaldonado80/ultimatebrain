@@ -29,13 +29,15 @@ function getDb(): Database {
 
 export async function POST(req: Request) {
   try {
-    // Validate webhook secret (optional)
+    // Validate webhook secret (required)
     const secret = process.env.WEBHOOK_AGENT_SECRET
-    if (secret) {
-      const authHeader = req.headers.get('authorization')
-      if (authHeader !== `Bearer ${secret}`) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+    if (!secret) {
+      logger.warn({}, 'WEBHOOK_AGENT_SECRET not configured — rejecting request')
+      return Response.json({ error: 'Webhook not configured' }, { status: 503 })
+    }
+    const authHeader = req.headers.get('authorization')
+    if (authHeader !== `Bearer ${secret}`) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     await waitForSchema()

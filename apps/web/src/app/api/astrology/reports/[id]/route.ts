@@ -6,10 +6,11 @@ import { callBrainTRPC } from '@solarc/brain-client'
 
 import { logger } from '../../../../../lib/logger'
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const cookie = req.headers.get('cookie') ?? undefined
     const { id } = await params
-    const result = await callBrainTRPC('astrology.getReport', { id }, { method: 'query' })
+    const result = await callBrainTRPC('astrology.getReport', { id }, { method: 'query', cookie })
     return Response.json(result)
   } catch (err) {
     logger.error({ err: err instanceof Error ? err : undefined }, 'get report failed')

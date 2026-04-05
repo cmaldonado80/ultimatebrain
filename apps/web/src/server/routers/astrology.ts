@@ -24,15 +24,15 @@ export const astrologyRouter = router({
   createChart: protectedProcedure
     .input(
       z.object({
-        name: z.string().min(1),
-        birthDate: z.string(),
-        birthTime: z.string(),
+        name: z.string().min(1).max(200),
+        birthDate: z.string().max(50),
+        birthTime: z.string().max(50),
         latitude: z.number(),
         longitude: z.number(),
         timezone: z.number().optional(),
         chartData: z.record(z.unknown()),
         highlights: z.record(z.unknown()).optional(),
-        summary: z.string().optional(),
+        summary: z.string().max(10000).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

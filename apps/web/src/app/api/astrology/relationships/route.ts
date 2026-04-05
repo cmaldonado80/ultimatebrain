@@ -8,8 +8,9 @@ import { logger } from '../../../../lib/logger'
 
 export async function POST(req: Request) {
   try {
+    const cookie = req.headers.get('cookie') ?? undefined
     const body = await req.json()
-    const result = await callBrainTRPC('astrology.createRelationship', body)
+    const result = await callBrainTRPC('astrology.createRelationship', body, { cookie })
     return Response.json(result)
   } catch (err) {
     logger.error({ err: err instanceof Error ? err : undefined }, 'create relationship failed')
@@ -17,9 +18,14 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const result = await callBrainTRPC('astrology.listRelationships', {}, { method: 'query' })
+    const cookie = req.headers.get('cookie') ?? undefined
+    const result = await callBrainTRPC(
+      'astrology.listRelationships',
+      {},
+      { method: 'query', cookie },
+    )
     return Response.json(result)
   } catch (err) {
     logger.error({ err: err instanceof Error ? err : undefined }, 'list relationships failed')

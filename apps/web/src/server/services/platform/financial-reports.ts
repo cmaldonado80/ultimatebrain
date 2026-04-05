@@ -57,7 +57,7 @@ export async function generateFinancialReport(
     .where(eq(brainEntities.tier, 'mini_brain'))
 
   // 2. Get budgets
-  const budgets = await db.select().from(tokenBudgets)
+  const budgets = await db.select().from(tokenBudgets).limit(1000)
   const budgetMap = new Map(budgets.map((b) => [b.entityId, b]))
 
   // 3. Get monthly spending per department

@@ -11,7 +11,12 @@ export async function GET(req: Request) {
     const url = new URL(req.url)
     const chartId = url.searchParams.get('chartId')
     if (!chartId) return Response.json(null)
-    const result = await callBrainTRPC('astrology.getLastSeen', { chartId }, { method: 'query' })
+    const cookie = req.headers.get('cookie') ?? undefined
+    const result = await callBrainTRPC(
+      'astrology.getLastSeen',
+      { chartId },
+      { method: 'query', cookie },
+    )
     return Response.json(result)
   } catch (err) {
     logger.error({ err: err instanceof Error ? err : undefined }, 'get last seen failed')
@@ -21,8 +26,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const cookie = req.headers.get('cookie') ?? undefined
     const body = await req.json()
-    const result = await callBrainTRPC('astrology.updateLastSeen', body)
+    const result = await callBrainTRPC('astrology.updateLastSeen', body, { cookie })
     return Response.json(result)
   } catch (err) {
     logger.error({ err: err instanceof Error ? err : undefined }, 'update last seen failed')
