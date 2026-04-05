@@ -18,56 +18,145 @@ import { trpc } from '../../../utils/trpc'
 function DocumentUploadCard() {
   const [name, setName] = useState('')
   const [content, setContent] = useState('')
+  const [file, setFile] = useState<File | null>(null)
   const [status, setStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle')
   const [result, setResult] = useState<{ chunksStored: number; documentName: string } | null>(null)
+  const [dragOver, setDragOver] = useState(false)
 
   async function handleUpload() {
-    if (!name.trim() || !content.trim()) return
     setStatus('uploading')
     try {
-      const res = await fetch('/api/documents/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), content }),
-      })
+      let res: Response
+      if (file) {
+        // File upload via FormData
+        const formData = new FormData()
+        formData.append('file', file)
+        if (name.trim()) formData.append('name', name.trim())
+        res = await fetch('/api/documents/upload', { method: 'POST', body: formData })
+      } else if (name.trim() && content.trim()) {
+        // Text paste via JSON (backwards compatible)
+        res = await fetch('/api/documents/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name.trim(), content }),
+        })
+      } else {
+        return
+      }
       if (!res.ok) throw new Error(await res.text())
       const data = await res.json()
       setResult(data)
       setStatus('done')
       setName('')
       setContent('')
+      setFile(null)
     } catch {
       setStatus('error')
     }
   }
 
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragOver(false)
+    const dropped = e.dataTransfer.files[0]
+    if (dropped) {
+      setFile(dropped)
+      if (!name.trim()) setName(dropped.name.replace(/\.[^.]+$/, ''))
+    }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0]
+    if (selected) {
+      setFile(selected)
+      if (!name.trim()) setName(selected.name.replace(/\.[^.]+$/, ''))
+    }
+  }
+
+  const canUpload = status !== 'uploading' && (file || (name.trim() && content.trim()))
+
   return (
     <div className="cyber-card p-6 text-center border-dashed">
       <div className="text-slate-500 text-sm mb-2">Document Ingestion</div>
       <p className="text-xs text-slate-600 mb-3">
-        Upload text documents for your agents to learn from.
+        Upload files or paste text for your agents to learn from.
       </p>
       <div className="space-y-2 max-w-md mx-auto text-left">
+        {/* Drop zone */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOver(true)
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+            dragOver
+              ? 'border-neon-blue/50 bg-neon-blue/5'
+              : 'border-border-dim hover:border-border'
+          }`}
+          onClick={() => document.getElementById('doc-file-input')?.click()}
+        >
+          <input
+            id="doc-file-input"
+            type="file"
+            accept=".pdf,.txt,.md,.csv,.html,.json,.yaml,.yml,.xml,.log,.docx"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          {file ? (
+            <div className="text-xs">
+              <span className="text-neon-blue font-medium">{file.name}</span>
+              <span className="text-slate-600 ml-2">({(file.size / 1024).toFixed(1)} KB)</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setFile(null)
+                }}
+                className="ml-2 text-slate-500 hover:text-neon-red transition-colors"
+              >
+                remove
+              </button>
+            </div>
+          ) : (
+            <div className="text-[10px] text-slate-600">
+              Drop a file here or click to browse
+              <br />
+              <span className="text-slate-700">PDF, TXT, MD, CSV, HTML, JSON (max 10MB)</span>
+            </div>
+          )}
+        </div>
+
+        {/* Name override */}
         <input
           type="text"
-          placeholder="Document name"
+          placeholder="Document name (optional for files)"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="w-full px-3 py-1.5 bg-bg-deep border border-border-dim rounded text-xs text-slate-200 placeholder:text-slate-600"
         />
-        <textarea
-          placeholder="Paste document content here..."
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={4}
-          className="w-full px-3 py-1.5 bg-bg-deep border border-border-dim rounded text-xs text-slate-200 placeholder:text-slate-600 resize-y"
-        />
+
+        {/* Text paste fallback (collapsed when file is selected) */}
+        {!file && (
+          <textarea
+            placeholder="Or paste document content here..."
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-1.5 bg-bg-deep border border-border-dim rounded text-xs text-slate-200 placeholder:text-slate-600 resize-y"
+          />
+        )}
+
         <button
           onClick={handleUpload}
-          disabled={status === 'uploading' || !name.trim() || !content.trim()}
+          disabled={!canUpload}
           className="cyber-btn-primary cyber-btn-sm w-full"
         >
-          {status === 'uploading' ? 'Uploading...' : 'Upload Document'}
+          {status === 'uploading'
+            ? 'Processing...'
+            : file
+              ? `Upload ${file.name}`
+              : 'Upload Document'}
         </button>
         {status === 'done' && result && (
           <div className="text-xs text-neon-green">
