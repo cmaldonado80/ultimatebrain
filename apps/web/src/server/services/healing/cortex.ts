@@ -444,6 +444,21 @@ export class SelfHealingCortex {
             }
           }
 
+          // Code repair sweep — detect and create tickets for recurring code-level errors
+          try {
+            const { CodeRepairOrchestrator } = await import('./code-repair-orchestrator')
+            const repairer = new CodeRepairOrchestrator(this.db)
+            const candidates = await repairer.detectRepairCandidates()
+            if (candidates.length > 0) {
+              await repairer.runSweep()
+            }
+          } catch (err) {
+            logger.warn(
+              { err: err instanceof Error ? err : undefined },
+              'cortex: code repair sweep failed',
+            )
+          }
+
           return {
             recoveryExecutions: executions,
             tuningActions: tuning,

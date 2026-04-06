@@ -7,6 +7,11 @@ export {
   type DegradationEvent,
   type DegradationProfile,
 } from './agent-degradation'
+export {
+  CodeRepairOrchestrator,
+  type RepairCandidate,
+  type RepairResult,
+} from './code-repair-orchestrator'
 export { type CortexCycleResult, type CortexStatus, SelfHealingCortex } from './cortex'
 export {
   type DiagnosticReport,

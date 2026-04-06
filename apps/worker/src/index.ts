@@ -296,9 +296,26 @@ async function main() {
     }
   })
 
+  // Code repair sweep — detect recurring errors and create repair tickets
+  await boss.work('healing:code-repair', async () => {
+    console.warn('[Worker] Running code repair sweep')
+    try {
+      const { CodeRepairOrchestrator } =
+        await import('../../web/src/server/services/healing/code-repair-orchestrator')
+      const repairer = new CodeRepairOrchestrator(db)
+      const results = await repairer.runSweep()
+      const fixed = results.filter((r) => r.status === 'fixed').length
+      console.warn(`[Worker] Code repair: ${results.length} candidates, ${fixed} tickets created`)
+    } catch (err) {
+      console.error('[Worker] Code repair sweep failed:', err)
+      throw err
+    }
+  })
+
   // === Periodic schedules (idempotent — pg-boss deduplicates by schedule name) ===
   await boss.schedule('market:sweep', '*/5 * * * *', {}) // every 5 min
   await boss.schedule('healing:cycle', '*/10 * * * *', {}) // every 10 min
+  await boss.schedule('healing:code-repair', '*/30 * * * *', {}) // every 30 min
   await boss.schedule('instinct:pipeline', '0 2 * * *', {}) // daily at 02:00
   await boss.schedule('instinct:evolve', '0 3 * * 0', {}) // weekly on Sunday at 03:00
   await boss.schedule('a2a:expire', '0 */6 * * *', {}) // every 6 hours
