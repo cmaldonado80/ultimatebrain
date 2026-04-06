@@ -206,6 +206,13 @@ async function main() {
       })
 
       const evolver = new InstinctEvolver()
+      // Wire gateway so LLM-based evolution can generate skill content
+      try {
+        const { GatewayRouter } = await import('../../web/src/server/services/gateway')
+        evolver.setGateway(new GatewayRouter(db))
+      } catch {
+        // Proceed without gateway — evolver uses stub fallback
+      }
       const clusters = evolver.findRelatedClusters(
         allInstincts.map((i) => ({
           ...i,
@@ -222,7 +229,11 @@ async function main() {
       let evolved = 0
       for (const cluster of clusters) {
         const result = await evolver.evolveToSkill(cluster)
-        if (result) evolved++
+        if (result) {
+          evolved++
+          // Persist: mark source instincts as evolved in DB
+          evolver.markAsEvolved(cluster.instincts, result.artifactId)
+        }
       }
       console.warn(
         `[Worker] Instinct evolution done: ${clusters.length} clusters, ${evolved} evolved to skills`,
