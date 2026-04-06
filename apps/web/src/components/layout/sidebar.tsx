@@ -71,6 +71,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Trajectory', href: '/trajectory', icon: '⤳' },
       { label: 'Skills', href: '/skills', icon: '★' },
       { label: 'Flows', href: '/flows', icon: '⤳' },
+      { label: 'Workflow Builder', href: '/workflows/builder', icon: '◈' },
       { label: 'Playbooks', href: '/playbooks', icon: '▶' },
     ],
   },
@@ -78,6 +79,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
     title: 'Nerve Center',
     items: [
       { label: 'System Pulse', href: '/nerve-center', icon: '◎' },
+      { label: 'Learning Organism', href: '/learning-organism', icon: '🧬' },
       { label: 'Tool Catalog', href: '/nerve-center/tools', icon: '⚙' },
       { label: 'Agent Forensics', href: '/nerve-center/agent', icon: '⬡' },
     ],

@@ -15,9 +15,9 @@ This is NOT a simple CRUD app. It's a full operating system for autonomous AI ag
 | Database        | PostgreSQL via Neon (Drizzle ORM)                        |
 | Hosting         | Vercel                                                   |
 | Package Manager | pnpm 10.29 (monorepo with Turborepo)                     |
-| Testing         | Vitest (995+ tests)                                      |
+| Testing         | Vitest (982+ tests)                                      |
 | Styling         | Tailwind CSS v4 (dark theme, neon color palette)         |
-| API             | tRPC (50 routers)                                        |
+| API             | tRPC (51 routers) + 39 REST/SSE routes                   |
 | LLM Gateway     | Multi-provider (Anthropic, OpenAI, Google, Ollama cloud) |
 
 ## Monorepo Structure
@@ -103,21 +103,22 @@ DEFAULT_MODEL=qwen3-coder-next:cloud
 
 Located in `apps/web/src/server/services/`:
 
-| Service                 | Purpose                                                                                                                        |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **healing/**            | Self-Healing Cortex — OODA loop, predictive engine, recovery state machine, adaptive tuning, agent degradation                 |
-| **sandbox/**            | Sandbox execution — per-agent isolation, policy enforcement, resource limits, audit bridge                                     |
-| **orchestration/**      | Work coordination — DAG engine, agent lifecycle, initiative engine, knowledge mesh, goal cascade, work market, codebase mapper |
-| **intelligence/**       | AI reasoning — cognition, truth injection, snapshot builders                                                                   |
-| **gateway/**            | LLM routing — multi-provider, circuit breaker, rate limiter, cost tracking, key vault                                          |
-| **chat/**               | Chat interface — tool executor (71 tools), tool envelopes, tiers, dry-run, disclosure, discovery                               |
-| **memory/**             | Knowledge persistence — tiered memory, vector search, proof-weighted recall                                                    |
-| **instincts/**          | Pattern learning — observation → detection → confidence scoring → promotion → injection                                        |
-| **evolution/**          | Agent evolution — soul mutation, gating, rollback                                                                              |
-| **mini-brain-factory/** | Department creation — 7 templates (engineering, design, security, etc.) with pre-configured agents                             |
-| **platform/**           | Infrastructure — notifications, heartbeat, deployment, financial reports, permissions                                          |
-| **agents/**             | Agent management — YAML soul loading, journey engine                                                                           |
-| **a2a/**                | Agent-to-agent delegation protocol                                                                                             |
+| Service                 | Purpose                                                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **healing/**            | Self-Healing Cortex — OODA loop, predictive engine, recovery state machine, adaptive tuning, agent degradation, code repair orchestrator, degradation broadcaster                    |
+| **sandbox/**            | Sandbox execution — per-agent isolation, policy enforcement, resource limits, audit bridge                                                                                           |
+| **orchestration/**      | Work coordination — DAG engine, agent lifecycle, initiative engine, knowledge mesh (DB-backed), goal cascade, work market (DB-backed), codebase mapper, emergent roles, swarm engine |
+| **intelligence/**       | AI reasoning — cognition, truth injection, snapshot builders, evidence memory pipeline, context effectiveness tracking                                                               |
+| **gateway/**            | LLM routing — multi-provider, circuit breaker, rate limiter, cost tracking, key vault, semantic cache                                                                                |
+| **chat/**               | Chat interface — tool executor (71 tools), tool envelopes, tiers, dry-run, disclosure, discovery, loop detection                                                                     |
+| **memory/**             | Knowledge persistence — tiered memory, vector search, proof-weighted recall, context feedback, recall flow                                                                           |
+| **instincts/**          | Pattern learning — observation → detection → confidence scoring → promotion → injection → outcome scoring → evolution                                                                |
+| **evolution/**          | Agent evolution — soul mutation, gating, rollback, post-evolution validation                                                                                                         |
+| **task-runner/**        | Autonomous execution — ModeRouter with agentic tool loop, deep work with checkpoints, guardrail gates                                                                                |
+| **mini-brain-factory/** | Department creation — 7 templates (engineering, design, security, etc.) with pre-configured agents                                                                                   |
+| **platform/**           | Infrastructure — notifications, heartbeat, deployment, financial reports, permissions, tracer                                                                                        |
+| **agents/**             | Agent management — YAML soul loading, journey engine                                                                                                                                 |
+| **a2a/**                | Agent-to-agent federation — delegation protocol with DB persistence, 11 Brain API endpoints for Mini Brains                                                                          |
 
 ## Key Architecture Patterns
 
@@ -127,7 +128,7 @@ Agents receive canonical runtime truth BEFORE responding. Located in `intelligen
 
 ### Self-Healing Cortex
 
-OODA loop (Observe → Orient → Decide → Act → Learn) runs on cron every 5 minutes. Subsystems: predictive engine (percentile anomaly detection), recovery state machine (multi-path with rollback), adaptive resource tuner, instinct action executor, agent capability degradation (full → reduced → minimal → suspended).
+OODA loop (Observe → Orient → Decide → Act → Learn) runs every 10 minutes via worker. Subsystems: predictive engine (percentile anomaly detection), recovery state machine (multi-path with rollback), adaptive resource tuner, instinct action executor, agent capability degradation (full → reduced → minimal → suspended), code repair orchestrator (detects recurring errors → creates repair tickets → agents fix bugs autonomously). 10 closed feedback loops connect instincts, memory, evolution, market reputation, context effectiveness, tool analytics, and degradation signals into a unified learning organism.
 
 ### Sandbox Execution
 
