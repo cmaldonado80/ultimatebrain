@@ -216,6 +216,33 @@ export class TicketExecutionEngine {
     const ticket = await this.db.query.tickets.findFirst({ where: eq(tickets.id, ticketId) })
     if (!ticket) return null
 
+    // Goal-aware priority boosting: boost tickets aligned with at-risk goals
+    try {
+      const { GoalCascadeEngine } = await import('./goal-cascade')
+      const cascade = new GoalCascadeEngine()
+      const atRiskGoals = cascade.getAtRiskGoals()
+      if (atRiskGoals.length > 0 && ticket.priority !== 'critical') {
+        const meta = ticket.metadata as Record<string, unknown> | null
+        const goalAlignment = meta?.goalAlignment as { okrId?: string } | undefined
+        if (goalAlignment?.okrId) {
+          const boosted =
+            ticket.priority === 'medium'
+              ? 'high'
+              : ticket.priority === 'high'
+                ? 'critical'
+                : ticket.priority
+          if (boosted !== ticket.priority) {
+            await this.db
+              .update(tickets)
+              .set({ priority: boosted as typeof ticket.priority })
+              .where(eq(tickets.id, ticketId))
+          }
+        }
+      }
+    } catch {
+      // goal cascade failure shouldn't block assignment
+    }
+
     const wsId = workspaceId ?? ticket.workspaceId
     const conditions = [eq(agents.status, 'idle')]
     if (wsId) conditions.push(eq(agents.workspaceId, wsId))

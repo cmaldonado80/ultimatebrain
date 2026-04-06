@@ -5,8 +5,10 @@
  * cron scheduling, multi-agent swarm management, and execution receipt generation.
  */
 import type { Database } from '@solarc/db'
+import { instinctObservations } from '@solarc/db'
 import { z } from 'zod'
 
+import { logger } from '../../lib/logger'
 import {
   CronEngine,
   ReceiptManager,
@@ -231,7 +233,34 @@ export const orchestrationRouter = router({
   completeSwarm: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      return getSwarmEngine(ctx.db).complete(input.id)
+      const engine = getSwarmEngine(ctx.db)
+      await engine.complete(input.id)
+
+      // Learn from swarm outcomes — record team composition + task for future formation
+      try {
+        const swarm = await engine.get(input.id)
+        if (swarm) {
+          const members = (swarm as { members?: Array<{ role: string }> }).members ?? []
+          const roleComposition = members.map((m) => m.role).join(', ')
+          await ctx.db
+            .insert(instinctObservations)
+            .values({
+              eventType: 'swarm_outcome',
+              payload: {
+                swarmId: input.id,
+                task: (swarm as { task?: string }).task,
+                memberCount: members.length,
+                roleComposition,
+              },
+            })
+            .catch(() => {})
+        }
+      } catch (err) {
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          'swarm: outcome learning failed',
+        )
+      }
     }),
 
   disbandSwarm: protectedProcedure
@@ -303,7 +332,43 @@ export const orchestrationRouter = router({
   completeReceipt: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      return getReceiptManager(ctx.db).complete(input.id)
+      const mgr = getReceiptManager(ctx.db)
+      await mgr.complete(input.id)
+
+      // Learn from receipt outcomes — extract tool patterns for instinct system
+      try {
+        const full = await mgr.getFull(input.id)
+        if (full) {
+          const actions = full.actions ?? []
+          const anomalies = full.anomalies ?? []
+          const toolSequence = actions.map((a: { type: string }) => a.type).join(' → ')
+          const successRate =
+            actions.length > 0
+              ? actions.filter((a) => a.status === 'completed').length / actions.length
+              : 1.0
+          await ctx.db
+            .insert(instinctObservations)
+            .values({
+              eventType: 'receipt_outcome',
+              payload: {
+                receiptId: input.id,
+                ticketId: full.receipt.ticketId,
+                agentId: full.receipt.agentId,
+                toolSequence,
+                actionCount: actions.length,
+                anomalyCount: anomalies.length,
+                successRate,
+                durationMs: full.receipt.durationMs,
+              },
+            })
+            .catch(() => {})
+        }
+      } catch (err) {
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          'receipt: outcome learning failed',
+        )
+      }
     }),
 
   failReceipt: protectedProcedure

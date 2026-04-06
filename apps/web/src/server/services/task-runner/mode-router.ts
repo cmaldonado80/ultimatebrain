@@ -91,6 +91,7 @@ const DEEP_WORK_CHECKIN_MS = 5 * 60 * 1000
 export class ModeRouter {
   private gateway: GatewayRouter
   private webhookService: WebhookService
+  private _roleCreator: import('../orchestration/emergent-roles').EmergentRoleCreator | null = null
 
   constructor(private db: Database) {
     this.gateway = new GatewayRouter(db)
@@ -533,6 +534,25 @@ export class ModeRouter {
             content: `Tool "${result.toolUse.name}" result:\n${toolResult}`,
           })
           stepsCompleted++
+
+          // Record tool usage pattern for emergent role detection
+          try {
+            const { EmergentRoleCreator } = await import('../orchestration/emergent-roles')
+            if (!this._roleCreator) this._roleCreator = new EmergentRoleCreator()
+            this._roleCreator.recordPattern({
+              agentId: ticket?.assignedAgentId ?? 'unknown',
+              agentName: 'autonomous',
+              tools: [result.toolUse.name],
+              taskKeywords: taskDescription
+                .slice(0, 200)
+                .split(/\s+/)
+                .filter((w: string) => w.length > 4)
+                .slice(0, 5),
+              timestamp: Date.now(),
+            })
+          } catch {
+            // best-effort
+          }
         } catch (toolErr) {
           messages.push({
             role: 'user',
