@@ -28,10 +28,10 @@ function getDb(): Database {
 
 export async function POST(req: Request) {
   try {
-    await authenticateEntity(req)
+    const entity = await authenticateEntity(req)
     await waitForSchema()
-
     const body = await req.json()
+
     const { input, agentId, rules } = body as {
       input: string
       agentId?: string
@@ -44,18 +44,19 @@ export async function POST(req: Request) {
 
     const db = getDb()
     const engine = new GuardrailEngine(db)
+
     const result = await engine.check(input, 'input', {
-      agentId,
+      agentId: agentId ?? entity.id,
       policies: rules,
     })
 
     return Response.json({
       allowed: result.passed,
-      violations: result.violations,
+      violations: result.violations ?? [],
     })
   } catch (err) {
     const internal = err instanceof Error ? err.message : 'Unknown error'
-    logger.warn({ err: err instanceof Error ? err : undefined }, 'Guardrail check failed')
+    logger.warn({ err: err instanceof Error ? err : undefined }, '[Brain] Guardrail check failed')
     const status =
       internal.includes('Invalid API key') || internal.includes('Unauthorized') ? 401 : 500
     return Response.json(

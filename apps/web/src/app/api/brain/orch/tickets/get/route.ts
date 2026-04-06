@@ -30,8 +30,8 @@ export async function POST(req: Request) {
   try {
     await authenticateEntity(req)
     await waitForSchema()
-
     const body = await req.json()
+
     const { id } = body as { id: string }
 
     if (!id) {
@@ -48,11 +48,11 @@ export async function POST(req: Request) {
     return Response.json(ticket)
   } catch (err) {
     const internal = err instanceof Error ? err.message : 'Unknown error'
-    logger.warn({ err: err instanceof Error ? err : undefined }, 'Ticket lookup failed')
+    logger.warn({ err: err instanceof Error ? err : undefined }, '[Brain] Ticket get failed')
     const status =
       internal.includes('Invalid API key') || internal.includes('Unauthorized') ? 401 : 500
     return Response.json(
-      { error: status === 401 ? 'Unauthorized' : 'Ticket lookup failed' },
+      { error: status === 401 ? 'Unauthorized' : 'Ticket query failed' },
       { status },
     )
   }

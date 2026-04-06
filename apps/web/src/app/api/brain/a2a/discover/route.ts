@@ -1,10 +1,10 @@
 /**
- * Brain REST API — A2A Discover
+ * Brain REST API — A2A Agent Discovery
  *
  * POST /api/brain/a2a/discover
  *
  * Called by Mini Brains via Brain SDK.
- * Queries agents table to discover available agents by capability/domain.
+ * Queries agents table filtered by skills/type/domain.
  */
 
 export const dynamic = 'force-dynamic'
@@ -30,41 +30,54 @@ export async function POST(req: Request) {
   try {
     await authenticateEntity(req)
     await waitForSchema()
-
     const body = await req.json()
+
     const { capability, domain } = body as {
       capability?: string
       domain?: string
     }
 
     const db = getDb()
-    let results = await db.query.agents.findMany({
-      where: ne(agents.status, 'offline'),
-    })
+
+    // Query all non-offline agents
+    let rows = await db
+      .select({
+        id: agents.id,
+        name: agents.name,
+        type: agents.type,
+        status: agents.status,
+        skills: agents.skills,
+        workspaceId: agents.workspaceId,
+        description: agents.description,
+      })
+      .from(agents)
+      .where(ne(agents.status, 'offline'))
 
     // Filter by capability (check skills array)
     if (capability) {
-      results = results.filter(
-        (a) => a.skills && Array.isArray(a.skills) && a.skills.includes(capability),
+      rows = rows.filter(
+        (r) => r.skills && Array.isArray(r.skills) && r.skills.includes(capability),
       )
     }
 
-    // Filter by domain (match type or workspaceId)
+    // Filter by domain (match against type or workspaceId)
     if (domain) {
-      results = results.filter((a) => a.type === domain || a.workspaceId === domain)
+      rows = rows.filter((r) => r.type === domain || r.workspaceId === domain)
     }
 
-    const agentInfos = results.map((a) => ({
-      id: a.id,
-      name: a.name,
-      capabilities: a.skills ?? [],
-      status: a.status,
-    }))
-
-    return Response.json(agentInfos)
+    return Response.json(
+      rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        capabilities: r.skills ?? [],
+        status: r.status,
+        type: r.type,
+        description: r.description,
+      })),
+    )
   } catch (err) {
     const internal = err instanceof Error ? err.message : 'Unknown error'
-    logger.warn({ err: err instanceof Error ? err : undefined }, 'A2A discover failed')
+    logger.warn({ err: err instanceof Error ? err : undefined }, '[Brain] A2A discover failed')
     const status =
       internal.includes('Invalid API key') || internal.includes('Unauthorized') ? 401 : 500
     return Response.json(

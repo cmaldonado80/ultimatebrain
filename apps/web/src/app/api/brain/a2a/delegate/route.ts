@@ -30,8 +30,8 @@ export async function POST(req: Request) {
   try {
     const entity = await authenticateEntity(req)
     await waitForSchema()
-
     const body = await req.json()
+
     const { agent_id, task, context } = body as {
       agent_id: string
       task: string
@@ -45,7 +45,8 @@ export async function POST(req: Request) {
 
     const db = getDb()
     const engine = new A2AEngine(db)
-    const taskId = await engine.delegate({
+
+    const delegationId = await engine.delegate({
       agentId: agent_id,
       task,
       context,
@@ -53,12 +54,12 @@ export async function POST(req: Request) {
     })
 
     return Response.json({
-      taskId,
+      taskId: delegationId,
       status: 'pending',
     })
   } catch (err) {
     const internal = err instanceof Error ? err.message : 'Unknown error'
-    logger.warn({ err: err instanceof Error ? err : undefined }, 'A2A delegate failed')
+    logger.warn({ err: err instanceof Error ? err : undefined }, '[Brain] A2A delegate failed')
     const status =
       internal.includes('Invalid API key') || internal.includes('Unauthorized') ? 401 : 500
     return Response.json(

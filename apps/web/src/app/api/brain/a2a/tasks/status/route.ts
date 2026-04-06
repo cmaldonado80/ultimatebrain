@@ -4,7 +4,7 @@
  * POST /api/brain/a2a/tasks/status
  *
  * Called by Mini Brains via Brain SDK.
- * Queries a2aDelegations table for delegation status.
+ * Queries a2aDelegations by task ID.
  */
 
 export const dynamic = 'force-dynamic'
@@ -30,8 +30,8 @@ export async function POST(req: Request) {
   try {
     await authenticateEntity(req)
     await waitForSchema()
-
     const body = await req.json()
+
     const { taskId } = body as { taskId: string }
 
     if (!taskId) {
@@ -57,11 +57,11 @@ export async function POST(req: Request) {
     })
   } catch (err) {
     const internal = err instanceof Error ? err.message : 'Unknown error'
-    logger.warn({ err: err instanceof Error ? err : undefined }, 'A2A task status check failed')
+    logger.warn({ err: err instanceof Error ? err : undefined }, '[Brain] A2A task status failed')
     const status =
       internal.includes('Invalid API key') || internal.includes('Unauthorized') ? 401 : 500
     return Response.json(
-      { error: status === 401 ? 'Unauthorized' : 'Task status check failed' },
+      { error: status === 401 ? 'Unauthorized' : 'Task status query failed' },
       { status },
     )
   }

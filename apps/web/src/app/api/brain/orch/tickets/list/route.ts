@@ -30,33 +30,29 @@ export async function POST(req: Request) {
   try {
     await authenticateEntity(req)
     await waitForSchema()
-
     const body = await req.json()
+
     const { agent, status } = body as {
       agent?: string
-      status?: string
+      status?: 'backlog' | 'queued' | 'in_progress' | 'review' | 'done' | 'failed' | 'cancelled'
     }
 
     const db = getDb()
+
     const conditions = []
+    if (agent) conditions.push(eq(tickets.assignedAgentId, agent))
+    if (status) conditions.push(eq(tickets.status, status))
 
-    if (agent) {
-      conditions.push(eq(tickets.assignedAgentId, agent))
-    }
-    if (status) {
-      conditions.push(eq(tickets.status, status as (typeof tickets.status.enumValues)[number]))
-    }
-
-    const results = await db
+    const rows = await db
       .select()
       .from(tickets)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .limit(100)
 
-    return Response.json(results)
+    return Response.json(rows)
   } catch (err) {
     const internal = err instanceof Error ? err.message : 'Unknown error'
-    logger.warn({ err: err instanceof Error ? err : undefined }, 'Ticket list failed')
+    logger.warn({ err: err instanceof Error ? err : undefined }, '[Brain] Ticket list failed')
     const status =
       internal.includes('Invalid API key') || internal.includes('Unauthorized') ? 401 : 500
     return Response.json(

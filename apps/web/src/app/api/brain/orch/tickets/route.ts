@@ -4,7 +4,7 @@
  * POST /api/brain/orch/tickets
  *
  * Called by Mini Brains via Brain SDK.
- * Inserts a new ticket into the tickets table.
+ * Creates a new ticket in the tickets table.
  */
 
 export const dynamic = 'force-dynamic'
@@ -29,8 +29,8 @@ export async function POST(req: Request) {
   try {
     await authenticateEntity(req)
     await waitForSchema()
-
     const body = await req.json()
+
     const { title, description, priority, agent } = body as {
       title: string
       description?: string
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       agent?: string
     }
 
-    if (!title || typeof title !== 'string') {
+    if (!title) {
       return Response.json({ error: 'Missing required field: title' }, { status: 400 })
     }
 
@@ -48,16 +48,20 @@ export async function POST(req: Request) {
       .values({
         title,
         description: description ?? null,
-        status: 'queued',
         priority: priority ?? 'medium',
+        status: 'queued',
         assignedAgentId: agent ?? null,
       })
       .returning({ id: tickets.id, title: tickets.title, status: tickets.status })
 
-    return Response.json(ticket)
+    return Response.json({
+      id: ticket.id,
+      title: ticket.title,
+      status: ticket.status,
+    })
   } catch (err) {
     const internal = err instanceof Error ? err.message : 'Unknown error'
-    logger.warn({ err: err instanceof Error ? err : undefined }, 'Ticket creation failed')
+    logger.warn({ err: err instanceof Error ? err : undefined }, '[Brain] Ticket creation failed')
     const status =
       internal.includes('Invalid API key') || internal.includes('Unauthorized') ? 401 : 500
     return Response.json(
