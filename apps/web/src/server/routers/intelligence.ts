@@ -8,6 +8,8 @@ import type { Database } from '@solarc/db'
 import {
   chatRuns,
   chatRunSteps,
+  instinctObservations,
+  instincts,
   playbooks,
   recommendationEvents,
   recommendationOutcomes,
@@ -15,7 +17,7 @@ import {
   runQuality,
   workflowInsights,
 } from '@solarc/db'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { logger } from '../../lib/logger'
@@ -1433,4 +1435,64 @@ export const intelligenceRouter = router({
         messagesCopied: messagesToCopy.length,
       }
     }),
+
+  /** Learning organism trends — 14-day observation history + feedback loop health */
+  learningTrends: protectedProcedure.query(async ({ ctx }) => {
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
+    // Get recent observations for trend sparklines
+    const recentObs = await ctx.db.query.instinctObservations.findMany({
+      where: gte(instinctObservations.createdAt, twoWeeksAgo),
+      orderBy: desc(instinctObservations.createdAt),
+      limit: 2000,
+    })
+
+    // Bucket into 14 daily slots per event type
+    const dayMs = 24 * 60 * 60 * 1000
+    const trends: Record<string, number[]> = {}
+    for (const obs of recentObs) {
+      const dayIndex = Math.min(13, Math.floor((Date.now() - obs.createdAt.getTime()) / dayMs))
+      const slot = 13 - dayIndex // 0 = oldest, 13 = today
+      if (!trends[obs.eventType]) trends[obs.eventType] = new Array(14).fill(0)
+      trends[obs.eventType]![slot]++
+    }
+
+    // Feedback loop health: active if observations in last 24h
+    const recentTypes = new Set(
+      recentObs.filter((o) => o.createdAt >= oneDayAgo).map((o) => o.eventType),
+    )
+    const LOOP_EVENT_TYPES: Record<string, string> = {
+      'Instinct Scoring': 'instinct_effectiveness',
+      'Work Market': 'receipt_outcome',
+      'Knowledge Mesh': 'swarm_outcome',
+      'Cortex Propagation': 'agent_degradation',
+      'Context Effectiveness': 'receipt_outcome',
+      'Tool Analytics': 'tool_failure_pattern',
+      'Instinct→Memory': 'self_improve',
+      'Evolution Validation': 'eval_regression',
+      'Eval→Evolution': 'eval_regression',
+      'A2A→Mesh': 'swarm_outcome',
+    }
+    const loopHealth: Record<string, boolean> = {}
+    for (const [name, eventType] of Object.entries(LOOP_EVENT_TYPES)) {
+      loopHealth[name] = recentTypes.has(eventType)
+    }
+
+    // Instinct stats
+    const promoted = await ctx.db.query.instincts.findMany({
+      where: eq(instincts.status, 'promoted'),
+      limit: 100,
+    })
+    const avgConfidence =
+      promoted.length > 0 ? promoted.reduce((sum, i) => sum + i.confidence, 0) / promoted.length : 0
+
+    return {
+      trends,
+      loopHealth,
+      totalObservations: recentObs.length,
+      instinctsLearned: promoted.length,
+      avgConfidence: Math.round(avgConfidence * 100) / 100,
+    }
+  }),
 })
