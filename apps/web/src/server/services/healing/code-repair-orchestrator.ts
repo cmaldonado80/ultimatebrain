@@ -263,7 +263,11 @@ export class CodeRepairOrchestrator {
         complexity: 'medium',
         executionMode: 'autonomous',
         ...(workspaceId ? { workspaceId } : {}),
-        metadata: { repairCandidate: candidate, tags: ['code_repair', 'auto-generated'] },
+        metadata: {
+          repairCandidate: candidate,
+          repairAgentSoul: REPAIR_AGENT_SOUL,
+          tags: ['code_repair', 'auto-generated'],
+        },
       })
       .returning({ id: tickets.id })
 
@@ -338,11 +342,11 @@ export class CodeRepairOrchestrator {
       try {
         const ticketId = await this.createRepairTicket(candidate, workspaceId)
         // Ticket is queued — the worker's ticket:execute handler will pick it up
-        // and route through ModeRouter.executeAutonomous() with code tools
+        // and route through ModeRouter.executeAutonomous() with real tool invocation
         const result: RepairResult = {
           ticketId,
-          status: 'fixed', // optimistic — actual status determined by execution
-          attempts: 0,
+          status: 'failed', // conservative — actual success determined by ticket completion
+          attempts: 1,
           durationMs: Date.now() - ticketStart,
         }
         results.push(result)

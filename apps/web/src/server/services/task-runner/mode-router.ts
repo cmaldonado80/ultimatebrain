@@ -319,13 +319,19 @@ export class ModeRouter {
   ): Promise<{ model?: string; soul?: string; temperature?: number; maxTokens?: number }> {
     try {
       const ticket = await this.db.query.tickets.findFirst({ where: eq(tickets.id, ticketId) })
-      if (!ticket?.assignedAgentId) return {}
+      // Check ticket metadata for embedded soul (used by code repair pipeline)
+      const meta = ticket?.metadata as Record<string, unknown> | null
+      const embeddedSoul = meta?.repairAgentSoul as string | undefined
+
+      if (!ticket?.assignedAgentId) {
+        return embeddedSoul ? { soul: embeddedSoul } : {}
+      }
       const agent = await this.db.query.agents.findFirst({
         where: eq(agents.id, ticket.assignedAgentId),
       })
       return {
         model: agent?.model ?? undefined,
-        soul: agent?.soul ?? undefined,
+        soul: agent?.soul ?? embeddedSoul ?? undefined,
         temperature: agent?.temperature ?? undefined,
         maxTokens: agent?.maxTokens ?? undefined,
       }
@@ -446,31 +452,74 @@ export class ModeRouter {
         )
       }
 
-      // Step 3: Execute via LLM with tools (+ skill context + peer context if available)
-      // Use the assigned agent's model and soul if available
+      // Step 3: Execute via LLM with agentic tool loop
       const agentConfig = await this.resolveAgentConfig(ticketId)
-      const executionResult = await this.gateway.chat({
-        model: agentConfig.model,
-        temperature: agentConfig.temperature,
-        maxTokens: agentConfig.maxTokens,
-        messages: [
-          {
-            role: 'system',
-            content:
-              agentConfig.soul ??
-              'You are an autonomous agent executing a task. ' +
-                'Describe the steps you would take and their outcomes.',
-          },
-          {
-            role: 'user',
-            content: `Execute this task: ${taskDescription}${skillContext}${peerContext}`,
-          },
-        ],
-      })
+      const { AGENT_TOOLS } = await import('../chat/tools')
+      const { executeTool } = await import('../chat/tool-executor')
 
-      // Count logical steps from the LLM response
-      const steps = executionResult.content.split('\n').filter((l) => /^\d+[\.\)]/.test(l.trim()))
-      return Math.max(steps.length, 1)
+      // Select tools appropriate for autonomous execution
+      const CODE_TOOLS = [
+        'file_system',
+        'git_operations',
+        'run_tests',
+        'code_review',
+        'self_improve',
+        'create_ticket',
+        'memory_store',
+        'memory_search',
+      ]
+      const availableTools = AGENT_TOOLS.filter((t) => CODE_TOOLS.includes(t.name))
+
+      const messages: Array<{ role: string; content: string }> = [
+        {
+          role: 'system',
+          content:
+            agentConfig.soul ??
+            'You are an autonomous agent executing a task. Use the provided tools to complete it.',
+        },
+        {
+          role: 'user',
+          content: `Execute this task: ${taskDescription}${skillContext}${peerContext}`,
+        },
+      ]
+
+      const MAX_TOOL_ROUNDS = 10
+      let stepsCompleted = 0
+
+      for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+        const result = await this.gateway.chat({
+          model: agentConfig.model,
+          temperature: agentConfig.temperature,
+          maxTokens: agentConfig.maxTokens,
+          messages,
+          tools: availableTools,
+        })
+
+        // If no tool use, agent is done
+        if (!result.toolUse) {
+          messages.push({ role: 'assistant', content: result.content })
+          stepsCompleted++
+          break
+        }
+
+        // Execute the tool call and feed result back
+        messages.push({ role: 'assistant', content: result.content })
+        try {
+          const toolResult = await executeTool(result.toolUse.name, result.toolUse.input, this.db)
+          messages.push({
+            role: 'user',
+            content: `Tool "${result.toolUse.name}" result:\n${toolResult}`,
+          })
+          stepsCompleted++
+        } catch (toolErr) {
+          messages.push({
+            role: 'user',
+            content: `Tool "${result.toolUse.name}" failed: ${toolErr instanceof Error ? toolErr.message : 'Unknown error'}`,
+          })
+        }
+      }
+
+      return Math.max(stepsCompleted, 1)
     } catch (err) {
       logger.error(
         { err: err instanceof Error ? err : undefined },
