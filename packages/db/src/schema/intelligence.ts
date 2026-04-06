@@ -496,3 +496,60 @@ export const soulFragments = pgTable(
     index('soul_fragments_global_idx').on(t.isGlobal),
   ],
 )
+
+/** Causal insights — tracks before/after impact of interventions */
+export const causalInsights = pgTable(
+  'causal_insights',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    interventionType: text('intervention_type').notNull(),
+    target: text('target').notNull(),
+    metric: text('metric').notNull(),
+    delta: real('delta').notNull(),
+    confidence: real('confidence').notNull(),
+    sampleSize: integer('sample_size').notNull(),
+    meanBefore: real('mean_before').notNull(),
+    meanAfter: real('mean_after').notNull(),
+    interventionDetail: text('intervention_detail'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [index('causal_insights_type_idx').on(t.interventionType)],
+)
+
+/** Pathway effectiveness — meta-learning: which learning paths yield best results */
+export const pathwayEffectiveness = pgTable(
+  'pathway_effectiveness',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventType: text('event_type').notNull(),
+    volume: integer('volume').notNull(),
+    promotedCount: integer('promoted_count').notNull(),
+    yieldRate: real('yield_rate').notNull(),
+    durabilityRate: real('durability_rate'),
+    effectivenessScore: real('effectiveness_score').notNull(),
+    adjustedThreshold: real('adjusted_threshold'),
+    metaInsight: text('meta_insight'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [index('pathway_effectiveness_event_type_idx').on(t.eventType)],
+)
+
+/** Decision records — institutional memory for high-impact decisions */
+export const decisionRecords = pgTable(
+  'decision_records',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    type: text('type').notNull(),
+    description: text('description').notNull(),
+    assumptions: jsonb('assumptions').default({}),
+    stakeholders: jsonb('stakeholders').default([]),
+    expectedOutcome: text('expected_outcome'),
+    actualOutcome: text('actual_outcome'),
+    status: text('status').default('pending').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('decision_records_type_idx').on(t.type),
+    index('decision_records_status_idx').on(t.status),
+  ],
+)

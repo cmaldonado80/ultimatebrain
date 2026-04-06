@@ -511,6 +511,37 @@ export const toolExecutionStats = pgTable(
   (t) => [index('tool_execution_stats_tool_idx').on(t.toolName, t.workspaceId)],
 )
 
-// NOTE: Debate tables (debateSessions, debateNodes, debateEdges, debateElo)
+/** Collective debates — collective decision-making through multi-agent deliberation */
+export const collectiveDebates = pgTable(
+  'collective_debates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    topic: text('topic').notNull(),
+    context: text('context'),
+    positions: jsonb('positions').default([]),
+    outcome: text('outcome'),
+    reasoning: text('reasoning'),
+    participantCount: integer('participant_count').default(0),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [index('collective_debates_created_idx').on(t.createdAt)],
+)
+
+/** Restructuring proposals — org optimizer suggestions */
+export const restructuringProposals = pgTable(
+  'restructuring_proposals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    type: text('type').notNull(), // 'split_workload' | 'create_specialist' | 'consolidate' | 'hire_skill'
+    description: text('description').notNull(),
+    metrics: jsonb('metrics'),
+    status: text('status').default('proposed').notNull(), // 'proposed' | 'approved' | 'rejected' | 'implemented'
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [index('restructuring_proposals_status_idx').on(t.status)],
+)
+
+// NOTE: Structured debate tables (debateSessions, debateNodes, debateEdges, debateElo)
 // and token tables (tokenLedger, tokenBudgets) are defined in platform.ts
 // with proper FK constraints to agents and brainEntities.
+// The collectiveDebates table above is for the Collective Decision Engine (T3).

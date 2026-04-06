@@ -603,4 +603,44 @@ export const orchestrationRouter = router({
     const engine = new AutoReviewEngine(ctx.db)
     return engine.runReview(process.cwd())
   }),
+
+  // ── Collective Decision Engine (T3) ─────────────────────────────────
+
+  /** Trigger a multi-agent debate on a topic */
+  triggerDebate: protectedProcedure
+    .input(
+      z.object({
+        topic: z.string(),
+        context: z.string(),
+        agentIds: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { DebateEngine } = await import('../services/orchestration/debate-engine')
+      const engine = new DebateEngine(ctx.db)
+      const id = await engine.triggerDebate(input.topic, input.context, input.agentIds)
+      return { debateId: id }
+    }),
+
+  /** Get recent debate history */
+  debateHistory: protectedProcedure.query(async ({ ctx }) => {
+    const { DebateEngine } = await import('../services/orchestration/debate-engine')
+    return new DebateEngine(ctx.db).getDebateHistory()
+  }),
+
+  // ── Org Optimizer (T4) ──────────────────────────────────────────────
+
+  /** Analyze workforce bottlenecks */
+  orgAnalysis: protectedProcedure.query(async ({ ctx }) => {
+    const { OrgOptimizer } = await import('../services/orchestration/org-optimizer')
+    return new OrgOptimizer(ctx.db).analyzeBottlenecks()
+  }),
+
+  /** Get restructuring proposals */
+  restructuringProposals: protectedProcedure
+    .input(z.object({ status: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const { OrgOptimizer } = await import('../services/orchestration/org-optimizer')
+      return new OrgOptimizer(ctx.db).getProposals(input?.status)
+    }),
 })

@@ -541,4 +541,16 @@ export const platformRouter = router({
       const { generateFinancialReport } = await import('../services/platform/financial-reports')
       return generateFinancialReport(ctx.db, input?.days ?? 30)
     }),
+
+  /** Agent ROI rankings */
+  agentROI: protectedProcedure.query(async ({ ctx }) => {
+    const { FinancialGovernor } = await import('../services/platform/financial-governor')
+    return new FinancialGovernor(ctx.db).computeAgentROI()
+  }),
+
+  /** Efficiency report with recommendations */
+  efficiencyReport: protectedProcedure.query(async ({ ctx }) => {
+    const { FinancialGovernor } = await import('../services/platform/financial-governor')
+    return new FinancialGovernor(ctx.db).generateEfficiencyReport()
+  }),
 })

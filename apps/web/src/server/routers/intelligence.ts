@@ -1495,4 +1495,32 @@ export const intelligenceRouter = router({
       avgConfidence: Math.round(avgConfidence * 100) / 100,
     }
   }),
+
+  // === Causal Decision Engine ===
+
+  causalInsights: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(50).default(20) }).optional())
+    .query(async ({ ctx, input }) => {
+      const { CausalAnalyzer } = await import('../services/intelligence/causal-analyzer')
+      const analyzer = new CausalAnalyzer(ctx.db)
+      return analyzer.getTopInsights({ limit: input?.limit })
+    }),
+
+  // === Meta-Learning Governor ===
+
+  metaLearningReport: protectedProcedure.query(async ({ ctx }) => {
+    const { MetaLearningGovernor } = await import('../services/intelligence/meta-learning')
+    const governor = new MetaLearningGovernor(ctx.db)
+    return governor.getLatestReport()
+  }),
+
+  decisions: protectedProcedure.query(async ({ ctx }) => {
+    const { DecisionArchive } = await import('../services/intelligence/decision-archive')
+    return new DecisionArchive(ctx.db).getDecisions()
+  }),
+
+  playbooks: protectedProcedure.query(async ({ ctx }) => {
+    const { DecisionArchive } = await import('../services/intelligence/decision-archive')
+    return new DecisionArchive(ctx.db).generatePlaybooks()
+  }),
 })

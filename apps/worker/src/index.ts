@@ -308,6 +308,36 @@ async function main() {
     }
   })
 
+  // Causal analysis — weekly sweep for intervention impact
+  await boss.work('intelligence:causal-analysis', async () => {
+    console.warn('[Worker] Running causal analysis sweep')
+    try {
+      const { CausalAnalyzer } =
+        await import('../../web/src/server/services/intelligence/causal-analyzer')
+      const analyzer = new CausalAnalyzer(db)
+      const insights = await analyzer.runCausalSweep(30)
+      console.warn(`[Worker] Causal analysis: ${insights.length} significant insights found`)
+    } catch (err) {
+      console.error('[Worker] Causal analysis failed:', err)
+      throw err
+    }
+  })
+
+  // Meta-learning — weekly pathway effectiveness analysis
+  await boss.work('intelligence:meta-learning', async () => {
+    console.warn('[Worker] Running meta-learning analysis')
+    try {
+      const { MetaLearningGovernor } =
+        await import('../../web/src/server/services/intelligence/meta-learning')
+      const governor = new MetaLearningGovernor(db)
+      const report = await governor.runMetaAnalysis(90)
+      console.warn(`[Worker] Meta-learning: ${report.length} pathways analyzed`)
+    } catch (err) {
+      console.error('[Worker] Meta-learning analysis failed:', err)
+      throw err
+    }
+  })
+
   // Code repair sweep — detect recurring errors and create repair tickets
   await boss.work('healing:code-repair', async () => {
     console.warn('[Worker] Running code repair sweep')
@@ -324,6 +354,37 @@ async function main() {
     }
   })
 
+  // Org optimizer — monthly workforce analysis and restructuring proposals
+  await boss.work('org:optimize', async () => {
+    console.warn('[Worker] Running org optimizer')
+    try {
+      const { OrgOptimizer } =
+        await import('../../web/src/server/services/orchestration/org-optimizer')
+      const optimizer = new OrgOptimizer(db)
+      const proposals = await optimizer.generateProposals()
+      console.warn(`[Worker] Org optimizer: ${proposals.length} proposals generated`)
+    } catch (err) {
+      console.error('[Worker] Org optimizer failed:', err)
+      throw err
+    }
+  })
+
+  // Stress testing — weekly chaos engineering scenario
+  await boss.work('healing:stress-test', async () => {
+    console.warn('[Worker] Running stress test scenario')
+    try {
+      const { StressEngine } = await import('../../web/src/server/services/healing/stress-engine')
+      const engine = new StressEngine(db)
+      const result = await engine.runRandomScenario()
+      console.warn(
+        `[Worker] Stress test: ${result.scenario} on ${result.target} — recovered: ${result.recovered}`,
+      )
+    } catch (err) {
+      console.error('[Worker] Stress test failed:', err)
+      throw err
+    }
+  })
+
   // === Periodic schedules (idempotent — pg-boss deduplicates by schedule name) ===
   await boss.schedule('market:sweep', '*/5 * * * *', {}) // every 5 min
   await boss.schedule('healing:cycle', '*/10 * * * *', {}) // every 10 min
@@ -333,6 +394,10 @@ async function main() {
   await boss.schedule('a2a:expire', '0 */6 * * *', {}) // every 6 hours
   await boss.schedule('tools:flush', '*/10 * * * *', {}) // every 10 min
   await boss.schedule('evolution:validate', '0 4 * * *', {}) // daily at 04:00
+  await boss.schedule('org:optimize', '0 2 1 * *', {}) // 1st of month at 02:00
+  await boss.schedule('intelligence:causal-analysis', '0 3 * * 0', {}) // Sunday 03:00
+  await boss.schedule('intelligence:meta-learning', '0 4 * * 0', {}) // Sunday 04:00
+  await boss.schedule('healing:stress-test', '0 23 * * 0') // Sunday 23:00
 
   // === Dead-letter queue handler — receives jobs that failed all retries ===
   await boss.work(DEAD_LETTER_QUEUE, async ([job]) => {
