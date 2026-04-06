@@ -169,6 +169,7 @@ export async function smartMemoryAdd(
     workspaceId?: string
     sourceAgentId?: string
     model?: string
+    userId?: string
   },
 ): Promise<SmartAddResult> {
   const memoryService = new MemoryService(db)
@@ -276,6 +277,7 @@ export async function smartMemoryAdd(
             tier: 'recall',
             workspaceId: opts?.workspaceId,
             sourceAgentId: opts?.sourceAgentId,
+            userId: opts?.userId,
           })
           added++
           break

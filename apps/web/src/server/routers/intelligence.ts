@@ -1523,4 +1523,9 @@ export const intelligenceRouter = router({
     const { DecisionArchive } = await import('../services/intelligence/decision-archive')
     return new DecisionArchive(ctx.db).generatePlaybooks()
   }),
+
+  dailyBriefing: protectedProcedure.query(async ({ ctx }) => {
+    const { generateDailyBriefing } = await import('../services/intelligence/daily-briefing')
+    return generateDailyBriefing(ctx.db)
+  }),
 })

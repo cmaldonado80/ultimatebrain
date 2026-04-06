@@ -24,6 +24,7 @@ export interface StoreMemoryInput {
   workspaceId?: string
   sourceAgentId?: string
   confidence?: number
+  userId?: string
 }
 
 export interface SearchResult {
@@ -69,6 +70,7 @@ export class MemoryService {
         workspaceId: input.workspaceId,
         source: input.sourceAgentId,
         confidence: input.confidence,
+        userId: input.userId,
       })
       .returning()
 

@@ -182,6 +182,14 @@ export const integrationsRouter = router({
           updatedAt: new Date(),
         })
         .where(eq(artifacts.id, input.id))
+
+      // Verify artifact integrity
+      const { verifyAndEscalate } = await import('../services/orchestration/artifact-verifier')
+      const updated = await ctx.db.query.artifacts.findFirst({ where: eq(artifacts.id, input.id) })
+      if (updated?.content) {
+        await verifyAndEscalate(ctx.db, input.id, updated.name, updated.content)
+      }
+
       return { updated: true }
     }),
 

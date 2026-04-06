@@ -1503,4 +1503,29 @@ export const AGENT_TOOLS = [
       required: ['researchContent', 'researchType'],
     },
   },
+  {
+    name: 'query_system',
+    description:
+      "Query internal corporation systems for organizational data. Returns real-time metrics, health status, and analytics from the Brain's internal services.",
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The system to query',
+          enum: [
+            'cortexStatus',
+            'marketStats',
+            'degradationProfiles',
+            'causalInsights',
+            'efficiencyReport',
+            'learningTrends',
+            'orgAnalysis',
+            'recentDecisions',
+          ],
+        },
+      },
+      required: ['query'],
+    },
+  },
 ]

@@ -369,6 +369,20 @@ async function main() {
     }
   })
 
+  // Daily briefing — generate organizational summary
+  await boss.work('intelligence:daily-briefing', async () => {
+    console.warn('[Worker] Generating daily briefing')
+    try {
+      const { generateDailyBriefing } =
+        await import('../../web/src/server/services/intelligence/daily-briefing')
+      const briefing = await generateDailyBriefing(db)
+      console.warn(`[Worker] Daily briefing: ${briefing.split('\n').length} lines`)
+    } catch (err) {
+      console.error('[Worker] Daily briefing failed:', err)
+      throw err
+    }
+  })
+
   // Stress testing — weekly chaos engineering scenario
   await boss.work('healing:stress-test', async () => {
     console.warn('[Worker] Running stress test scenario')
@@ -398,6 +412,7 @@ async function main() {
   await boss.schedule('intelligence:causal-analysis', '0 3 * * 0', {}) // Sunday 03:00
   await boss.schedule('intelligence:meta-learning', '0 4 * * 0', {}) // Sunday 04:00
   await boss.schedule('healing:stress-test', '0 23 * * 0') // Sunday 23:00
+  await boss.schedule('intelligence:daily-briefing', '0 8 * * *') // daily 08:00
 
   // === Dead-letter queue handler — receives jobs that failed all retries ===
   await boss.work(DEAD_LETTER_QUEUE, async ([job]) => {

@@ -122,6 +122,7 @@ export const memories = pgTable(
     key: text('key').notNull(),
     content: text('content').notNull(),
     source: uuid('source').references(() => agents.id, { onDelete: 'set null' }),
+    userId: uuid('user_id'), // references users table but no FK to keep simple
     confidence: real('confidence').default(0.5).notNull(),
     workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
     tier: memoryTierEnum('tier').default('recall').notNull(),
@@ -144,6 +145,7 @@ export const memories = pgTable(
     index('memories_workspace_id_idx').on(table.workspaceId),
     index('memories_fact_type_idx').on(table.factType),
     index('memories_proof_count_idx').on(table.proofCount),
+    index('memories_user_id_idx').on(table.userId),
   ],
 )
 

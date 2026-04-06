@@ -1193,7 +1193,6 @@ async function executeToolInner(
             const containers = (await res.json()) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
             return JSON.stringify(
               containers.map((c: any) => ({
-                // eslint-disable-line @typescript-eslint/no-explicit-any
                 id: c.Id?.slice(0, 12),
                 names: c.Names,
                 state: c.State,
@@ -3537,6 +3536,65 @@ Return ONLY valid JSON: {"actions": [{"title": "...", "description": "...", "pri
             unusedToolNames: unused.slice(0, 20),
           },
         })
+      }
+
+      case 'query_system': {
+        const query = toolInput.query as string
+        if (!db) return JSON.stringify({ error: 'No database connection' })
+
+        try {
+          switch (query) {
+            case 'cortexStatus': {
+              const { getOrCreateCortex } = await import('../healing')
+              const cortex = getOrCreateCortex(db)
+              return JSON.stringify(cortex.getStatus())
+            }
+            case 'marketStats': {
+              const { WorkMarket } = await import('../orchestration/work-market')
+              const market = new WorkMarket(db)
+              return JSON.stringify(await market.getStats())
+            }
+            case 'degradationProfiles': {
+              const { getOrCreateCortex } = await import('../healing')
+              const cortex = getOrCreateCortex(db)
+              return JSON.stringify(cortex.degradation.getAllProfiles())
+            }
+            case 'causalInsights': {
+              const { CausalAnalyzer } = await import('../intelligence/causal-analyzer')
+              return JSON.stringify(await new CausalAnalyzer(db).getTopInsights({ limit: 10 }))
+            }
+            case 'efficiencyReport': {
+              const { FinancialGovernor } = await import('../platform/financial-governor')
+              return JSON.stringify(await new FinancialGovernor(db).generateEfficiencyReport())
+            }
+            case 'learningTrends': {
+              const obs = await db.query.instinctObservations.findMany({
+                orderBy: (t, { desc }) => [desc(t.createdAt)],
+                limit: 100,
+              })
+              const byType: Record<string, number> = {}
+              for (const o of obs) {
+                byType[o.eventType] = (byType[o.eventType] ?? 0) + 1
+              }
+              return JSON.stringify({ totalObservations: obs.length, byEventType: byType })
+            }
+            case 'orgAnalysis': {
+              const { OrgOptimizer } = await import('../orchestration/org-optimizer')
+              return JSON.stringify(await new OrgOptimizer(db).analyzeBottlenecks())
+            }
+            case 'recentDecisions': {
+              const { DecisionArchive } = await import('../intelligence/decision-archive')
+              return JSON.stringify(await new DecisionArchive(db).getDecisions(10))
+            }
+            default:
+              return JSON.stringify({ error: `Unknown query: ${query}` })
+          }
+        } catch (err) {
+          return JSON.stringify({
+            error: 'Query failed',
+            message: err instanceof Error ? err.message : 'Unknown',
+          })
+        }
       }
 
       case 'auto_evolve_all': {
