@@ -24,6 +24,7 @@ import { and, desc, eq, gte, sql } from 'drizzle-orm'
 
 import { logger } from '../../../lib/logger'
 import { EvidenceMemoryPipeline } from '../intelligence/evidence-memory'
+import { CodebaseMapper } from '../orchestration/codebase-mapper'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -223,6 +224,27 @@ export class CodeRepairOrchestrator {
    * Create a repair ticket with rich context for the repair agent.
    */
   async createRepairTicket(candidate: RepairCandidate, workspaceId?: string): Promise<string> {
+    // Enrich with codebase subsystem context if affected files are known
+    let subsystemContext = ''
+    if (candidate.affectedFiles.length > 0) {
+      try {
+        const mapper = new CodebaseMapper()
+        const codebaseMap = mapper.scan(process.cwd())
+        const matchedSubsystems = codebaseMap.subsystems.filter((s) =>
+          candidate.affectedFiles.some((f) => s.files.some((sf) => sf.path.includes(f))),
+        )
+        if (matchedSubsystems.length > 0) {
+          subsystemContext =
+            '\n\n## Codebase Context\n' +
+            matchedSubsystems
+              .map((s) => `- **${s.name}** (${s.department}): ${s.description}`)
+              .join('\n')
+        }
+      } catch {
+        // best-effort — mapper failure shouldn't block repair
+      }
+    }
+
     const description = [
       `## Error Pattern`,
       `\`\`\``,
@@ -240,6 +262,7 @@ export class CodeRepairOrchestrator {
       candidate.stackTrace
         ? `## Stack Trace\n\`\`\`\n${candidate.stackTrace.slice(0, 2000)}\n\`\`\``
         : '',
+      subsystemContext,
       '',
       `## Repair Agent Instructions`,
       REPAIR_AGENT_SOUL,

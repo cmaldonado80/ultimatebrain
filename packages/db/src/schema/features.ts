@@ -202,6 +202,7 @@ export const instincts = pgTable('instincts', {
   status: text('status').default('observed').notNull(), // 'observed' | 'candidate' | 'promoted' | 'deprecated' | 'disabled'
   entityId: uuid('entity_id'),
   evidenceCount: integer('evidence_count').default(1),
+  evolvedInto: text('evolved_into'),
   lastObservedAt: timestamp('last_observed_at').defaultNow(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

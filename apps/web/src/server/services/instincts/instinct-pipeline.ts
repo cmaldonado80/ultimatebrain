@@ -74,6 +74,7 @@ export async function runInstinctPipeline(db: Database): Promise<{
           entityId: existing.entityId ?? '',
           evidenceCount: existing.evidenceCount ?? 1,
           lastObservedAt: existing.lastObservedAt ?? new Date(),
+          evolvedInto: existing.evolvedInto ?? undefined,
           createdAt: existing.createdAt,
           updatedAt: existing.updatedAt,
         }
@@ -116,6 +117,7 @@ export async function runInstinctPipeline(db: Database): Promise<{
       entityId: inst.entityId ?? '',
       evidenceCount: inst.evidenceCount ?? 1,
       lastObservedAt: inst.lastObservedAt ?? new Date(),
+      evolvedInto: inst.evolvedInto ?? undefined,
       createdAt: inst.createdAt,
       updatedAt: inst.updatedAt,
     }
@@ -181,6 +183,7 @@ export async function runInstinctPipeline(db: Database): Promise<{
       entityId: inst.entityId ?? '',
       evidenceCount: inst.evidenceCount ?? 1,
       lastObservedAt: inst.lastObservedAt ?? now,
+      evolvedInto: inst.evolvedInto ?? undefined,
       createdAt: inst.createdAt,
       updatedAt: inst.updatedAt,
     }

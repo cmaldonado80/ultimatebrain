@@ -213,6 +213,7 @@ async function main() {
           entityId: i.entityId ?? '',
           evidenceCount: i.evidenceCount ?? 1,
           lastObservedAt: i.lastObservedAt ?? new Date(),
+          evolvedInto: i.evolvedInto ?? undefined,
           createdAt: i.createdAt,
           updatedAt: i.updatedAt,
         })),

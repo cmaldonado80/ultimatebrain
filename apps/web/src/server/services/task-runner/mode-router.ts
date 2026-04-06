@@ -19,6 +19,7 @@ import { eq } from 'drizzle-orm'
 
 import { logger } from '../../../lib/logger'
 import { assertNever } from '../../utils/exhaustive'
+import { CheckpointManager } from '../checkpointing/checkpoint-manager'
 import { GatewayRouter } from '../gateway'
 import { WebhookService } from '../integrations'
 
@@ -66,6 +67,7 @@ export interface DeepWorkResult {
   plan?: ExecutionPlan
   completedSteps?: number
   totalSteps?: number
+  checkpointId?: string | null
   latencyMs: number
 }
 
@@ -246,6 +248,7 @@ export class ModeRouter {
     options: ModeRouterOptions = {},
   ): Promise<DeepWorkResult> {
     const start = Date.now()
+    const checkpointMgr = new CheckpointManager(this.db)
 
     await this.db
       .update(tickets)
@@ -261,6 +264,22 @@ export class ModeRouter {
       // Execute step
       await this.executeStep(ticketId, step, options)
       completedSteps++
+
+      // Save checkpoint after each successful step
+      checkpointMgr
+        .save({
+          entityType: 'ticket',
+          entityId: ticketId,
+          stepIndex: completedSteps,
+          state: { plan: JSON.parse(JSON.stringify(plan)), completedSteps },
+          metadata: { trigger: 'dag_step' as const },
+        })
+        .catch((err) =>
+          logger.warn(
+            { err: err instanceof Error ? err : undefined },
+            'deep-work: checkpoint save failed',
+          ),
+        )
 
       // Check-in: every DEEP_WORK_CHECKIN_STEPS or DEEP_WORK_CHECKIN_MS
       const timeSinceCheckin = Date.now() - lastCheckinAt
@@ -278,6 +297,8 @@ export class ModeRouter {
       .set({ status: 'done' } as Record<string, unknown>)
       .where(eq(tickets.id, ticketId))
 
+    const latest = await checkpointMgr.getLatest('ticket', ticketId)
+
     return {
       mode: 'deep_work',
       ticketId,
@@ -285,6 +306,7 @@ export class ModeRouter {
       plan,
       completedSteps,
       totalSteps: plan.steps.length,
+      checkpointId: latest?.id ?? null,
       latencyMs: Date.now() - start,
     }
   }

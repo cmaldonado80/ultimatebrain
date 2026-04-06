@@ -57,6 +57,7 @@ export async function scoreInstinctOutcomes(
         entityId: row.entityId ?? '',
         evidenceCount: row.evidenceCount ?? 1,
         lastObservedAt: row.lastObservedAt ?? new Date(),
+        evolvedInto: row.evolvedInto ?? undefined,
       }
 
       if (qualityScore >= BOOST_THRESHOLD) {

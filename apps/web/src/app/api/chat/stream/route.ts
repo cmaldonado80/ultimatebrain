@@ -221,6 +221,7 @@ async function getInstinctInjection(
     entityId: i.entityId ?? '',
     evidenceCount: i.evidenceCount ?? 1,
     lastObservedAt: i.lastObservedAt ?? new Date(),
+    evolvedInto: i.evolvedInto ?? undefined,
     createdAt: i.createdAt,
     updatedAt: i.updatedAt,
   }))
@@ -1323,11 +1324,11 @@ export async function POST(req: Request) {
             const lastExtract = memoryDebounce.get(sessionKey)
             const now = Date.now()
             if (!lastExtract || now - lastExtract > 300_000) {
-              // 5 min debounce
+              // 5 min debounce — auto-extracts memories from recent conversation
               memoryDebounce.set(sessionKey, now)
               const autoMemoryMessages = history
                 .filter((m) => m.role === 'user' || m.role === 'assistant')
-                .slice(-10)
+                .slice(-20)
               smartMemoryAdd(db, gateway, autoMemoryMessages, {
                 workspaceId: primaryWorkspaceId ?? undefined,
                 sourceAgentId: agentConfigs[0]?.id || undefined,
