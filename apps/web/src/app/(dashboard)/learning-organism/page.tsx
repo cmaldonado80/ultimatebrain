@@ -30,6 +30,13 @@ export default function LearningOrganismPage() {
   const degradationQuery = trpc.healing.degradationProfiles.useQuery(undefined, {
     refetchInterval: NORMAL_REFRESH,
   })
+  const causalQuery = trpc.intelligence.causalInsights.useQuery(
+    { limit: 5 },
+    { refetchInterval: SLOW_REFRESH },
+  )
+  const metaQuery = trpc.intelligence.metaLearningReport.useQuery(undefined, {
+    refetchInterval: SLOW_REFRESH,
+  })
   const instinctStatsQuery = trpc.healing.instinctExecutorStats.useQuery(undefined, {
     refetchInterval: SLOW_REFRESH,
   })
@@ -232,6 +239,79 @@ export default function LearningOrganismPage() {
           </div>
         )}
       </SectionCard>
+
+      {/* Section 5b: Causal Insights + Pathway Effectiveness */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <SectionCard title="Top Causal Insights">
+          {!causalQuery.data || (causalQuery.data as unknown[]).length === 0 ? (
+            <div className="text-xs text-slate-600 py-4 text-center">
+              No causal insights yet — run weekly analysis
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(
+                causalQuery.data as Array<{
+                  interventionType: string
+                  target: string
+                  delta: number
+                  confidence: number
+                }>
+              )
+                .slice(0, 5)
+                .map((insight, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[11px]">
+                    <StatusBadge label={insight.interventionType} color="purple" />
+                    <span className="text-slate-300 flex-1 truncate">{insight.target}</span>
+                    <span
+                      className={`font-mono ${insight.delta > 0 ? 'text-neon-green' : 'text-neon-red'}`}
+                    >
+                      {insight.delta > 0 ? '+' : ''}
+                      {(insight.delta * 100).toFixed(1)}%
+                    </span>
+                    <span className="text-[9px] text-slate-500">
+                      {Math.round(insight.confidence * 100)}% conf
+                    </span>
+                  </div>
+                ))}
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Pathway Effectiveness">
+          {!metaQuery.data || (metaQuery.data as unknown[]).length === 0 ? (
+            <div className="text-xs text-slate-600 py-4 text-center">
+              No pathway data yet — run weekly analysis
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(
+                metaQuery.data as Array<{
+                  eventType: string
+                  yieldRate: number
+                  effectivenessScore: number
+                  metaInsight: string | null
+                }>
+              )
+                .slice(0, 5)
+                .map((p, i) => (
+                  <div key={i} className="text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-300 font-mono">{p.eventType}</span>
+                      <span
+                        className={`ml-auto font-mono ${p.effectivenessScore > 0.1 ? 'text-neon-green' : p.effectivenessScore > 0.02 ? 'text-neon-yellow' : 'text-slate-500'}`}
+                      >
+                        {(p.yieldRate * 100).toFixed(1)}% yield
+                      </span>
+                    </div>
+                    {p.metaInsight && (
+                      <div className="text-[9px] text-slate-500 italic">{p.metaInsight}</div>
+                    )}
+                  </div>
+                ))}
+            </div>
+          )}
+        </SectionCard>
+      </div>
 
       {/* Section 6: Learning Summary */}
       <SectionCard title="Learning Summary">

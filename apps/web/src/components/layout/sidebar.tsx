@@ -34,6 +34,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'CEO Dashboard', href: '/ceo', icon: '⬡' },
       { label: 'Notifications', href: '/notifications', icon: '⊙' },
       { label: 'Finance', href: '/finance', icon: '$' },
+      { label: 'Agent ROI', href: '/finance/roi', icon: '◉' },
       { label: 'Chat', href: '/chat', icon: '◉' },
       { label: 'Onboarding', href: '/onboarding', icon: '▷' },
     ],
@@ -94,7 +95,14 @@ const BASE_NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Ops Center',
-    items: [{ label: 'Overview', href: '/ops', icon: '◎' }],
+    items: [
+      { label: 'Overview', href: '/ops', icon: '◎' },
+      { label: 'Causal Insights', href: '/ops/causal', icon: '⊘' },
+      { label: 'Stress Tests', href: '/ops/stress', icon: '⚡' },
+      { label: 'Decisions', href: '/ops/decisions', icon: '⊞' },
+      { label: 'Restructuring', href: '/ops/restructuring', icon: '◈' },
+      { label: 'Debates', href: '/ops/debates', icon: '⇋' },
+    ],
   },
   {
     title: 'Monitoring',
