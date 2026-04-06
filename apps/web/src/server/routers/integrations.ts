@@ -154,6 +154,37 @@ export const integrationsRouter = router({
       return getArtifacts(ctx.db).delete(input.id)
     }),
 
+  /** List all artifacts with optional type filter */
+  allArtifacts: protectedProcedure
+    .input(
+      z
+        .object({ type: z.string().optional(), limit: z.number().min(1).max(100).default(50) })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.artifacts.findMany({
+        orderBy: (t, { desc }) => [desc(t.createdAt)],
+        limit: input?.limit ?? 50,
+      })
+    }),
+
+  /** Update artifact content (for iteration) */
+  updateArtifact: protectedProcedure
+    .input(z.object({ id: z.string().uuid(), content: z.string(), name: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const { artifacts } = await import('@solarc/db')
+      const { eq } = await import('drizzle-orm')
+      await ctx.db
+        .update(artifacts)
+        .set({
+          content: input.content,
+          ...(input.name ? { name: input.name } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(artifacts.id, input.id))
+      return { updated: true }
+    }),
+
   // === Model Fallbacks ===
 
   setFallbackChain: protectedProcedure

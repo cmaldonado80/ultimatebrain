@@ -49,6 +49,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Project Board', href: '/board', icon: '▦' },
       { label: 'Projects', href: '/projects', icon: '◈' },
       { label: 'Products', href: '/products', icon: '▣' },
+      { label: 'Artifact Studio', href: '/products/artifacts', icon: '◈' },
       { label: 'Routines', href: '/routines', icon: '⟳' },
       { label: 'Work Products', href: '/work-products', icon: '◉' },
     ],
