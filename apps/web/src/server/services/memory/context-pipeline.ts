@@ -206,8 +206,8 @@ export class ContextPipeline {
 
   /**
    * Gather from peer knowledge mesh.
-   * TODO: wire when mesh has DB access via constructor — for now, the main
-   * integration point is ModeRouter.executeAutonomous().
+   * Mesh is primarily consumed via ModeRouter.executeAutonomous() which
+   * queries KnowledgeMesh(db) before each autonomous task execution.
    */
   async gatherFromPeers(_query: string): Promise<ContextSource[]> {
     // Knowledge mesh integration: the main integration point is
@@ -298,7 +298,8 @@ export class ContextPipeline {
     // Web search requires MCP integration (e.g., Brave Search or DuckDuckGo MCP server).
     // This cannot be implemented as a direct gateway call — it needs an MCP tool invocation.
     // Wire this when MCP tool execution is available in the pipeline.
-    console.warn(
+    logger.warn(
+      {},
       '[ContextPipeline] Web search fallback requires MCP integration — returning empty results',
     )
     return []

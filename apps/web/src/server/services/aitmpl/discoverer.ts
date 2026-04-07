@@ -6,6 +6,7 @@
  * notifies Brain admin dashboard, auto-installs trusted publishers.
  */
 
+import { logger } from '../../../lib/logger'
 import type { AitmplComponent, ComponentCategory, InstallTier } from './installer'
 import { AitmplInstaller } from './installer'
 
@@ -69,7 +70,14 @@ export class AitmplDiscoverer {
    * Called by weekly cron job.
    */
   async syncCatalog(): Promise<{ fetched: number; newCount: number; updatedCount: number }> {
-    const categories: ComponentCategory[] = ['agents', 'skills', 'commands', 'hooks', 'mcps', 'settings']
+    const categories: ComponentCategory[] = [
+      'agents',
+      'skills',
+      'commands',
+      'hooks',
+      'mcps',
+      'settings',
+    ]
     const freshCatalog: CatalogEntry[] = []
 
     for (const category of categories) {
@@ -89,7 +97,12 @@ export class AitmplDiscoverer {
       this.notify({
         type: 'new_components',
         title: `${diff.newComponents.length} new components available`,
-        message: `New AITMPL components: ${diff.newComponents.slice(0, 5).map((c) => c.name).join(', ')}${diff.newComponents.length > 5 ? ` and ${diff.newComponents.length - 5} more` : ''}`,
+        message: `New AITMPL components: ${diff.newComponents
+          .slice(0, 5)
+          .map((c) => c.name)
+          .join(
+            ', ',
+          )}${diff.newComponents.length > 5 ? ` and ${diff.newComponents.length - 5} more` : ''}`,
         components: diff.newComponents.map((c) => c.id),
         createdAt: new Date(),
         read: false,
@@ -100,7 +113,10 @@ export class AitmplDiscoverer {
       this.notify({
         type: 'updates_available',
         title: `${diff.updatedComponents.length} component updates available`,
-        message: `Updates: ${diff.updatedComponents.slice(0, 5).map((c) => `${c.entry.name} (${c.installedVersion} → ${c.entry.version})`).join(', ')}`,
+        message: `Updates: ${diff.updatedComponents
+          .slice(0, 5)
+          .map((c) => `${c.entry.name} (${c.installedVersion} → ${c.entry.version})`)
+          .join(', ')}`,
         components: diff.updatedComponents.map((c) => c.entry.id),
         createdAt: new Date(),
         read: false,
@@ -163,7 +179,7 @@ export class AitmplDiscoverer {
   /** Auto-install components from trusted publishers */
   private async autoInstallTrusted(newComponents: CatalogEntry[]): Promise<string[]> {
     const trusted = newComponents.filter((c) =>
-      ['anthropic', 'k-dense', 'aitmpl-official'].includes(c.author)
+      ['anthropic', 'k-dense', 'aitmpl-official'].includes(c.author),
     )
 
     const installed: string[] = []
@@ -194,16 +210,23 @@ export class AitmplDiscoverer {
     const q = query.toLowerCase()
     return catalogCache.filter((c) => {
       if (category && c.category !== category) return false
-      return c.name.toLowerCase().includes(q) ||
+      return (
+        c.name.toLowerCase().includes(q) ||
         c.description.toLowerCase().includes(q) ||
         c.tags.some((t) => t.toLowerCase().includes(q))
+      )
     })
   }
 
   /** Get catalog stats by category */
   getCatalogStats(): Record<ComponentCategory, number> {
     const stats: Record<string, number> = {
-      agents: 0, skills: 0, commands: 0, hooks: 0, mcps: 0, settings: 0,
+      agents: 0,
+      skills: 0,
+      commands: 0,
+      hooks: 0,
+      mcps: 0,
+      settings: 0,
     }
     for (const entry of catalogCache) {
       stats[entry.category] = (stats[entry.category] ?? 0) + 1
@@ -230,10 +253,13 @@ export class AitmplDiscoverer {
 
   private async fetchCategoryListing(category: ComponentCategory): Promise<CatalogEntry[]> {
     try {
-      const res = await fetch(`https://api.github.com/repos/aitmpl/marketplace/contents/${category}`, {
-        headers: { 'Accept': 'application/vnd.github.v3+json' },
-        signal: AbortSignal.timeout(10_000),
-      })
+      const res = await fetch(
+        `https://api.github.com/repos/aitmpl/marketplace/contents/${category}`,
+        {
+          headers: { Accept: 'application/vnd.github.v3+json' },
+          signal: AbortSignal.timeout(10_000),
+        },
+      )
       if (!res.ok) return []
 
       const entries = (await res.json()) as Array<{ name: string; type: string; path: string }>
@@ -251,7 +277,10 @@ export class AitmplDiscoverer {
         updatedAt: new Date(),
       }))
     } catch (err) {
-      console.warn(`[AitmplDiscoverer] Failed to discover local components in ${category}:`, err)
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        `[AitmplDiscoverer] Failed to discover local components in ${category}`,
+      )
       return []
     }
   }

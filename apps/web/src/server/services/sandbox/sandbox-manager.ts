@@ -18,6 +18,8 @@
  * it delegates to actual WebContainer/ClawLess instances.
  */
 
+import { logger } from '../../../lib/logger'
+
 // ── Types ────────────────────────────────────────────────────────────────
 
 export type SandboxStatus = 'cold' | 'warming' | 'ready' | 'executing' | 'cooldown' | 'evicted'
@@ -406,8 +408,9 @@ export class SandboxManager {
   private evict(sandboxId: string, reason: string) {
     const sandbox = this.pool.get(sandboxId)
     if (sandbox) {
-      console.warn(
-        `[SandboxManager] Evicting ${sandboxId} (${sandbox.config.agentName}): ${reason}`,
+      logger.warn(
+        { sandboxId, agentName: sandbox.config.agentName, reason },
+        '[SandboxManager] Evicting sandbox',
       )
       sandbox.status = 'evicted'
       this.agentToSandbox.delete(sandbox.config.agentId)

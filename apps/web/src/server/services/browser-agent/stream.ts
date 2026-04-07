@@ -8,6 +8,8 @@
  * - Storage with 24h retention (S3 or local disk)
  */
 
+import { logger } from '../../../lib/logger'
+
 export type StreamEventType = 'screenshot' | 'action' | 'navigation' | 'error' | 'status'
 
 export interface StreamEvent {
@@ -265,7 +267,8 @@ export class BrowserAgentStream {
         )
         if (!pw) {
           if (!this.playwrightWarned) {
-            console.warn(
+            logger.warn(
+              {},
               '[BrowserAgentStream] playwright not available — using placeholder screenshot URLs',
             )
             this.playwrightWarned = true
@@ -278,9 +281,9 @@ export class BrowserAgentStream {
         await page
           .goto(session.currentUrl, { timeout: 8000 })
           .catch((err: unknown) =>
-            console.warn(
-              '[BrowserAgent] navigation failed:',
-              err instanceof Error ? err.message : String(err),
+            logger.warn(
+              { err: err instanceof Error ? err : undefined },
+              '[BrowserAgent] navigation failed',
             ),
           )
         const buf = await page.screenshot({ type: 'png' })
@@ -301,7 +304,10 @@ export class BrowserAgentStream {
         if (existing) existing.url = screenshotUrl
         session.latestScreenshot = screenshotUrl
       } catch (err) {
-        console.warn(`[BrowserStream] Screenshot capture failed for session ${sessionId}:`, err)
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          `[BrowserStream] Screenshot capture failed for session ${sessionId}`,
+        )
       }
     })()
 

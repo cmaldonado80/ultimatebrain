@@ -56,11 +56,11 @@ export const eventBus = new EventBus()
 // ── Default Handlers ──────────────────────────────────────────────────────────
 
 eventBus.on('ticket.created', async (payload) => {
-  console.warn(`[EventBus] ticket.created: ${payload.ticketId}`)
+  logger.warn({ ticketId: payload.ticketId }, '[EventBus] ticket.created')
 })
 
 eventBus.on('ticket.completed', async (payload) => {
-  console.warn(`[EventBus] ticket.completed: ${payload.ticketId}`)
+  logger.warn({ ticketId: payload.ticketId }, '[EventBus] ticket.completed')
 
   // Feed success outcome to Cortex for adaptive tuning + degradation tracking
   try {
@@ -81,8 +81,9 @@ eventBus.on('ticket.completed', async (payload) => {
 })
 
 eventBus.on('ticket.failed', async (payload) => {
-  console.warn(
-    `[EventBus] ticket.failed: ${payload.ticketId} — reason: ${payload.reason ?? 'unknown'}`,
+  logger.warn(
+    { ticketId: payload.ticketId, reason: payload.reason ?? 'unknown' },
+    '[EventBus] ticket.failed',
   )
 
   // Feed failure outcome to Cortex
@@ -118,8 +119,9 @@ eventBus.on('ticket.failed', async (payload) => {
 })
 
 eventBus.on('agent.error', async (payload) => {
-  console.warn(
-    `[EventBus] agent.error: agent ${payload.agentId} — ${payload.error ?? 'unknown error'}`,
+  logger.warn(
+    { agentId: payload.agentId, error: payload.error ?? 'unknown error' },
+    '[EventBus] agent.error',
   )
 
   // Feed to Cortex instinct executor for pattern-based remediation
@@ -155,8 +157,9 @@ eventBus.on('agent.error', async (payload) => {
 })
 
 eventBus.on('health.degraded', async (payload) => {
-  console.warn(
-    `[EventBus] health.degraded: status=${payload.status} issues=${payload.issueCount ?? 'unknown'}`,
+  logger.warn(
+    { status: payload.status, issueCount: payload.issueCount ?? 'unknown' },
+    '[EventBus] health.degraded',
   )
 
   // Trigger Cortex OODA cycle on health degradation
@@ -171,8 +174,9 @@ eventBus.on('health.degraded', async (payload) => {
         result.phases.act.tuningActions.length +
         result.phases.act.degradationEvents.length
       if (totalActions > 0) {
-        console.warn(
-          `[EventBus] Cortex OODA cycle completed: ${totalActions} action(s), risk=${result.phases.orient.riskLevel}`,
+        logger.warn(
+          { totalActions, riskLevel: result.phases.orient.riskLevel },
+          '[EventBus] Cortex OODA cycle completed',
         )
       }
     } else {
@@ -191,5 +195,5 @@ eventBus.on('health.degraded', async (payload) => {
 })
 
 eventBus.on('brain.seeded', async (payload) => {
-  console.warn(`[EventBus] brain.seeded: workspace ${payload.workspaceId}`)
+  logger.warn({ workspaceId: payload.workspaceId }, '[EventBus] brain.seeded')
 })

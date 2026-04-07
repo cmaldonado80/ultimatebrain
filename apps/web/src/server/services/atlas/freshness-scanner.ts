@@ -12,6 +12,8 @@ import { tickets } from '@solarc/db'
 import * as fs from 'fs'
 import * as path from 'path'
 
+import { logger } from '../../../lib/logger'
+
 export interface FreshnessScanResult {
   scannedAt: Date
   totalFiles: number
@@ -206,7 +208,10 @@ export class AtlasFreshnessScanner {
         })
         ticketsCreated++
       } catch (err) {
-        console.warn('[ATLAS] Failed to create ticket:', err)
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          '[ATLAS] Failed to create ticket',
+        )
       }
     }
 

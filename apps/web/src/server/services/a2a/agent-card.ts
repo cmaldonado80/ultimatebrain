@@ -18,6 +18,8 @@ import type { Database } from '@solarc/db'
 import { agentCards, agents } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
+
 export interface WellKnownAgentCard {
   name: string
   description: string
@@ -103,7 +105,10 @@ export class AgentCardGenerator {
       try {
         cards[agent.id] = await this.generateForAgent(agent.id, options)
       } catch (err) {
-        console.warn(`[AgentCard] Failed to generate card for agent ${agent.id}:`, err)
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          `[AgentCard] Failed to generate card for agent ${agent.id}`,
+        )
       }
     }
 

@@ -7,10 +7,11 @@
  * - Execution tracking with fail counts and auto-pause
  * - Next-run computation
  */
-
 import type { Database } from '@solarc/db'
 import { cronJobs } from '@solarc/db'
 import { and, eq, lte, sql } from 'drizzle-orm'
+
+import { logger } from '../../../lib/logger'
 
 export type CronJobStatus = 'active' | 'paused' | 'failed'
 
@@ -121,8 +122,8 @@ export class CronEngine {
       .where(eq(cronJobs.id, jobId))
 
     // Notify OpenClaw of job success (non-blocking)
-    this.notifyOpenClaw('job.success', jobId, { result }).catch((err) =>
-      console.warn('[CronEngine] notification failed:', err.message),
+    this.notifyOpenClaw('job.success', jobId, { result }).catch(() =>
+      logger.warn({}, '[CronEngine] notification failed'),
     )
   }
 

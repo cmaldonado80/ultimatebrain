@@ -7,9 +7,9 @@
  * - On deviation: pause for HITL approval or retry with LLM adaptation
  * - A/B testing: run original vs. modified playbook, compare outcomes
  */
-
 import type { Database } from '@solarc/db'
 
+import { logger } from '../../../lib/logger'
 import { GatewayRouter } from '../gateway'
 import type { PlaybookStep, SavedPlaybook } from './recorder'
 
@@ -353,7 +353,7 @@ export class PlaybookExecutor {
       })
       return result.content.trim().toLowerCase().startsWith('yes')
     } catch (err) {
-      console.warn('[PlaybookExecutor] Verification LLM call failed:', err)
+      logger.warn({}, '[PlaybookExecutor] Verification LLM call failed')
       return false
     }
   }

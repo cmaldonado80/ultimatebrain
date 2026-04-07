@@ -7,6 +7,8 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
+import { logger } from '../../../lib/logger'
+
 interface AgentProfile {
   agentType?: string // executor, planner, reviewer, specialist
   capability?: string // coder, reasoning, agentic, flash, vision, guard, judge, router, embedding
@@ -47,7 +49,7 @@ function loadSections(): Map<string, string> {
     const content = fs.readFileSync(atlasPath, 'utf-8')
     cachedSections = parseSections(content)
   } catch {
-    console.warn('[ATLAS] Could not read ATLAS.md — context injection disabled')
+    logger.warn({}, '[ATLAS] Could not read ATLAS.md — context injection disabled')
     cachedSections = new Map()
   }
 

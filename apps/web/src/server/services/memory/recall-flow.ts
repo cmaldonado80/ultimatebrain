@@ -7,9 +7,9 @@
  *
  * Results are merged, deduplicated, re-ranked, and injected into agent context.
  */
-
 import type { Database } from '@solarc/db'
 
+import { logger } from '../../../lib/logger'
 import { type EmbedFunction, MemoryService, type SearchResult } from './memory-service'
 
 export interface RecallQuery {
@@ -173,7 +173,7 @@ export class RecallFlow {
       try {
         await this.memoryService.nominateForPromotion(id)
       } catch (err) {
-        console.warn(`[RecallFlow] Best-effort promotion failed for memory ${id}:`, err)
+        logger.warn({}, '[RecallFlow] Best-effort promotion failed for memory ${id}')
       }
     }
   }

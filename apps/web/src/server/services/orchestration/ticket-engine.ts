@@ -19,6 +19,7 @@ import {
 } from '@solarc/db'
 import { and, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import { NotFoundError, ValidationError } from '../../errors'
 import { eventBus } from './event-bus'
 
@@ -446,7 +447,10 @@ export class TicketExecutionEngine {
 
     // Notify OpenClaw of failure (non-blocking)
     this.notifyOpenClaw('ticket.failed', { ticketId, reason: reason.slice(0, 500) }).catch((err) =>
-      console.warn('[TicketEngine] notification failed:', err.message),
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        '[TicketEngine] notification failed',
+      ),
     )
 
     // Emit lifecycle event

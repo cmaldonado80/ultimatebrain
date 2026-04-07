@@ -5,6 +5,8 @@
  * as they flow through the agent system.
  */
 
+import { logger } from '../../../lib/logger'
+
 export interface AgentEvent {
   type: 'message' | 'tool_call' | 'tool_result' | 'delegation' | 'spawn' | 'error'
   agentId: string
@@ -42,7 +44,7 @@ export class EventPipeline {
 
 /** Log all events to console */
 export const loggingMiddleware: EventMiddleware = async (event, next) => {
-  console.warn(`[EventPipeline] ${event.type} agent=${event.agentId}`)
+  logger.warn({ eventType: event.type, agentId: event.agentId }, '[EventPipeline] event received')
   return next()
 }
 

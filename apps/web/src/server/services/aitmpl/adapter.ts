@@ -14,6 +14,7 @@
  * | Settings presets               | Applied per workspace/agent/Mini Brain scope           |
  */
 
+import { logger } from '../../../lib/logger'
 import type { AitmplComponent, ComponentCategory, InstallTier } from './installer'
 
 export interface AdaptedComponent {
@@ -123,7 +124,7 @@ export class AitmplAdapter {
 
   private convertToNativeFormat(
     component: AitmplComponent,
-    tier: InstallTier
+    tier: InstallTier,
   ): AdaptedComponent['brainFormat'] {
     switch (component.category) {
       case 'agents':
@@ -147,13 +148,14 @@ export class AitmplAdapter {
     const content = component.content ?? ''
 
     // Extract soul/system prompt from agent .md
-    const soul = this.extractSection(content, 'system prompt') ||
+    const soul =
+      this.extractSection(content, 'system prompt') ||
       this.extractSection(content, 'description') ||
       content
 
     // Extract capabilities
-    const capabilities = this.extractList(content, 'capabilities') ||
-      this.extractList(content, 'tools') || []
+    const capabilities =
+      this.extractList(content, 'capabilities') || this.extractList(content, 'tools') || []
 
     return {
       type: 'agent',
@@ -207,7 +209,8 @@ export class AitmplAdapter {
     if (lower.includes('pretooluse') || lower.includes('pre-tool')) event = 'PreToolUse'
     if (lower.includes('sessionstart') || lower.includes('session-start')) event = 'SessionStart'
     if (lower.includes('sessionend') || lower.includes('session-end')) event = 'SessionEnd'
-    if (lower.includes('subagentcomplete') || lower.includes('subagent-complete')) event = 'SubagentComplete'
+    if (lower.includes('subagentcomplete') || lower.includes('subagent-complete'))
+      event = 'SubagentComplete'
 
     return {
       type: 'hook',
@@ -236,11 +239,17 @@ export class AitmplAdapter {
   private adaptSettings(component: AitmplComponent, tier: InstallTier): SettingsRecord {
     const content = component.content ?? '{}'
     let settings: Record<string, unknown> = {}
-    try { settings = JSON.parse(content) } catch (err) { console.warn(`[AitmplAdapter] Failed to parse settings for ${component.name}:`, err) }
+    try {
+      settings = JSON.parse(content)
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        `[AitmplAdapter] Failed to parse settings for ${component.name}`,
+      )
+    }
 
     const scope: SettingsRecord['scope'] =
-      tier === 'brain' ? 'brain' :
-      tier === 'mini_brain' ? 'mini_brain' : 'development'
+      tier === 'brain' ? 'brain' : tier === 'mini_brain' ? 'mini_brain' : 'development'
 
     return {
       type: 'settings',

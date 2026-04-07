@@ -7,6 +7,7 @@
  * Tool exposed to crews: external_agent(agent_url, task)
  */
 
+import { logger } from '../../../lib/logger'
 import type { WellKnownAgentCard } from './agent-card'
 
 export interface A2ATaskRequest {
@@ -59,7 +60,7 @@ export class A2AClient {
 
     if (!response.ok) {
       throw new Error(
-        `Failed to discover agent at ${agentBaseUrl}: ${response.status} ${response.statusText}`
+        `Failed to discover agent at ${agentBaseUrl}: ${response.status} ${response.statusText}`,
       )
     }
 
@@ -83,7 +84,7 @@ export class A2AClient {
   async invoke(
     agentUrl: string,
     request: A2ATaskRequest,
-    authToken?: string
+    authToken?: string,
   ): Promise<A2ATaskResponse> {
     let agent: DiscoveredAgent
     try {
@@ -135,7 +136,7 @@ export class A2AClient {
     agentUrl: string,
     taskId: string,
     authToken?: string,
-    options: { maxAttempts?: number; intervalMs?: number } = {}
+    options: { maxAttempts?: number; intervalMs?: number } = {},
   ): Promise<A2ATaskResponse> {
     const { maxAttempts = 30, intervalMs = 2000 } = options
 
@@ -168,7 +169,7 @@ export class A2AClient {
   async invokeAndWait(
     agentUrl: string,
     request: A2ATaskRequest,
-    authToken?: string
+    authToken?: string,
   ): Promise<A2ATaskResponse> {
     const initial = await this.invoke(agentUrl, request, authToken)
 
@@ -198,7 +199,10 @@ export class A2AClient {
 
       return true
     } catch (err) {
-      console.warn(`[A2AClient] Health check failed for ${agentBaseUrl}:`, err)
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        `[A2AClient] Health check failed for ${agentBaseUrl}`,
+      )
       const cached = this.discoveryCache.get(agentBaseUrl)
       if (cached) {
         cached.healthy = false
@@ -241,7 +245,7 @@ export class A2AClient {
             task: String(args.task),
             context: (args.context as Record<string, unknown>) ?? {},
           },
-          authToken
+          authToken,
         )
         if (result.status === 'failed') {
           return `External agent failed: ${result.error}`

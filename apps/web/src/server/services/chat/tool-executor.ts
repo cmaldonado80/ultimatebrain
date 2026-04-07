@@ -487,9 +487,9 @@ export async function executeTool(
       }
     } catch (sandboxErr) {
       // Sandbox unavailable — fall back to direct execution (no policy enforcement)
-      console.warn(
-        '[ToolExecutor] Sandbox unavailable, executing without isolation:',
-        sandboxErr instanceof Error ? sandboxErr.message : String(sandboxErr),
+      logger.warn(
+        { err: sandboxErr instanceof Error ? sandboxErr : undefined },
+        '[ToolExecutor] Sandbox unavailable, executing without isolation',
       )
       result = await executeToolInner(toolName, toolInput, db, workspaceId)
     }
@@ -1956,14 +1956,16 @@ async function executeToolInner(
               return JSON.stringify({ path: fsPath, written: true, bytes: fsContent.length })
             }
             case 'list': {
-              console.warn(
+              logger.info(
+                {},
                 `[file_system] LIST input="${fsPath}" resolved="${fullPath}" cwd="${process.cwd()}"`,
               )
               const entries = await fs.readdir(fullPath, { withFileTypes: true })
               const names = entries
                 .slice(0, 100)
                 .map((e) => (e.isDirectory() ? `${e.name}/` : e.name))
-              console.warn(
+              logger.info(
+                {},
                 `[file_system] LIST → ${names.length} entries (has healing: ${names.includes('healing/')})`,
               )
               return JSON.stringify({ path: fsPath, entries: names })

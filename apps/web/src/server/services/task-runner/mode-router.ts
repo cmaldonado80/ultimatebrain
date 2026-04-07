@@ -413,8 +413,9 @@ export class ModeRouter {
       })
 
       if (guardrailResult.content.toUpperCase().startsWith('BLOCKED')) {
-        console.warn(
-          `[ModeRouter] Guardrail blocked ticket ${ticketId}: ${guardrailResult.content}`,
+        logger.warn(
+          { ticketId, guardrailResponse: guardrailResult.content },
+          '[ModeRouter] Guardrail blocked ticket',
         )
         return 0
       }
@@ -439,7 +440,10 @@ export class ModeRouter {
           }
         }
       } catch (err) {
-        console.warn('[ModeRouter] OpenClaw skill invocation failed:', err)
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          '[ModeRouter] OpenClaw skill invocation failed',
+        )
       }
 
       // Step 2.5: Consult knowledge mesh for peer solutions
@@ -739,7 +743,7 @@ export class ModeRouter {
       )
     } catch (_err) {
       // Fallback to console logging if webhook dispatch fails
-      console.warn(`[ModeRouter] ${progressSummary}`)
+      logger.warn({}, `[ModeRouter] ${progressSummary}`)
     }
   }
 }

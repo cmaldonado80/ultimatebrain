@@ -193,7 +193,7 @@ export class JourneyEngine {
         })
       }
     } catch (err) {
-      console.warn('[JourneyEngine] DB load failed:', err)
+      logger.warn({ err: err instanceof Error ? err : undefined }, '[JourneyEngine] DB load failed')
     }
   }
 

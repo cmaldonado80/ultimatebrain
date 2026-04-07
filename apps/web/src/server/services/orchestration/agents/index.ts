@@ -9,6 +9,8 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
+import { logger } from '../../../../lib/logger'
+
 export interface AgentSoul {
   /** kebab-case name from frontmatter */
   name: string
@@ -87,7 +89,10 @@ function loadAllAgents(): Map<string, AgentSoul> {
   }
 
   if (!agentsDir) {
-    console.warn('[AgentSouls] Could not find agents directory in any candidate path:', candidates)
+    logger.warn(
+      { candidates },
+      '[AgentSouls] Could not find agents directory in any candidate path',
+    )
     return map
   }
 
@@ -101,7 +106,7 @@ function loadAllAgents(): Map<string, AgentSoul> {
       })
       .sort()
   } catch {
-    console.warn('[AgentSouls] Could not read agents directory:', agentsDir)
+    logger.warn({ agentsDir }, '[AgentSouls] Could not read agents directory')
     return map
   }
 
@@ -157,11 +162,12 @@ function loadAllAgents(): Map<string, AgentSoul> {
 export const AGENT_SOULS: Map<string, AgentSoul> = loadAllAgents()
 
 if (AGENT_SOULS.size === 0) {
-  console.warn(
+  logger.warn(
+    {},
     '[AgentSouls] WARNING: No agent soul files loaded. Agents will use fallback one-liner prompts.',
   )
 } else {
-  console.warn(`[AgentSouls] Loaded ${AGENT_SOULS.size} agent soul definitions`)
+  logger.warn({ count: AGENT_SOULS.size }, '[AgentSouls] Loaded agent soul definitions')
 }
 
 /** Override map for agent names that don't cleanly convert to kebab-case slugs */

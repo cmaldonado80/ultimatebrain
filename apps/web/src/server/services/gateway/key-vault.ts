@@ -10,6 +10,7 @@ import { apiKeys } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
 import { env } from '../../../env'
+import { logger } from '../../../lib/logger'
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 16
@@ -30,7 +31,7 @@ function getVaultSecret(): string {
   // Fallback to AUTH_SECRET if VAULT_SECRET not set
   const fallback = process.env.AUTH_SECRET
   if (fallback) {
-    console.warn('[KeyVault] VAULT_SECRET not set — using AUTH_SECRET as fallback')
+    logger.warn({}, '[KeyVault] VAULT_SECRET not set — using AUTH_SECRET as fallback')
     return fallback
   }
   throw new Error(

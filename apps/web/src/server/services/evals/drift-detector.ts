@@ -151,12 +151,15 @@ export class DriftDetector {
     const webhookService = new WebhookService(this.db)
     for (const alert of alerts) {
       // Ops Center notification
-      console.warn(`[DriftDetector] ${alert.severity.toUpperCase()}: ${alert.message}`)
+      logger.warn({}, `[DriftDetector] ${alert.severity.toUpperCase()}: ${alert.message}`)
 
       try {
         await webhookService.dispatch({ type: 'drift_alert', payload: alert })
       } catch (err) {
-        console.warn(`[DriftDetector] Failed to dispatch webhook for "${alert.datasetName}":`, err)
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          `[DriftDetector] Failed to dispatch webhook for "${alert.datasetName}"`,
+        )
       }
 
       // Route through OpenClaw channels (Telegram/Slack)
@@ -178,7 +181,10 @@ export class DriftDetector {
           await channels.sendMessage(channelName, 'ops-team', message)
         }
       } catch (err) {
-        console.warn(`[DriftDetector] OpenClaw channel alert failed:`, err)
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          '[DriftDetector] OpenClaw channel alert failed',
+        )
       }
 
       // Trigger instinct observation for regression pattern

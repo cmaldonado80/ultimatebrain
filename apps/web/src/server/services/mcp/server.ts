@@ -8,11 +8,11 @@
  * - Each flow → `solarc_flow_{flowName}(params)`
  * - Transport: JSON-RPC 2.0 over stdio or HTTP+SSE
  */
-
 import type { Database } from '@solarc/db'
 import { agents, flows } from '@solarc/db'
 import { eq } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import { GatewayRouter } from '../gateway'
 import type { MCPRegistry } from './registry'
 
@@ -255,7 +255,10 @@ export class MCPServer {
       try {
         conn.send('message', data)
       } catch (err) {
-        console.warn(`[MCP] SSE send failed for connection ${conn.id}, removing:`, err)
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          `[MCP] SSE send failed for connection ${conn.id}, removing:`,
+        )
         this.sseConnections.delete(conn.id)
       }
     }
@@ -290,7 +293,10 @@ export class MCPServer {
             process.stdout.write(JSON.stringify(response) + '\n')
           }
         } catch (err) {
-          console.warn('[MCP] Stdio JSON parse error:', err)
+          logger.warn(
+            { err: err instanceof Error ? err : undefined },
+            '[MCP] Stdio JSON parse error:',
+          )
           const errorResp = this.jsonRpcError(-1, -32700, 'Parse error')
           process.stdout.write(JSON.stringify(errorResp) + '\n')
         }

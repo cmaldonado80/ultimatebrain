@@ -316,7 +316,7 @@ export class HealingEngine {
       this.log('requeue_ticket', ticketId, reason, true)
       return true
     } catch (e) {
-      console.warn('[Healing] Operation failed:', e)
+      logger.warn({ err: e instanceof Error ? e : undefined }, '[Healing] Operation failed')
       this.log('requeue_ticket', ticketId, reason, false)
       return false
     }
@@ -411,6 +411,11 @@ export class HealingEngine {
     this.db
       .insert(healingLogs)
       .values({ action, target, reason, success })
-      .catch((err) => console.warn('[HealingEngine] log write failed:', err.message))
+      .catch((err) =>
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          '[HealingEngine] log write failed',
+        ),
+      )
   }
 }

@@ -256,9 +256,9 @@ export class InstinctActionExecutor {
       pattern: /escalate|alert|notify.*operator|manual/i,
       description: 'Escalate to operator when complex patterns are detected',
       handler: async (event) => {
-        console.warn(
+        logger.warn(
+          { payload: event.payload },
           `[InstinctExecutor] ESCALATION: ${event.eventType} in ${event.domain}`,
-          event.payload,
         )
         return true
       },

@@ -91,9 +91,7 @@ export class MemoryService {
     }
 
     // Sync to OpenClaw sqlite-vec (non-blocking)
-    this.syncToOpenClaw(mem!).catch((err) =>
-      console.warn('[MemoryService] operation failed:', err.message),
-    )
+    this.syncToOpenClaw(mem!).catch(() => logger.warn({}, '[MemoryService] operation failed'))
 
     return mem!
   }
@@ -207,8 +205,8 @@ export class MemoryService {
 
       // Track access for returned results (fire-and-forget)
       if (mapped.length > 0) {
-        this.trackAccess(mapped.map((m) => m.id)).catch((err) =>
-          console.warn('[MemoryService] operation failed:', err.message),
+        this.trackAccess(mapped.map((m) => m.id)).catch(() =>
+          logger.warn({}, '[MemoryService] operation failed'),
         )
       }
 
@@ -454,8 +452,8 @@ export class MemoryService {
       if ((mem.confidence ?? 0) >= threshold.minConfidence) {
         await this.updateTier(mem.id, nextTier)
         // Sync tier change to OpenClaw
-        this.syncToOpenClaw({ ...mem, tier: nextTier }).catch((err) =>
-          console.warn('[MemoryService] operation failed:', err.message),
+        this.syncToOpenClaw({ ...mem, tier: nextTier }).catch(() =>
+          logger.warn({}, '[MemoryService] operation failed'),
         )
         await this.db
           .update(cognitiveCandidates)

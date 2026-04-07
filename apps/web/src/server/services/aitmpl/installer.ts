@@ -13,6 +13,8 @@
  * - Tier-aware installation routing
  */
 
+import { logger } from '../../../lib/logger'
+
 export type ComponentCategory = 'agents' | 'skills' | 'commands' | 'hooks' | 'mcps' | 'settings'
 
 export type InstallTier = 'brain' | 'mini_brain' | 'development'
@@ -133,9 +135,9 @@ export class AitmplInstaller {
       if (content) result.content = content
       return result
     } catch (err) {
-      console.warn(
-        `[AitmplInstaller] Network error fetching ${category}/${name}, using fallback:`,
-        err,
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        `[AitmplInstaller] Network error fetching ${category}/${name}, using fallback`,
       )
       return {
         id: `aitmpl-${category}-${name}`,
@@ -181,7 +183,10 @@ export class AitmplInstaller {
       }
       return components
     } catch (err) {
-      console.warn(`[AitmplInstaller] Failed to fetch category ${category}:`, err)
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        `[AitmplInstaller] Failed to fetch category ${category}`,
+      )
       return []
     }
   }

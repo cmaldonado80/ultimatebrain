@@ -169,7 +169,11 @@ export class SandboxAuditBridge {
       }
     } catch (err) {
       // Non-critical — log but don't propagate
-      if (process.env.NODE_ENV !== 'production') console.warn('[AuditBridge]', err)
+      if (process.env.NODE_ENV !== 'production')
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          '[AuditBridge] feedCortex failed',
+        )
     }
   }
 
@@ -213,7 +217,11 @@ export class SandboxAuditBridge {
       }
     } catch (err) {
       // Non-critical — log but don't propagate
-      if (process.env.NODE_ENV !== 'production') console.warn('[AuditBridge]', err)
+      if (process.env.NODE_ENV !== 'production')
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          '[AuditBridge] feedInstincts failed',
+        )
     }
   }
 
@@ -234,7 +242,11 @@ export class SandboxAuditBridge {
       }
     } catch (err) {
       // Non-critical — log but don't propagate
-      if (process.env.NODE_ENV !== 'production') console.warn('[AuditBridge]', err)
+      if (process.env.NODE_ENV !== 'production')
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          '[AuditBridge] feedEventBus failed',
+        )
     }
   }
 }

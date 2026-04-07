@@ -11,6 +11,8 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
+import { logger } from '../../../../lib/logger'
+
 // ─── Dynamic swisseph import (native addon) ──────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,12 +34,13 @@ try {
     }
   }
   if (!epheFound) {
-    console.warn(
+    logger.warn(
+      {},
       '[SwissEphemeris] No ephemeris data directory found — calculations may use lower-accuracy Moshier method',
     )
   }
 } catch {
-  console.warn('[SwissEphemeris] swisseph native module not available — engine disabled')
+  logger.warn({}, '[SwissEphemeris] swisseph native module not available — engine disabled')
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -456,18 +459,21 @@ function calcPlanet(jd: number, planet: Planet, flags: number): Omit<Position, '
   try {
     result = swe.swe_calc_ut(jd, bodyId, flags)
   } catch (e) {
-    console.warn(`[SwissEphemeris] swe_calc_ut threw for ${planet}:`, e)
+    logger.warn(
+      { err: e instanceof Error ? e : undefined },
+      `[SwissEphemeris] swe_calc_ut threw for ${planet}`,
+    )
     return fallbackCalcPlanet(planet, jd)
   }
 
   // Handle cases where .se1 data files are missing (Chiron, asteroids)
   if (result.error && result.longitude === undefined) {
-    console.warn(`[SwissEphemeris] ${planet} unavailable: ${result.error}`)
+    logger.warn({}, `[SwissEphemeris] ${planet} unavailable: ${result.error}`)
     return fallbackCalcPlanet(planet, jd)
   }
 
   if (result.error && result.error.length > 0) {
-    console.warn(`[SwissEphemeris] calc warning for ${planet}: ${result.error}`)
+    logger.warn({}, `[SwissEphemeris] calc warning for ${planet}: ${result.error}`)
   }
 
   const pos = longitudeToSign(result.longitude)
@@ -512,7 +518,7 @@ function calcHouses(jd: number, lat: number, lon: number, system: HouseSystem = 
       eastPoint: result.equatorialAscendant ?? 0,
     }
   } catch (e) {
-    console.warn('[SwissEphemeris] swe_houses threw:', e)
+    logger.warn({ err: e instanceof Error ? e : undefined }, '[SwissEphemeris] swe_houses threw')
     return fallbackCalcHouses(jd, lat, lon)
   }
 }

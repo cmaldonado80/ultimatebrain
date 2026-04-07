@@ -39,7 +39,7 @@ export class PresenceManager {
       try {
         this.cleanStale()
       } catch (err) {
-        console.warn('[PresenceManager] Stale cleanup error:', err)
+        logger.warn({}, '[PresenceManager] Stale cleanup error')
       }
     }, DISCONNECT_TIMEOUT_MS)
     // Load existing entries from DB if available
@@ -82,7 +82,7 @@ export class PresenceManager {
         })
       }
     } catch (err) {
-      console.warn('[PresenceManager] DB load failed, continuing in-memory only:', err)
+      logger.warn({}, '[PresenceManager] DB load failed, continuing in-memory only')
     }
   }
 

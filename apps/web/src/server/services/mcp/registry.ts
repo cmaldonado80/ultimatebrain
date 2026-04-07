@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger'
 /**
  * MCP Tool Registry
  *
@@ -188,7 +189,10 @@ export class MCPRegistry {
         count++
       }
     } catch (err) {
-      console.warn('[MCPRegistry] OpenClaw discovery failed:', err)
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        '[MCPRegistry] OpenClaw discovery failed:',
+      )
     }
 
     return count
@@ -234,7 +238,10 @@ export class MCPRegistry {
         return serverTools.length
       }
     } catch (err) {
-      console.warn(`[MCPRegistry] OpenClaw discovery failed for "${serverName}":`, err)
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        `[MCPRegistry] OpenClaw discovery failed for "${serverName}":`,
+      )
     }
 
     // Fallback: register placeholder if OpenClaw unavailable

@@ -35,6 +35,7 @@
 import { MODEL_STRATEGY, resolveModel } from '@solarc/engine-contracts'
 import { randomUUID } from 'crypto'
 
+import { logger } from '../../../lib/logger'
 import type { GatewayRouter } from '../gateway'
 import type { EvolutionResult, Instinct } from './types'
 
@@ -154,7 +155,10 @@ export class InstinctEvolver {
    */
   async evolveToSkill(cluster: InstinctCluster): Promise<EvolutionResult | null> {
     if (!this.gateway) {
-      console.warn('[Evolve] No gateway configured — skipping skill evolution for', cluster.label)
+      logger.warn(
+        {},
+        `[Evolve] No gateway configured — skipping skill evolution for ${cluster.label}`,
+      )
       return null
     }
 
@@ -182,9 +186,9 @@ export class InstinctEvolver {
         })
         skillMdContent = result.content
       } catch (err) {
-        console.warn(
-          `[Evolve] LLM skill generation failed for "${cluster.label}", using stub:`,
-          err,
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          `[Evolve] LLM skill generation failed for "${cluster.label}", using stub`,
         )
         skillMdContent = this.generateSkillMdStub(cluster, skillId, totalEvidence, avgConfidence)
       }
@@ -239,9 +243,9 @@ export class InstinctEvolver {
         })
         content = result.content
       } catch (err) {
-        console.warn(
-          `[Evolve] LLM command generation failed for "${cluster.label}", using stub:`,
-          err,
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          `[Evolve] LLM command generation failed for "${cluster.label}", using stub`,
         )
         content = JSON.stringify(this.generateCommandStub(cluster, commandId), null, 2)
       }

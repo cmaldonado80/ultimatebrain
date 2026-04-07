@@ -18,6 +18,8 @@ import {
 } from '@solarc/db'
 import { and, desc, eq, sql } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
+
 export type EntityTier = 'brain' | 'mini_brain' | 'development'
 export type EntityStatus = 'active' | 'suspended' | 'degraded' | 'provisioning'
 export type AgentRole = 'primary' | 'monitor' | 'healer' | 'specialist'
@@ -85,7 +87,10 @@ export class EntityManager {
 
     // Sync entity to OpenClaw daemon (non-blocking)
     this.syncEntityToOpenClaw(entity!.id).catch((err) =>
-      console.warn('[EntityManager] OpenClaw sync failed:', err.message),
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        '[EntityManager] OpenClaw sync failed',
+      ),
     )
 
     return entity!
@@ -103,7 +108,10 @@ export class EntityManager {
       })
       .where(eq(brainEntities.id, entityId))
     this.syncEntityToOpenClaw(entityId).catch((err) =>
-      console.warn('[EntityManager] OpenClaw sync failed:', err.message),
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        '[EntityManager] OpenClaw sync failed',
+      ),
     )
   }
 
