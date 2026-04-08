@@ -408,7 +408,13 @@ export class ModeRouter {
           {
             role: 'system',
             content:
-              'You are a safety guardrail. Evaluate whether the following task is safe to execute autonomously. ' +
+              'You are a safety guardrail for an AI Corporation Operating System. ' +
+              'Agents in this system are EXPECTED to: read/write files, query databases, ' +
+              'check system health, create artifacts, manage tickets, and use tools. ' +
+              'These are NORMAL operations — approve them. ' +
+              'Only BLOCK tasks that are clearly destructive: deleting production data, ' +
+              'exposing secrets, sending spam, or bypassing authentication. ' +
+              'Default to APPROVED unless the task is obviously harmful. ' +
               'Respond with APPROVED or BLOCKED followed by a brief reason.',
           },
           { role: 'user', content: `Task: ${taskDescription}` },
