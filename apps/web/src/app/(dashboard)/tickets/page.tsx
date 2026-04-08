@@ -50,7 +50,16 @@ const PRIORITY_BADGE_COLOR: Record<string, StatusColor> = {
   critical: 'red',
 }
 
-const STATUS_TABS = ['all', 'backlog', 'queued', 'in_progress', 'review', 'done', 'failed'] as const
+const STATUS_TABS = [
+  'all',
+  'backlog',
+  'queued',
+  'in_progress',
+  'review',
+  'done',
+  'failed',
+  'cancelled',
+] as const
 const STATUS_TAB_LABELS: Partial<Record<string, string>> = {
   in_progress: 'In Progress',
 }
@@ -67,7 +76,7 @@ export default function TicketsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
-  const { data, isLoading, error } = trpc.tickets.list.useQuery()
+  const { data, isLoading, error } = trpc.tickets.list.useQuery({ limit: 100, offset: 0 })
   const wsQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
   const agentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
   const allWorkspaces = (wsQuery.data ?? []) as Array<{ id: string; name: string }>

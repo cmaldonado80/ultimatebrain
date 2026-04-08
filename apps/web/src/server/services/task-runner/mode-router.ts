@@ -148,10 +148,10 @@ export class ModeRouter {
 
     const latencyMs = Date.now() - start
 
-    // Update ticket to done
+    // Update ticket to done and save the LLM response as the ticket result
     await this.db
       .update(tickets)
-      .set({ status: 'done', executionMode: 'quick' } as Record<string, unknown>)
+      .set({ status: 'done', executionMode: 'quick', result: response } as Record<string, unknown>)
       .where(eq(tickets.id, ticketId))
 
     return { mode: 'quick', ticketId, response, latencyMs }
@@ -296,9 +296,10 @@ export class ModeRouter {
       }
     }
 
+    const deepWorkResult = `Deep work completed: ${completedSteps}/${plan.steps.length} steps done. ${plan.steps.map((s) => `[${s.status}] ${s.title}`).join('; ')}`
     await this.db
       .update(tickets)
-      .set({ status: 'done' } as Record<string, unknown>)
+      .set({ status: 'done', result: deepWorkResult } as Record<string, unknown>)
       .where(eq(tickets.id, ticketId))
 
     const latest = await checkpointMgr.getLatest('ticket', ticketId)

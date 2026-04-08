@@ -21,6 +21,7 @@ const COLUMNS = [
   { status: 'in_progress', label: 'In Progress', color: 'yellow' as const },
   { status: 'review', label: 'Review', color: 'purple' as const },
   { status: 'done', label: 'Done', color: 'green' as const },
+  { status: 'failed', label: 'Failed', color: 'red' as const },
 ]
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -96,15 +97,15 @@ export default function BoardPage() {
                 {columnTickets.length === 0 ? (
                   <div className="text-[10px] text-slate-700 text-center py-8">
                     No tickets yet.{' '}
-                    <a href="/tickets" className="text-neon-teal hover:underline">
+                    <Link href="/tickets" className="text-neon-teal hover:underline">
                       Create one
-                    </a>
+                    </Link>
                   </div>
                 ) : (
                   columnTickets.map((ticket) => (
                     <Link
                       key={ticket.id}
-                      href={`/tickets`}
+                      href={`/tickets#${ticket.id}`}
                       className={`block bg-bg-surface border border-border-dim rounded-lg p-3 hover:border-neon-teal/30 transition-colors no-underline border-l-2 ${PRIORITY_COLORS[ticket.priority] ?? 'border-l-slate-700'}`}
                     >
                       <div className="text-[11px] text-slate-200 font-medium mb-1 line-clamp-2">

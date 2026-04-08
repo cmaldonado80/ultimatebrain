@@ -161,7 +161,7 @@ export default function ArtifactStudioPage() {
               <button
                 onClick={() =>
                   createArtifactMut.mutate({
-                    name: `Untitled Page`,
+                    name: `Untitled Page ${allArtifacts.length + 1}`,
                     type: 'html',
                     content:
                       '<div class="p-8 text-center"><h1 class="text-3xl font-bold text-white mb-4">New Page</h1><p class="text-slate-400">Edit this artifact to build something amazing.</p></div>',
