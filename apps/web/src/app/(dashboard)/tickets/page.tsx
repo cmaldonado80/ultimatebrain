@@ -28,6 +28,7 @@ interface Ticket {
   workspaceId: string | null
   assignedAgentId: string | null
   projectId: string | null
+  result: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -325,6 +326,14 @@ export default function TicketsPage() {
                     </span>
                     <span>Mode: {t.executionMode ?? 'auto'}</span>
                   </div>
+                  {t.result && (
+                    <div className="mt-2 pt-2 border-t border-border-dim">
+                      <strong className="text-slate-300">Result:</strong>
+                      <pre className="mt-1 bg-bg-elevated rounded px-3 py-2 text-[11px] text-slate-300 overflow-auto max-h-64 whitespace-pre-wrap font-mono">
+                        {t.result}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
