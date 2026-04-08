@@ -56,36 +56,66 @@ export const ticketsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Smart auto-assignment: pick workspace and agent if user didn't specify
+      // Smart auto-assignment: match agent to ticket content by skill/type relevance
       let assignedWorkspaceId = input.workspaceId
       let assignedAgentId = input.assignedAgentId
 
+      // Step 1: Find best agent by matching ticket text to agent skills/type
+      if (!assignedAgentId) {
+        try {
+          const allIdle = await ctx.db.query.agents.findMany({
+            where: eq(agents.status, 'idle'),
+            limit: 50,
+          })
+
+          if (allIdle.length > 0) {
+            const ticketText = `${input.title} ${input.description ?? ''}`.toLowerCase()
+            // Score each agent by keyword overlap with their type, name, and skills
+            let bestAgent = allIdle[0]!
+            let bestScore = 0
+
+            for (const agent of allIdle) {
+              let score = 0
+              const agentText =
+                `${agent.name} ${agent.type ?? ''} ${((agent.skills as string[]) ?? []).join(' ')}`.toLowerCase()
+              // Check keyword overlap
+              const keywords = ticketText.split(/\s+/).filter((w) => w.length > 3)
+              for (const kw of keywords) {
+                if (agentText.includes(kw)) score += 1
+              }
+              // Boost agents with relevant types
+              if (ticketText.includes('health') && agentText.includes('engineer')) score += 3
+              if (ticketText.includes('system') && agentText.includes('engineer')) score += 3
+              if (ticketText.includes('design') && agentText.includes('design')) score += 3
+              if (ticketText.includes('security') && agentText.includes('security')) score += 3
+              if (ticketText.includes('code') && agentText.includes('engineer')) score += 3
+              if (ticketText.includes('build') && agentText.includes('engineer')) score += 2
+              if (ticketText.includes('review') && agentText.includes('review')) score += 2
+
+              if (score > bestScore) {
+                bestScore = score
+                bestAgent = agent
+              }
+            }
+
+            assignedAgentId = bestAgent.id
+            // Use the agent's workspace if user didn't specify one
+            if (!assignedWorkspaceId && bestAgent.workspaceId) {
+              assignedWorkspaceId = bestAgent.workspaceId
+            }
+          }
+        } catch {
+          /* best-effort */
+        }
+      }
+
+      // Step 2: Fallback workspace if still unassigned
       if (!assignedWorkspaceId) {
         try {
           const firstWs = await ctx.db.query.workspaces.findFirst({
             orderBy: (t, { desc }) => [desc(t.createdAt)],
           })
           if (firstWs) assignedWorkspaceId = firstWs.id
-        } catch {
-          /* best-effort */
-        }
-      }
-
-      if (!assignedAgentId) {
-        try {
-          // Pick the least-busy idle agent (prefer ones in the same workspace)
-          const conditions = [eq(agents.status, 'idle')]
-          if (assignedWorkspaceId) conditions.push(eq(agents.workspaceId, assignedWorkspaceId))
-          let candidate = await ctx.db.query.agents.findFirst({
-            where: and(...conditions),
-          })
-          // Fallback: any idle agent if none in workspace
-          if (!candidate) {
-            candidate = await ctx.db.query.agents.findFirst({
-              where: eq(agents.status, 'idle'),
-            })
-          }
-          if (candidate) assignedAgentId = candidate.id
         } catch {
           /* best-effort */
         }
