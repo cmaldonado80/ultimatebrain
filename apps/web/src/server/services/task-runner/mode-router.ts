@@ -503,6 +503,12 @@ export class ModeRouter {
         'create_ticket',
         'memory_store',
         'memory_search',
+        'query_system',
+        'workspace_files',
+        'web_search',
+        'web_scrape',
+        'render_preview',
+        'db_query',
       ]
       const availableTools = AGENT_TOOLS.filter((t) => CODE_TOOLS.includes(t.name))
 
