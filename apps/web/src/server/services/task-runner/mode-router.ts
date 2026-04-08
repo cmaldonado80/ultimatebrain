@@ -512,12 +512,37 @@ export class ModeRouter {
       ]
       const availableTools = AGENT_TOOLS.filter((t) => CODE_TOOLS.includes(t.name))
 
+      const autonomousInstructions = `
+
+## Environment & Tools
+You are an autonomous agent in the Solarc Brain AI Corporation. You have access to real tools — USE THEM.
+
+### Key Tools Available:
+- **query_system**: Query internal systems (cortexStatus, marketStats, degradationProfiles, causalInsights, efficiencyReport, learningTrends, orgAnalysis, recentDecisions)
+- **file_system**: Read/write files. Working directory is apps/web/. Use paths like: src/server/services/healing/cortex.ts
+- **workspace_files**: Create artifacts (HTML pages, documents, code). Use action "write" with a name and content. The artifact will appear in the Artifact Studio.
+- **web_search**: Search the internet
+- **web_scrape**: Extract content from URLs
+- **render_preview**: Render HTML to a visual screenshot
+- **db_query**: Run read-only SQL queries
+- **memory_store/memory_search**: Store and retrieve knowledge
+- **create_ticket**: Create follow-up tickets
+- **self_improve**: Record learnings for the instinct system
+
+### Important Rules:
+- When asked to CREATE something (a page, document, component), use workspace_files with action "write" to save it as an artifact
+- File paths are relative to apps/web/. Example: src/server/services/healing/cortex.ts (NOT apps/web/src/...)
+- Always use tools to gather real data — never guess or make up information
+- After completing the task, provide a clear summary of what you did
+`
+
       const messages: Array<{ role: string; content: string }> = [
         {
           role: 'system',
           content:
-            agentConfig.soul ??
-            'You are an autonomous agent executing a task. Use the provided tools to complete it.',
+            (agentConfig.soul ??
+              'You are an autonomous agent executing a task. Use the provided tools to complete it.') +
+            autonomousInstructions,
         },
         {
           role: 'user',
