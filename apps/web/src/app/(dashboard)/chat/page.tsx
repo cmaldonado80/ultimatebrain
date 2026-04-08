@@ -57,7 +57,7 @@ export default function ChatPage() {
     { id: selectedSession!, messageLimit: 100 },
     { enabled: !!selectedSession },
   )
-  const agentsQuery = trpc.agents.list.useQuery({ limit: 200, offset: 0 })
+  const agentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
   const agents: Agent[] = (agentsQuery.data ?? []) as Agent[]
   const agentMap = useMemo(() => new Map(agents.map((a) => [a.id, a])), [agents])
 

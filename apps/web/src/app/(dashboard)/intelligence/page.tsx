@@ -175,7 +175,7 @@ function DocumentUploadCard() {
 export default function IntelligencePage() {
   const sessionsQuery = trpc.intelligence.chatSessions.useQuery()
   const memoryQuery = trpc.memory.list.useQuery({ limit: 10, offset: 0 })
-  const agentsQuery = trpc.agents.list.useQuery({ limit: 500, offset: 0 })
+  const agentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
 
   const error = sessionsQuery.error || memoryQuery.error
   if (error) {

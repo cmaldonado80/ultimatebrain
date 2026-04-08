@@ -39,7 +39,7 @@ export default function DomainAgentsPage() {
     (e) => e.id === domainId || e.domain === domainId || e.name.toLowerCase() === domainId,
   )
 
-  const agentsQuery = trpc.agents.list.useQuery({ limit: 200, offset: 0 })
+  const agentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
 
   if (topologyQuery.error || agentsQuery.error) {
     return (

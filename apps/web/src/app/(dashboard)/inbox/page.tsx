@@ -18,7 +18,7 @@ export default function InboxPage() {
   const messagesQuery = trpc.agents.messages.useQuery(
     filterAgent ? { agentId: filterAgent, limit: 50 } : { limit: 50 },
   )
-  const agentsQuery = trpc.agents.list.useQuery({ limit: 200, offset: 0 })
+  const agentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
 
   if (messagesQuery.isLoading) return <LoadingState message="Loading Agent Inbox..." />
 

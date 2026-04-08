@@ -47,7 +47,7 @@ export default function EntityDetailPage() {
   const agentsQuery = trpc.platform.entityAgents.useQuery({ entityId })
   const healthQuery = trpc.platform.entityHealth.useQuery({ id: entityId })
   const dbStatusQuery = trpc.factory.databaseStatus.useQuery({ entityId })
-  const allAgentsQuery = trpc.agents.list.useQuery({ limit: 200, offset: 0 })
+  const allAgentsQuery = trpc.agents.list.useQuery({ limit: 100, offset: 0 })
   const utils = trpc.useUtils()
 
   const activateMut = trpc.platform.activateEntity.useMutation({

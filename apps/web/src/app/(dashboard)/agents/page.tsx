@@ -75,7 +75,7 @@ export default function AgentsPage() {
   const navRouter = useRouter()
 
   const allAgentsQuery = trpc.agents.list.useQuery(
-    { limit: 500, offset: 0 },
+    { limit: 100, offset: 0 },
     { enabled: !workspaceFilter },
   )
   const wsAgentsQuery = trpc.agents.byWorkspace.useQuery(

@@ -89,9 +89,9 @@ describe('agents router', () => {
       expect(mockFindMany).toHaveBeenCalledWith({ limit: 10, offset: 20 })
     })
 
-    it('rejects limit above 500', async () => {
+    it('rejects limit above 100', async () => {
       const trpc = caller({ db, session: { userId: 'user-1' } })
-      await expect(trpc.list({ limit: 600, offset: 0 })).rejects.toThrow()
+      await expect(trpc.list({ limit: 101, offset: 0 })).rejects.toThrow()
     })
 
     it('rejects negative offset', async () => {
