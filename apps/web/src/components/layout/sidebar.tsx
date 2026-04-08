@@ -33,6 +33,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Mission Control', href: '/', icon: '⊞' },
       { label: 'Chat', href: '/chat', icon: '◉' },
       { label: 'Notifications', href: '/notifications', icon: '⊙' },
+      { label: 'User Guide', href: '/guide', icon: '?' },
     ],
   },
   // ── WORK ──────────────────────────────────────────────────────────────
