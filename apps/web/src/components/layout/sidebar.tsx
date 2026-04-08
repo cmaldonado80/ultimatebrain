@@ -90,7 +90,6 @@ const BASE_NAV_SECTIONS: NavSection[] = [
     title: 'Organization',
     items: [
       { label: 'Org Dashboard', href: '/org/dashboard', icon: '◎' },
-      { label: 'Org Settings', href: '/org', icon: '⊞' },
       { label: 'Members', href: '/org/members', icon: '◉' },
     ],
   },
@@ -98,11 +97,9 @@ const BASE_NAV_SECTIONS: NavSection[] = [
     title: 'Ops Center',
     items: [
       { label: 'Overview', href: '/ops', icon: '◎' },
-      { label: 'Causal Insights', href: '/ops/causal', icon: '⊘' },
       { label: 'Stress Tests', href: '/ops/stress', icon: '⚡' },
       { label: 'Decisions', href: '/ops/decisions', icon: '⊞' },
       { label: 'Restructuring', href: '/ops/restructuring', icon: '◈' },
-      { label: 'Debates', href: '/ops/debates', icon: '⇋' },
     ],
   },
   {
@@ -142,7 +139,6 @@ const BASE_NAV_SECTIONS: NavSection[] = [
   {
     title: 'Platform',
     items: [
-      { label: 'Connected Apps', href: '/apps', icon: '⬢' },
       { label: 'Engines', href: '/engines', icon: '⚙' },
       { label: 'Engine Registry', href: '/engines/registry', icon: '⊛' },
       { label: 'Brain Manager', href: '/engines/manage', icon: '◆' },
