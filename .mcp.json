@@ -4,6 +4,11 @@
       "command": "npx",
       "args": ["-y", "ruflo@latest", "serve"],
       "env": {}
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "$DATABASE_URL"],
+      "env": {}
     }
   }
 }

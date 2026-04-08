@@ -1,0 +1,5 @@
+{
+  "permissions": {
+    "deny": ["Bash(rm -rf /)", "Bash(git push --force)", "Bash(DROP TABLE)", "Bash(DROP DATABASE)"]
+  }
+}
