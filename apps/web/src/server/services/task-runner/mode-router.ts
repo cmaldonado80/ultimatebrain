@@ -598,12 +598,17 @@ export class ModeRouter {
         ],
       })
 
-      const parsed = JSON.parse(result.content) as Array<{
-        title: string
-        description: string
-        estimatedMs?: number
-        toolsRequired?: string[]
-      }>
+      const rawParsed = JSON.parse(result.content)
+      const parsed = Array.isArray(rawParsed)
+        ? (rawParsed as Array<{
+            title: string
+            description: string
+            estimatedMs?: number
+            toolsRequired?: string[]
+          }>)
+        : []
+
+      if (parsed.length === 0) throw new Error('LLM returned non-array plan')
 
       const steps: PlanStep[] = parsed.map((s, i) => ({
         index: i,

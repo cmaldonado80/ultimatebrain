@@ -173,7 +173,7 @@ export class RecallFlow {
       try {
         await this.memoryService.nominateForPromotion(id)
       } catch (err) {
-        logger.warn({}, '[RecallFlow] Best-effort promotion failed for memory ${id}')
+        logger.warn({}, `[RecallFlow] Best-effort promotion failed for memory ${id}`)
       }
     }
   }

@@ -10,7 +10,7 @@
 
 import type { Database } from '@solarc/db'
 import { cognitiveCandidates, memories, memoryVectors } from '@solarc/db'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 
 import { logger } from '../../../lib/logger'
 import type { Span, Tracer } from '../platform/tracer'
@@ -340,15 +340,15 @@ export class MemoryService {
    * Increments access_count and updates last_accessed_at.
    */
   async trackAccess(memoryIds: string[]): Promise<void> {
-    for (const id of memoryIds) {
-      await this.db
-        .update(memories)
-        .set({
-          accessCount: sql`${memories.accessCount} + 1`,
-          lastAccessedAt: new Date(),
-        })
-        .where(eq(memories.id, id))
-    }
+    if (memoryIds.length === 0) return
+    // Batched update — single query instead of N+1
+    await this.db
+      .update(memories)
+      .set({
+        accessCount: sql`${memories.accessCount} + 1`,
+        lastAccessedAt: new Date(),
+      })
+      .where(inArray(memories.id, memoryIds))
   }
 
   /**

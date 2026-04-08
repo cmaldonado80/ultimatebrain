@@ -105,7 +105,7 @@ export class EmergentRoleCreator {
 
       // Check if we already proposed this
       const existingProposal = this.proposals.find(
-        (p) => p.suggestedSkills.sort().join('+') === fingerprint,
+        (p) => [...p.suggestedSkills].sort().join('+') === fingerprint,
       )
       if (existingProposal) {
         // Update evidence count

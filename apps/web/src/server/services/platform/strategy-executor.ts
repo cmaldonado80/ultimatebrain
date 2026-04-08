@@ -50,7 +50,11 @@ export async function executeStrategy(
     if (!jsonMatch) {
       return { ticketIds: [], error: 'LLM did not return valid JSON array' }
     }
-    decomposed = JSON.parse(jsonMatch[0]) as DecomposedTicket[]
+    const rawParsed = JSON.parse(jsonMatch[0])
+    decomposed = Array.isArray(rawParsed) ? (rawParsed as DecomposedTicket[]) : []
+    if (decomposed.length === 0) {
+      return { ticketIds: [], error: 'LLM returned empty or non-array decomposition' }
+    }
   } catch (err) {
     return {
       ticketIds: [],
