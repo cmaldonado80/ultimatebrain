@@ -4,7 +4,7 @@
  * Tickets are the primary work unit: created by users or A2A, assigned to agents,
  * and executed through the ModeRouter pipeline (quick/autonomous/deep_work).
  */
-import { tickets, ticketStatusHistory } from '@solarc/db'
+import { agents, tickets, ticketStatusHistory } from '@solarc/db'
 import { TRPCError } from '@trpc/server'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
@@ -56,7 +56,49 @@ export const ticketsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [ticket] = await ctx.db.insert(tickets).values(input).returning()
+      // Smart auto-assignment: pick workspace and agent if user didn't specify
+      let assignedWorkspaceId = input.workspaceId
+      let assignedAgentId = input.assignedAgentId
+
+      if (!assignedWorkspaceId) {
+        try {
+          const firstWs = await ctx.db.query.workspaces.findFirst({
+            orderBy: (t, { desc }) => [desc(t.createdAt)],
+          })
+          if (firstWs) assignedWorkspaceId = firstWs.id
+        } catch {
+          /* best-effort */
+        }
+      }
+
+      if (!assignedAgentId) {
+        try {
+          // Pick the least-busy idle agent (prefer ones in the same workspace)
+          const conditions = [eq(agents.status, 'idle')]
+          if (assignedWorkspaceId) conditions.push(eq(agents.workspaceId, assignedWorkspaceId))
+          let candidate = await ctx.db.query.agents.findFirst({
+            where: and(...conditions),
+          })
+          // Fallback: any idle agent if none in workspace
+          if (!candidate) {
+            candidate = await ctx.db.query.agents.findFirst({
+              where: eq(agents.status, 'idle'),
+            })
+          }
+          if (candidate) assignedAgentId = candidate.id
+        } catch {
+          /* best-effort */
+        }
+      }
+
+      const [ticket] = await ctx.db
+        .insert(tickets)
+        .values({
+          ...input,
+          workspaceId: assignedWorkspaceId,
+          assignedAgentId: assignedAgentId,
+        })
+        .returning()
       if (!ticket)
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create ticket' })
       eventBus.emit('ticket.created', { ticketId: ticket.id }).catch((err) => {
