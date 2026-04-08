@@ -85,19 +85,19 @@ export default function LearningOrganismPage() {
       {/* Section 1: Vital Signs */}
       <PageGrid cols="4" className="mb-6">
         <StatCard
-          label="Instincts Learned"
+          label="Patterns Learned"
           value={instinctsLearned}
           color="blue"
           sub={`${instinctStats?.activeInstincts ?? 0} active`}
         />
         <StatCard
-          label="Avg Confidence"
+          label="Avg Accuracy"
           value={`${Math.round(avgConfidence * 100)}%`}
           color={avgConfidence > 0.6 ? 'green' : avgConfidence > 0.4 ? 'yellow' : 'red'}
           sub={`${totalObs} observations (14d)`}
         />
         <StatCard
-          label="Feedback Loops"
+          label="Learning Signals"
           value={`${activeLoops}/${totalLoops}`}
           color={activeLoops >= 8 ? 'green' : activeLoops >= 5 ? 'yellow' : 'red'}
           sub="active in last 24h"
@@ -115,15 +115,15 @@ export default function LearningOrganismPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
             {
-              label: 'Instinct Effectiveness',
+              label: 'Pattern Effectiveness',
               key: 'instinct_effectiveness',
               color: 'green' as const,
             },
             { label: 'Error Resolution', key: 'error_resolution', color: 'blue' as const },
             { label: 'Tool Failures', key: 'tool_failure_pattern', color: 'red' as const },
-            { label: 'Agent Degradation', key: 'agent_degradation', color: 'yellow' as const },
+            { label: 'Agent Issues', key: 'agent_degradation', color: 'yellow' as const },
             { label: 'Code Repairs', key: 'code_repair', color: 'purple' as const },
-            { label: 'Self Improve', key: 'self_improve', color: 'teal' as const },
+            { label: 'Self-Corrections', key: 'self_improve', color: 'teal' as const },
           ].map((metric) => (
             <div key={metric.key} className="text-center">
               <div className="text-[10px] text-slate-500 uppercase mb-1">{metric.label}</div>
@@ -143,7 +143,7 @@ export default function LearningOrganismPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Section 3: Feedback Loop Health */}
-        <SectionCard title="Feedback Loop Health">
+        <SectionCard title="Learning Signal Status">
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(loopHealth).map(([name, active]) => (
               <div key={name} className="flex items-center gap-2 text-[11px]">
@@ -155,14 +155,14 @@ export default function LearningOrganismPage() {
           {totalLoops > 0 && (
             <div className="text-[10px] text-slate-500 mt-3 border-t border-border-dim pt-2">
               {activeLoops === totalLoops
-                ? 'All feedback loops active — system is learning'
-                : `${totalLoops - activeLoops} loops inactive — may need data flow`}
+                ? 'All learning signals active — system is learning'
+                : `${totalLoops - activeLoops} signals inactive — may need data flow`}
             </div>
           )}
         </SectionCard>
 
-        {/* Section 4: Cortex Intelligence */}
-        <SectionCard title="Cortex OODA Status">
+        {/* Section 4: Healing System Status */}
+        <SectionCard title="Healing System Status">
           {cortex ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -182,7 +182,7 @@ export default function LearningOrganismPage() {
               </div>
               <div className="grid grid-cols-3 gap-2 text-[10px]">
                 <div className="bg-bg-deep rounded px-2 py-1.5 text-center">
-                  <div className="text-slate-500">Healed</div>
+                  <div className="text-slate-500">Fixed</div>
                   <div className="text-lg font-bold text-neon-green">
                     {cortex.totalHealingActions}
                   </div>
@@ -192,7 +192,7 @@ export default function LearningOrganismPage() {
                   <div className="text-lg font-bold text-neon-blue">{cortex.totalRecoveries}</div>
                 </div>
                 <div className="bg-bg-deep rounded px-2 py-1.5 text-center">
-                  <div className="text-slate-500">Degraded</div>
+                  <div className="text-slate-500">Reduced</div>
                   <div className="text-lg font-bold text-neon-yellow">
                     {cortex.totalDegradations}
                   </div>
@@ -200,7 +200,7 @@ export default function LearningOrganismPage() {
               </div>
             </div>
           ) : (
-            <div className="text-xs text-slate-600 py-4 text-center">Cortex data loading...</div>
+            <div className="text-xs text-slate-600 py-4 text-center">Health data loading...</div>
           )}
         </SectionCard>
       </div>
@@ -240,12 +240,12 @@ export default function LearningOrganismPage() {
         )}
       </SectionCard>
 
-      {/* Section 5b: Causal Insights + Pathway Effectiveness */}
+      {/* Section 5b: What's Driving Changes + Learning Channel Performance */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <SectionCard title="Top Causal Insights">
+        <SectionCard title="What's Driving Changes">
           {!causalQuery.data || (causalQuery.data as unknown[]).length === 0 ? (
             <div className="text-xs text-slate-600 py-4 text-center">
-              No causal insights yet — run weekly analysis
+              No data yet — run weekly analysis
             </div>
           ) : (
             <div className="space-y-2">
@@ -277,10 +277,10 @@ export default function LearningOrganismPage() {
           )}
         </SectionCard>
 
-        <SectionCard title="Pathway Effectiveness">
+        <SectionCard title="Learning Channel Performance">
           {!metaQuery.data || (metaQuery.data as unknown[]).length === 0 ? (
             <div className="text-xs text-slate-600 py-4 text-center">
-              No pathway data yet — run weekly analysis
+              No channel data yet — run weekly analysis
             </div>
           ) : (
             <div className="space-y-2">

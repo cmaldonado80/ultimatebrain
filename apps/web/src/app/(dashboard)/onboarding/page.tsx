@@ -224,7 +224,7 @@ export default function OnboardingPage() {
           <div className="bg-neon-green/10 border border-neon-green/30 rounded p-4 mb-4">
             <div className="text-neon-green font-medium">Department Created!</div>
             <div className="text-sm text-slate-300 mt-1">
-              {createdDept.name} — {createdDept.agentCount} agents provisioned and ready to work.
+              {createdDept.name} — {createdDept.agentCount} agents created and ready to work.
             </div>
           </div>
           <p className="text-[11px] text-slate-400 mb-4">
@@ -269,7 +269,7 @@ export default function OnboardingPage() {
           </div>
           <div className="flex gap-2">
             <button onClick={() => setStep(5)} className="cyber-btn-secondary cyber-btn-sm flex-1">
-              Skip
+              Set Later
             </button>
             <button
               onClick={() => {

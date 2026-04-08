@@ -368,7 +368,7 @@ export default function ChatPage() {
             }}
             className={`cyber-btn-sm ${runHistoryOpen ? 'cyber-btn-primary' : 'cyber-btn-secondary'} text-xs`}
           >
-            Runs
+            History
           </button>
           <button
             onClick={() => {
@@ -380,7 +380,7 @@ export default function ChatPage() {
             }}
             className={`cyber-btn-sm ${inspectorOpen ? 'cyber-btn-primary' : 'cyber-btn-secondary'} text-xs`}
           >
-            Inspector
+            Details
           </button>
         </div>
       </div>
@@ -611,7 +611,7 @@ export default function ChatPage() {
                     ))}
                     {selectedAgents.length > 1 && (
                       <span className="text-[10px] text-neon-purple flex items-center gap-1">
-                        <span className="neon-dot neon-dot-purple neon-dot-pulse" /> Crew mode
+                        <span className="neon-dot neon-dot-purple neon-dot-pulse" /> Multi-Agent
                       </span>
                     )}
                   </div>

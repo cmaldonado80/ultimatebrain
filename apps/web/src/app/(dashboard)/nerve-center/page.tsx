@@ -5,7 +5,7 @@
  *
  * 10x better than a basic dashboard because it shows:
  * 1. LIVE PULSE  — real-time health metrics with percentile anomaly bands
- * 2. CORTEX      — the healing brain's OODA loop status + predictive interventions
+ * 2. HEALTH      — the healing system's status + predictive interventions
  * 3. AGENTS      — every agent's capability level, sandbox, and active work
  * 4. ACTIVITY    — streaming feed of tool executions, policy blocks, healing actions
  * 5. CONTROLS    — force agent levels, trigger cortex cycle, set department quotas
@@ -194,7 +194,7 @@ export default function NerveCenterPage() {
       <div className="flex items-center gap-3 mb-2">
         <PageHeader
           title="Nerve Center"
-          subtitle="Real-time autonomous nervous system — observe, orient, decide, act"
+          subtitle="Real-time autonomous nervous system — observe, analyze, decide, act"
         />
         <div className="ml-auto flex items-center gap-2">
           <span
@@ -249,7 +249,7 @@ export default function NerveCenterPage() {
           sub={`${predictive?.interventions.length ?? 0} interventions`}
         />
         <StatCard
-          label="Cortex Cycles"
+          label="Health Checks"
           value={cortex?.cycleCount ?? 0}
           color="purple"
           sub={cortex?.isRunning ? 'Running...' : `${cortex?.lastCycle?.durationMs ?? 0}ms last`}
@@ -261,13 +261,13 @@ export default function NerveCenterPage() {
           sub={`${cortex?.totalRecoveries ?? 0} recoveries`}
         />
         <StatCard
-          label="Sandbox Execs"
+          label="Tool Runs"
           value={sandbox?.executor.totalExecutions ?? 0}
           color="green"
           sub={`${sandbox?.executor.blockedByPolicy ?? 0} blocked`}
         />
         <StatCard
-          label="Instinct Actions"
+          label="Learned Fixes"
           value={instincts?.totalExecutions ?? 0}
           color="yellow"
           sub={`${instincts?.activeInstincts ?? 0} active patterns`}
@@ -286,7 +286,7 @@ export default function NerveCenterPage() {
           href="/nerve-center/agent"
           className="text-xs px-3 py-1.5 rounded-lg bg-bg-card border border-border-dim text-slate-400 hover:text-neon-purple hover:border-neon-purple/30 transition-colors no-underline"
         >
-          Agent Forensics ({degradations.length} agents)
+          Agent Details ({degradations.length} agents)
         </Link>
       </div>
 
@@ -302,8 +302,8 @@ export default function NerveCenterPage() {
                 : 'bg-bg-card text-slate-400 border border-border-dim hover:text-slate-200'
             }`}
           >
-            {tab === 'pulse' && '◉ System Pulse'}
-            {tab === 'agents' && '◈ Agent Grid'}
+            {tab === 'pulse' && '◉ Health Overview'}
+            {tab === 'agents' && '◈ Agent Status'}
             {tab === 'activity' && '⊞ Live Activity'}
           </button>
         ))}
@@ -313,7 +313,7 @@ export default function NerveCenterPage() {
             disabled={cortexCycle.isPending || cortex?.isRunning}
             className="cyber-btn-primary text-sm px-4 py-2 disabled:opacity-50"
           >
-            {cortexCycle.isPending ? 'Running...' : '▶ Run OODA Cycle'}
+            {cortexCycle.isPending ? 'Running...' : '▶ Run Health Check'}
           </button>
         </div>
       </div>
@@ -383,7 +383,7 @@ function PulseTab({
       <SectionCard title="Metric Trends" variant="intelligence">
         {!predictive?.trends || predictive.trends.length === 0 ? (
           <p className="text-slate-500 text-sm">
-            No trend data yet. Cortex needs a few cycles to collect metrics.
+            No trend data yet. The health system needs a few cycles to collect metrics.
           </p>
         ) : (
           <div className="space-y-3">
@@ -397,20 +397,20 @@ function PulseTab({
                     <span className="text-sm font-medium text-slate-200">{trend.metric}</span>
                     {trend.percentileAnomaly && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-neon-red/20 text-neon-red">
-                        ANOMALY
+                        Unusual
                       </span>
                     )}
                     {trend.predictedBreachIn !== null && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-neon-yellow/20 text-neon-yellow">
-                        Breach in {Math.round(trend.predictedBreachIn / 60000)}min
+                        Alert in {Math.round(trend.predictedBreachIn / 60000)}min
                       </span>
                     )}
                   </div>
                   <div className="flex gap-4 mt-1 text-[10px] text-slate-500">
                     <span>Current: {trend.current.toFixed(3)}</span>
-                    <span>P10: {trend.percentiles.p10.toFixed(3)}</span>
-                    <span>P50: {trend.percentiles.p50.toFixed(3)}</span>
-                    <span>P90: {trend.percentiles.p90.toFixed(3)}</span>
+                    <span>Best: {trend.percentiles.p10.toFixed(3)}</span>
+                    <span>Typical: {trend.percentiles.p50.toFixed(3)}</span>
+                    <span>Worst: {trend.percentiles.p90.toFixed(3)}</span>
                     <span>
                       Slope: {trend.slope > 0 ? '+' : ''}
                       {trend.slope.toFixed(4)}/s
@@ -593,7 +593,7 @@ function AgentGridTab({
     <SectionCard title="Agent Capability Grid">
       {degradations.length === 0 ? (
         <p className="text-slate-500 text-sm">
-          No agent degradation data. Agents will appear here after their first task execution.
+          No agent capability data. Agents will appear here after their first task execution.
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -680,11 +680,11 @@ function ActivityTab({
 
   return (
     <div className="space-y-6">
-      {/* Last OODA Cycle Breakdown */}
-      <SectionCard title="Last Cortex Cycle" variant="highlighted">
+      {/* Last Health Check Breakdown */}
+      <SectionCard title="Last Health Check" variant="highlighted">
         {!lastCycle ? (
           <p className="text-slate-500 text-sm">
-            No cycle data yet. Click &quot;Run OODA Cycle&quot; to start.
+            No cycle data yet. Click &quot;Run Health Check&quot; to start.
           </p>
         ) : (
           <div className="space-y-3">
@@ -738,7 +738,7 @@ function ActivityTab({
             {lastCycle.phases.act.degradationEvents.length > 0 && (
               <div>
                 <div className="text-[10px] text-slate-500 mb-1 uppercase tracking-wider">
-                  Agent Degradation
+                  Agent Level Changes
                 </div>
                 {lastCycle.phases.act.degradationEvents.map((e, i) => (
                   <div key={i} className="text-xs py-0.5">
@@ -756,12 +756,12 @@ function ActivityTab({
 
       {/* Top Violating Agents */}
       {audit?.topViolatingAgents && audit.topViolatingAgents.length > 0 && (
-        <SectionCard title="Top Violating Agents" variant="error">
+        <SectionCard title="Top Agents with Safety Issues" variant="error">
           <div className="space-y-1">
             {audit.topViolatingAgents.map((a) => (
               <div key={a.agentId} className="flex justify-between text-xs">
                 <span className="text-slate-300">{a.agentName}</span>
-                <span className="text-neon-red font-mono">{a.count} violations</span>
+                <span className="text-neon-red font-mono">{a.count} safety issues</span>
               </div>
             ))}
           </div>

@@ -65,7 +65,7 @@ export default function CeoDashboardPage() {
           label="Departments"
           value={org?.stats.totalDepartments ?? 0}
           color="purple"
-          sub={`${healthyDepts} healthy, ${degradedDepts} degraded`}
+          sub={`${healthyDepts} healthy, ${degradedDepts} needs attention`}
         />
         <StatCard
           label="Employees"
@@ -91,7 +91,7 @@ export default function CeoDashboardPage() {
                   ? 'yellow'
                   : 'green'
           }
-          sub={`${guardrails?.totalViolations ?? 0} violations`}
+          sub={`${guardrails?.totalViolations ?? 0} safety issues`}
         />
       </PageGrid>
 
@@ -114,7 +114,7 @@ export default function CeoDashboardPage() {
                       <span className="text-slate-600 ml-1">({dept.employees.length} agents)</span>
                     </div>
                     <StatusBadge
-                      label={dept.status}
+                      label={dept.status === 'degraded' ? 'needs attention' : dept.status}
                       color={
                         dept.status === 'active'
                           ? 'green'
@@ -133,7 +133,7 @@ export default function CeoDashboardPage() {
           )}
         </SectionCard>
 
-        {/* Guardrail Summary */}
+        {/* Safety & Compliance */}
         <SectionCard title="Safety & Compliance">
           {guardrails ? (
             <div className="space-y-3">
@@ -158,11 +158,12 @@ export default function CeoDashboardPage() {
                 </div>
               </div>
               <div className="text-[10px] text-slate-500">
-                Total violations: {guardrails.totalViolations} &middot; Risk: {guardrails.riskLevel}
+                Total safety issues: {guardrails.totalViolations} &middot; Risk:{' '}
+                {guardrails.riskLevel}
               </div>
             </div>
           ) : (
-            <div className="text-xs text-slate-600 py-4 text-center">No guardrail data</div>
+            <div className="text-xs text-slate-600 py-4 text-center">No safety data</div>
           )}
         </SectionCard>
       </div>

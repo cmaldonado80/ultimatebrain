@@ -63,7 +63,7 @@ export default function CommandCenter() {
           label="Departments"
           value={org?.stats.totalDepartments ?? 0}
           color="purple"
-          sub={`${healthyDepts} healthy${degradedDepts > 0 ? `, ${degradedDepts} degraded` : ''}`}
+          sub={`${healthyDepts} healthy${degradedDepts > 0 ? `, ${degradedDepts} needs attention` : ''}`}
         />
         <StatCard
           label="Employees"
@@ -133,7 +133,7 @@ export default function CommandCenter() {
               {org?.departments.slice(0, 8).map((dept) => (
                 <div key={dept.id} className="flex items-center gap-2 text-[10px]">
                   <StatusBadge
-                    label={dept.status}
+                    label={dept.status === 'degraded' ? 'needs attention' : dept.status}
                     color={
                       dept.status === 'active'
                         ? 'green'

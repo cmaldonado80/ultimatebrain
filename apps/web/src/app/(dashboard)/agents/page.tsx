@@ -148,12 +148,12 @@ export default function AgentsPage() {
     onSuccess: (data) => {
       utils.agents.list.invalidate()
       setBulkResult(
-        `Synced ${data.synced} souls (${data.skipped} unchanged, ${data.totalSouls} soul files loaded)`,
+        `Updated ${data.synced} profiles (${data.skipped} unchanged, ${data.totalSouls} profile files loaded)`,
       )
       setTimeout(() => setBulkResult(null), 6000)
     },
     onError: (err) => {
-      setBulkResult(`Sync failed: ${err.message}`)
+      setBulkResult(`Update failed: ${err.message}`)
       setTimeout(() => setBulkResult(null), 6000)
     },
   })
@@ -178,7 +178,7 @@ export default function AgentsPage() {
         const manifest = JSON.parse(reader.result as string)
         importMut.mutate(manifest)
       } catch {
-        alert('Invalid manifest JSON file')
+        alert('Invalid configuration JSON file')
       }
     }
     reader.readAsText(file)
@@ -237,15 +237,15 @@ export default function AgentsPage() {
               disabled={bulkModelsMut.isPending}
               title="Assign Ollama cloud models to all agents without an explicit model"
             >
-              {bulkModelsMut.isPending ? 'Assigning...' : 'Assign Models'}
+              {bulkModelsMut.isPending ? 'Assigning...' : 'Auto-Assign Models'}
             </button>
             <button
               className="cyber-btn-secondary"
               onClick={() => syncSoulsMut.mutate()}
               disabled={syncSoulsMut.isPending}
-              title="Update all agent souls from .md files"
+              title="Refresh agent descriptions from definition files"
             >
-              {syncSoulsMut.isPending ? 'Syncing...' : 'Sync Souls'}
+              {syncSoulsMut.isPending ? 'Updating...' : 'Update Profiles'}
             </button>
             {bulkResult && (
               <span className="text-neon-green text-[11px] font-medium">{bulkResult}</span>
@@ -403,7 +403,7 @@ export default function AgentsPage() {
 
       {agents.length === 0 ? (
         <div className="text-center text-slate-500 py-10 text-sm">
-          No agents found. Create one or import a manifest to get started.
+          No agents found. Create one or import a configuration file to get started.
         </div>
       ) : (
         <div className="cyber-grid">
@@ -422,7 +422,7 @@ export default function AgentsPage() {
                 <button
                   className="bg-transparent text-slate-500 border-none text-[11px] cursor-pointer hover:text-slate-300"
                   onClick={() => handleExport(agent.id, agent.name)}
-                  title="Export manifest"
+                  title="Export config"
                 >
                   Exp
                 </button>

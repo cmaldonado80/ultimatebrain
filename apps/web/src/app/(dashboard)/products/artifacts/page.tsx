@@ -103,7 +103,7 @@ export default function ArtifactStudioPage() {
     <div className="p-6 text-slate-50">
       <PageHeader
         title="Artifact Studio"
-        subtitle="Create, preview, and iterate on corporation artifacts — webpages, components, documents"
+        subtitle="Create and iterate on webpages, components, and documents"
       />
 
       {/* Stats */}
@@ -159,7 +159,7 @@ export default function ArtifactStudioPage() {
               <button
                 onClick={() =>
                   createArtifactMut.mutate({
-                    name: `New Page ${Date.now()}`,
+                    name: `Untitled Page`,
                     type: 'html',
                     content:
                       '<div class="p-8 text-center"><h1 class="text-3xl font-bold text-white mb-4">New Page</h1><p class="text-slate-400">Edit this artifact to build something amazing.</p></div>',
@@ -167,7 +167,7 @@ export default function ArtifactStudioPage() {
                 }
                 className="cyber-btn-primary w-full text-[11px] py-1.5"
               >
-                + New HTML Artifact
+                + Create New Page
               </button>
             </div>
           </SectionCard>
