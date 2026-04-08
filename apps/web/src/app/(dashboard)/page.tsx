@@ -89,7 +89,12 @@ export default function CommandCenter() {
         {/* Active Work */}
         <SectionCard title="Active Work">
           {tickets.filter((t) => t.status === 'in_progress').length === 0 ? (
-            <div className="text-xs text-slate-600 py-4 text-center">No active tasks</div>
+            <div className="text-xs text-slate-600 py-4 text-center">
+              No tasks running right now.{' '}
+              <a href="/board" className="text-neon-teal hover:underline">
+                Create a ticket to get started
+              </a>
+            </div>
           ) : (
             <div className="space-y-1">
               {tickets
@@ -204,7 +209,15 @@ export default function CommandCenter() {
       <SectionCard title="Corporation Products" className="mb-6">
         {(org?.stats.totalProducts ?? 0) === 0 ? (
           <div className="text-xs text-slate-600 py-4 text-center">
-            No products yet. The corporation hasn&apos;t built any apps.
+            No products yet.{' '}
+            <a href="/products/artifacts" className="text-neon-teal hover:underline">
+              Create your first artifact
+            </a>{' '}
+            or{' '}
+            <a href="/mini-brain-factory" className="text-neon-teal hover:underline">
+              add a department
+            </a>{' '}
+            to get started.
           </div>
         ) : (
           <div className="space-y-1">

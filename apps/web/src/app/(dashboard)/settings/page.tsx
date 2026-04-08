@@ -93,7 +93,11 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 text-slate-50">
-      <PageHeader title="Settings" showOrgBadge={false} />
+      <PageHeader
+        title="Settings"
+        subtitle="Configure LLM providers, feature flags, and system policies"
+        showOrgBadge={false}
+      />
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2.5">
           <div className="text-[13px] font-bold text-slate-400 uppercase tracking-wide font-orbitron">
@@ -417,7 +421,7 @@ function OpenClawStatus() {
         )}
       </div>
       {caps && (
-        <div className="grid grid-cols-4 gap-2 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
           <div>
             <div className="text-[14px] font-bold text-neon-blue">{caps.providers ?? 0}</div>
             <div className="text-[9px] text-slate-500">Providers</div>

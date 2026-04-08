@@ -9,6 +9,7 @@
 
 import Link from 'next/link'
 
+import { DbErrorBanner } from '../../../components/db-error-banner'
 import { LoadingState } from '../../../components/ui/loading-state'
 import { PageHeader } from '../../../components/ui/page-header'
 import { StatusBadge } from '../../../components/ui/status-badge'
@@ -38,7 +39,9 @@ export default function BoardPage() {
   if (ticketsQuery.isLoading) return <LoadingState message="Loading Project Board..." />
   if (ticketsQuery.error)
     return (
-      <div className="p-6 text-neon-red text-sm">Failed to load project board. Please retry.</div>
+      <div className="p-6">
+        <DbErrorBanner error={ticketsQuery.error} />
+      </div>
     )
 
   const allTickets = (ticketsQuery.data ?? []) as Array<{
@@ -91,7 +94,12 @@ export default function BoardPage() {
               {/* Column Body */}
               <div className="space-y-2 min-h-[200px] bg-bg-deep/50 rounded-lg p-2">
                 {columnTickets.length === 0 ? (
-                  <div className="text-[10px] text-slate-700 text-center py-8">No tickets</div>
+                  <div className="text-[10px] text-slate-700 text-center py-8">
+                    No tickets yet.{' '}
+                    <a href="/tickets" className="text-neon-teal hover:underline">
+                      Create one
+                    </a>
+                  </div>
                 ) : (
                   columnTickets.map((ticket) => (
                     <Link

@@ -215,7 +215,7 @@ export default function OrgChartPage() {
                           <div className="text-[10px] text-slate-500 uppercase mb-2">
                             Performance Review
                           </div>
-                          <div className="grid grid-cols-4 gap-2 text-[10px]">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
                             <div>
                               <span className="text-slate-500">Total Runs:</span>{' '}
                               <span className="text-slate-300">
