@@ -67,7 +67,6 @@ const BASE_NAV_SECTIONS: NavSection[] = [
   {
     title: 'Intelligence',
     items: [
-      { label: 'Memory Graph', href: '/memory', icon: '◇' },
       { label: 'Intelligence', href: '/intelligence', icon: '◇' },
       { label: 'Guardrails', href: '/guardrails', icon: '⛨' },
       { label: 'Trajectory', href: '/trajectory', icon: '⤳' },
