@@ -27,140 +27,106 @@ interface NavSection {
 }
 
 const BASE_NAV_SECTIONS: NavSection[] = [
+  // ── MAIN ──────────────────────────────────────────────────────────────
   {
     items: [
       { label: 'Mission Control', href: '/', icon: '⊞' },
-      { label: 'Nerve Center', href: '/nerve-center', icon: '◎' },
-      { label: 'CEO Dashboard', href: '/ceo', icon: '⬡' },
-      { label: 'Notifications', href: '/notifications', icon: '⊙' },
-      { label: 'Finance', href: '/finance', icon: '$' },
-      { label: 'Agent ROI', href: '/finance/roi', icon: '◉' },
       { label: 'Chat', href: '/chat', icon: '◉' },
-      { label: 'Onboarding', href: '/onboarding', icon: '▷' },
+      { label: 'Notifications', href: '/notifications', icon: '⊙' },
     ],
   },
+  // ── WORK ──────────────────────────────────────────────────────────────
   {
-    title: 'Corporation',
+    title: 'Work',
     items: [
-      { label: 'Org Chart', href: '/org-chart', icon: '◈' },
-      { label: 'Agent Inbox', href: '/inbox', icon: '✉' },
       { label: 'Agents', href: '/agents', icon: '⬡' },
       { label: 'Tickets', href: '/tickets', icon: '▤' },
       { label: 'Project Board', href: '/board', icon: '▦' },
-      { label: 'Projects', href: '/projects', icon: '◈' },
-      { label: 'Products', href: '/products', icon: '▣' },
-      { label: 'Artifact Studio', href: '/products/artifacts', icon: '◈' },
-      { label: 'Routines', href: '/routines', icon: '⟳' },
-      { label: 'Work Products', href: '/work-products', icon: '◉' },
+      { label: 'Artifacts', href: '/products/artifacts', icon: '◈' },
     ],
   },
+  // ── INSIGHTS ──────────────────────────────────────────────────────────
   {
-    title: 'Departments',
+    title: 'Insights',
     items: [
-      { label: 'Workspaces', href: '/workspaces', icon: '▦' },
-      { label: 'Mini Brain Factory', href: '/mini-brain-factory', icon: '🏭' },
-      { label: 'Topology', href: '/topology', icon: '⊡' },
-      { label: 'OpenClaw', href: '/openclaw', icon: '🦞' },
-      { label: 'Astrology', href: '/astrology', icon: '☉' },
+      { label: 'CEO Dashboard', href: '/ceo', icon: '⬡' },
+      { label: 'System Health', href: '/nerve-center', icon: '◎' },
+      { label: 'Learning Trends', href: '/learning-organism', icon: '🧬' },
+      { label: 'Finance', href: '/finance', icon: '$' },
     ],
   },
-  {
-    title: 'Intelligence',
-    items: [
-      { label: 'Intelligence', href: '/intelligence', icon: '◇' },
-      { label: 'Guardrails', href: '/guardrails', icon: '⛨' },
-      { label: 'Trajectory', href: '/trajectory', icon: '⤳' },
-      { label: 'Skills', href: '/skills', icon: '★' },
-      { label: 'Flows', href: '/flows', icon: '⤳' },
-      { label: 'Workflow Builder', href: '/workflows/builder', icon: '◈' },
-      { label: 'Playbooks', href: '/playbooks', icon: '▶' },
-    ],
-  },
-  {
-    title: 'Nerve Center',
-    items: [
-      { label: 'System Pulse', href: '/nerve-center', icon: '◎' },
-      { label: 'Learning Organism', href: '/learning-organism', icon: '🧬' },
-      { label: 'Tool Catalog', href: '/nerve-center/tools', icon: '⚙' },
-      { label: 'Agent Forensics', href: '/nerve-center/agent', icon: '⬡' },
-    ],
-  },
+  // ── ORGANIZATION ──────────────────────────────────────────────────────
   {
     title: 'Organization',
     items: [
-      { label: 'Org Dashboard', href: '/org/dashboard', icon: '◎' },
+      { label: 'Org Chart', href: '/org-chart', icon: '◈' },
+      { label: 'Departments', href: '/mini-brain-factory', icon: '🏭' },
       { label: 'Members', href: '/org/members', icon: '◉' },
     ],
   },
+  // ── BUILD ─────────────────────────────────────────────────────────────
   {
-    title: 'Ops Center',
+    title: 'Build',
     items: [
-      { label: 'Overview', href: '/ops', icon: '◎' },
-      { label: 'Stress Tests', href: '/ops/stress', icon: '⚡' },
-      { label: 'Decisions', href: '/ops/decisions', icon: '⊞' },
-      { label: 'Restructuring', href: '/ops/restructuring', icon: '◈' },
+      { label: 'Workflow Builder', href: '/workflows/builder', icon: '◈' },
+      { label: 'Playbooks', href: '/playbooks', icon: '▶' },
+      { label: 'Skills & Tools', href: '/skills', icon: '★' },
+      { label: 'Flows', href: '/flows', icon: '⤳' },
     ],
   },
+  // ── SETTINGS ──────────────────────────────────────────────────────────
   {
-    title: 'Monitoring',
+    title: 'Settings',
     items: [
+      { label: 'General', href: '/settings', icon: '⚿' },
+      { label: 'Secrets & Keys', href: '/secrets', icon: '🔑' },
+      { label: 'Integrations', href: '/integrations', icon: '⊕' },
+      { label: 'Agent ROI', href: '/finance/roi', icon: '◉' },
+    ],
+  },
+  // ── ADVANCED (for power users) ────────────────────────────────────────
+  {
+    title: 'Advanced',
+    items: [
+      { label: 'Agent Forensics', href: '/nerve-center/agent', icon: '⬡' },
+      { label: 'Tool Catalog', href: '/nerve-center/tools', icon: '⚙' },
+      { label: 'Observatory', href: '/observatory', icon: '⬡' },
+      { label: 'Intelligence Hub', href: '/intelligence', icon: '◇' },
+      { label: 'Guardrails', href: '/guardrails', icon: '⛨' },
+      { label: 'Trajectory', href: '/trajectory', icon: '⤳' },
+      { label: 'Decisions', href: '/ops/decisions', icon: '⊞' },
+      { label: 'Restructuring', href: '/ops/restructuring', icon: '◈' },
+      { label: 'Stress Tests', href: '/ops/stress', icon: '⚡' },
+    ],
+  },
+  // ── OPS & MONITORING ──────────────────────────────────────────────────
+  {
+    title: 'Ops & Monitoring',
+    items: [
+      { label: 'Ops Overview', href: '/ops', icon: '◎' },
       { label: 'Runtime Status', href: '/ops/status', icon: '●' },
       { label: 'Incidents', href: '/ops/incidents', icon: '⚡' },
       { label: 'Traces', href: '/ops/traces', icon: '⋯' },
       { label: 'Evals', href: '/ops/evals', icon: '✓' },
       { label: 'Gateway', href: '/ops/gateway', icon: '⇄' },
-      { label: 'Live Viewer', href: '/ops/live', icon: '◉' },
       { label: 'Cron Jobs', href: '/ops/cron', icon: '⏱' },
       { label: 'Alerting', href: '/alerting', icon: '⚠' },
-    ],
-  },
-  {
-    title: 'Safety',
-    items: [
-      { label: 'Guardrails (Ops)', href: '/ops/guardrails', icon: '⛊' },
-      { label: 'Approvals', href: '/ops/approvals', icon: '⊘' },
-      { label: 'DLQ', href: '/ops/dlq', icon: '⚠' },
       { label: 'Healing', href: '/ops/healing', icon: '♥' },
       { label: 'Checkpoints', href: '/ops/checkpoints', icon: '⟲' },
       { label: 'Audit Log', href: '/audit', icon: '📋' },
     ],
   },
-  {
-    title: 'Tooling',
-    items: [
-      { label: 'MCP Tools', href: '/ops/mcp', icon: '⚙' },
-      { label: 'Task Runner', href: '/ops/task-runner', icon: '▷' },
-      { label: 'Journeys', href: '/ops/journeys', icon: '⟿' },
-      { label: 'Databases', href: '/ops/databases', icon: '⊟' },
-      { label: 'A2A Protocol', href: '/ops/a2a', icon: '⇋' },
-    ],
-  },
+  // ── PLATFORM ──────────────────────────────────────────────────────────
   {
     title: 'Platform',
     items: [
-      { label: 'Engines', href: '/engines', icon: '⚙' },
       { label: 'Engine Registry', href: '/engines/registry', icon: '⊛' },
       { label: 'Brain Manager', href: '/engines/manage', icon: '◆' },
       { label: 'Runtimes', href: '/runtimes', icon: '◎' },
       { label: 'Deployments', href: '/ops/deployments', icon: '▷' },
       { label: 'Model Registry', href: '/model-registry', icon: '⊙' },
-      { label: 'Secrets', href: '/secrets', icon: '🔑' },
-      { label: 'Integrations', href: '/integrations', icon: '⊕' },
       { label: 'Builder', href: '/builder', icon: '◈' },
-      { label: 'ClawHub', href: '/clawhub', icon: '🦞' },
-      { label: 'Settings', href: '/settings', icon: '⚿' },
-    ],
-  },
-  {
-    title: 'QA & Discovery',
-    items: [
-      { label: 'Observatory', href: '/observatory', icon: '⬡' },
-      { label: 'Workshop', href: '/workshop', icon: '◈' },
-      { label: 'QA Recordings', href: '/qa', icon: '⏺' },
-      { label: 'Browser Sessions', href: '/ops/browser-sessions', icon: '⧉' },
-      { label: 'Visual QA', href: '/ops/visual-qa', icon: '⊡' },
-      { label: 'Instincts', href: '/ops/instincts', icon: '⚡' },
-      { label: 'Marketplace', href: '/ops/aitmpl', icon: '⊞' },
+      { label: 'Onboarding', href: '/onboarding', icon: '▷' },
     ],
   },
 ]
