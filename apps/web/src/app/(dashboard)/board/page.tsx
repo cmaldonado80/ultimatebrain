@@ -31,7 +31,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 }
 
 export default function BoardPage() {
-  const ticketsQuery = trpc.tickets.list.useQuery({ limit: 200, offset: 0 })
+  const ticketsQuery = trpc.tickets.list.useQuery({ limit: 100, offset: 0 })
   const agentsQuery = trpc.agents.list.useQuery({ limit: 500, offset: 0 })
   const workspacesQuery = trpc.workspaces.list.useQuery({ limit: 100, offset: 0 })
   const orgQuery = trpc.org.chart.useQuery()

@@ -29,6 +29,11 @@ export default function ArtifactStudioPage() {
   const createArtifactMut = trpc.integrations.createArtifact.useMutation({
     onSuccess: () => artifactsQuery.refetch(),
   })
+  const createTicketMut = trpc.tickets.create.useMutation({
+    onSuccess: () => {
+      setImproveText('')
+    },
+  })
 
   const allArtifacts = (artifactsQuery.data ?? []) as Array<{
     id: string
@@ -58,45 +63,42 @@ export default function ArtifactStudioPage() {
     return 'yellow'
   }
 
-  async function handleImprove() {
+  function handleImprove() {
     if (!selected || !improveText.trim()) return
     // Create a ticket for the corporation to improve this artifact
-    try {
-      await fetch('/api/trpc/tickets.create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          json: {
-            title: `[Artifact Improvement] ${selected.name}`,
-            description: [
-              `## Improve Artifact: ${selected.name}`,
-              `**Artifact ID:** ${selected.id}`,
-              `**Type:** ${selected.type ?? 'unknown'}`,
-              '',
-              `## Requested Change`,
-              improveText,
-              '',
-              `## Current Content (first 500 chars)`,
-              '```',
-              selected.content?.slice(0, 500) ?? '',
-              '```',
-              '',
-              `## Instructions`,
-              `1. Read the full artifact using workspace_files or the artifact ID`,
-              `2. Make the requested improvement`,
-              `3. Save the updated artifact`,
-              `4. Verify the change looks correct`,
-            ].join('\n'),
-            priority: 'medium',
-            status: 'queued',
-          },
-        }),
-      })
-      setImproveText('')
-      alert('Improvement ticket created! The corporation will work on it.')
-    } catch {
-      alert('Failed to create improvement ticket')
-    }
+    createTicketMut.mutate(
+      {
+        title: `[Artifact Improvement] ${selected.name}`,
+        description: [
+          `## Improve Artifact: ${selected.name}`,
+          `**Artifact ID:** ${selected.id}`,
+          `**Type:** ${selected.type ?? 'unknown'}`,
+          '',
+          `## Requested Change`,
+          improveText,
+          '',
+          `## Current Content (first 500 chars)`,
+          '```',
+          selected.content?.slice(0, 500) ?? '',
+          '```',
+          '',
+          `## Instructions`,
+          `1. Read the full artifact using workspace_files or the artifact ID`,
+          `2. Make the requested improvement`,
+          `3. Save the updated artifact`,
+          `4. Verify the change looks correct`,
+        ].join('\n'),
+        priority: 'medium',
+      },
+      {
+        onSuccess: () => {
+          alert('Improvement ticket created! The corporation will work on it.')
+        },
+        onError: () => {
+          alert('Failed to create improvement ticket')
+        },
+      },
+    )
   }
 
   return (
