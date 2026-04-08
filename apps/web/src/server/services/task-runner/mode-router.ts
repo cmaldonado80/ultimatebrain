@@ -182,20 +182,23 @@ export class ModeRouter {
     // Simulate pipeline steps (real impl delegates to TicketExecutionEngine,
     // ReceiptManager, CheckpointManager, GuardrailsEngine)
     const receiptId = crypto.randomUUID()
-    const stepsCompleted = await this.runAutonomousPipeline(ticketId, options)
+    const pipelineResult = await this.runAutonomousPipeline(ticketId, options)
 
-    // Mark done
+    // Mark done and save the agent's response as the ticket result
     await this.db
       .update(tickets)
-      .set({ status: 'done' } as Record<string, unknown>)
+      .set({
+        status: 'done',
+        result: pipelineResult.finalContent || null,
+      } as Record<string, unknown>)
       .where(eq(tickets.id, ticketId))
 
     return {
       mode: 'autonomous',
       ticketId,
       receiptId,
-      checkpointId: null, // set by CheckpointManager in full impl
-      stepsCompleted,
+      checkpointId: null,
+      stepsCompleted: pipelineResult.stepsCompleted,
       latencyMs: Date.now() - start,
     }
   }
@@ -391,7 +394,7 @@ export class ModeRouter {
   private async runAutonomousPipeline(
     ticketId: string,
     _options: ModeRouterOptions,
-  ): Promise<number> {
+  ): Promise<{ stepsCompleted: number; finalContent: string }> {
     try {
       // Step 1: Guardrails check — call gateway with a safety-check prompt
       const ticket = await this.db.query.tickets.findFirst({
@@ -417,7 +420,7 @@ export class ModeRouter {
           { ticketId, guardrailResponse: guardrailResult.content },
           '[ModeRouter] Guardrail blocked ticket',
         )
-        return 0
+        return { stepsCompleted: 0, finalContent: 'Blocked by safety guardrail' }
       }
 
       // Step 2: Invoke OpenClaw skill if ticket requires one
@@ -565,13 +568,19 @@ export class ModeRouter {
         }
       }
 
-      return Math.max(stepsCompleted, 1)
+      return {
+        stepsCompleted: Math.max(stepsCompleted, 1),
+        finalContent: messages.filter((m) => m.role === 'assistant').pop()?.content ?? '',
+      }
     } catch (err) {
       logger.error(
         { err: err instanceof Error ? err : undefined },
         '[ModeRouter] Autonomous pipeline failed, returning fallback',
       )
-      return 3
+      return {
+        stepsCompleted: 3,
+        finalContent: `Pipeline error: ${err instanceof Error ? err.message : 'unknown'}`,
+      }
     }
   }
 
