@@ -96,6 +96,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Observatory', href: '/observatory', icon: '⬡' },
       { label: 'Intelligence Hub', href: '/intelligence', icon: '◇' },
       { label: 'Knowledge Mesh', href: '/intelligence/knowledge-mesh', icon: '◈' },
+      { label: 'Briefing Archive', href: '/intelligence/briefings', icon: '▤' },
       { label: 'Guardrails', href: '/guardrails', icon: '⛨' },
       { label: 'Trajectory', href: '/trajectory', icon: '⤳' },
       { label: 'Decisions', href: '/ops/decisions', icon: '⊞' },

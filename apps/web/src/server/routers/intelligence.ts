@@ -1528,4 +1528,27 @@ export const intelligenceRouter = router({
     const { generateDailyBriefing } = await import('../services/intelligence/daily-briefing')
     return generateDailyBriefing(ctx.db)
   }),
+
+  /** Get archived daily briefings */
+  briefingArchive: protectedProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(100).optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const { getBriefingArchive } = await import('../services/intelligence/daily-briefing')
+      return getBriefingArchive(ctx.db, input?.limit ?? 30)
+    }),
+
+  /** Get a single briefing by date */
+  briefingByDate: protectedProcedure
+    .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+    .query(async ({ ctx, input }) => {
+      const { getBriefingByDate } = await import('../services/intelligence/daily-briefing')
+      return getBriefingByDate(ctx.db, input.date)
+    }),
+
+  /** Manually trigger a daily briefing generation */
+  generateBriefingNow: protectedProcedure.mutation(async ({ ctx }) => {
+    const { generateDailyBriefing } = await import('../services/intelligence/daily-briefing')
+    const content = await generateDailyBriefing(ctx.db)
+    return { content }
+  }),
 })

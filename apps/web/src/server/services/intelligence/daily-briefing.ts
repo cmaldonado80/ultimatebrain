@@ -2,11 +2,21 @@
  * Daily Briefing — generates a narrative summary of what happened in the last 24h.
  */
 import type { Database } from '@solarc/db'
-import { healingLogs, instinctObservations, instincts, tickets } from '@solarc/db'
-import { and, eq, gte, sql } from 'drizzle-orm'
+import { dailyBriefings, healingLogs, instinctObservations, instincts, tickets } from '@solarc/db'
+import { and, desc, eq, gte, sql } from 'drizzle-orm'
 
 import { logger } from '../../../lib/logger'
 import { notify } from '../platform/notification-service'
+
+export interface BriefingMetrics {
+  completed: number
+  failed: number
+  healing: number
+  promoted: number
+  observations: number
+  successRate: number
+  obsByType: Record<string, number>
+}
 
 export async function generateDailyBriefing(db: Database): Promise<string> {
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
@@ -81,6 +91,31 @@ export async function generateDailyBriefing(db: Database): Promise<string> {
 
   const briefing = sections.filter(Boolean).join('\n')
 
+  const metrics: BriefingMetrics = {
+    completed,
+    failed,
+    healing,
+    promoted,
+    observations,
+    successRate: completed + failed > 0 ? Math.round((completed / (completed + failed)) * 100) : 0,
+    obsByType,
+  }
+
+  // Persist to archive
+  const dateStr = new Date().toISOString().slice(0, 10)
+  try {
+    await db.insert(dailyBriefings).values({
+      date: dateStr,
+      content: briefing,
+      metrics: metrics as unknown as Record<string, unknown>,
+    })
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err : undefined },
+      'daily-briefing: archive persist failed',
+    )
+  }
+
   // Deliver via notification
   await notify(db, 'daily_briefing', 'Daily Briefing', briefing, 'info', {
     channels: ['inbox'],
@@ -94,4 +129,56 @@ export async function generateDailyBriefing(db: Database): Promise<string> {
   logger.info({ completed, failed, healing, promoted, observations }, 'daily-briefing: generated')
 
   return briefing
+}
+
+/** Get archived briefings (most recent first). */
+export async function getBriefingArchive(
+  db: Database,
+  limit = 30,
+): Promise<
+  Array<{
+    id: string
+    date: string
+    content: string
+    metrics: BriefingMetrics
+    generatedAt: Date
+  }>
+> {
+  const rows = await db
+    .select()
+    .from(dailyBriefings)
+    .orderBy(desc(dailyBriefings.date))
+    .limit(limit)
+
+  return rows.map((r) => ({
+    id: r.id,
+    date: r.date,
+    content: r.content,
+    metrics: (r.metrics ?? {}) as BriefingMetrics,
+    generatedAt: r.generatedAt,
+  }))
+}
+
+/** Get a single briefing by date. */
+export async function getBriefingByDate(
+  db: Database,
+  date: string,
+): Promise<{
+  id: string
+  date: string
+  content: string
+  metrics: BriefingMetrics
+  generatedAt: Date
+} | null> {
+  const row = await db.query.dailyBriefings.findFirst({
+    where: eq(dailyBriefings.date, date),
+  })
+  if (!row) return null
+  return {
+    id: row.id,
+    date: row.date,
+    content: row.content,
+    metrics: (row.metrics ?? {}) as BriefingMetrics,
+    generatedAt: row.generatedAt,
+  }
 }

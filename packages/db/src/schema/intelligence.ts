@@ -537,6 +537,20 @@ export const pathwayEffectiveness = pgTable(
   (t) => [index('pathway_effectiveness_event_type_idx').on(t.eventType)],
 )
 
+/** Daily briefings — archived organizational reports with structured metrics */
+export const dailyBriefings = pgTable(
+  'daily_briefings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    date: text('date').notNull(), // YYYY-MM-DD
+    content: text('content').notNull(), // markdown briefing text
+    metrics: jsonb('metrics').default({}), // structured snapshot: { completed, failed, healing, promoted, observations }
+    generatedAt: timestamp('generated_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [index('daily_briefings_date_idx').on(t.date)],
+)
+
 /** Decision records — institutional memory for high-impact decisions */
 export const decisionRecords = pgTable(
   'decision_records',
