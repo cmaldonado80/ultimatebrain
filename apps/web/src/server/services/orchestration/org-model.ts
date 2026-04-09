@@ -125,36 +125,37 @@ export async function buildOrgChart(db: Database): Promise<OrgChart> {
   }
 
   // 6. Build department entities with employees
+  // PRIMARY: use agent.workspaceId as the single source of truth
+  // SECONDARY: use brainEntityAgents for role info (department_head vs specialist)
   const departments = miniBrains.map((mb) => {
     const deptAgentLinks = entityAgentLinks.filter((l) => l.entityId === mb.id)
     const deptProducts = developments.filter((d) => d.parentId === mb.id)
 
-    // Resolve employees
-    const employees: Employee[] = deptAgentLinks.map((link) => {
-      const agent = agentMap.get(link.agentId)
-      if (!agent) {
-        return {
-          id: link.agentId,
-          name: 'Unknown Agent',
-          orgRole: mapEntityRole(link.role),
-          department: mb.domain,
-          departmentId: mb.id,
-          status: 'offline',
-          reportsTo: null,
-          reportsToName: null,
-          skills: [],
-          model: null,
-        }
-      }
+    // Get department's workspace ID
+    const config = (mb.config ?? {}) as Record<string, unknown>
+    const wsId = typeof config.workspaceId === 'string' ? config.workspaceId : null
 
-      // Find who this agent reports to
+    // Find ALL agents in this department's workspace (single source of truth)
+    const deptAgents = wsId
+      ? allAgents.filter((a) => a.workspaceId === wsId)
+      : // Fallback: if no workspace, use brainEntityAgents links
+        (deptAgentLinks.map((l) => agentMap.get(l.agentId)).filter(Boolean) as typeof allAgents)
+
+    // Build employee list from workspace agents
+    const employees: Employee[] = deptAgents.map((agent) => {
+      // Check if this agent has a role defined in brainEntityAgents
+      const link = deptAgentLinks.find((l) => l.agentId === agent.id)
       const reportsToId = agent.isWsOrchestrator ? null : agent.parentOrchestratorId
       const reportsToAgent = reportsToId ? agentMap.get(reportsToId) : null
 
       return {
         id: agent.id,
         name: agent.name,
-        orgRole: resolveOrgRole(agent, link.role),
+        orgRole: link
+          ? resolveOrgRole(agent, link.role)
+          : agent.isWsOrchestrator
+            ? 'department_head'
+            : 'specialist',
         department: mb.domain,
         departmentId: mb.id,
         status: agent.status,
@@ -164,32 +165,6 @@ export async function buildOrgChart(db: Database): Promise<OrgChart> {
         model: agent.model,
       }
     })
-
-    // Also find agents in the workspace that aren't explicitly linked to the entity
-    const config = (mb.config ?? {}) as Record<string, unknown>
-    const wsId = typeof config.workspaceId === 'string' ? config.workspaceId : null
-    if (wsId) {
-      const wsAgents = allAgents.filter(
-        (a) => a.workspaceId === wsId && !deptAgentLinks.some((l) => l.agentId === a.id),
-      )
-      for (const agent of wsAgents) {
-        const reportsToAgent = agent.parentOrchestratorId
-          ? agentMap.get(agent.parentOrchestratorId)
-          : null
-        employees.push({
-          id: agent.id,
-          name: agent.name,
-          orgRole: agent.isWsOrchestrator ? 'department_head' : 'specialist',
-          department: mb.domain,
-          departmentId: mb.id,
-          status: agent.status,
-          reportsTo: agent.parentOrchestratorId ?? null,
-          reportsToName: reportsToAgent?.name ?? null,
-          skills: (agent.skills as string[]) ?? [],
-          model: agent.model,
-        })
-      }
-    }
 
     const ws = wsId ? wsMap.get(wsId) : null
 
