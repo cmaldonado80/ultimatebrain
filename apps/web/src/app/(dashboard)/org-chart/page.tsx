@@ -69,7 +69,7 @@ export default function OrgChartPage() {
           label="Departments"
           value={org.stats.totalDepartments}
           color="purple"
-          sub="Mini Brains"
+          sub="Departments"
         />
         <StatCard label="Employees" value={org.stats.totalEmployees} color="blue" sub="Agents" />
         <StatCard

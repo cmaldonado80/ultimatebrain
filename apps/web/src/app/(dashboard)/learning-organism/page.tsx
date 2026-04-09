@@ -79,7 +79,7 @@ export default function LearningOrganismPage() {
     <div className="p-6 text-slate-50">
       <PageHeader
         title="Learning Organism"
-        subtitle="Is the system getting smarter? Track instinct growth, feedback loops, and collective intelligence."
+        subtitle="Is the system getting smarter? Track pattern growth, feedback loops, and collective intelligence."
       />
 
       {/* Section 1: Vital Signs */}

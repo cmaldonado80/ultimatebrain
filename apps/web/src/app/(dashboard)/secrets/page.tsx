@@ -26,7 +26,7 @@ export default function SecretsPage() {
     <div className="p-6 text-slate-50">
       <PageHeader
         title="Secrets Management"
-        subtitle="API keys, tokens, and credentials for brain entities"
+        subtitle="API keys, tokens, and credentials for departments and services"
       />
 
       <SectionCard title="Entity Secrets">

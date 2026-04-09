@@ -144,8 +144,8 @@ const SEGMENT_LABELS: Record<string, string> = {
 
 function OrgBreadcrumbLabel() {
   const { activeOrg, isLoading } = useActiveOrg()
-  if (isLoading) return <span className="text-slate-500">Brain</span>
-  if (!activeOrg) return <span className="text-slate-500">Brain</span>
+  if (isLoading) return <span className="text-slate-500">Corporation</span>
+  if (!activeOrg) return <span className="text-slate-500">Corporation</span>
   return <span className="text-neon-teal/70">{activeOrg.name}</span>
 }
 

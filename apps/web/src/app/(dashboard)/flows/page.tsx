@@ -81,7 +81,7 @@ export default function FlowsPage() {
     <div className="p-6 text-slate-50">
       <PageHeader
         title="Flows"
-        subtitle="Define and monitor multi-step agent workflows, crew runs, and recall chains."
+        subtitle="Define and monitor multi-step agent workflows and automation pipelines."
         count={flows.length}
         actions={
           <div className="flex gap-2">

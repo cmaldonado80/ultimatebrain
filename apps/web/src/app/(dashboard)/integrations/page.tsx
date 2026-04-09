@@ -113,7 +113,7 @@ export default function IntegrationsPage() {
                 <option value="webhook">Webhook</option>
               </select>
               <button
-                className="bg-green-600 hover:bg-green-700 text-white border-none rounded-md px-3.5 py-1.5 text-xs font-semibold cursor-pointer transition-colors"
+                className="cyber-btn-primary cyber-btn-sm"
                 onClick={() => {
                   if (!channelType) return
                   createChannelMut.mutate(
@@ -195,7 +195,7 @@ export default function IntegrationsPage() {
               </div>
               <div className="flex gap-2 items-center">
                 <button
-                  className="bg-green-600 hover:bg-green-700 text-white border-none rounded-md px-3.5 py-1.5 text-xs font-semibold cursor-pointer transition-colors"
+                  className="cyber-btn-primary cyber-btn-sm"
                   onClick={() => {
                     if (!webhookUrl.trim()) return
                     createWebhookMut.mutate(

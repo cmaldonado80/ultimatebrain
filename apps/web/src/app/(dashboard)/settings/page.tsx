@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Settings — configure brain identity, feature flags, API keys, and system preferences.
+ * Settings — configure system identity, feature flags, API keys, and system preferences.
  */
 
 import { useState } from 'react'

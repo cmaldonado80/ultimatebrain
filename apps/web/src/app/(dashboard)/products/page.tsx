@@ -24,7 +24,7 @@ export default function ProductsPage() {
 
   if (topologyQuery.isLoading) return <LoadingState message="Loading Products..." />
 
-  const miniBrains = (topologyQuery.data?.miniBrains ?? []) as Array<{
+  const departments = (topologyQuery.data?.miniBrains ?? []) as Array<{
     id: string
     name: string
     domain: string | null
@@ -38,7 +38,7 @@ export default function ProductsPage() {
     parentId: string | null
   }>
 
-  const mbMap = new Map(miniBrains.map((mb) => [mb.id, mb]))
+  const deptMap = new Map(departments.map((dept) => [dept.id, dept]))
 
   const active = developments.filter((d) => d.status === 'active').length
   const provisioning = developments.filter((d) => d.status === 'provisioning').length
@@ -62,21 +62,21 @@ export default function ProductsPage() {
         <StatCard label="Provisioning" value={provisioning} color="yellow" sub="Setting up" />
         <StatCard
           label="Departments"
-          value={miniBrains.length}
+          value={departments.length}
           color="purple"
           sub="Building products"
         />
       </PageGrid>
 
       {/* Products by Department */}
-      {miniBrains.map((mb) => {
-        const deptProducts = developments.filter((d) => d.parentId === mb.id)
+      {departments.map((dept) => {
+        const deptProducts = developments.filter((d) => d.parentId === dept.id)
         if (deptProducts.length === 0) return null
 
         return (
           <SectionCard
-            key={mb.id}
-            title={`${mb.name} (${deptProducts.length} products)`}
+            key={dept.id}
+            title={`${dept.name} (${deptProducts.length} products)`}
             className="mb-4"
           >
             <div className="space-y-2">
@@ -117,7 +117,7 @@ export default function ProductsPage() {
 
       {/* Orphan products (no parent department) */}
       {(() => {
-        const orphans = developments.filter((d) => !d.parentId || !mbMap.has(d.parentId))
+        const orphans = developments.filter((d) => !d.parentId || !deptMap.has(d.parentId))
         if (orphans.length === 0) return null
         return (
           <SectionCard title={`Unassigned Products (${orphans.length})`} className="mb-4">

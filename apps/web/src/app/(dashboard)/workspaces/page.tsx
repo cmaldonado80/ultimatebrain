@@ -122,7 +122,7 @@ export default function WorkspacesPage() {
               onClick={() => setShowSeedConfirm(true)}
               disabled={seedBrainMut.isPending}
             >
-              {seedBrainMut.isPending ? 'Seeding...' : 'Initialize Brain'}
+              {seedBrainMut.isPending ? 'Initializing...' : 'Initialize System'}
             </button>
             <button className="cyber-btn-secondary" onClick={() => setShowForm(!showForm)}>
               {showForm ? 'Cancel' : '+ New Workspace'}

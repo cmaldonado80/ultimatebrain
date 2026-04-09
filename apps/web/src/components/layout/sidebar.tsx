@@ -124,7 +124,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
     title: 'Platform',
     items: [
       { label: 'Engine Registry', href: '/engines/registry', icon: '⊛' },
-      { label: 'Brain Manager', href: '/engines/manage', icon: '◆' },
+      { label: 'Entity Manager', href: '/engines/manage', icon: '◆' },
       { label: 'Runtimes', href: '/runtimes', icon: '◎' },
       { label: 'Deployments', href: '/ops/deployments', icon: '▷' },
       { label: 'Model Registry', href: '/model-registry', icon: '⊙' },
@@ -134,7 +134,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
   },
 ]
 
-// Domain Apps section is built dynamically from brainEntities (see Sidebar component)
+// Domain Apps section is built dynamically from entities (see Sidebar component)
 
 const ADMIN_SECTION: NavSection = {
   title: 'Admin',

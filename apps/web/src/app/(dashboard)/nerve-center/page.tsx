@@ -194,7 +194,7 @@ export default function NerveCenterPage() {
       <div className="flex items-center gap-3 mb-2">
         <PageHeader
           title="Nerve Center"
-          subtitle="Real-time autonomous nervous system — observe, analyze, decide, act"
+          subtitle="Real-time system health monitoring — observe, analyze, decide, act"
         />
         <div className="ml-auto flex items-center gap-2">
           <span
