@@ -5,10 +5,10 @@
  * request cost tracking, per-model metrics, and health checks.
  */
 import type { Database } from '@solarc/db'
-import { gatewayMetrics, ollamaModels } from '@solarc/db'
+import { agents, gatewayMetrics, ollamaModels } from '@solarc/db'
 import { LlmChatInput, LlmEmbedInput } from '@solarc/engine-contracts'
 import { TRPCError } from '@trpc/server'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { CostTracker, GatewayError, GatewayRouter } from '../services/gateway'
@@ -272,18 +272,39 @@ export const gatewayRouter = router({
       const byModel = [...byModelMap.entries()].map(([model, v]) => ({ model, ...v }))
 
       // Top agents by cost
-      const byAgentMap = new Map<string, { cost: number; tokens: number }>()
+      const byAgentMap = new Map<string, { cost: number; tokens: number; count: number }>()
       for (const m of allMetrics) {
         if (!m.agentId) continue
-        const entry = byAgentMap.get(m.agentId) ?? { cost: 0, tokens: 0 }
+        const entry = byAgentMap.get(m.agentId) ?? { cost: 0, tokens: 0, count: 0 }
         entry.cost += m.costUsd ?? 0
         entry.tokens += (m.tokensIn ?? 0) + (m.tokensOut ?? 0)
+        entry.count++
         byAgentMap.set(m.agentId, entry)
       }
-      const topAgents = [...byAgentMap.entries()]
+      const topAgentsRaw = [...byAgentMap.entries()]
         .map(([agentId, v]) => ({ agentId, ...v }))
         .sort((a, b) => b.cost - a.cost)
         .slice(0, 10)
+
+      // Resolve agent names
+      const agentIds = topAgentsRaw.map((a) => a.agentId)
+      const agentRows =
+        agentIds.length > 0
+          ? await ctx.db
+              .select({ id: agents.id, name: agents.name })
+              .from(agents)
+              .where(
+                sql`${agents.id} IN (${sql.join(
+                  agentIds.map((id) => sql`${id}`),
+                  sql`, `,
+                )})`,
+              )
+          : []
+      const agentNameMap = new Map(agentRows.map((a) => [a.id, a.name]))
+      const topAgents = topAgentsRaw.map((a) => ({
+        ...a,
+        agentName: agentNameMap.get(a.agentId) ?? a.agentId.slice(0, 8),
+      }))
 
       return {
         totalCostUsd: Math.round(totalCostUsd * 10000) / 10000,
