@@ -1560,7 +1560,7 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
       continue
     }
 
-    // Create workspace
+    // Create workspace (active — ready to use immediately)
     const [created] = await db
       .insert(workspaces)
       .values({
@@ -1568,6 +1568,7 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
         type: wsDef.type,
         goal: wsDef.goal,
         icon: wsDef.icon,
+        lifecycleState: 'active',
       })
       .returning()
     if (!created) continue
@@ -1578,7 +1579,7 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
     await db.insert(workspaceLifecycleEvents).values({
       workspaceId: ws.id,
       eventType: 'created',
-      toState: 'draft',
+      toState: 'active',
       payload: { name: ws.name, type: ws.type, seededBy: 'brain-seed' },
     })
 
@@ -1645,6 +1646,13 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
     })
     entitiesCreated++
   }
+
+  // Activate any existing draft workspaces (from previous seeds)
+  await db
+    .update(workspaces)
+    .set({ lifecycleState: 'active' })
+    .where(eq(workspaces.lifecycleState, 'draft'))
+    .catch(() => {})
 
   await eventBus.emit('brain.seeded', { workspacesCreated, agentsCreated, entitiesCreated })
 
