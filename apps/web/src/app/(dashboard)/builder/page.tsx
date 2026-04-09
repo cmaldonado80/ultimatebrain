@@ -494,7 +494,7 @@ export default function BuilderPage() {
           {state && (
             <SectionCard title="System State" className="mb-4">
               <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[12px]">
-                <div className="text-slate-500">Mini Brain</div>
+                <div className="text-slate-500">Department</div>
                 <div className="flex items-center gap-1.5">
                   <StatusBadge
                     label={
@@ -504,7 +504,7 @@ export default function BuilderPage() {
                     dot
                   />
                 </div>
-                <div className="text-slate-500">Development App</div>
+                <div className="text-slate-500">Product</div>
                 <div className="flex items-center gap-1.5">
                   <StatusBadge
                     label={state.hasApp ? `Active (${state.appStatus})` : 'Not deployed'}

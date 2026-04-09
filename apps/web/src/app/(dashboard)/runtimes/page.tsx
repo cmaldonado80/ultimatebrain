@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Runtimes — deployment lifecycle management for Mini Brains and Development apps.
+ * Runtimes — deployment lifecycle management for Departments and Products.
  *
  * Shows all runtime instances with lifecycle status, endpoint, environment,
  * deployment metadata, and lifecycle management actions.
@@ -43,7 +43,7 @@ const STATUS_COLOR: Record<string, StatusColor> = {
 
 const TIER_LABEL: Record<string, string> = {
   brain: 'Brain',
-  mini_brain: 'Mini Brain',
+  mini_brain: 'Department',
   development: 'Development',
 }
 
@@ -52,7 +52,7 @@ type Filter = 'all' | 'mini_brain' | 'development'
 const FILTER_OPTIONS = ['all', 'mini_brain', 'development'] as const
 const FILTER_LABELS: Partial<Record<Filter, string>> = {
   all: 'All',
-  mini_brain: 'Mini Brain',
+  mini_brain: 'Department',
   development: 'Development',
 }
 

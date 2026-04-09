@@ -21,7 +21,7 @@ const TEMPLATE_ICONS: Record<string, string> = {
   engineering: '⚙',
 }
 
-/** Database status panel per mini brain — separate component so hook runs per entity */
+/** Database status panel per department — separate component so hook runs per entity */
 function DatabaseStatusPanel({ entityId }: { entityId: string }) {
   const utils = trpc.useUtils()
   const dbStatusQuery = trpc.factory.databaseStatus.useQuery({ entityId })
@@ -485,7 +485,7 @@ function DeploymentPanel({ entityId }: { entityId: string }) {
   )
 }
 
-/** Live status panel — real-time throughput and health per mini brain */
+/** Live status panel — real-time throughput and health per department */
 function LiveStatusPanel({ entityId }: { entityId: string }) {
   const statsQuery = trpc.platform.miniBrainLiveStats.useQuery(
     { entityId },
@@ -734,26 +734,26 @@ export default function MiniBrainFactoryPage() {
   }
 
   if (topologyQuery.isLoading || templatesQuery.isLoading) {
-    return <LoadingState message="Loading Mini Brain Factory..." />
+    return <LoadingState message="Loading Department Manager..." />
   }
 
   return (
     <div className="p-6 text-slate-50">
       <PageHeader
-        title="Mini Brain Factory"
-        subtitle="Provision, manage, and deploy mini brains and development apps"
+        title="Department Manager"
+        subtitle="Provision, manage, and deploy departments and products"
       />
 
       {/* Stats */}
       <PageGrid cols="4" className="mb-6">
         <StatCard
-          label="Mini Brains"
+          label="Departments"
           value={miniBrains.length}
           color="purple"
           sub="Domain specialists"
         />
         <StatCard
-          label="Development Apps"
+          label="Products"
           value={developments.length}
           color="blue"
           sub="Deployed applications"
@@ -801,8 +801,8 @@ export default function MiniBrainFactoryPage() {
         )}
       </div>
 
-      {/* Create Mini Brain */}
-      <SectionCard title="Create Mini Brain" className="mb-6">
+      {/* Create Department */}
+      <SectionCard title="Create Department" className="mb-6">
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -811,7 +811,7 @@ export default function MiniBrainFactoryPage() {
                 type="text"
                 value={createName}
                 onChange={(e) => setCreateName(e.target.value)}
-                placeholder="My Astrology Brain"
+                placeholder="My Astrology Department"
                 className="w-full bg-bg-elevated border border-border-dim rounded px-3 py-1.5 text-sm text-slate-200 focus:border-neon-teal focus:outline-none"
               />
             </div>
@@ -843,7 +843,7 @@ export default function MiniBrainFactoryPage() {
                 disabled={smartCreateMutation.isPending || !createName.trim() || !createTemplate}
                 className="cyber-btn-primary cyber-btn-sm w-full disabled:opacity-50"
               >
-                {smartCreateMutation.isPending ? 'Creating...' : 'Create Mini Brain'}
+                {smartCreateMutation.isPending ? 'Creating...' : 'Create Department'}
               </button>
             </div>
           </div>
@@ -851,7 +851,7 @@ export default function MiniBrainFactoryPage() {
           {createResult && (
             <div className="bg-neon-green/10 border border-neon-green/30 rounded p-3 space-y-2">
               <div className="text-xs text-neon-green font-medium">
-                Mini Brain created with {createResult.agentCount} agents!
+                Department created with {createResult.agentCount} agents!
               </div>
               {createResult.apiKey && (
                 <div>
@@ -956,11 +956,11 @@ export default function MiniBrainFactoryPage() {
         </PageGrid>
       </SectionCard>
 
-      {/* Active Mini Brains */}
-      <SectionCard title="Active Mini Brains" className="mb-6">
+      {/* Active Departments */}
+      <SectionCard title="Active Departments" className="mb-6">
         {miniBrains.length === 0 ? (
           <div className="text-xs text-slate-600 py-6 text-center">
-            No mini brains provisioned yet. Use the form above to create one.
+            No departments provisioned yet. Use the form above to create one.
           </div>
         ) : (
           <div className="space-y-3">
@@ -998,7 +998,7 @@ export default function MiniBrainFactoryPage() {
                           }
                           disabled={updateEntityMutation.isPending}
                           className="cyber-btn-secondary text-[9px] px-2 py-0.5 text-neon-yellow"
-                          title="Suspend this mini brain"
+                          title="Suspend this department"
                         >
                           Suspend
                         </button>
@@ -1009,7 +1009,7 @@ export default function MiniBrainFactoryPage() {
                           }
                           disabled={updateEntityMutation.isPending}
                           className="cyber-btn-secondary text-[9px] px-2 py-0.5 text-neon-green"
-                          title="Activate this mini brain"
+                          title="Activate this department"
                         >
                           Activate
                         </button>
@@ -1051,7 +1051,7 @@ export default function MiniBrainFactoryPage() {
                         <button
                           onClick={() => setDeleteConfirm(mb.id)}
                           className="cyber-btn-secondary text-[9px] px-2 py-0.5 text-neon-red"
-                          title="Delete this mini brain"
+                          title="Delete this department"
                         >
                           Delete
                         </button>
@@ -1103,10 +1103,10 @@ export default function MiniBrainFactoryPage() {
                   {/* Live Status */}
                   <LiveStatusPanel entityId={mb.id} />
 
-                  {/* Development Apps for this Mini Brain */}
+                  {/* Products for this Department */}
                   {mbDevs.length > 0 && (
                     <div className="ml-8 mt-2 space-y-1">
-                      <div className="text-[10px] text-slate-500 uppercase">Development Apps</div>
+                      <div className="text-[10px] text-slate-500 uppercase">Products</div>
                       {mbDevs.map((dev) => (
                         <div
                           key={dev.id}
@@ -1157,11 +1157,11 @@ export default function MiniBrainFactoryPage() {
                     <div className="text-[10px] text-neon-green ml-8 mt-1">{devSuccess}</div>
                   )}
 
-                  {/* Quick Create Development */}
+                  {/* Quick Create Product */}
                   <div className="ml-8 mt-2 flex gap-2">
                     <input
                       type="text"
-                      placeholder="New development app name..."
+                      placeholder="New product name..."
                       value={devParentId === mb.id ? devName : ''}
                       onFocus={() => setDevParentId(mb.id)}
                       onChange={(e) => {
@@ -1202,7 +1202,7 @@ export default function MiniBrainFactoryPage() {
                       }
                       className="cyber-btn-primary text-[9px] px-2 py-0.5 disabled:opacity-50"
                     >
-                      {smartCreateDevMutation.isPending ? '...' : '+ Dev App'}
+                      {smartCreateDevMutation.isPending ? '...' : '+ Product'}
                     </button>
                   </div>
                 </div>

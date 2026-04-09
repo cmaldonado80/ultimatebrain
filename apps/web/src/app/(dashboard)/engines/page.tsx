@@ -100,13 +100,13 @@ export default function EnginesPage() {
             <div className="text-[22px] font-bold font-orbitron text-neon-green">
               {topo.miniBrains.length}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Mini Brains</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Departments</div>
           </div>
           <div className="cyber-card text-center p-3.5">
             <div className="text-[22px] font-bold font-orbitron text-neon-yellow">
               {topo.developments.length}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Development</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Products</div>
           </div>
         </div>
       )}

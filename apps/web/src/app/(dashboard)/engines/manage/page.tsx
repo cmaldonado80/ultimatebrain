@@ -67,7 +67,7 @@ export default function BrainManagerPage() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <LoadingState message="Loading brain manager..." />
+        <LoadingState message="Loading department manager..." />
       </div>
     )
   }
@@ -86,13 +86,13 @@ export default function BrainManagerPage() {
   return (
     <div className="p-6 text-slate-200">
       {/* Header */}
-      <PageHeader title="Brain Manager" subtitle="Brain → Mini-Brain → Development" />
+      <PageHeader title="Department Manager" subtitle="Corporation → Department → Product" />
 
       {/* Stat bar */}
       <div className="flex gap-3 mb-5">
         {[
           { label: 'Brains', count: brains.length, cls: 'text-indigo-400' },
-          { label: 'Mini-Brains', count: miniBrains.length, cls: 'text-green-400' },
+          { label: 'Departments', count: miniBrains.length, cls: 'text-green-400' },
           { label: 'Developments', count: developments.length, cls: 'text-yellow-400' },
         ].map((s) => (
           <div key={s.label} className="cyber-card px-4 py-2 text-center flex-1">
@@ -287,7 +287,7 @@ function CreationPanel({ brains, onDone }: { brains: Entity[]; onDone: () => voi
     return (
       <div className="cyber-card p-4 mb-4 border-green-500/30">
         <div className="text-sm text-green-400 mb-2">
-          Mini-Brain &quot;{result.name}&quot; created with {result.agentCount} agents.
+          Department &quot;{result.name}&quot; created with {result.agentCount} agents.
         </div>
         <button
           className="cyber-btn-secondary cyber-btn-sm"
@@ -304,13 +304,13 @@ function CreationPanel({ brains, onDone }: { brains: Entity[]; onDone: () => voi
 
   return (
     <div className="cyber-card p-4 mb-4">
-      <h4 className="text-sm font-orbitron text-neon-teal mb-3">Create Mini-Brain</h4>
+      <h4 className="text-sm font-orbitron text-neon-teal mb-3">Create Department</h4>
 
       {/* Step 1 */}
       <div className="flex flex-col gap-2 mb-3">
         <input
           className="cyber-input cyber-input-sm"
-          placeholder="Mini-Brain name (e.g., Hotel Revenue AI)..."
+          placeholder="Department name (e.g., Hotel Revenue AI)..."
           value={name}
           onChange={(e) => setName(e.target.value)}
         />

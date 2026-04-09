@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Developments — list and create Development apps under a Mini Brain.
+ * Products — list and create products under a Department.
  * Route: /domain/[domainId]/developments
  */
 
@@ -89,11 +89,11 @@ export default function DevelopmentsPage() {
   return (
     <div className="p-6 text-slate-50 max-w-[900px]">
       <PageHeader
-        title="Development Apps"
-        subtitle={`Under ${entity.name} Mini Brain`}
+        title="Products"
+        subtitle={`Under ${entity.name} Department`}
         actions={
           <button className="cyber-btn-primary cyber-btn-sm" onClick={() => setShowForm(!showForm)}>
-            {showForm ? 'Cancel' : '+ Create Development'}
+            {showForm ? 'Cancel' : '+ Create Product'}
           </button>
         }
       />
@@ -104,7 +104,7 @@ export default function DevelopmentsPage() {
           <div className="flex gap-2">
             <input
               className="cyber-input flex-1"
-              placeholder="Development app name (e.g. Personal, Business, Premium)"
+              placeholder="Product name (e.g. Personal, Business, Premium)"
               value={devName}
               onChange={(e) => setDevName(e.target.value)}
               onKeyDown={(e) => {
@@ -135,9 +135,9 @@ export default function DevelopmentsPage() {
       {developments.length === 0 ? (
         <EmptyState
           icon="📦"
-          title="No development apps yet"
-          message={`Create a development app to build on the ${entity.name} Mini Brain.`}
-          action={{ label: '+ Create Development', onClick: () => setShowForm(true) }}
+          title="No products yet"
+          message={`Create a product to build on the ${entity.name} Department.`}
+          action={{ label: '+ Create Product', onClick: () => setShowForm(true) }}
         />
       ) : (
         <div className="space-y-2">
@@ -152,9 +152,7 @@ export default function DevelopmentsPage() {
                   >
                     {dev.name}
                   </Link>
-                  <div className="text-[10px] text-slate-500">
-                    Development · {dev.id.slice(0, 8)}
-                  </div>
+                  <div className="text-[10px] text-slate-500">Product · {dev.id.slice(0, 8)}</div>
                 </div>
                 <ActionBar>
                   <Link

@@ -17,7 +17,7 @@ import { SectionCard } from '../../../components/ui/section-card'
 import { trpc } from '../../../utils/trpc'
 
 const ACTION_LABELS: Record<string, string> = {
-  create_mini_brain: 'Created Mini Brain',
+  create_mini_brain: 'Created Department',
   rotate_key: 'Rotated API Key',
   assign_role: 'Assigned Role',
   remove_role: 'Removed Role',

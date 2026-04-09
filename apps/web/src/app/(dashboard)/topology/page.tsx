@@ -30,7 +30,7 @@ export default function TopologyPage() {
     <div className="p-6 text-slate-50">
       <PageHeader
         title="System Topology"
-        subtitle="Three-tier architecture: Brain → Mini Brains → Developments"
+        subtitle="Three-tier architecture: Corporation → Departments → Products"
       />
 
       <PageGrid cols="3" className="mb-6">
@@ -41,7 +41,7 @@ export default function TopologyPage() {
           sub="Core orchestration"
         />
         <StatCard
-          label="Mini Brains"
+          label="Departments"
           value={miniBrains.length}
           color="blue"
           sub="Domain specialists"
@@ -74,10 +74,10 @@ export default function TopologyPage() {
         )}
       </SectionCard>
 
-      {/* Mini Brains */}
-      <SectionCard title="Mini Brains (Tier 2)" className="mb-4">
+      {/* Departments */}
+      <SectionCard title="Departments (Tier 2)" className="mb-4">
         {miniBrains.length === 0 ? (
-          <div className="text-xs text-slate-600 py-3 text-center">No mini brains.</div>
+          <div className="text-xs text-slate-600 py-3 text-center">No departments.</div>
         ) : (
           <PageGrid cols="2">
             {miniBrains.map((mb) => (
@@ -100,7 +100,7 @@ export default function TopologyPage() {
       {/* Developments */}
       <SectionCard title="Developments (Tier 3)">
         {developments.length === 0 ? (
-          <div className="text-xs text-slate-600 py-3 text-center">No development apps.</div>
+          <div className="text-xs text-slate-600 py-3 text-center">No products.</div>
         ) : (
           <PageGrid cols="3">
             {developments.map((dev) => (

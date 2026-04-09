@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Mini Brain Agents — agents belonging to this Mini Brain's workspace.
+ * Department Agents — agents belonging to this Department's workspace.
  * Route: /domain/[domainId]/agents
  */
 
@@ -96,8 +96,8 @@ export default function DomainAgentsPage() {
         <EmptyState
           icon="⬡"
           title="No domain agents found"
-          message="Agents are created when the Mini Brain is provisioned. Check the Brain Manager."
-          action={{ label: 'Brain Manager', href: `/engines/manage/${entity.id}` }}
+          message="Agents are created when the department is provisioned. Check the Department Manager."
+          action={{ label: 'Department Manager', href: `/engines/manage/${entity.id}` }}
         />
       ) : (
         <div className="space-y-2">

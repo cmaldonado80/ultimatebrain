@@ -40,7 +40,7 @@ const STRESS_SCENARIOS = [
   {
     name: 'Network Partition',
     description:
-      'Isolate Mini Brains from parent Brain; verify graceful degradation and reconnect.',
+      'Isolate Departments from parent Corporation; verify graceful degradation and reconnect.',
     frequency: 'Monthly',
   },
 ] as const

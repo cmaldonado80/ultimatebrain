@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Development App Detail — dashboard for a Development entity under a Mini Brain.
+ * Product Detail — dashboard for a Product entity under a Department.
  * Route: /domain/[domainId]/[appId]
  */
 
@@ -44,14 +44,14 @@ export default function DevelopmentAppPage() {
   }
 
   if (entityQuery.isLoading) {
-    return <LoadingState message="Loading development app..." />
+    return <LoadingState message="Loading product..." />
   }
 
   const entity = entityQuery.data
   if (!entity) {
     return (
       <div className="p-6">
-        <EmptyState icon="📦" title="Development app not found" />
+        <EmptyState icon="📦" title="Product not found" />
       </div>
     )
   }
@@ -66,12 +66,12 @@ export default function DevelopmentAppPage() {
         href={`/domain/${domainId}`}
         className="text-[11px] text-neon-purple no-underline mb-3 inline-block"
       >
-        ← Back to {parent?.name ?? 'Mini Brain'}
+        ← Back to {parent?.name ?? 'Department'}
       </Link>
 
       <PageHeader
         title={entity.name}
-        subtitle={`Development app · ${parent?.domain ?? entity.domain ?? 'custom'} domain`}
+        subtitle={`Product · ${parent?.domain ?? entity.domain ?? 'custom'} domain`}
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge label={entity.status} color={STATUS_COLOR[entity.status] ?? 'slate'} dot />
@@ -104,7 +104,7 @@ export default function DevelopmentAppPage() {
         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-[12px]">
           <div className="text-slate-500">Entity ID</div>
           <div className="text-slate-300 font-mono text-[10px]">{entity.id}</div>
-          <div className="text-slate-500">Parent Mini Brain</div>
+          <div className="text-slate-500">Parent Department</div>
           <div>
             {parent ? (
               <Link
@@ -153,7 +153,7 @@ export default function DevelopmentAppPage() {
             href={`/domain/${domainId}`}
             className="cyber-btn-secondary cyber-btn-sm no-underline"
           >
-            Parent Mini Brain
+            Parent Department
           </Link>
           <Link href="/ops/deployments" className="cyber-btn-secondary cyber-btn-sm no-underline">
             Deployments

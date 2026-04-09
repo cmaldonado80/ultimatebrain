@@ -20,7 +20,7 @@ const PAGES: SearchResult[] = [
   { name: 'Tickets', href: '/tickets', category: 'page' },
   { name: 'Projects', href: '/projects', category: 'page' },
   { name: 'Products', href: '/products', category: 'page' },
-  { name: 'Mini Brain Factory', href: '/mini-brain-factory', category: 'page' },
+  { name: 'Department Manager', href: '/mini-brain-factory', category: 'page' },
   { name: 'Routines', href: '/routines', category: 'page' },
   { name: 'Work Products', href: '/work-products', category: 'page' },
   { name: 'Trajectory Replay', href: '/trajectory', category: 'page' },

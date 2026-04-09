@@ -1,8 +1,8 @@
 'use client'
 
 /**
- * Mini Brain Dashboard — overview of a domain Mini Brain entity.
- * Shows status, agents, development apps, and quick actions.
+ * Department Dashboard — overview of a domain Department entity.
+ * Shows status, agents, products, and quick actions.
  *
  * Route: /domain/[domainId] where domainId is the entity UUID or domain slug
  */
@@ -65,8 +65,8 @@ export default function MiniBrainDashboard() {
         <EmptyState
           icon="◆"
           title="Domain not found"
-          message={`No Mini Brain found for "${domainId}". Create one from the Brain Manager.`}
-          action={{ label: 'Brain Manager', href: '/engines/manage' }}
+          message={`No department found for "${domainId}". Create one from the Department Manager.`}
+          action={{ label: 'Department Manager', href: '/engines/manage' }}
         />
       </div>
     )
@@ -86,7 +86,7 @@ export default function MiniBrainDashboard() {
     <div className="p-6 text-slate-50 max-w-[900px]">
       <PageHeader
         title={entity.name}
-        subtitle={`${entity.domain ?? 'custom'} domain · Mini Brain`}
+        subtitle={`${entity.domain ?? 'custom'} domain · Department`}
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge label={entity.status} color={STATUS_COLOR[entity.status] ?? 'slate'} dot />
@@ -109,23 +109,23 @@ export default function MiniBrainDashboard() {
             entity.status === 'active' ? 'green' : entity.status === 'suspended' ? 'red' : 'blue'
           }
         />
-        <StatCard label="Tier" value="Mini Brain" color="purple" />
+        <StatCard label="Tier" value="Department" color="purple" />
         <StatCard label="Developments" value={developments.length} color="blue" />
         <StatCard label="Domain" value={entity.domain ?? 'custom'} />
       </PageGrid>
 
       {/* Development Apps */}
-      <SectionCard title={`Development Apps (${developments.length})`} className="mb-6">
+      <SectionCard title={`Products (${developments.length})`} className="mb-6">
         {developments.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-slate-500 text-sm mb-3">
-              No development apps yet. Create one to build on this Mini Brain.
+              No products yet. Create one to build on this Department.
             </div>
             <Link
               href={`/domain/${domainId}/developments`}
               className="cyber-btn-primary cyber-btn-sm no-underline"
             >
-              + Create Development App
+              + Create Product
             </Link>
           </div>
         ) : (
@@ -140,7 +140,7 @@ export default function MiniBrainDashboard() {
                 <div className="flex-1">
                   <div className="text-sm text-slate-200 font-medium">{dev.name}</div>
                   <div className="text-[10px] text-slate-500">
-                    Development · {dev.domain ?? entity.domain}
+                    Product · {dev.domain ?? entity.domain}
                   </div>
                 </div>
                 <span className="text-[10px] text-slate-600">→</span>
@@ -151,7 +151,7 @@ export default function MiniBrainDashboard() {
                 href={`/domain/${domainId}/developments`}
                 className="text-[11px] text-neon-teal hover:text-neon-teal/80 no-underline"
               >
-                + Create another development app
+                + Create another product
               </Link>
             </div>
           </div>
