@@ -231,7 +231,7 @@ export class ContextPipeline {
           .join('\n')
 
         const result = await this.gateway.chat({
-          model: 'claude-haiku-4-5',
+          model: undefined, // Use default configured model
           messages: [
             {
               role: 'system',

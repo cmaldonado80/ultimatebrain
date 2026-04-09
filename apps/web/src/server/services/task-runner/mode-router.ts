@@ -371,7 +371,7 @@ export class ModeRouter {
     try {
       const agentConfig = ticketId ? await this.resolveAgentConfig(ticketId) : {}
       const result = await this.gateway.chat({
-        model: agentConfig.model ?? 'claude-haiku-4-5',
+        model: agentConfig.model,
         temperature: agentConfig.temperature,
         maxTokens: agentConfig.maxTokens,
         messages: [
@@ -404,7 +404,7 @@ export class ModeRouter {
       const taskDescription = ticket?.description ?? ticket?.title ?? ticketId
 
       const guardrailResult = await this.gateway.chat({
-        model: 'claude-haiku-4-5',
+        model: undefined, // Use default model (Ollama cloud or whatever is configured)
         messages: [
           {
             role: 'system',
