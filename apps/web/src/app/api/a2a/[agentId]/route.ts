@@ -348,12 +348,16 @@ function streamTaskProgress(
           )
         }
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : String(err)
+        const internalError = err instanceof Error ? err.message : String(err)
+        logger.error(
+          { err: err instanceof Error ? err : undefined, taskId },
+          'a2a: task execution failed',
+        )
         await db
           .update(a2aDelegations)
-          .set({ status: 'failed', error: errorMsg, completedAt: new Date() })
+          .set({ status: 'failed', error: internalError, completedAt: new Date() })
           .where(eq(a2aDelegations.id, taskId))
-        send('failed', { task_id: taskId, status: 'failed', error: errorMsg })
+        send('failed', { task_id: taskId, status: 'failed', error: 'Task execution failed' })
       }
 
       controller.close()
