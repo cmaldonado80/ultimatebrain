@@ -133,11 +133,12 @@ function getEquivalentModel(originalModel: string, targetProvider: ProviderName)
 export interface ProviderAdapter {
   chat(params: {
     model: string
-    messages: Array<{ role: string; content: string }>
+    messages: Array<{ role: string; content: string; images?: string[] }>
     tools?: unknown[]
     apiKey?: string
     temperature?: number
     maxTokens?: number
+    think?: boolean
   }): Promise<{
     content: string
     tokensIn: number
@@ -626,12 +627,13 @@ class OllamaAdapter implements ProviderAdapter {
 
   async chat(params: {
     model: string
-    messages: Array<{ role: string; content: string }>
+    messages: Array<{ role: string; content: string; images?: string[] }>
     tools?: unknown[]
     format?: unknown
     apiKey?: string
     temperature?: number
     maxTokens?: number
+    think?: boolean
   }) {
     const baseUrl = this.getBaseUrl()
     const body: Record<string, unknown> = {
@@ -639,6 +641,10 @@ class OllamaAdapter implements ProviderAdapter {
       messages: params.messages.map((m) => {
         const role = m.role === 'agent' ? 'assistant' : m.role
         const msg: Record<string, unknown> = { role, content: m.content }
+        // Vision support — pass base64-encoded images to Ollama
+        if (m.images && m.images.length > 0) {
+          msg.images = m.images
+        }
         // Ollama API requires tool_name for role:"tool" messages (tool result)
         if (role === 'tool' && (m as Record<string, unknown>).tool_name) {
           msg.tool_name = (m as Record<string, unknown>).tool_name
@@ -649,6 +655,8 @@ class OllamaAdapter implements ProviderAdapter {
     }
     if (params.temperature != null) body.temperature = params.temperature
     if (params.maxTokens != null) body.num_predict = params.maxTokens
+    // Thinking mode — enables chain-of-thought reasoning
+    if (params.think) body.think = true
 
     // Tool calling support — Ollama uses OpenAI-compatible format
     if (params.tools && params.tools.length > 0) {
@@ -825,6 +833,80 @@ class OllamaAdapter implements ProviderAdapter {
         }
       }
     }
+  }
+
+  /**
+   * Generate embeddings via Ollama's /api/embed endpoint.
+   */
+  async embed(params: {
+    text: string
+    model?: string
+    apiKey?: string
+  }): Promise<{ embedding: number[]; dimensions: number }> {
+    const baseUrl = this.getBaseUrl()
+    const model = params.model ?? 'nomic-embed-text'
+
+    const res = await fetch(`${baseUrl}/api/embed`, {
+      method: 'POST',
+      headers: this.buildHeaders(params.apiKey),
+      body: JSON.stringify({ model, input: [params.text] }),
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Ollama embed error ${res.status}: ${err}`)
+    }
+    const data = (await res.json()) as { embeddings: number[][] }
+    const embedding = data.embeddings?.[0] ?? []
+    return { embedding, dimensions: embedding.length }
+  }
+
+  /**
+   * Search the web via Ollama's web search API.
+   * Requires OLLAMA_API_KEY for authentication.
+   */
+  async webSearch(
+    query: string,
+    apiKey?: string,
+  ): Promise<Array<{ title: string; url: string; snippet: string }>> {
+    const key = apiKey ?? process.env.OLLAMA_API_KEY
+    const res = await fetch('https://ollama.com/api/web_search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(key ? { Authorization: `Bearer ${key}` } : {}),
+      },
+      body: JSON.stringify({ q: query }),
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Ollama web search error ${res.status}: ${err}`)
+    }
+    const data = (await res.json()) as {
+      results?: Array<{ title: string; url: string; snippet: string }>
+    }
+    return data.results ?? []
+  }
+
+  /**
+   * Fetch a URL's content via Ollama's web fetch API.
+   * Requires OLLAMA_API_KEY for authentication.
+   */
+  async webFetch(url: string, apiKey?: string): Promise<string> {
+    const key = apiKey ?? process.env.OLLAMA_API_KEY
+    const res = await fetch('https://ollama.com/api/web_fetch', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(key ? { Authorization: `Bearer ${key}` } : {}),
+      },
+      body: JSON.stringify({ url }),
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Ollama web fetch error ${res.status}: ${err}`)
+    }
+    const data = (await res.json()) as { content?: string }
+    return data.content ?? ''
   }
 }
 
@@ -1104,7 +1186,7 @@ export class GatewayRouter {
               : await this.keyVault.getKey(provider)
 
           if (provider === 'ollama') {
-            const ollamaAdapter = adapter as OllamaAdapter
+            const ollamaAdapter = adapter as unknown as OllamaAdapter
             const storedUrl = await this.keyVault.getKey('ollama_url')
             ollamaAdapter.resolvedUrl = process.env.OLLAMA_BASE_URL ?? storedUrl ?? null
           }
@@ -1228,7 +1310,7 @@ export class GatewayRouter {
             : await this.keyVault.getKey(provider)
 
         if (provider === 'ollama') {
-          const ollamaAdapter = adapter as OllamaAdapter
+          const ollamaAdapter = adapter as unknown as OllamaAdapter
           const storedUrl = await this.keyVault.getKey('ollama_url')
           ollamaAdapter.resolvedUrl = process.env.OLLAMA_BASE_URL ?? storedUrl ?? null
         }
