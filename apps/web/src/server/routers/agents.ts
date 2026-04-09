@@ -4,7 +4,7 @@
  * Agents have types (executor/reviewer/planner/specialist), belong to workspaces,
  * and are assigned to tickets for execution. Supports capability and model configuration.
  */
-import { agents, traces } from '@solarc/db'
+import { agents, brainEntities, brainEntityAgents, traces } from '@solarc/db'
 import { TRPCError } from '@trpc/server'
 import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
@@ -88,9 +88,60 @@ export const agentsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [agent] = await ctx.db.insert(agents).values(input).returning()
+      // Auto-assign workspace if not provided — pick first available
+      let workspaceId = input.workspaceId
+      if (!workspaceId) {
+        try {
+          const firstWs = await ctx.db.query.workspaces.findFirst({
+            orderBy: (t, { desc: d }) => [d(t.createdAt)],
+          })
+          if (firstWs) workspaceId = firstWs.id
+        } catch {
+          /* workspace lookup is best-effort */
+        }
+      }
+
+      const [agent] = await ctx.db
+        .insert(agents)
+        .values({ ...input, workspaceId })
+        .returning()
       if (!agent)
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create agent' })
+
+      // Auto-link agent to corporation org chart
+      // Find the department (mini_brain entity) that owns this workspace
+      try {
+        if (workspaceId) {
+          // Look for a brain entity whose config has this workspaceId
+          const allEntities = await ctx.db.query.brainEntities.findMany({
+            where: eq(brainEntities.tier, 'mini_brain'),
+          })
+          const matchingEntity = allEntities.find((e) => {
+            const config = e.config as Record<string, unknown> | null
+            return config?.workspaceId === workspaceId
+          })
+
+          if (matchingEntity) {
+            // Link agent to the department
+            await ctx.db
+              .insert(brainEntityAgents)
+              .values({ entityId: matchingEntity.id, agentId: agent.id, role: 'primary' })
+              .onConflictDoNothing()
+          } else {
+            // No department found for this workspace — try linking to any active department
+            const anyDept = allEntities.find((e) => e.status === 'active')
+            if (anyDept) {
+              await ctx.db
+                .insert(brainEntityAgents)
+                .values({ entityId: anyDept.id, agentId: agent.id, role: 'primary' })
+                .onConflictDoNothing()
+            }
+          }
+        }
+      } catch {
+        // Auto-link is best-effort — agent creation should never fail because of it
+      }
+
       return agent
     }),
   update: protectedProcedure
