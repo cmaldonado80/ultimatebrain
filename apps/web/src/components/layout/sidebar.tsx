@@ -98,6 +98,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'Guardrails', href: '/guardrails', icon: '⛨' },
       { label: 'Trajectory', href: '/trajectory', icon: '⤳' },
       { label: 'Decisions', href: '/ops/decisions', icon: '⊞' },
+      { label: 'Work Market', href: '/ops/market', icon: '⊕' },
       { label: 'Restructuring', href: '/ops/restructuring', icon: '◈' },
       { label: 'Stress Tests', href: '/ops/stress', icon: '⚡' },
     ],

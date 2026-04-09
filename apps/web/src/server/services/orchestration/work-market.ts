@@ -14,7 +14,7 @@
  */
 
 import type { Database } from '@solarc/db'
-import { agentReputations, marketListings } from '@solarc/db'
+import { agentReputations, agents, marketListings } from '@solarc/db'
 import { and, eq, lte, sql } from 'drizzle-orm'
 
 import { logger } from '../../../lib/logger'
@@ -579,6 +579,49 @@ export class WorkMarket {
 
   getAllReputations(): AgentReputation[] {
     return Array.from(this.reputations.values())
+  }
+
+  /** Get all reputations from DB (with agent name join) */
+  async getAllReputationsFromDb(): Promise<AgentReputation[]> {
+    if (!this.db) return this.getAllReputations()
+
+    try {
+      const rows = await this.db
+        .select({
+          agentId: agentReputations.agentId,
+          agentName: agents.name,
+          totalBids: agentReputations.totalBids,
+          totalWins: agentReputations.totalWins,
+          totalCompletions: agentReputations.totalCompletions,
+          totalFailures: agentReputations.totalFailures,
+          successRate: agentReputations.successRate,
+          avgCompletionMs: agentReputations.avgCompletionMs,
+          skills: agentReputations.skills,
+        })
+        .from(agentReputations)
+        .leftJoin(agents, eq(agentReputations.agentId, agents.id))
+        .orderBy(sql`${agentReputations.successRate} * ${agentReputations.totalWins} DESC`)
+        .limit(50)
+
+      return rows.map((r) => ({
+        agentId: r.agentId,
+        agentName: r.agentName ?? r.agentId,
+        totalBids: r.totalBids,
+        totalWins: r.totalWins,
+        totalCompletions: r.totalCompletions,
+        totalFailures: r.totalFailures,
+        winRate: r.totalBids > 0 ? r.totalWins / r.totalBids : 0,
+        successRate: r.successRate,
+        avgCompletionMs: r.avgCompletionMs,
+        skills: r.skills ?? [],
+      }))
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        'work-market: DB getAllReputationsFromDb failed',
+      )
+      return this.getAllReputations()
+    }
   }
 
   // ── Private helpers ────────────────────────────────────────────────────

@@ -568,17 +568,25 @@ export const orchestrationRouter = router({
   }),
 
   /** Get work market stats */
-  workMarketStats: protectedProcedure.query(async () => {
+  workMarketStats: protectedProcedure.query(async ({ ctx }) => {
     const { WorkMarket } = await import('../services/orchestration/work-market')
-    const market = new WorkMarket()
+    const market = new WorkMarket(ctx.db)
     return market.getStats()
   }),
 
-  /** Get work market reputations */
-  workMarketReputations: protectedProcedure.query(async () => {
+  /** Get work market reputations (DB-backed) */
+  workMarketReputations: protectedProcedure.query(async ({ ctx }) => {
     const { WorkMarket } = await import('../services/orchestration/work-market')
-    const market = new WorkMarket()
-    return market.getAllReputations()
+    const market = new WorkMarket(ctx.db)
+    const reps = await market.getAllReputationsFromDb()
+    return reps
+  }),
+
+  /** Get open market listings with ticket details */
+  workMarketOpenListings: protectedProcedure.query(async ({ ctx }) => {
+    const { WorkMarket } = await import('../services/orchestration/work-market')
+    const market = new WorkMarket(ctx.db)
+    return market.getOpenListings()
   }),
 
   /** Preview a codebase review (dry-run) */
