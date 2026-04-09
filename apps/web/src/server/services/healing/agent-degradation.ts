@@ -262,7 +262,12 @@ export class AgentDegradationManager {
       }
       this.recordEvent(event)
       this.persistTransition(event)
-      broadcastDegradation(event, this.db).catch(() => {})
+      broadcastDegradation(event, this.db).catch((err) => {
+        logger.warn(
+          { err: err instanceof Error ? err : undefined, agentId: event.agentId },
+          'agent-degradation: failed to broadcast event',
+        )
+      })
       return event
     }
 
@@ -282,7 +287,12 @@ export class AgentDegradationManager {
       }
       this.recordEvent(event)
       this.persistTransition(event)
-      broadcastDegradation(event, this.db).catch(() => {})
+      broadcastDegradation(event, this.db).catch((err) => {
+        logger.warn(
+          { err: err instanceof Error ? err : undefined, agentId: event.agentId },
+          'agent-degradation: failed to broadcast event',
+        )
+      })
       return event
     }
 

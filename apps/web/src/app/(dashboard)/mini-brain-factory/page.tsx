@@ -866,7 +866,7 @@ export default function MiniBrainFactoryPage() {
             </div>
           )}
           <div className="text-[10px] text-slate-600">
-            Creates: Brain Entity + Workspace + Orchestrator Agent + Template Agents + Binding.
+            Creates a department with workspace, orchestrator agent, template agents, and binding.
             Fully provisioned in one click.
           </div>
         </div>

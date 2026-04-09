@@ -29,6 +29,12 @@ const ACTION_LABELS: Record<string, string> = {
 }
 
 const RESOURCE_TYPES = ['brain_entity', 'workspace', 'user', 'agent']
+const RESOURCE_DISPLAY: Record<string, string> = {
+  brain_entity: 'Entity',
+  workspace: 'Workspace',
+  user: 'User',
+  agent: 'Agent',
+}
 
 export default function AuditPage() {
   const [actionFilter, setActionFilter] = useState('')
@@ -82,7 +88,7 @@ export default function AuditPage() {
           <option value="">All resources</option>
           {RESOURCE_TYPES.map((t) => (
             <option key={t} value={t}>
-              {t}
+              {RESOURCE_DISPLAY[t] ?? t}
             </option>
           ))}
         </select>
@@ -127,7 +133,7 @@ export default function AuditPage() {
                       {ACTION_LABELS[event.action] ?? event.action}
                     </span>
                     <span className="text-slate-500">
-                      {event.resourceType}
+                      {RESOURCE_DISPLAY[event.resourceType] ?? event.resourceType}
                       {event.resourceId ? ` ${event.resourceId.slice(0, 8)}...` : ''}
                     </span>
                     <span className="ml-auto text-slate-700">

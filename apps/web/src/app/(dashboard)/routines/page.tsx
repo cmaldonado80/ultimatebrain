@@ -14,7 +14,8 @@ import { trpc } from '../../../utils/trpc'
 
 export default function RoutinesPage() {
   const topologyQuery = trpc.entities.topology.useQuery()
-  const firstWs = (topologyQuery.data?.miniBrains?.[0] as { id: string } | undefined)?.id
+  const departments = (topologyQuery.data?.miniBrains ?? []) as Array<{ id: string }>
+  const firstWs = departments[0]?.id
   const routinesQuery = trpc.orchestration.routinesList.useQuery(
     { workspaceId: firstWs! },
     { enabled: !!firstWs },

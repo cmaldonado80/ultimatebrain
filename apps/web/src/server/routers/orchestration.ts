@@ -253,7 +253,12 @@ export const orchestrationRouter = router({
                 roleComposition,
               },
             })
-            .catch(() => {})
+            .catch((err) => {
+              logger.warn(
+                { err: err instanceof Error ? err : undefined },
+                'swarm: failed to record outcome observation',
+              )
+            })
         }
       } catch (err) {
         logger.warn(
@@ -361,7 +366,12 @@ export const orchestrationRouter = router({
                 durationMs: full.receipt.durationMs,
               },
             })
-            .catch(() => {})
+            .catch((err) => {
+              logger.warn(
+                { err: err instanceof Error ? err : undefined },
+                'receipt: failed to record outcome observation',
+              )
+            })
         }
       } catch (err) {
         logger.warn(

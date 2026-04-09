@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Entity Detail — drill-down view for a single brain entity.
+ * Entity Detail — drill-down view for a single entity.
  * Shows agents, database, health, children, and management controls.
  */
 
@@ -17,6 +17,12 @@ const TIER_BADGE: Record<string, string> = {
   brain: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   mini_brain: 'bg-neon-green/20 text-neon-green border-neon-green/30',
   development: 'bg-neon-yellow/20 text-neon-yellow border-neon-yellow/30',
+}
+
+const TIER_DISPLAY: Record<string, string> = {
+  brain: 'brain',
+  mini_brain: 'department',
+  development: 'development',
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -162,7 +168,7 @@ export default function EntityDetailPage() {
           className="text-xs text-slate-500 hover:text-slate-300 mb-2 block"
           onClick={() => router.push('/engines/manage')}
         >
-          ← Back to Brain Manager
+          ← Back to Department Manager
         </button>
         <PageHeader
           title={entity.name}
@@ -171,7 +177,7 @@ export default function EntityDetailPage() {
               <span
                 className={`cyber-badge text-[10px] uppercase ${TIER_BADGE[entity.tier] ?? 'text-slate-400 border-slate-400/20'}`}
               >
-                {entity.tier.replace('_', ' ')}
+                {TIER_DISPLAY[entity.tier] ?? entity.tier}
               </span>
               <span className={`neon-dot ${STATUS_DOT[entity.status] ?? 'neon-dot-blue'}`} />
               <span className="text-xs text-slate-400 uppercase">{entity.status}</span>

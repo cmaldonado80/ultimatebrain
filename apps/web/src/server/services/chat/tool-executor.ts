@@ -361,7 +361,12 @@ export async function flushToolAnalytics(db: Database): Promise<number> {
               totalCalls,
             },
           })
-          .catch(() => {})
+          .catch((err) => {
+            logger.warn(
+              { err: err instanceof Error ? err : undefined, toolName },
+              'tool-executor: failed to record failure pattern observation',
+            )
+          })
       }
 
       flushed++

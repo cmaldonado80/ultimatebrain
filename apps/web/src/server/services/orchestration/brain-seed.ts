@@ -10,6 +10,7 @@ import type { Database } from '@solarc/db'
 import { agents, brainEntities, workspaceLifecycleEvents, workspaces } from '@solarc/db'
 import { and, eq } from 'drizzle-orm'
 
+import { logger } from '../../../lib/logger'
 import { getAgentSoul } from './agents'
 import { eventBus } from './event-bus'
 
@@ -1652,7 +1653,12 @@ export async function seedBrainWorkspaces(db: Database): Promise<{
     .update(workspaces)
     .set({ lifecycleState: 'active' })
     .where(eq(workspaces.lifecycleState, 'draft'))
-    .catch(() => {})
+    .catch((err) => {
+      logger.warn(
+        { err: err instanceof Error ? err : undefined },
+        'brain-seed: failed to activate draft workspaces',
+      )
+    })
 
   await eventBus.emit('brain.seeded', { workspacesCreated, agentsCreated, entitiesCreated })
 

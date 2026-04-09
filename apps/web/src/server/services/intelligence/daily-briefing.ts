@@ -84,7 +84,12 @@ export async function generateDailyBriefing(db: Database): Promise<string> {
   // Deliver via notification
   await notify(db, 'daily_briefing', 'Daily Briefing', briefing, 'info', {
     channels: ['inbox'],
-  }).catch(() => {})
+  }).catch((err) => {
+    logger.warn(
+      { err: err instanceof Error ? err : undefined },
+      'daily-briefing: notification delivery failed',
+    )
+  })
 
   logger.info({ completed, failed, healing, promoted, observations }, 'daily-briefing: generated')
 

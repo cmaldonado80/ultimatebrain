@@ -272,8 +272,8 @@ export default function CommandCenter() {
               Create your first artifact
             </a>{' '}
             or{' '}
-            <a href="/mini-brain-factory" className="text-neon-teal hover:underline">
-              add a department
+            <a href="/domains" className="text-neon-teal hover:underline">
+              add a domain
             </a>{' '}
             to get started.
           </div>

@@ -104,7 +104,12 @@ export class StressEngine {
                 .update(agents)
                 .set({ status: 'idle' })
                 .where(eq(agents.id, victim.id))
-                .catch(() => {})
+                .catch((err) => {
+                  logger.warn(
+                    { err: err instanceof Error ? err : undefined, agentId: victim.id },
+                    'stress-engine: failed to restore agent status after suspension',
+                  )
+                })
             }, STRESS_DURATION_MS)
             insight = `Suspended agent "${victim.name}" for ${STRESS_DURATION_MS / 1000}s — tests work rerouting`
             recovered = true
@@ -149,7 +154,12 @@ export class StressEngine {
         eventType: 'stress_test',
         payload: result,
       })
-      .catch(() => {})
+      .catch((err) => {
+        logger.warn(
+          { err: err instanceof Error ? err : undefined, scenario },
+          'stress-engine: failed to record stress test observation',
+        )
+      })
 
     logger.info({ scenario, target, recovered, durationMs }, `stress-engine: ${scenario} completed`)
 

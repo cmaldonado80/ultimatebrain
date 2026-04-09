@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Engines — brain entity hierarchy and engine status.
+ * Engines — system entity hierarchy and engine status.
  */
 
 import Link from 'next/link'
@@ -27,8 +27,14 @@ interface BrainEntity {
 
 const TIER_BADGE_CLASS: Record<string, string> = {
   brain: 'text-neon-purple',
-  mini_brain: 'text-neon-green',
+  mini_brain: 'text-neon-green', // DB enum value — displayed as "Department"
   development: 'text-neon-yellow',
+}
+
+const TIER_DISPLAY: Record<string, string> = {
+  brain: 'brain',
+  mini_brain: 'department',
+  development: 'development',
 }
 
 const STATUS_DOT_CLASS: Record<string, string> = {
@@ -94,7 +100,7 @@ export default function EnginesPage() {
             <div className="text-[22px] font-bold font-orbitron text-neon-purple">
               {topo.brain.length}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Brain Entities</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Corporation</div>
           </div>
           <div className="cyber-card text-center p-3.5">
             <div className="text-[22px] font-bold font-orbitron text-neon-green">
@@ -112,7 +118,7 @@ export default function EnginesPage() {
       )}
 
       {entities.length === 0 ? (
-        <EmptyState title="No brain entities registered" />
+        <EmptyState title="No entities registered" />
       ) : (
         <div className="cyber-grid">
           {entities.map((e) => (
@@ -122,7 +128,7 @@ export default function EnginesPage() {
                 <span
                   className={`cyber-badge uppercase ${TIER_BADGE_CLASS[e.tier] || 'text-slate-500'}`}
                 >
-                  {e.tier}
+                  {TIER_DISPLAY[e.tier] ?? e.tier}
                 </span>
               </div>
               <div className="flex gap-4 text-[11px] text-slate-500 mb-1.5">

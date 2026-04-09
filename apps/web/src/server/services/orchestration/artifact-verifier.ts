@@ -67,7 +67,12 @@ export async function verifyAndEscalate(
         status: 'queued',
         priority: 'high',
       })
-      .catch(() => {})
+      .catch((err) => {
+        logger.warn(
+          { err: err instanceof Error ? err : undefined, artifactId },
+          'artifact-verifier: failed to create follow-up ticket',
+        )
+      })
 
     logger.warn({ artifactId, issues: result.issues }, 'artifact-verifier: issues found')
   }

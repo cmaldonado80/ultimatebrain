@@ -39,6 +39,12 @@ const TIER_BADGE: Record<string, string> = {
   development: 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10',
 }
 
+const TIER_DISPLAY: Record<string, string> = {
+  brain: 'brain',
+  mini_brain: 'department',
+  development: 'development',
+}
+
 const STATUS_DOT: Record<string, string> = {
   active: 'neon-dot neon-dot-green',
   provisioning: 'neon-dot neon-dot-yellow',
@@ -174,7 +180,7 @@ function HierarchyTab({
 
       {allEntities.length === 0 ? (
         <div className="text-slate-500 text-sm text-center py-8">
-          No brain entities yet. Create one to get started.
+          No entities yet. Create one to get started.
         </div>
       ) : (
         <div className="cyber-card overflow-hidden">
@@ -238,7 +244,7 @@ function TreeRow({
 
         {/* Tier badge */}
         <span className={`cyber-badge text-xs ${TIER_BADGE[entity.tier] ?? ''}`}>
-          {entity.tier.replace('_', ' ')}
+          {TIER_DISPLAY[entity.tier] ?? entity.tier}
         </span>
 
         {/* Domain */}
