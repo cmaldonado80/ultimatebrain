@@ -31,6 +31,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { label: 'Mission Control', href: '/', icon: '⊞' },
+      { label: 'Command Center', href: '/command-center', icon: '◎' },
       { label: 'Chat', href: '/chat', icon: '◉' },
       { label: 'Notifications', href: '/notifications', icon: '⊙' },
       { label: 'User Guide', href: '/guide', icon: '?' },
