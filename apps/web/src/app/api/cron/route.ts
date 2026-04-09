@@ -3,7 +3,8 @@
 
 export const dynamic = 'force-dynamic'
 
-import { createDb, waitForSchema } from '@solarc/db'
+import { createDb, waitForSchema, workspaces as workspacesTable } from '@solarc/db'
+import { eq } from 'drizzle-orm'
 
 import { logger } from '../../../lib/logger'
 import { AtlasFreshnessScanner } from '../../../server/services/atlas'
@@ -28,6 +29,16 @@ export async function GET(req: Request) {
 
     const db = createDb(url)
     await waitForSchema()
+
+    // Auto-activate draft workspaces (one-time migration + ongoing)
+    try {
+      await db
+        .update(workspacesTable)
+        .set({ lifecycleState: 'active' })
+        .where(eq(workspacesTable.lifecycleState, 'draft'))
+    } catch {
+      /* best-effort */
+    }
 
     const orchestrator = new SystemOrchestrator(db)
     const cortex = getOrCreateCortex(db)
