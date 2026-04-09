@@ -540,17 +540,24 @@ export const orchestrationRouter = router({
     .input(
       z.object({ question: z.string(), scope: z.enum(['department', 'organization']).optional() }),
     )
-    .query(async () => {
+    .query(async ({ ctx }) => {
       const { KnowledgeMesh } = await import('../services/orchestration/knowledge-mesh')
-      const mesh = new KnowledgeMesh()
+      const mesh = new KnowledgeMesh(ctx.db)
       return mesh.getStats()
     }),
 
   /** Get knowledge mesh stats */
-  knowledgeMeshStats: protectedProcedure.query(async () => {
+  knowledgeMeshStats: protectedProcedure.query(async ({ ctx }) => {
     const { KnowledgeMesh } = await import('../services/orchestration/knowledge-mesh')
-    const mesh = new KnowledgeMesh()
+    const mesh = new KnowledgeMesh(ctx.db)
     return mesh.getStats()
+  }),
+
+  /** Get knowledge mesh exchange history from DB */
+  knowledgeMeshExchanges: protectedProcedure.query(async ({ ctx }) => {
+    const { KnowledgeMesh } = await import('../services/orchestration/knowledge-mesh')
+    const mesh = new KnowledgeMesh(ctx.db)
+    return mesh.getRecentExchanges()
   }),
 
   /** Get goal cascade snapshot */

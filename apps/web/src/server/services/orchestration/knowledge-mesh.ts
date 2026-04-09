@@ -273,7 +273,34 @@ export class KnowledgeMesh {
     }
   }
 
-  getRecentExchanges(limit = 10): KnowledgeExchange[] {
+  async getRecentExchanges(limit = 20): Promise<KnowledgeExchange[]> {
+    if (this.db) {
+      try {
+        const rows = await this.db
+          .select()
+          .from(knowledgeExchanges)
+          .orderBy(desc(knowledgeExchanges.createdAt))
+          .limit(limit)
+
+        return rows.map((r) => ({
+          id: r.id,
+          query: {
+            askingAgentId: r.askingAgentId ?? '',
+            question: r.question,
+            context: '',
+            scope: (r.scope as 'department' | 'organization') ?? 'organization',
+          },
+          findings: (r.findings ?? []) as KnowledgeFinding[],
+          queriedAt: r.createdAt.getTime(),
+          feedbackGiven: r.feedback as 'helpful' | 'not_helpful' | undefined,
+        }))
+      } catch (err) {
+        logger.warn(
+          { err: err instanceof Error ? err : undefined },
+          'knowledge-mesh: DB getRecentExchanges failed',
+        )
+      }
+    }
     return this.exchanges.slice(-limit)
   }
 
