@@ -69,8 +69,11 @@ import {
   cognitiveCandidates,
   contextEffectiveness,
   evolutionCycles,
+  goalAlignments,
+  keyResults,
   memories,
   memoryVectors,
+  okrs,
   promptOverlays,
   recommendationEvents,
   recommendationOutcomes,
@@ -661,5 +664,24 @@ export const astrologyEngagementRelations = relations(astrologyEngagement, ({ on
   chart: one(astrologyCharts, {
     fields: [astrologyEngagement.chartId],
     references: [astrologyCharts.id],
+  }),
+}))
+
+// ── Strategic Goal Cascade ──────────────────────────────────────────────
+
+export const okrsRelations = relations(okrs, ({ many }) => ({
+  keyResults: many(keyResults),
+  alignments: many(goalAlignments),
+}))
+
+export const keyResultsRelations = relations(keyResults, ({ one }) => ({
+  okr: one(okrs, { fields: [keyResults.okrId], references: [okrs.id] }),
+}))
+
+export const goalAlignmentsRelations = relations(goalAlignments, ({ one }) => ({
+  okr: one(okrs, { fields: [goalAlignments.okrId], references: [okrs.id] }),
+  keyResult: one(keyResults, {
+    fields: [goalAlignments.keyResultId],
+    references: [keyResults.id],
   }),
 }))

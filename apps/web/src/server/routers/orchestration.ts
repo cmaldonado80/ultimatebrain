@@ -5,7 +5,8 @@
  * cron scheduling, multi-agent swarm management, and execution receipt generation.
  */
 import type { Database } from '@solarc/db'
-import { instinctObservations } from '@solarc/db'
+import { goalAlignments, instinctObservations, keyResults, okrs } from '@solarc/db'
+import { desc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { logger } from '../../lib/logger'
@@ -560,12 +561,154 @@ export const orchestrationRouter = router({
     return mesh.getRecentExchanges()
   }),
 
-  /** Get goal cascade snapshot */
-  goalCascade: protectedProcedure.query(async () => {
-    const { GoalCascadeEngine } = await import('../services/orchestration/goal-cascade')
-    const engine = new GoalCascadeEngine()
-    return engine.getSnapshot()
-  }),
+  /** Get goal cascade snapshot (DB-backed OKRs with key results) */
+  goalCascade: protectedProcedure
+    .input(z.object({ quarter: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const quarter = input?.quarter
+      const okrRows = quarter
+        ? await ctx.db.query.okrs.findMany({
+            where: eq(okrs.quarter, quarter),
+            with: { keyResults: true },
+            orderBy: [desc(okrs.createdAt)],
+          })
+        : await ctx.db.query.okrs.findMany({
+            with: { keyResults: true },
+            orderBy: [desc(okrs.createdAt)],
+            limit: 50,
+          })
+
+      // Compute alignment counts per OKR
+      const okrIds = okrRows.map((o) => o.id)
+      let alignmentCounts: Record<string, number> = {}
+      if (okrIds.length > 0) {
+        const rows = await ctx.db
+          .select({
+            okrId: goalAlignments.okrId,
+            count: sql<number>`count(*)`,
+          })
+          .from(goalAlignments)
+          .where(
+            sql`${goalAlignments.okrId} IN (${sql.join(
+              okrIds.map((id) => sql`${id}`),
+              sql`, `,
+            )})`,
+          )
+          .groupBy(goalAlignments.okrId)
+        alignmentCounts = Object.fromEntries(rows.map((r) => [r.okrId ?? '', Number(r.count)]))
+      }
+
+      return okrRows.map((o) => ({
+        ...o,
+        alignmentCount: alignmentCounts[o.id] ?? 0,
+        progress:
+          o.keyResults.length > 0
+            ? o.keyResults.reduce((a, kr) => {
+                const p = kr.target > 0 ? Math.min(1, kr.current / kr.target) : 0
+                return a + p * kr.weight
+              }, 0) / o.keyResults.reduce((a, kr) => a + kr.weight, 0)
+            : 0,
+      }))
+    }),
+
+  /** Create a new OKR */
+  createOkr: protectedProcedure
+    .input(
+      z.object({
+        objective: z.string().min(1),
+        quarter: z.string().min(1),
+        owner: z.string().default('corporation'),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [row] = await ctx.db.insert(okrs).values(input).returning()
+      return row
+    }),
+
+  /** Add a key result to an OKR */
+  addKeyResult: protectedProcedure
+    .input(
+      z.object({
+        okrId: z.string().uuid(),
+        description: z.string().min(1),
+        metric: z.string().min(1),
+        target: z.number().positive(),
+        unit: z.string().default('%'),
+        weight: z.number().min(0).max(1).default(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [row] = await ctx.db.insert(keyResults).values(input).returning()
+      return row
+    }),
+
+  /** Update a key result's progress */
+  updateKeyResultProgress: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        current: z.number(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(keyResults)
+        .set({ current: input.current, updatedAt: new Date() })
+        .where(eq(keyResults.id, input.id))
+      return { success: true }
+    }),
+
+  /** Update OKR status */
+  updateOkrStatus: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        status: z.enum(['active', 'achieved', 'cancelled']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(okrs)
+        .set({ status: input.status, updatedAt: new Date() })
+        .where(eq(okrs.id, input.id))
+      return { success: true }
+    }),
+
+  /** Record a goal alignment (task → KR → OKR) */
+  recordAlignment: protectedProcedure
+    .input(
+      z.object({
+        taskTitle: z.string().min(1),
+        ticketId: z.string().uuid().optional(),
+        agentId: z.string().uuid().optional(),
+        keyResultId: z.string().uuid().optional(),
+        okrId: z.string().uuid(),
+        contribution: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [row] = await ctx.db.insert(goalAlignments).values(input).returning()
+      return row
+    }),
+
+  /** Get recent goal alignments */
+  goalAlignments: protectedProcedure
+    .input(
+      z.object({ okrId: z.string().uuid().optional(), limit: z.number().optional() }).optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      if (input?.okrId) {
+        return ctx.db.query.goalAlignments.findMany({
+          where: eq(goalAlignments.okrId, input.okrId),
+          orderBy: [desc(goalAlignments.createdAt)],
+          limit: input?.limit ?? 20,
+        })
+      }
+      return ctx.db.query.goalAlignments.findMany({
+        orderBy: [desc(goalAlignments.createdAt)],
+        limit: input?.limit ?? 20,
+      })
+    }),
 
   /** Get emergent role proposals */
   roleProposals: protectedProcedure.query(async () => {

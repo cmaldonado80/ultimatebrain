@@ -537,6 +537,60 @@ export const pathwayEffectiveness = pgTable(
   (t) => [index('pathway_effectiveness_event_type_idx').on(t.eventType)],
 )
 
+/** OKRs — corporation-level objectives with quarterly goals */
+export const okrs = pgTable(
+  'okrs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    objective: text('objective').notNull(),
+    quarter: text('quarter').notNull(), // e.g. "2026-Q2"
+    owner: text('owner').notNull().default('corporation'), // department name or 'corporation'
+    status: text('status').notNull().default('active'), // active, achieved, cancelled
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [index('okrs_quarter_idx').on(t.quarter), index('okrs_status_idx').on(t.status)],
+)
+
+/** Key Results — measurable outcomes tied to an OKR */
+export const keyResults = pgTable(
+  'key_results',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    okrId: uuid('okr_id')
+      .references(() => okrs.id, { onDelete: 'cascade' })
+      .notNull(),
+    description: text('description').notNull(),
+    metric: text('metric').notNull(),
+    target: real('target').notNull(),
+    current: real('current').default(0).notNull(),
+    unit: text('unit').notNull().default('%'),
+    weight: real('weight').default(1).notNull(), // contribution weight (0-1)
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [index('key_results_okr_id_idx').on(t.okrId)],
+)
+
+/** Goal Alignments — track how tickets/tasks contribute to OKRs */
+export const goalAlignments = pgTable(
+  'goal_alignments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ticketId: uuid('ticket_id'),
+    taskTitle: text('task_title').notNull(),
+    agentId: uuid('agent_id'),
+    keyResultId: uuid('key_result_id').references(() => keyResults.id, { onDelete: 'set null' }),
+    okrId: uuid('okr_id').references(() => okrs.id, { onDelete: 'set null' }),
+    contribution: text('contribution').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('goal_alignments_okr_id_idx').on(t.okrId),
+    index('goal_alignments_ticket_id_idx').on(t.ticketId),
+  ],
+)
+
 /** Daily briefings — archived organizational reports with structured metrics */
 export const dailyBriefings = pgTable(
   'daily_briefings',

@@ -54,6 +54,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
     title: 'Insights',
     items: [
       { label: 'CEO Dashboard', href: '/ceo', icon: '⬡' },
+      { label: 'Strategy', href: '/strategy', icon: '⊞' },
       { label: 'System Health', href: '/nerve-center', icon: '◎' },
       { label: 'Learning Trends', href: '/learning-organism', icon: '🧬' },
       { label: 'Finance', href: '/finance', icon: '$' },
