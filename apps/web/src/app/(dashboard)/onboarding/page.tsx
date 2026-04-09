@@ -4,8 +4,8 @@
  * Onboarding Wizard — Guided corporation setup for new users.
  *
  * Step 1: Name your corporation + set mission
- * Step 2: Create your first department (pick a template)
- * Step 3: Review the team that was created
+ * Step 2: Choose a domain (pick a template)
+ * Step 3: Domain project created — success
  * Step 4: Set budget limits
  * Step 5: Ready to go — links to CEO dashboard
  */
@@ -21,45 +21,45 @@ import { trpc } from '../../../utils/trpc'
 const TEMPLATES = [
   {
     id: 'design',
-    name: 'Design Department',
+    name: 'Design',
     icon: '◈',
-    desc: '5 agents: Creative Director, UX Researcher, UI Designer, Interaction Designer, Accessibility Specialist',
+    desc: 'Creative direction, UX research, UI design, interaction design, and accessibility.',
   },
   {
     id: 'engineering',
-    name: 'Engineering Department',
+    name: 'Engineering',
     icon: '⚙',
-    desc: '5 agents: Lead Engineer, Backend Dev, Frontend Dev, DevOps, QA Engineer',
+    desc: 'Backend, frontend, DevOps, and QA for building and shipping software products.',
   },
   {
     id: 'astrology',
-    name: 'Astrology Department',
+    name: 'Astrology',
     icon: '☉',
-    desc: '4 agents: Master Astrologer, Transit Tracker, Sports Analyst, Business Advisor',
+    desc: 'Chart interpretation, transit tracking, sports analytics, and business forecasting.',
   },
   {
     id: 'hospitality',
-    name: 'Hospitality Department',
+    name: 'Hospitality',
     icon: '🏨',
-    desc: '7 agents: CEO, COO, CFO, GM, F&B Director, HR, Sales',
+    desc: 'Hotel operations, F&B management, revenue optimization, and guest experience.',
   },
   {
     id: 'healthcare',
-    name: 'Healthcare Department',
+    name: 'Healthcare',
     icon: '🏥',
-    desc: '3 agents: Compliance Analyst, Medical IP Counsel, Clinical Reviewer',
+    desc: 'Compliance analysis, medical IP counsel, and clinical review.',
   },
   {
     id: 'marketing',
-    name: 'Marketing Department',
+    name: 'Marketing',
     icon: '📣',
-    desc: '3 agents: Campaign Orchestrator, Analytics Analyst, Content Creator',
+    desc: 'Campaign orchestration, analytics, and content creation.',
   },
   {
     id: 'soc-ops',
     name: 'Security Operations',
     icon: '🛡',
-    desc: '3 agents: SOC Analyst, Incident Responder, Threat Hunter',
+    desc: 'SOC analysis, incident response, and threat hunting.',
   },
 ] as const
 
@@ -71,35 +71,22 @@ export default function OnboardingPage() {
   const [corpName, setCorpName] = useState('My AI Corporation')
   const [mission, setMission] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
-  const [createdDept, setCreatedDept] = useState<{
+  const [createdDomain, setCreatedDomain] = useState<{
     id: string
     name: string
-    agentCount: number
+    domain: string
   } | null>(null)
   const [budgetDaily, setBudgetDaily] = useState('10')
   const [budgetMonthly, setBudgetMonthly] = useState('200')
 
-  // Save corporation mission to the brain entity config
-  const updateEntityMutation = trpc.entities.updateConfig.useMutation()
-
-  const smartCreateMutation = trpc.factory.smartCreate.useMutation({
+  const createProjectMutation = trpc.projects.create.useMutation({
     onSuccess: (data) => {
-      const result = data as { entity: { id: string }; agentCount: number; template: string }
-      setCreatedDept({
-        id: result.entity.id,
-        name: selectedTemplate ?? 'department',
-        agentCount: result.agentCount,
+      const result = data as { id: string; name: string; domain: string | null }
+      setCreatedDomain({
+        id: result.id,
+        name: result.name,
+        domain: result.domain ?? selectedTemplate ?? 'domain',
       })
-      // Save corporation name and mission to the entity config
-      if (mission || corpName) {
-        updateEntityMutation.mutate({
-          entityId: result.entity.id,
-          config: {
-            corporationName: corpName,
-            mission: mission,
-          },
-        })
-      }
       setStep(3)
     },
   })
@@ -165,11 +152,12 @@ export default function OnboardingPage() {
         </SectionCard>
       )}
 
-      {/* Step 2: Choose First Department */}
+      {/* Step 2: Choose a Domain */}
       {step === 2 && (
-        <SectionCard title="Step 2: Create Your First Department">
+        <SectionCard title="Step 2: Choose a Domain">
           <p className="text-[11px] text-slate-400 mb-4">
-            Choose a department template. Each comes with specialized AI agents ready to work.
+            Pick a domain for your corporation. The corporation&apos;s teams will build products for
+            it.
           </p>
           <div className="space-y-2 mb-4">
             {TEMPLATES.map((t) => (
@@ -201,35 +189,39 @@ export default function OnboardingPage() {
               onClick={() => {
                 if (!selectedTemplate) return
                 const tpl = TEMPLATES.find((t) => t.id === selectedTemplate)
-                smartCreateMutation.mutate({
+                createProjectMutation.mutate({
                   name: tpl?.name ?? selectedTemplate,
-                  template: selectedTemplate as 'design',
+                  domain: tpl?.id ?? selectedTemplate,
+                  goal: tpl?.desc ?? '',
+                  icon: tpl?.icon ?? '',
+                  status: 'active',
                 })
               }}
-              disabled={!selectedTemplate || smartCreateMutation.isPending}
+              disabled={!selectedTemplate || createProjectMutation.isPending}
               className="cyber-btn-primary cyber-btn-sm flex-1 disabled:opacity-50"
             >
-              {smartCreateMutation.isPending ? 'Creating...' : 'Create Department'}
+              {createProjectMutation.isPending ? 'Creating...' : 'Create Domain'}
             </button>
           </div>
-          {smartCreateMutation.isError && (
-            <div className="text-xs text-neon-red mt-2">{smartCreateMutation.error.message}</div>
+          {createProjectMutation.isError && (
+            <div className="text-xs text-neon-red mt-2">{createProjectMutation.error.message}</div>
           )}
         </SectionCard>
       )}
 
-      {/* Step 3: Review Team */}
-      {step === 3 && createdDept && (
-        <SectionCard title="Step 3: Your Team is Ready">
+      {/* Step 3: Domain Created */}
+      {step === 3 && createdDomain && (
+        <SectionCard title="Step 3: Domain Created">
           <div className="bg-neon-green/10 border border-neon-green/30 rounded p-4 mb-4">
-            <div className="text-neon-green font-medium">Department Created!</div>
+            <div className="text-neon-green font-medium">Domain Ready!</div>
             <div className="text-sm text-slate-300 mt-1">
-              {createdDept.name} — {createdDept.agentCount} agents created and ready to work.
+              Your {createdDomain.name} domain is ready! The corporation&apos;s teams will build
+              products for it.
             </div>
           </div>
           <p className="text-[11px] text-slate-400 mb-4">
-            Your AI employees are onboarded. Each agent has specialized skills, a role, and knows
-            its department mission. They&apos;ll self-organize when they receive tasks.
+            Work can now be organized under this domain. Teams will pick up tickets and create
+            artifacts scoped to this domain automatically.
           </p>
           <button onClick={() => setStep(4)} className="cyber-btn-primary cyber-btn-sm w-full">
             Set Budget
@@ -238,10 +230,10 @@ export default function OnboardingPage() {
       )}
 
       {/* Step 4: Budget */}
-      {step === 4 && createdDept && (
+      {step === 4 && createdDomain && (
         <SectionCard title="Step 4: Set Spending Limits">
           <p className="text-[11px] text-slate-400 mb-4">
-            Control how much your department can spend on AI model calls per day and month.
+            Control how much your domain can spend on AI model calls per day and month.
           </p>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
@@ -274,7 +266,7 @@ export default function OnboardingPage() {
             <button
               onClick={() => {
                 setBudgetMutation.mutate({
-                  entityId: createdDept.id,
+                  entityId: createdDomain.id,
                   dailyLimitUsd: Number(budgetDaily) || undefined,
                   monthlyLimitUsd: Number(budgetMonthly) || undefined,
                 })
@@ -298,7 +290,7 @@ export default function OnboardingPage() {
               <div className="text-sm text-slate-400 italic mb-4">&quot;{mission}&quot;</div>
             )}
             <p className="text-[11px] text-slate-400 mb-6">
-              Your AI corporation is operational. Departments are staffed, budgets are set, and
+              Your AI corporation is operational. Domains are configured, budgets are set, and
               agents are ready to receive work. Start by giving the CEO a task.
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -321,10 +313,10 @@ export default function OnboardingPage() {
                 Chat with Agents
               </button>
               <button
-                onClick={() => router.push('/mini-brain-factory')}
+                onClick={() => router.push('/domains')}
                 className="cyber-btn-secondary cyber-btn-sm"
               >
-                Add More Departments
+                Browse Domains
               </button>
             </div>
           </div>

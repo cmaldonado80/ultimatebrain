@@ -91,6 +91,30 @@ export const ticketsRouter = router({
               if (ticketText.includes('code') && agentText.includes('engineer')) score += 3
               if (ticketText.includes('build') && agentText.includes('engineer')) score += 2
               if (ticketText.includes('review') && agentText.includes('review')) score += 2
+              if (ticketText.includes('page') && agentText.includes('frontend')) score += 3
+              if (ticketText.includes('html') && agentText.includes('frontend')) score += 3
+              if (ticketText.includes('api') && agentText.includes('backend')) score += 3
+              if (ticketText.includes('database') && agentText.includes('database')) score += 3
+              if (ticketText.includes('test') && agentText.includes('test')) score += 3
+              if (ticketText.includes('search') && agentText.includes('research')) score += 2
+              if (ticketText.includes('analyz') && agentText.includes('analy')) score += 2
+              if (ticketText.includes('report') && agentText.includes('analy')) score += 2
+
+              // Domain experience bonus: prefer agents who have worked on same project
+              if (input.projectId) {
+                try {
+                  const pastWork = await ctx.db.query.tickets.findFirst({
+                    where: and(
+                      eq(tickets.assignedAgentId, agent.id),
+                      eq(tickets.projectId, input.projectId),
+                      eq(tickets.status, 'done'),
+                    ),
+                  })
+                  if (pastWork) score += 5 // strong bonus for domain experience
+                } catch {
+                  /* best-effort */
+                }
+              }
 
               if (score > bestScore) {
                 bestScore = score

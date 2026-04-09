@@ -6,7 +6,7 @@
  */
 import { projects } from '@solarc/db'
 import { TRPCError } from '@trpc/server'
-import { eq } from 'drizzle-orm'
+import { eq, isNotNull } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { protectedProcedure, router } from '../trpc'
@@ -35,6 +35,9 @@ export const projectsRouter = router({
       z.object({
         name: z.string().min(1),
         goal: z.string().optional(),
+        domain: z.string().optional(),
+        icon: z.string().optional(),
+        status: z.enum(['planning', 'active', 'completed', 'cancelled']).optional(),
         deadline: z.date().optional(),
       }),
     )
@@ -43,6 +46,20 @@ export const projectsRouter = router({
       if (!project)
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create project' })
       return project
+    }),
+  listDomains: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return ctx.db.query.projects.findMany({
+        where: isNotNull(projects.domain),
+        limit: input.limit,
+        offset: input.offset,
+      })
     }),
   update: protectedProcedure
     .input(

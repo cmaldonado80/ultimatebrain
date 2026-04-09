@@ -40,6 +40,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
   {
     title: 'Work',
     items: [
+      { label: 'Domains', href: '/domains', icon: '◈' },
       { label: 'Workspaces', href: '/workspaces', icon: '▦' },
       { label: 'Agents', href: '/agents', icon: '⬡' },
       { label: 'Tickets', href: '/tickets', icon: '▤' },

@@ -225,6 +225,8 @@ export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   goal: text('goal'),
+  domain: text('domain'), // Domain specialization: 'hospitality', 'astrology', 'marketing', etc.
+  icon: text('icon'),
   status: projectStatusEnum('status').default('planning').notNull(),
   deadline: timestamp('deadline'),
   healthScore: real('health_score'),
