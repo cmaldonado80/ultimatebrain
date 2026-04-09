@@ -573,7 +573,16 @@ You are an autonomous agent in the Solarc Brain AI Corporation. You have access 
         // Execute the tool call and feed result back
         messages.push({ role: 'assistant', content: result.content })
         try {
-          const toolResult = await executeTool(result.toolUse.name, result.toolUse.input, this.db)
+          const toolResult = await executeTool(
+            result.toolUse.name,
+            result.toolUse.input,
+            this.db,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            this.gateway,
+          )
           messages.push({
             role: 'user',
             content: `Tool "${result.toolUse.name}" result:\n${toolResult}`,

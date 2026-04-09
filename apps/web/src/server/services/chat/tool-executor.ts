@@ -24,6 +24,7 @@ import { medicalAstrology } from '@solarc/ephemeris'
 import { generateNatalReport } from '@solarc/ephemeris'
 
 import { logger } from '../../../lib/logger'
+import type { GatewayRouter } from '../gateway/router'
 import { MemoryService } from '../memory/memory-service'
 import type { Span, Tracer } from '../platform/tracer'
 import { generateDryRun, shouldDryRun } from './tool-dryrun'
@@ -389,6 +390,7 @@ export async function executeTool(
   sessionId?: string,
   tracer?: Tracer,
   parentSpan?: Span,
+  gateway?: GatewayRouter,
 ): Promise<string> {
   const span = tracer?.start(`tool.${toolName}`, {
     traceId: parentSpan?.traceId,
@@ -474,7 +476,7 @@ export async function executeTool(
       }
 
       const sandboxResult = await orchestrator.execute(ctx, toolName, toolInput, (name, input) =>
-        executeToolInner(name, input, db, workspaceId),
+        executeToolInner(name, input, db, workspaceId, gateway),
       )
 
       if (sandboxResult.blocked) {
@@ -491,7 +493,7 @@ export async function executeTool(
         { err: sandboxErr instanceof Error ? sandboxErr : undefined },
         '[ToolExecutor] Sandbox unavailable, executing without isolation',
       )
-      result = await executeToolInner(toolName, toolInput, db, workspaceId)
+      result = await executeToolInner(toolName, toolInput, db, workspaceId, gateway)
     }
 
     const execDuration = Date.now() - execStart
@@ -545,6 +547,7 @@ async function executeToolInner(
   toolInput: Record<string, unknown>,
   db?: Database,
   workspaceId?: string,
+  gateway?: GatewayRouter,
 ): Promise<string> {
   try {
     switch (toolName) {
@@ -981,8 +984,31 @@ async function executeToolInner(
         const query = toolInput.query as string
         const max = Math.min((toolInput.maxResults as number) ?? 5, 10)
         try {
-          const results = await ddgSearch(query, max)
-          return JSON.stringify({ query, resultCount: results.length, results })
+          let results: Array<{ title: string; url: string; snippet: string }> = []
+          let source = 'ddg'
+          // Try Ollama web search API first (more reliable, authenticated)
+          if (gateway) {
+            try {
+              results = await gateway.webSearch(query)
+              source = 'ollama'
+            } catch (ollamaErr) {
+              logger.warn(
+                { err: ollamaErr instanceof Error ? ollamaErr : undefined },
+                '[ToolExecutor] Ollama web search failed, falling back to DuckDuckGo',
+              )
+            }
+          }
+          // Fallback to DuckDuckGo if Ollama returned nothing
+          if (results.length === 0) {
+            results = await ddgSearch(query, max)
+            source = 'ddg'
+          }
+          return JSON.stringify({
+            query,
+            resultCount: results.length,
+            results: results.slice(0, max),
+            source,
+          })
         } catch (err) {
           return JSON.stringify({
             query,
@@ -996,12 +1022,36 @@ async function executeToolInner(
         const targetUrl = toolInput.url as string
         const maxLen = (toolInput.maxLength as number) ?? 8000
         try {
+          let source = 'direct'
+          // Try Ollama web fetch API first (bypasses bot blocking)
+          if (gateway) {
+            try {
+              const ollamaContent = await gateway.webFetch(targetUrl)
+              if (ollamaContent.length > 0) {
+                const trimmed = ollamaContent.slice(0, maxLen)
+                return JSON.stringify({
+                  url: targetUrl,
+                  metadata: {},
+                  content: trimmed,
+                  contentLength: trimmed.length,
+                  source: 'ollama',
+                })
+              }
+            } catch (ollamaErr) {
+              logger.warn(
+                { err: ollamaErr instanceof Error ? ollamaErr : undefined },
+                '[ToolExecutor] Ollama web fetch failed, falling back to direct scrape',
+              )
+              source = 'direct'
+            }
+          }
           const scraped = await scrapeUrl(targetUrl, maxLen)
           return JSON.stringify({
             url: targetUrl,
             metadata: scraped.metadata,
             content: scraped.content,
             contentLength: scraped.content.length,
+            source,
           })
         } catch (err) {
           return JSON.stringify({
@@ -1867,7 +1917,7 @@ async function executeToolInner(
           }
 
           const result = await executeDAG(workflow, async (toolName, input) => {
-            return executeToolInner(toolName, input, db, workspaceId)
+            return executeToolInner(toolName, input, db, workspaceId, gateway)
           })
 
           return JSON.stringify({

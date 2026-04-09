@@ -767,6 +767,10 @@ export async function POST(req: Request) {
               targetStep.toolInput as Record<string, unknown>,
               db,
               targetAgentConfig.workspaceId,
+              undefined,
+              undefined,
+              undefined,
+              getGateway(),
             )
             const toolDurationMs = Date.now() - toolExecStart
 
@@ -837,6 +841,10 @@ export async function POST(req: Request) {
               toolResult.toolUse.input,
               db,
               targetAgentConfig.workspaceId,
+              undefined,
+              undefined,
+              undefined,
+              getGateway(),
             )
             const toolDurationMs = Date.now() - toolExecStart
 
@@ -1065,6 +1073,10 @@ export async function POST(req: Request) {
                 toolResult.toolUse.input,
                 db,
                 agentConfig.workspaceId,
+                undefined,
+                undefined,
+                undefined,
+                getGateway(),
               )
               const toolDurationMs = Date.now() - toolExecStart
 

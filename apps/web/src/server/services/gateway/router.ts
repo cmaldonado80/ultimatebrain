@@ -1408,6 +1408,22 @@ export class GatewayRouter {
     return Math.ceil(chars / 4)
   }
 
+  /** Search the web via Ollama's web search API (key resolved from vault). */
+  async webSearch(query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
+    const adapter = this.adapters.get('ollama') as OllamaAdapter | undefined
+    if (!adapter) throw new Error('Ollama adapter not available')
+    const apiKey = process.env.OLLAMA_API_KEY ?? (await this.keyVault.getKey('ollama')) ?? undefined
+    return adapter.webSearch(query, apiKey)
+  }
+
+  /** Fetch a URL's content via Ollama's web fetch API (key resolved from vault). */
+  async webFetch(url: string): Promise<string> {
+    const adapter = this.adapters.get('ollama') as OllamaAdapter | undefined
+    if (!adapter) throw new Error('Ollama adapter not available')
+    const apiKey = process.env.OLLAMA_API_KEY ?? (await this.keyVault.getKey('ollama')) ?? undefined
+    return adapter.webFetch(url, apiKey)
+  }
+
   /** Health check: return circuit breaker states for all providers */
   getHealth(): Record<string, { state: string; failures: number }> {
     const health: Record<string, { state: string; failures: number }> = {}
