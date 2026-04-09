@@ -56,7 +56,7 @@ export default function CeoDashboardPage() {
     <div className="p-6 text-slate-50">
       <PageHeader
         title="CEO Dashboard"
-        subtitle={org?.corporation.mission ?? 'Solarc Brain Corporation — Executive Overview'}
+        subtitle={org?.corporation.mission ?? 'Corporation Executive Overview'}
       />
 
       {/* Key Metrics */}

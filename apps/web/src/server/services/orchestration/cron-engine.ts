@@ -153,7 +153,11 @@ export class CronEngine {
 
     // Notify OpenClaw of job failure with severity escalation
     this.notifyOpenClaw('job.failed', jobId, { error, failCount: newFailCount, autoPaused }).catch(
-      () => {},
+      (err) =>
+        logger.warn(
+          { err: err instanceof Error ? err : undefined, jobId },
+          'cron-engine: failure notification failed',
+        ),
     )
 
     return { autoPaused }

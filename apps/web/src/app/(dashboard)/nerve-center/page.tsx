@@ -8,7 +8,7 @@
  * 2. HEALTH      — the healing system's status + predictive interventions
  * 3. AGENTS      — every agent's capability level, sandbox, and active work
  * 4. ACTIVITY    — streaming feed of tool executions, policy blocks, healing actions
- * 5. CONTROLS    — force agent levels, trigger cortex cycle, set department quotas
+ * 5. CONTROLS    — force agent levels, trigger healing cycle, set department quotas
  *
  * Everything auto-refreshes. Every metric is actionable.
  */

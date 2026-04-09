@@ -64,7 +64,7 @@ export default function CommandCenter() {
   return (
     <div className="p-6 text-slate-50">
       <PageHeader
-        title={org?.corporation.name ?? 'Solarc Brain'}
+        title={org?.corporation.name ?? 'Solarc Corporation'}
         subtitle={org?.corporation.mission ?? 'AI Corporation Operating System'}
       />
 

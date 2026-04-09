@@ -13,7 +13,7 @@ export default function TopologyPage() {
     status: string
     domain: string | null
   }>
-  const miniBrains = (topologyQuery.data?.miniBrains ?? []) as Array<{
+  const departments = (topologyQuery.data?.miniBrains ?? []) as Array<{
     id: string
     name: string
     status: string
@@ -35,14 +35,14 @@ export default function TopologyPage() {
 
       <PageGrid cols="3" className="mb-6">
         <StatCard
-          label="Brain Entities"
+          label="Corporation"
           value={brain.length}
           color="purple"
           sub="Core orchestration"
         />
         <StatCard
           label="Departments"
-          value={miniBrains.length}
+          value={departments.length}
           color="blue"
           sub="Domain specialists"
         />
@@ -54,8 +54,8 @@ export default function TopologyPage() {
         />
       </PageGrid>
 
-      {/* Brain Tier */}
-      <SectionCard title="Brain (Tier 1)" className="mb-4">
+      {/* Corporation Tier */}
+      <SectionCard title="Corporation (Tier 1)" className="mb-4">
         {brain.length === 0 ? (
           <div className="text-xs text-slate-600 py-3 text-center">
             No corporation entity found. Initialize the system to provision.
@@ -76,20 +76,20 @@ export default function TopologyPage() {
 
       {/* Departments */}
       <SectionCard title="Departments (Tier 2)" className="mb-4">
-        {miniBrains.length === 0 ? (
+        {departments.length === 0 ? (
           <div className="text-xs text-slate-600 py-3 text-center">No departments.</div>
         ) : (
           <PageGrid cols="2">
-            {miniBrains.map((mb) => (
-              <div key={mb.id} className="cyber-card p-3">
+            {departments.map((dept) => (
+              <div key={dept.id} className="cyber-card p-3">
                 <div className="flex items-center gap-2">
                   <span
-                    className={`neon-dot ${mb.status === 'active' ? 'neon-dot-green' : 'neon-dot-yellow'}`}
+                    className={`neon-dot ${dept.status === 'active' ? 'neon-dot-green' : 'neon-dot-yellow'}`}
                   />
-                  <span className="text-sm font-medium">{mb.name}</span>
+                  <span className="text-sm font-medium">{dept.name}</span>
                 </div>
                 <div className="text-[10px] text-slate-500 mt-1">
-                  {mb.domain ?? 'general'} &middot; {mb.status}
+                  {dept.domain ?? 'general'} &middot; {dept.status}
                 </div>
               </div>
             ))}

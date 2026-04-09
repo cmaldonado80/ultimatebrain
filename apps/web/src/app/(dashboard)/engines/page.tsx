@@ -32,7 +32,7 @@ const TIER_BADGE_CLASS: Record<string, string> = {
 }
 
 const TIER_DISPLAY: Record<string, string> = {
-  brain: 'brain',
+  brain: 'corporation',
   mini_brain: 'department',
   development: 'development',
 }
@@ -84,13 +84,13 @@ export default function EnginesPage() {
     <div className="p-6 text-slate-50">
       <PageHeader
         title="Engines"
-        subtitle="Monitor the brain's core engines — LLM Gateway, Memory, Orchestration, Guardrails, and more."
+        subtitle="Monitor the system's core engines — LLM Gateway, Memory, Orchestration, Guardrails, and more."
         actions={
           <Link
             href="/engines/manage"
             className="cyber-btn-primary text-xs font-semibold no-underline"
           >
-            Manage Brain
+            Manage Entities
           </Link>
         }
       />

@@ -1,6 +1,8 @@
 import { jwtVerify, SignJWT } from 'jose'
 import { cookies } from 'next/headers'
 
+import { logger } from '../lib/logger'
+
 const ACCESS_COOKIE = 'session-token'
 const REFRESH_COOKIE = 'refresh-token'
 const AUTH_SECRET = process.env.AUTH_SECRET
@@ -62,7 +64,7 @@ export async function refreshSession(
 export async function auth(): Promise<Session | null> {
   // Dev mode only: return mock session when SKIP_AUTH is set
   if (process.env.SKIP_AUTH === 'true' && process.env.NODE_ENV !== 'production') {
-    console.warn('[Auth] SKIP_AUTH active — returning dev session')
+    logger.warn({}, 'auth: SKIP_AUTH active — returning dev session')
     return { user: { id: 'dev-user', email: 'dev@ultimatebrain.local', name: 'Developer' } }
   }
 

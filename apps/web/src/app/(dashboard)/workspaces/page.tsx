@@ -203,7 +203,7 @@ export default function WorkspacesPage() {
       {workspaces.length === 0 ? (
         <EmptyState
           title="No workspaces found"
-          message='Click "Initialize Brain" to create 10 category workspaces with 30+ agents.'
+          message='Click "Initialize System" to create 10 category workspaces with 30+ agents.'
         />
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-3">
@@ -221,7 +221,7 @@ export default function WorkspacesPage() {
 
       <ConfirmDialog
         open={showSeedConfirm}
-        title="Initialize Brain"
+        title="Initialize System"
         message="This will create 10 category workspaces (Core Development, Language Specialists, Infrastructure, etc.) with 30+ specialized agents, each with its own orchestrator connected to the system orchestrator. Existing workspaces with the same name will be skipped."
         confirmLabel="Initialize"
         onConfirm={() => {

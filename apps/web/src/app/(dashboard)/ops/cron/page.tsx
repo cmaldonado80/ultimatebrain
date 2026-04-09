@@ -31,7 +31,7 @@ const CRON_JOBS = [
   {
     name: 'instinct:evolve',
     schedule: '0 3 * * 0',
-    desc: 'Evolve instinct rules weekly',
+    desc: 'Evolve pattern rules weekly',
     category: 'Intelligence',
   },
   {

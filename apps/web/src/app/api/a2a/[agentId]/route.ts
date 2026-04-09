@@ -340,7 +340,12 @@ function streamTaskProgress(
         send('completed', { task_id: taskId, status: 'completed', result, artifacts: [] })
 
         if (body.callback_url) {
-          deliverCallback(body.callback_url, taskId, result)
+          deliverCallback(body.callback_url, taskId, result).catch((err) =>
+            logger.warn(
+              { err: err instanceof Error ? err : undefined, taskId },
+              'a2a: callback delivery failed',
+            ),
+          )
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err)

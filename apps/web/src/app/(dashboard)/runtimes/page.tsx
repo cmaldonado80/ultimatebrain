@@ -42,7 +42,7 @@ const STATUS_COLOR: Record<string, StatusColor> = {
 }
 
 const TIER_LABEL: Record<string, string> = {
-  brain: 'Brain',
+  brain: 'Corporation',
   mini_brain: 'Department',
   development: 'Development',
 }

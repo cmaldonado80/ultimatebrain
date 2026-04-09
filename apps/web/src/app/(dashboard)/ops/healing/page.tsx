@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Healing — self-healing cortex dashboard with OODA state, predictive risk, and recovery history.
+ * Healing — self-healing system dashboard with predictive risk and recovery history.
  */
 
 import { LoadingState } from '../../../../components/ui/loading-state'

@@ -40,7 +40,7 @@ const TIER_BADGE: Record<string, string> = {
 }
 
 const TIER_DISPLAY: Record<string, string> = {
-  brain: 'brain',
+  brain: 'corporation',
   mini_brain: 'department',
   development: 'development',
 }
@@ -97,7 +97,7 @@ export default function BrainManagerPage() {
       {/* Stat bar */}
       <div className="flex gap-3 mb-5">
         {[
-          { label: 'Brains', count: brains.length, cls: 'text-indigo-400' },
+          { label: 'Corporation', count: brains.length, cls: 'text-indigo-400' },
           { label: 'Departments', count: miniBrains.length, cls: 'text-green-400' },
           { label: 'Developments', count: developments.length, cls: 'text-yellow-400' },
         ].map((s) => (

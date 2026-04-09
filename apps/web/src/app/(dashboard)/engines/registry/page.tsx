@@ -102,7 +102,7 @@ export default function EngineRegistryPage() {
     <div className="p-6 font-sans text-neon-text">
       <PageHeader
         title="Engine Registry"
-        subtitle="Browse and manage brain engines — system, domain, and custom."
+        subtitle="Browse and manage engines — system, domain, and custom."
         actions={
           <button className="cyber-btn-primary" onClick={() => setShowRegister(!showRegister)}>
             {showRegister ? 'Cancel' : '+ Register Engine'}

@@ -20,7 +20,7 @@ const TIER_BADGE: Record<string, string> = {
 }
 
 const TIER_DISPLAY: Record<string, string> = {
-  brain: 'brain',
+  brain: 'corporation',
   mini_brain: 'department',
   development: 'development',
 }
@@ -234,7 +234,7 @@ export default function EntityDetailPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Tier</span>
-              <span>{entity.tier.replace('_', ' ')}</span>
+              <span>{TIER_DISPLAY[entity.tier] ?? entity.tier}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Engines</span>
@@ -340,7 +340,9 @@ export default function EntityDetailPage() {
                 >
                   <div>
                     <div className="text-xs font-semibold">{child.name}</div>
-                    <div className="text-[10px] text-slate-600">{child.tier.replace('_', ' ')}</div>
+                    <div className="text-[10px] text-slate-600">
+                      {TIER_DISPLAY[child.tier] ?? child.tier}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className={`neon-dot ${STATUS_DOT[child.status] ?? 'neon-dot-blue'}`} />

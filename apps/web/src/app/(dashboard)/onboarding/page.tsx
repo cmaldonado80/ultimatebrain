@@ -99,7 +99,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="p-6 text-slate-50 max-w-2xl mx-auto">
-      <PageHeader title="Welcome to Solarc Brain" subtitle="Let's set up your AI Corporation" />
+      <PageHeader title="Welcome to Solarc" subtitle="Let's set up your AI Corporation" />
 
       {/* Progress bar */}
       <div className="mb-8">

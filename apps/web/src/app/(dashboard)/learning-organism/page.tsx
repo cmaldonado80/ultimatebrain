@@ -317,7 +317,7 @@ export default function LearningOrganismPage() {
       <SectionCard title="Learning Summary">
         <div className="text-xs text-slate-400 space-y-1">
           <p>
-            <span className="text-neon-blue font-mono">{instinctsLearned}</span> instincts promoted
+            <span className="text-neon-blue font-mono">{instinctsLearned}</span> patterns promoted
             at avg{' '}
             <span className="text-neon-green font-mono">{Math.round(avgConfidence * 100)}%</span>{' '}
             confidence.

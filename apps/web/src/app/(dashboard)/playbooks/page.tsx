@@ -252,7 +252,7 @@ export default function PlaybooksPage() {
     >
       <PageHeader
         title="Playbooks"
-        subtitle="Teach the brain by recording your actions. Replay anytime."
+        subtitle="Teach the system by recording your actions. Replay anytime."
         count={playbookList.length}
         actions={
           recording ? (
