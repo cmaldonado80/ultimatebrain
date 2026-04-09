@@ -204,7 +204,7 @@ export default function OpenClawDashboard() {
           <Link href="/integrations" className="cyber-btn-secondary cyber-btn-sm no-underline">
             Integrations
           </Link>
-          <Link href="/ops/mcp" className="cyber-btn-secondary cyber-btn-sm no-underline">
+          <Link href="/openclaw/mcp" className="cyber-btn-secondary cyber-btn-sm no-underline">
             MCP Tools
           </Link>
           <Link href="/skills" className="cyber-btn-secondary cyber-btn-sm no-underline">

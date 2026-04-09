@@ -308,7 +308,7 @@ export default function IntelligencePage() {
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-orbitron text-white">Recent Memory</h3>
           <Link
-            href="/memory"
+            href="/observatory"
             className="text-[10px] text-neon-blue hover:text-neon-blue/80 no-underline"
           >
             View all →
