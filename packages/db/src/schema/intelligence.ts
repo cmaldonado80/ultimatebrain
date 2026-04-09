@@ -146,6 +146,7 @@ export const memories = pgTable(
     index('memories_fact_type_idx').on(table.factType),
     index('memories_proof_count_idx').on(table.proofCount),
     index('memories_user_id_idx').on(table.userId),
+    index('memories_supersedes_idx').on(table.supersedes),
   ],
 )
 

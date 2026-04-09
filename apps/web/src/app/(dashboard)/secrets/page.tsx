@@ -30,7 +30,11 @@ export default function SecretsPage() {
       />
 
       <SectionCard title="Entity Secrets">
-        {secrets.length === 0 ? (
+        {!firstEntity ? (
+          <div className="text-xs text-slate-600 py-4 text-center">
+            No departments configured yet. Create a department first to manage its secrets.
+          </div>
+        ) : secrets.length === 0 ? (
           <div className="text-xs text-slate-600 py-4 text-center">No secrets configured.</div>
         ) : (
           <div className="space-y-2">

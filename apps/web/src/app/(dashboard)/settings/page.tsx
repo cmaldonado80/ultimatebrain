@@ -31,6 +31,7 @@ export default function SettingsPage() {
   const pullOllamaModelMut = trpc.gateway.pullOllamaModel.useMutation({
     onSuccess: (data) => {
       setPullStatus((prev) => ({ ...prev, [data.model]: 'success' }))
+      setNewModelName('')
       utils.gateway.ollamaModels.invalidate()
       utils.gateway.listOllamaAvailable.invalidate()
     },

@@ -283,7 +283,7 @@ export const tuningStates = pgTable(
   'tuning_states',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    entityId: text('entity_id').notNull(),
+    entityId: uuid('entity_id').notNull(),
     entityType: text('entity_type').notNull(), // 'agent' | 'provider' | 'workspace'
     pressure: real('pressure').default(0).notNull(),
     successRate: real('success_rate').default(1).notNull(),
@@ -342,7 +342,10 @@ export const agentTaskStates = pgTable(
     lastActiveAt: timestamp('last_active_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },
-  (t) => [index('agent_task_states_agent_id_idx').on(t.agentId)],
+  (t) => [
+    index('agent_task_states_agent_id_idx').on(t.agentId),
+    index('agent_task_states_agent_workspace_idx').on(t.agentId, t.workspaceId),
+  ],
 )
 
 export const permissionScopes = pgTable(
@@ -400,7 +403,7 @@ export const presenceEntries = pgTable(
     userId: text('user_id'),
     type: text('type').notNull(), // 'user' | 'agent'
     location: text('location'),
-    workspaceId: text('workspace_id'),
+    workspaceId: uuid('workspace_id'),
     status: jsonb('status'),
     cursor: jsonb('cursor'),
     lastHeartbeat: timestamp('last_heartbeat').defaultNow().notNull(),
@@ -501,7 +504,7 @@ export const toolExecutionStats = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     toolName: text('tool_name').notNull(),
-    workspaceId: text('workspace_id').notNull(),
+    workspaceId: uuid('workspace_id').notNull(),
     successCount: integer('success_count').default(0).notNull(),
     failureCount: integer('failure_count').default(0).notNull(),
     totalDurationMs: integer('total_duration_ms').default(0).notNull(),

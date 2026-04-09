@@ -399,6 +399,24 @@ async function main() {
     }
   })
 
+  // Codebase review — weekly automated code review ticket generation
+  await boss.work('codebase:review', async () => {
+    console.warn('[Worker] Running scheduled codebase review')
+    try {
+      const { CodebaseMapper } =
+        await import('../../web/src/server/services/orchestration/codebase-mapper')
+      const mapper = new CodebaseMapper()
+      const map = mapper.scan(process.cwd())
+      const tickets = mapper.generateReviewTickets(map)
+      console.warn(
+        `[Worker] Codebase review: ${tickets.length} review tickets from ${map.subsystems.length} subsystems`,
+      )
+    } catch (err) {
+      console.error('[Worker] Codebase review failed:', err)
+      throw err
+    }
+  })
+
   // === Periodic schedules (idempotent — pg-boss deduplicates by schedule name) ===
   await boss.schedule('market:sweep', '*/5 * * * *', {}) // every 5 min
   await boss.schedule('healing:cycle', '*/10 * * * *', {}) // every 10 min
@@ -413,6 +431,7 @@ async function main() {
   await boss.schedule('intelligence:meta-learning', '0 4 * * 0', {}) // Sunday 04:00
   await boss.schedule('healing:stress-test', '0 23 * * 0') // Sunday 23:00
   await boss.schedule('intelligence:daily-briefing', '0 8 * * *') // daily 08:00
+  await boss.schedule('codebase:review', '0 5 * * 1', {}) // Monday 05:00 (weekly)
 
   // === Dead-letter queue handler — receives jobs that failed all retries ===
   await boss.work(DEAD_LETTER_QUEUE, async ([job]) => {

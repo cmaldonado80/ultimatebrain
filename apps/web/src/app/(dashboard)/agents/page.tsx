@@ -159,14 +159,19 @@ export default function AgentsPage() {
   })
 
   const handleExport = async (agentId: string, agentName: string) => {
-    const manifest = utils.agents.exportAgent.fetch({ id: agentId })
-    const blob = new Blob([JSON.stringify(await manifest, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${agentName.toLowerCase().replace(/\s+/g, '-')}-agent.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const manifest = await utils.agents.exportAgent.fetch({ id: agentId })
+      const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${agentName.toLowerCase().replace(/\s+/g, '-')}-agent.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setBulkResult('Export failed — agent data could not be fetched')
+      setTimeout(() => setBulkResult(null), 6000)
+    }
   }
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,7 +183,8 @@ export default function AgentsPage() {
         const manifest = JSON.parse(reader.result as string)
         importMut.mutate(manifest)
       } catch {
-        alert('Invalid configuration JSON file')
+        setBulkResult('Import failed — invalid JSON file')
+        setTimeout(() => setBulkResult(null), 6000)
       }
     }
     reader.readAsText(file)

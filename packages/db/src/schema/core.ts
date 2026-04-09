@@ -280,6 +280,7 @@ export const tickets = pgTable(
     index('tickets_assigned_agent_id_idx').on(t.assignedAgentId),
     index('tickets_project_id_idx').on(t.projectId),
     index('tickets_status_priority_idx').on(t.status, t.priority, t.createdAt),
+    index('tickets_agent_status_idx').on(t.assignedAgentId, t.status),
   ],
 )
 
