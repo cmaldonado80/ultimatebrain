@@ -15,9 +15,9 @@ const TICKET_STATUS_COLOR: Record<string, 'green' | 'blue' | 'yellow' | 'red' | 
   done: 'green',
   in_progress: 'blue',
   queued: 'yellow',
-  open: 'blue',
+  backlog: 'blue',
   failed: 'red',
-  blocked: 'red',
+  cancelled: 'red',
   review: 'purple',
 }
 

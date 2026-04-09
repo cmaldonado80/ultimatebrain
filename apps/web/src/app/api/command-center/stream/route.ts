@@ -75,7 +75,7 @@ export async function GET() {
           const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
           const ticketRows = await db
             .select({
-              open: sql<number>`count(*) filter (where ${tickets.status} IN ('open', 'in_progress', 'queued'))`,
+              open: sql<number>`count(*) filter (where ${tickets.status} IN ('backlog', 'in_progress', 'queued'))`,
               done: sql<number>`count(*) filter (where ${tickets.status} = 'done' AND ${tickets.updatedAt} >= ${since24h})`,
               failed: sql<number>`count(*) filter (where ${tickets.status} = 'failed' AND ${tickets.updatedAt} >= ${since24h})`,
             })
