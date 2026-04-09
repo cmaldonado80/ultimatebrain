@@ -58,7 +58,7 @@ export default function TopologyPage() {
       <SectionCard title="Brain (Tier 1)" className="mb-4">
         {brain.length === 0 ? (
           <div className="text-xs text-slate-600 py-3 text-center">
-            No brain entities. Run seedBrain to provision.
+            No corporation entity found. Initialize the system to provision.
           </div>
         ) : (
           <div className="space-y-2">

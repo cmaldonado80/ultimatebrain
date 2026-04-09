@@ -7,6 +7,7 @@
  * and auto-generated playbooks from successful patterns.
  */
 
+import { LoadingState } from '../../../../components/ui/loading-state'
 import { PageGrid } from '../../../../components/ui/page-grid'
 import { PageHeader } from '../../../../components/ui/page-header'
 import { SectionCard } from '../../../../components/ui/section-card'
@@ -23,6 +24,8 @@ export default function DecisionArchivePage() {
   const playbooksQuery = trpc.intelligence.playbooks.useQuery(undefined, {
     refetchInterval: REFRESH,
   })
+
+  if (decisionsQuery.isLoading) return <LoadingState message="Loading Decisions..." />
 
   const decisions = (decisionsQuery.data ?? []) as Array<{
     type: string

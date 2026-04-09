@@ -618,7 +618,7 @@ export default function MiniBrainFactoryPage() {
   // Template detail expansion
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null)
 
-  // Create Mini Brain
+  // Create Department
   const [createName, setCreateName] = useState('')
   const [createTemplate, setCreateTemplate] = useState<string>('')
   const [createError, setCreateError] = useState('')
@@ -726,7 +726,7 @@ export default function MiniBrainFactoryPage() {
     lastHeartbeat: string | null
   }>
 
-  // Dev templates for selected mini brain domain
+  // Dev templates for selected department domain
   const getDevTemplatesForDomain = (domain: string | null) => {
     if (!domain) return []
     const tpl = templates.find((t) => t.id === domain)

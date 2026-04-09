@@ -19,7 +19,7 @@ const REFRESH = 30_000
 const STRESS_SCENARIOS = [
   {
     name: 'Agent Cascade Failure',
-    description: 'Suspend 3 agents simultaneously and verify OODA recovery within 2 cycles.',
+    description: 'Suspend 3 agents simultaneously and verify recovery within 2 healing cycles.',
     frequency: 'Weekly',
   },
   {
@@ -91,7 +91,7 @@ export default function StressTestPage() {
           sub={`${recoveries} of ${healingActions} actions`}
         />
         <StatCard
-          label="OODA Cycles"
+          label="Healing Cycles"
           value={cortex?.cycleCount ?? 0}
           color="blue"
           sub="healing loop iterations"
@@ -130,7 +130,7 @@ export default function StressTestPage() {
               <span className="text-[10px] text-slate-500 mt-1 block">
                 Recovery pipeline handled{' '}
                 <span className="text-neon-green font-mono">{recoveries}</span> recoveries across{' '}
-                <span className="text-neon-blue font-mono">{cortex?.cycleCount ?? 0}</span> OODA
+                <span className="text-neon-blue font-mono">{cortex?.cycleCount ?? 0}</span> healing
                 cycles.
               </span>
             </div>

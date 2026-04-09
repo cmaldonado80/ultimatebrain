@@ -13,6 +13,8 @@ import { a2aDelegations, agents, createDb, type Database, tickets } from '@solar
 import { desc, eq } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 
+import { logger } from '../../../../lib/logger'
+
 /** Lazy singleton DB pool */
 let _db: Database | undefined
 function getDb(): Database {
@@ -225,7 +227,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
 
   // Start background execution
   executeTaskInBackground(db, taskId, agentId, body, insertedTicket.id).catch((err) => {
-    console.error(`[A2A] Background execution failed for task ${taskId}:`, err)
+    logger.error(
+      { err: err instanceof Error ? err : undefined, taskId },
+      'a2a: background execution failed',
+    )
   })
 
   return NextResponse.json(
@@ -383,7 +388,10 @@ async function executeTaskInBackground(
     try {
       executionResult = await modeRouter.route(ticketId, body.task, { forceMode: 'autonomous' })
     } catch (routeErr) {
-      console.error(`[A2A] ModeRouter execution failed for task ${taskId}:`, routeErr)
+      logger.error(
+        { err: routeErr instanceof Error ? routeErr : undefined, taskId },
+        'a2a: ModeRouter execution failed',
+      )
       executionResult = null
     }
 
@@ -432,11 +440,17 @@ async function deliverCallback(
         signal: AbortSignal.timeout(5000),
       })
       if (res.ok) return
-      console.warn(`[A2A] Callback ${callbackUrl} returned ${res.status} (attempt ${attempt + 1})`)
+      logger.warn(
+        { callbackUrl, status: res.status, attempt: attempt + 1, taskId },
+        'a2a: callback returned non-OK',
+      )
     } catch (err) {
-      console.warn(`[A2A] Callback delivery attempt ${attempt + 1} failed:`, err)
+      logger.warn(
+        { err: err instanceof Error ? err : undefined, attempt: attempt + 1, taskId },
+        'a2a: callback delivery attempt failed',
+      )
     }
     if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
   }
-  console.error(`[A2A] Callback delivery failed after 3 attempts for task ${taskId}`)
+  logger.error({ taskId, callbackUrl }, 'a2a: callback delivery failed after 3 attempts')
 }

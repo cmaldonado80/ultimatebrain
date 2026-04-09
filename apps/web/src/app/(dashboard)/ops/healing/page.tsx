@@ -60,7 +60,7 @@ export default function HealingPage() {
     <div className="p-6 text-slate-50">
       <PageHeader
         title="Healing System"
-        subtitle="Self-healing cortex — observe, orient, decide, act, learn"
+        subtitle="Self-healing system — observe, orient, decide, act, learn"
       />
 
       <PageGrid cols="4" className="mb-6">
@@ -80,7 +80,7 @@ export default function HealingPage() {
           label="Cycles"
           value={cortex?.cycleCount ?? 0}
           color="blue"
-          sub="OODA iterations"
+          sub="healing iterations"
         />
         <StatCard
           label="Recoveries"

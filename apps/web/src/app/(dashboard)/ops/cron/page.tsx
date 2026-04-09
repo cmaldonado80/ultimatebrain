@@ -13,7 +13,7 @@ const CRON_JOBS = [
   {
     name: 'healing:cycle',
     schedule: '*/10 * * * *',
-    desc: 'Self-healing OODA loop',
+    desc: 'Self-healing cycle',
     category: 'Healing',
   },
   {

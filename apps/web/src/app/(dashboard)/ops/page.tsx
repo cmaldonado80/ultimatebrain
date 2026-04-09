@@ -50,7 +50,7 @@ export default function OpsOverviewPage() {
     { label: 'Evals', href: '/ops/evals', icon: '✓', desc: 'Evaluation datasets & runs' },
     { label: 'Gateway', href: '/ops/gateway', icon: '⇄', desc: 'LLM routing & cost' },
     { label: 'Cron Jobs', href: '/ops/cron', icon: '⏱', desc: 'Scheduled background tasks' },
-    { label: 'Healing', href: '/ops/healing', icon: '♥', desc: 'Self-healing cortex' },
+    { label: 'Healing', href: '/ops/healing', icon: '♥', desc: 'Self-healing system' },
     { label: 'Checkpoints', href: '/ops/checkpoints', icon: '⟲', desc: 'Execution snapshots' },
   ]
 
@@ -72,7 +72,7 @@ export default function OpsOverviewPage() {
           label="Healing Cycles"
           value={cortex?.cycleCount ?? 0}
           color="blue"
-          sub="OODA loop iterations"
+          sub="healing loop iterations"
         />
         <StatCard
           label="Recoveries"

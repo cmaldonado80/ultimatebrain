@@ -21,6 +21,7 @@ const REFRESH = 15_000
 export default function ArtifactStudioPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [improveText, setImproveText] = useState('')
+  const [feedback, setFeedback] = useState<string | null>(null)
 
   const artifactsQuery = trpc.integrations.allArtifacts.useQuery(
     { limit: 50 },
@@ -92,10 +93,12 @@ export default function ArtifactStudioPage() {
       },
       {
         onSuccess: () => {
-          alert('Improvement ticket created! The corporation will work on it.')
+          setFeedback('Improvement ticket created! The corporation will work on it.')
+          setTimeout(() => setFeedback(null), 5000)
         },
         onError: () => {
-          alert('Failed to create improvement ticket')
+          setFeedback('Failed to create improvement ticket')
+          setTimeout(() => setFeedback(null), 5000)
         },
       },
     )
@@ -107,6 +110,12 @@ export default function ArtifactStudioPage() {
         title="Artifact Studio"
         subtitle="Create and iterate on webpages, components, and documents"
       />
+
+      {feedback && (
+        <div className="mb-4 px-4 py-2 rounded bg-bg-elevated border border-neon-blue/30 text-xs text-slate-300">
+          {feedback}
+        </div>
+      )}
 
       {/* Stats */}
       <PageGrid cols="4" className="mb-6">

@@ -1352,7 +1352,14 @@ export async function POST(req: Request) {
 
         // End root trace span with final attributes
         rootSpan?.setAttribute('chat.status', 'completed')
-        rootSpan?.end().catch(() => {})
+        rootSpan
+          ?.end()
+          .catch((err) =>
+            logger.warn(
+              { err: err instanceof Error ? err : undefined },
+              'chat-stream: span end failed',
+            ),
+          )
 
         controller.enqueue(
           encoder.encode(`data: ${JSON.stringify({ done: true, influence: lastInfluence })}\n\n`),
@@ -1360,7 +1367,14 @@ export async function POST(req: Request) {
         controller.close()
       } catch (err) {
         rootSpan?.recordError(err)
-        rootSpan?.end().catch(() => {})
+        rootSpan
+          ?.end()
+          .catch((err) =>
+            logger.warn(
+              { err: err instanceof Error ? err : undefined },
+              'chat-stream: span end failed',
+            ),
+          )
         const message = err instanceof Error ? err.message : 'Unknown error'
         // Mark run as failed
         if (runRecord) {
