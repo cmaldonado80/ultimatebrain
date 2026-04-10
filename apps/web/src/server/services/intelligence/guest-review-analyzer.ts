@@ -60,30 +60,91 @@ export interface ReviewAnalysisResult {
   createdAt: Date
 }
 
-// ── Web search helper ────────────────────────────────────────────────────
+// ── Web search helpers — multi-strategy for reliability ──────────────────
 
-const BROWSER_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (compatible; SolarcBrain/2.0)',
-  Accept: 'text/html',
+type SearchResult = { title: string; url: string; snippet: string }
+
+/** Realistic browser headers to avoid bot detection */
+const HEADERS: Record<string, string> = {
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
 }
 
-async function webSearch(
-  query: string,
-  gateway: GatewayRouter | null,
-): Promise<Array<{ title: string; url: string; snippet: string }>> {
-  // Try gateway search first (Ollama/OpenClaw)
-  if (gateway) {
-    try {
-      const results = await gateway.webSearch(query)
-      if (results.length > 0) return results
-    } catch {
-      // fall through
+/** Strategy 1: DuckDuckGo HTML endpoint (more reliable than Lite) */
+async function ddgHtmlSearch(query: string, max = 8): Promise<SearchResult[]> {
+  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `q=${encodeURIComponent(query)}`,
+    signal: AbortSignal.timeout(15000),
+    redirect: 'follow',
+  })
+  const html = await res.text()
+  logger.info(
+    { query, status: res.status, htmlLen: html.length },
+    '[GuestReviewAnalyzer] DDG HTML response',
+  )
+
+  const results: SearchResult[] = []
+  // DDG HTML format: result blocks with result__a links and result__snippet
+  const blockPattern =
+    /<div[^>]*class="[^"]*result results_links[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/gi
+  let blockMatch: RegExpExecArray | null
+  while ((blockMatch = blockPattern.exec(html)) !== null && results.length < max) {
+    const block = blockMatch[1] ?? ''
+    const urlMatch = block.match(/<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/)
+    const snipMatch = block.match(/<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/)
+    if (urlMatch?.[1]) {
+      const href = urlMatch[1]
+      if (href.includes('duckduckgo.com')) continue
+      results.push({
+        title: (urlMatch[2] ?? '').replace(/<[^>]+>/g, '').trim(),
+        url: href,
+        snippet: (snipMatch?.[1] ?? '')
+          .replace(/<[^>]+>/g, '')
+          .replace(/\s+/g, ' ')
+          .trim(),
+      })
     }
   }
-  // Fallback: DuckDuckGo Lite
-  const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`
-  const res = await fetch(searchUrl, {
-    headers: BROWSER_HEADERS,
+
+  // Simpler fallback parsing if block pattern didn't match
+  if (results.length === 0) {
+    const linkPattern = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi
+    const snippetPattern = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi
+    const links: { url: string; title: string }[] = []
+    const snippets: string[] = []
+    let lm: RegExpExecArray | null
+    while ((lm = linkPattern.exec(html)) !== null) {
+      const href = lm[1] ?? ''
+      if (!href.includes('duckduckgo.com') && href.startsWith('http')) {
+        links.push({ url: href, title: (lm[2] ?? '').replace(/<[^>]+>/g, '').trim() })
+      }
+    }
+    while ((lm = snippetPattern.exec(html)) !== null) {
+      snippets.push(
+        (lm[1] ?? '')
+          .replace(/<[^>]+>/g, '')
+          .replace(/\s+/g, ' ')
+          .trim(),
+      )
+    }
+    for (let i = 0; i < Math.min(links.length, max); i++) {
+      results.push({ ...links[i]!, snippet: snippets[i] ?? '' })
+    }
+  }
+
+  return results
+}
+
+/** Strategy 2: DuckDuckGo Lite endpoint */
+async function ddgLiteSearch(query: string, max = 8): Promise<SearchResult[]> {
+  const url = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`
+  const res = await fetch(url, {
+    headers: HEADERS,
     signal: AbortSignal.timeout(10000),
   })
   const html = await res.text()
@@ -92,15 +153,14 @@ async function webSearch(
     /<a[^>]*rel="nofollow"[^>]*href="([^"]*)"[^>]*class="result-link"[^>]*>([\s\S]*?)<\/a>/gi
   const snippetPattern = /<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
 
-  const links: Array<{ url: string; title: string }> = []
+  const links: { url: string; title: string }[] = []
+  const snippets: string[] = []
   let m: RegExpExecArray | null
   while ((m = linkPattern.exec(html)) !== null) {
     const href = m[1] ?? ''
     const title = (m[2] ?? '').replace(/<[^>]+>/g, '').trim()
     if (href && title && !href.includes('duckduckgo.com')) links.push({ url: href, title })
   }
-
-  const snippets: string[] = []
   while ((m = snippetPattern.exec(html)) !== null) {
     snippets.push(
       (m[1] ?? '')
@@ -110,7 +170,175 @@ async function webSearch(
     )
   }
 
-  return links.slice(0, 10).map((l, i) => ({ ...l, snippet: snippets[i] ?? '' }))
+  return links.slice(0, max).map((l, i) => ({ ...l, snippet: snippets[i] ?? '' }))
+}
+
+/** Strategy 3: Fetch a specific page and extract readable text */
+async function fetchPageContent(url: string, maxLen = 4000): Promise<string> {
+  const res = await fetch(url, {
+    headers: HEADERS,
+    signal: AbortSignal.timeout(12000),
+    redirect: 'follow',
+  })
+  if (!res.ok) return ''
+  const html = await res.text()
+
+  // Strip non-content elements
+  let content = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+    .replace(/<header[\s\S]*?<\/header>/gi, '')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+
+  // Try to find review-specific content
+  const reviewSection =
+    content.match(/<div[^>]*(?:class|id)=["'][^"']*review[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) ??
+    content.match(/<article[^>]*>([\s\S]*?)<\/article>/i) ??
+    content.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
+
+  if (reviewSection?.[1]) content = reviewSection[1]
+
+  // Strip tags, normalize whitespace
+  return content
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLen)
+}
+
+/** Combined search: tries multiple strategies, returns best results */
+async function gatherReviewData(
+  propertyName: string,
+  location: string | undefined,
+  gateway: GatewayRouter | null,
+): Promise<{ snippets: string[]; sources: { title: string; url: string }[] }> {
+  const searchTerm = location ? `${propertyName} ${location}` : propertyName
+  const allSnippets: string[] = []
+  const allSources: { title: string; url: string }[] = []
+
+  const queries = [
+    `${searchTerm} hotel guest reviews`,
+    `${searchTerm} hotel reviews complaints`,
+    `"${propertyName}" reviews service rooms cleanliness`,
+  ]
+
+  // Try gateway web search first (most reliable if configured)
+  if (gateway) {
+    for (const q of queries) {
+      try {
+        const results = await gateway.webSearch(q)
+        logger.info({ query: q, count: results.length }, '[GRA] Gateway search results')
+        for (const r of results) {
+          if (r.snippet) allSnippets.push(r.snippet)
+          allSources.push({ title: r.title, url: r.url })
+        }
+      } catch {
+        // fall through to DDG
+      }
+    }
+  }
+
+  // If gateway produced results, we're good
+  if (allSnippets.length >= 5) {
+    return { snippets: allSnippets, sources: dedup(allSources) }
+  }
+
+  // Try DDG HTML endpoint
+  for (const q of queries) {
+    try {
+      const results = await ddgHtmlSearch(q)
+      logger.info({ query: q, count: results.length }, '[GRA] DDG HTML results')
+      for (const r of results) {
+        if (r.snippet) allSnippets.push(r.snippet)
+        allSources.push({ title: r.title, url: r.url })
+      }
+    } catch (err) {
+      logger.warn({ err: err instanceof Error ? err.message : undefined }, '[GRA] DDG HTML failed')
+    }
+  }
+
+  // If DDG HTML worked, supplement with page scraping
+  if (allSnippets.length > 0) {
+    // Try to scrape a couple of the found URLs for richer content
+    const reviewUrls = allSources
+      .filter(
+        (s) =>
+          s.url.includes('tripadvisor') ||
+          s.url.includes('booking.com') ||
+          s.url.includes('expedia') ||
+          s.url.includes('hotels.com') ||
+          s.url.includes('yelp') ||
+          s.url.includes('kayak'),
+      )
+      .slice(0, 2)
+
+    for (const source of reviewUrls) {
+      try {
+        const pageText = await fetchPageContent(source.url, 3000)
+        if (pageText.length > 100) {
+          allSnippets.push(pageText)
+          logger.info({ url: source.url, len: pageText.length }, '[GRA] Scraped page content')
+        }
+      } catch {
+        // non-critical
+      }
+    }
+
+    return { snippets: allSnippets, sources: dedup(allSources) }
+  }
+
+  // Last resort: DDG Lite
+  for (const q of queries) {
+    try {
+      const results = await ddgLiteSearch(q)
+      logger.info({ query: q, count: results.length }, '[GRA] DDG Lite results')
+      for (const r of results) {
+        if (r.snippet) allSnippets.push(r.snippet)
+        allSources.push({ title: r.title, url: r.url })
+      }
+    } catch (err) {
+      logger.warn({ err: err instanceof Error ? err.message : undefined }, '[GRA] DDG Lite failed')
+    }
+  }
+
+  // If still nothing, try direct scraping of known review aggregator URLs
+  if (allSnippets.length === 0) {
+    logger.warn('[GRA] All search engines failed, trying direct URL construction')
+    const slug = propertyName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const directUrls = [
+      `https://www.booking.com/hotel/mx/${slug}.html`,
+      `https://www.tripadvisor.com/Search?q=${encodeURIComponent(propertyName)}`,
+    ]
+    for (const url of directUrls) {
+      try {
+        const pageText = await fetchPageContent(url, 4000)
+        if (pageText.length > 200) {
+          allSnippets.push(pageText)
+          allSources.push({ title: `Direct: ${url}`, url })
+          logger.info({ url, len: pageText.length }, '[GRA] Direct scrape succeeded')
+        }
+      } catch {
+        // non-critical
+      }
+    }
+  }
+
+  return { snippets: allSnippets, sources: dedup(allSources) }
+}
+
+function dedup(sources: { title: string; url: string }[]): { title: string; url: string }[] {
+  return [...new Map(sources.map((s) => [s.url, s])).values()]
 }
 
 // ── Core analysis ────────────────────────────────────────────────────────
@@ -125,11 +353,10 @@ export async function analyzePropertyReviews(
   },
 ): Promise<ReviewAnalysisResult> {
   const { propertyName, location } = opts
-  const searchTerm = location ? `${propertyName} ${location}` : propertyName
 
   logger.info({ propertyName, location }, '[GuestReviewAnalyzer] Starting review analysis')
 
-  // 1 — Gather review data from multiple search queries
+  // 1 — Initialize gateway
   let gateway: GatewayRouter | null = null
   try {
     gateway = new GatewayRouter(db)
@@ -137,34 +364,19 @@ export async function analyzePropertyReviews(
     // gateway optional
   }
 
-  const queries = [
-    `${searchTerm} hotel guest reviews`,
-    `${searchTerm} hotel complaints problems issues`,
-    `${searchTerm} hotel positive reviews best features`,
-    `"${propertyName}" review rooms service cleanliness food`,
-  ]
+  // 2 — Gather review data using multi-strategy search
+  const { snippets: allSnippets, sources: uniqueSources } = await gatherReviewData(
+    propertyName,
+    location,
+    gateway,
+  )
 
-  const allSnippets: string[] = []
-  const allSources: Array<{ title: string; url: string }> = []
+  logger.info(
+    { snippetCount: allSnippets.length, sourceCount: uniqueSources.length },
+    '[GuestReviewAnalyzer] Data gathering complete',
+  )
 
-  for (const q of queries) {
-    try {
-      const results = await webSearch(q, gateway)
-      for (const r of results) {
-        if (r.snippet) allSnippets.push(r.snippet)
-        allSources.push({ title: r.title, url: r.url })
-      }
-    } catch (err) {
-      logger.warn(
-        { err: err instanceof Error ? err : undefined, query: q },
-        '[GuestReviewAnalyzer] Search query failed',
-      )
-    }
-  }
-
-  const uniqueSources = [...new Map(allSources.map((s) => [s.url, s])).values()]
-
-  // 2 — Send gathered data to LLM for structured analysis
+  // 3 — Send gathered data to LLM for structured analysis
   const model = process.env.DEFAULT_MODEL ?? 'qwen3-coder:480b-cloud'
   const systemPrompt = `You are a hospitality intelligence analyst. You analyze guest reviews of hotels and properties to produce structured, actionable reports.
 
@@ -204,7 +416,7 @@ Be thorough, specific, and actionable. Base everything on the actual review data
 
 Here are ${allSnippets.length} review snippets gathered from ${uniqueSources.length} online sources:
 
-${allSnippets.map((s, i) => `[${i + 1}] ${s}`).join('\n\n')}
+${allSnippets.map((s, i) => `[${i + 1}] ${s.slice(0, 800)}`).join('\n\n')}
 
 Sources searched: ${uniqueSources.map((s) => s.title).join(', ')}
 
@@ -239,13 +451,16 @@ Produce the structured JSON analysis.`
     }
   }
 
-  // 3 — Fallback: If LLM not available, build basic analysis from snippets
+  // 4 — Fallback: If LLM not available, build basic analysis from snippets
   if (!analysisJson.themes) {
     analysisJson = buildFallbackAnalysis(allSnippets, propertyName)
-    rawSummary = `Automated snippet analysis for ${propertyName} based on ${allSnippets.length} review excerpts from ${uniqueSources.length} sources. LLM-powered deep analysis was not available — results are based on keyword extraction.`
+    rawSummary =
+      allSnippets.length > 0
+        ? `Automated snippet analysis for ${propertyName} based on ${allSnippets.length} review excerpts from ${uniqueSources.length} sources. LLM-powered deep analysis was not available — results are based on keyword extraction.`
+        : `No review data could be gathered for ${propertyName}. Search engines may be rate-limiting or the property name may need adjustment. Try a more specific name or add the location.`
   }
 
-  // 4 — Persist to DB
+  // 5 — Persist to DB
   const sentimentBreakdown = (analysisJson.sentimentBreakdown as {
     positive: number
     neutral: number
@@ -270,10 +485,11 @@ Produce the structured JSON analysis.`
       weaknesses: weaknesses as unknown as Record<string, unknown>,
       improvementPlan: improvementPlan as unknown as Record<string, unknown>,
       rawSummary,
-      metadata: { model, sources: uniqueSources, searchQueries: queries } as unknown as Record<
-        string,
-        unknown
-      >,
+      metadata: {
+        model,
+        sources: uniqueSources,
+        snippetCount: allSnippets.length,
+      } as unknown as Record<string, unknown>,
       orgId: opts.orgId ?? null,
       createdBy: opts.createdBy ?? null,
     })
