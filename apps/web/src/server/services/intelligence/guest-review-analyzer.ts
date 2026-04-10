@@ -248,7 +248,7 @@ async function fetchPageContent(url: string, maxLen = 4000): Promise<string> {
     .slice(0, maxLen)
 }
 
-/** Combined search: tries multiple strategies, returns best results */
+/** Combined search: tries multiple strategies, gathers maximum data */
 async function gatherReviewData(
   propertyName: string,
   location: string | undefined,
@@ -258,35 +258,74 @@ async function gatherReviewData(
   const allSnippets: string[] = []
   const allSources: { title: string; url: string }[] = []
 
+  // Comprehensive query set — covers multiple aspects and time periods
   const queries = [
     `${searchTerm} hotel guest reviews`,
-    `${searchTerm} hotel reviews complaints`,
-    `"${propertyName}" reviews service rooms cleanliness`,
+    `${searchTerm} hotel reviews 2024 2025`,
+    `${searchTerm} hotel reviews 2023`,
+    `${searchTerm} hotel complaints problems issues`,
+    `${searchTerm} hotel positive reviews best features`,
+    `"${propertyName}" review rooms service cleanliness food`,
+    `"${propertyName}" review noise parking check-in`,
+    `"${propertyName}" review bathroom amenities pool gym wifi`,
+    `${searchTerm} hotel tripadvisor reviews`,
+    `${searchTerm} hotel booking.com reviews`,
+    `${searchTerm} hotel renovation maintenance`,
   ]
 
-  // Strategy 0: Brave Search API (proper API — most reliable)
-  for (const q of queries) {
-    try {
-      const results = await braveSearch(q)
-      logger.info({ query: q, count: results.length }, '[GRA] Brave Search results')
-      for (const r of results) {
-        if (r.snippet) allSnippets.push(r.snippet)
-        allSources.push({ title: r.title, url: r.url })
+  // Strategy 0: Brave Search API — run ALL queries to maximize data
+  const hasBrave = !!process.env.BRAVE_SEARCH_API_KEY
+  if (hasBrave) {
+    for (const q of queries) {
+      try {
+        const results = await braveSearch(q, 15)
+        logger.info({ query: q, count: results.length }, '[GRA] Brave Search results')
+        for (const r of results) {
+          if (r.snippet) allSnippets.push(r.snippet)
+          allSources.push({ title: r.title, url: r.url })
+        }
+      } catch (err) {
+        logger.warn(
+          { err: err instanceof Error ? err.message : undefined },
+          '[GRA] Brave Search failed',
+        )
       }
-    } catch (err) {
-      logger.warn(
-        { err: err instanceof Error ? err.message : undefined },
-        '[GRA] Brave Search failed',
-      )
     }
-  }
-  if (allSnippets.length >= 5) {
-    return { snippets: allSnippets, sources: dedup(allSources) }
+
+    // After all Brave queries, scrape review site pages for richer content
+    const reviewSites = dedup(allSources)
+      .filter(
+        (s) =>
+          s.url.includes('tripadvisor') ||
+          s.url.includes('booking.com') ||
+          s.url.includes('expedia') ||
+          s.url.includes('hotels.com') ||
+          s.url.includes('yelp') ||
+          s.url.includes('kayak') ||
+          s.url.includes('google.com/travel'),
+      )
+      .slice(0, 5)
+
+    for (const source of reviewSites) {
+      try {
+        const pageText = await fetchPageContent(source.url, 5000)
+        if (pageText.length > 200) {
+          allSnippets.push(pageText)
+          logger.info({ url: source.url, len: pageText.length }, '[GRA] Scraped review page')
+        }
+      } catch {
+        // non-critical
+      }
+    }
+
+    if (allSnippets.length > 0) {
+      return { snippets: allSnippets, sources: dedup(allSources) }
+    }
   }
 
   // Strategy 1: Gateway web search (Ollama/OpenClaw)
   if (gateway) {
-    for (const q of queries) {
+    for (const q of queries.slice(0, 5)) {
       try {
         const results = await gateway.webSearch(q)
         logger.info({ query: q, count: results.length }, '[GRA] Gateway search results')
@@ -425,51 +464,80 @@ export async function analyzePropertyReviews(
     '[GuestReviewAnalyzer] Data gathering complete',
   )
 
-  // 3 — Send gathered data to LLM for structured analysis
-  const model = process.env.DEFAULT_MODEL ?? 'qwen3-coder:480b-cloud'
-  const systemPrompt = `You are a hospitality intelligence analyst. You analyze guest reviews of hotels and properties to produce structured, actionable reports.
+  // 3 — Deduplicate snippets before sending to LLM
+  const uniqueSnippets = [...new Set(allSnippets.map((s) => s.trim()))].filter((s) => s.length > 20)
 
-You will receive raw search snippets about a property. Analyze them and produce a JSON response with this exact structure:
+  logger.info(
+    { total: allSnippets.length, unique: uniqueSnippets.length },
+    '[GuestReviewAnalyzer] Snippet deduplication',
+  )
+
+  // 4 — Send gathered data to LLM for structured analysis
+  const model = process.env.DEFAULT_MODEL ?? 'qwen3-coder:480b-cloud'
+  const systemPrompt = `You are a senior hospitality intelligence analyst with 20 years of experience. You produce comprehensive, data-driven property analysis reports from guest review data spanning multiple years and platforms.
+
+You will receive review snippets gathered from search engines and review platforms. Your job:
+1. Extract EVERY piece of guest sentiment, even from brief snippets
+2. Identify recurring patterns across multiple reviews
+3. Quote guests directly whenever possible
+4. Distinguish between one-off complaints and systemic issues
+5. Provide specific, actionable recommendations grounded in the data
+
+Produce a JSON response with this EXACT structure:
 
 {
-  "overallRating": <number 1-10 or null if insufficient data>,
-  "sentimentBreakdown": { "positive": <count>, "neutral": <count>, "negative": <count> },
+  "overallRating": <number 1-10 based on all available ratings, or null>,
+  "sentimentBreakdown": { "positive": <estimated count>, "neutral": <count>, "negative": <count> },
   "themes": [
-    { "category": "<e.g. Staff Service, Cleanliness, Noise, Rooms, F&B, Location, Amenities, Check-in, Maintenance, Value>",
+    { "category": "<one of: Staff Service, Cleanliness, Noise, Rooms & Decor, F&B, Location, Amenities, Check-in/Check-out, Maintenance, Value, Bathroom, Parking, WiFi, Safety, Air Conditioning, Pool/Gym, Business Facilities>",
       "sentiment": "positive|negative|mixed",
       "frequency": "high|medium|low",
-      "quotes": ["<actual guest quote or paraphrase from snippets>"] }
+      "quotes": ["<actual guest quote>", "<another quote>"] }
   ],
   "strengths": [
-    { "area": "<category>", "description": "<what guests love>", "quotes": ["<quote>"] }
+    { "area": "<category>", "description": "<detailed description of what guests love and why>", "quotes": ["<quote1>", "<quote2>"] }
   ],
   "weaknesses": [
-    { "area": "<category>", "description": "<what guests complain about>", "severity": "critical|high|medium|low", "quotes": ["<quote>"] }
+    { "area": "<category>", "description": "<detailed description of the problem, how often it occurs, and impact on guest experience>", "severity": "critical|high|medium|low", "quotes": ["<quote1>", "<quote2>"] }
   ],
   "improvementPlan": [
     { "phase": "Quick Wins (0-3 months)",
       "timeframe": "0-3 months",
       "actions": [
-        { "action": "<specific action>", "problem": "<what it fixes>", "kpiTarget": "<measurable goal>", "cost": "low|medium|high" }
+        { "action": "<specific, concrete action>", "problem": "<exact problem it addresses from the data>", "kpiTarget": "<measurable target>", "cost": "low|medium|high" }
       ]
     },
     { "phase": "Medium-term Improvements (3-6 months)", "timeframe": "3-6 months", "actions": [...] },
-    { "phase": "Strategic Initiatives (6-12 months)", "timeframe": "6-12 months", "actions": [...] }
+    { "phase": "Strategic Initiatives (6-12 months)", "timeframe": "6-12 months", "actions": [...] },
+    { "phase": "Long-term Vision (12+ months)", "timeframe": "12+ months", "actions": [...] }
   ],
-  "executiveSummary": "<2-3 paragraph markdown summary of findings and recommendations>"
+  "executiveSummary": "<4-5 paragraph detailed markdown summary covering: 1) Overall positioning and rating trends, 2) Top 3 strengths with evidence, 3) Top 3 weaknesses with evidence and root causes, 4) Investment priority matrix, 5) Expected ROI and timeline>"
 }
 
-Be thorough, specific, and actionable. Base everything on the actual review data provided. If data is sparse, note confidence levels. Always generate at least 3 themes, 2 strengths, 2 weaknesses, and 3 improvement actions per phase.`
+IMPORTANT RULES:
+- Generate AT LEAST 8 themes covering different aspects of the property
+- Generate AT LEAST 4 strengths and 4 weaknesses
+- Each improvement phase must have AT LEAST 4 actions
+- Include 2+ quotes per theme/strength/weakness when available
+- Be SPECIFIC — reference actual rooms, staff, facilities, restaurant names mentioned in reviews
+- Severity must be based on frequency and impact: critical = affects >30% of guests, high = recurring, medium = occasional, low = rare
+- The executive summary should be detailed enough to present to hotel management
 
-  const userMessage = `Analyze guest reviews for: **${propertyName}**${location ? ` (${location})` : ''}
+Be thorough, specific, and actionable. Extract maximum insight from every snippet.`
 
-Here are ${allSnippets.length} review snippets gathered from ${uniqueSources.length} online sources:
+  const userMessage = `Produce a comprehensive guest review analysis for: **${propertyName}**${location ? ` (${location})` : ''}
 
-${allSnippets.map((s, i) => `[${i + 1}] ${s.slice(0, 800)}`).join('\n\n')}
+I gathered ${uniqueSnippets.length} unique review excerpts from ${uniqueSources.length} online sources spanning multiple platforms (TripAdvisor, Booking.com, Expedia, Google, Yelp, etc.) and covering reviews from the last 2-3 years.
 
-Sources searched: ${uniqueSources.map((s) => s.title).join(', ')}
+--- BEGIN REVIEW DATA ---
 
-Produce the structured JSON analysis.`
+${uniqueSnippets.map((s, i) => `[${i + 1}] ${s.slice(0, 1200)}`).join('\n\n')}
+
+--- END REVIEW DATA ---
+
+Sources: ${uniqueSources.map((s) => s.title).join(' | ')}
+
+Analyze ALL the data above and produce the comprehensive structured JSON analysis. Extract every theme, quote, and data point. Do not omit any findings.`
 
   let analysisJson: Record<string, unknown> = {}
   let rawSummary = ''
