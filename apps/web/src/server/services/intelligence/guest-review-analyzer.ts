@@ -72,6 +72,37 @@ const HEADERS: Record<string, string> = {
   'Accept-Language': 'en-US,en;q=0.9',
 }
 
+/** Strategy 0: Brave Search API — proper API, never blocked */
+async function braveSearch(query: string, max = 10): Promise<SearchResult[]> {
+  const apiKey = process.env.BRAVE_SEARCH_API_KEY
+  if (!apiKey) return []
+
+  const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${max}`
+  const res = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      'Accept-Encoding': 'gzip',
+      'X-Subscription-Token': apiKey,
+    },
+    signal: AbortSignal.timeout(10000),
+  })
+
+  if (!res.ok) {
+    logger.warn({ status: res.status }, '[GRA] Brave Search API error')
+    return []
+  }
+
+  const data = (await res.json()) as {
+    web?: { results?: Array<{ title: string; url: string; description: string }> }
+  }
+  const results = data.web?.results ?? []
+  return results.map((r) => ({
+    title: r.title,
+    url: r.url,
+    snippet: r.description,
+  }))
+}
+
 /** Strategy 1: DuckDuckGo HTML endpoint (more reliable than Lite) */
 async function ddgHtmlSearch(query: string, max = 8): Promise<SearchResult[]> {
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
@@ -233,7 +264,27 @@ async function gatherReviewData(
     `"${propertyName}" reviews service rooms cleanliness`,
   ]
 
-  // Try gateway web search first (most reliable if configured)
+  // Strategy 0: Brave Search API (proper API — most reliable)
+  for (const q of queries) {
+    try {
+      const results = await braveSearch(q)
+      logger.info({ query: q, count: results.length }, '[GRA] Brave Search results')
+      for (const r of results) {
+        if (r.snippet) allSnippets.push(r.snippet)
+        allSources.push({ title: r.title, url: r.url })
+      }
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err.message : undefined },
+        '[GRA] Brave Search failed',
+      )
+    }
+  }
+  if (allSnippets.length >= 5) {
+    return { snippets: allSnippets, sources: dedup(allSources) }
+  }
+
+  // Strategy 1: Gateway web search (Ollama/OpenClaw)
   if (gateway) {
     for (const q of queries) {
       try {
@@ -244,17 +295,15 @@ async function gatherReviewData(
           allSources.push({ title: r.title, url: r.url })
         }
       } catch {
-        // fall through to DDG
+        // fall through
       }
     }
   }
-
-  // If gateway produced results, we're good
   if (allSnippets.length >= 5) {
     return { snippets: allSnippets, sources: dedup(allSources) }
   }
 
-  // Try DDG HTML endpoint
+  // Strategy 2: DDG HTML endpoint
   for (const q of queries) {
     try {
       const results = await ddgHtmlSearch(q)
