@@ -1380,6 +1380,80 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         created_at timestamp NOT NULL DEFAULT now()
       )`,
 
+      // OKR / Goal Cascade
+      `CREATE TABLE IF NOT EXISTS okrs (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        objective text NOT NULL,
+        quarter text NOT NULL,
+        owner text DEFAULT 'corporation',
+        status text DEFAULT 'active' NOT NULL,
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE TABLE IF NOT EXISTS key_results (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        okr_id uuid NOT NULL REFERENCES okrs(id) ON DELETE CASCADE,
+        description text NOT NULL,
+        metric text NOT NULL,
+        target real NOT NULL DEFAULT 100,
+        current real NOT NULL DEFAULT 0,
+        unit text DEFAULT '%',
+        weight real DEFAULT 1,
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `CREATE TABLE IF NOT EXISTS goal_alignments (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        ticket_id uuid,
+        task_title text NOT NULL,
+        agent_id uuid,
+        key_result_id uuid REFERENCES key_results(id) ON DELETE SET NULL,
+        okr_id uuid REFERENCES okrs(id) ON DELETE SET NULL,
+        contribution text,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+
+      // Daily Briefings
+      `CREATE TABLE IF NOT EXISTS daily_briefings (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        date text NOT NULL,
+        content text NOT NULL,
+        metrics jsonb DEFAULT '{}',
+        generated_at timestamp NOT NULL DEFAULT now(),
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+
+      // Guest Review Analyses
+      `CREATE TABLE IF NOT EXISTS guest_review_analyses (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        property_name text NOT NULL,
+        location text,
+        source_count integer DEFAULT 0 NOT NULL,
+        overall_rating real,
+        sentiment_breakdown jsonb DEFAULT '{}',
+        themes jsonb DEFAULT '[]',
+        strengths jsonb DEFAULT '[]',
+        weaknesses jsonb DEFAULT '[]',
+        improvement_plan jsonb DEFAULT '[]',
+        raw_summary text,
+        metadata jsonb DEFAULT '{}',
+        org_id uuid,
+        created_by uuid,
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )`,
+
+      // Indexes for new tables
+      `CREATE INDEX IF NOT EXISTS okrs_quarter_idx ON okrs(quarter)`,
+      `CREATE INDEX IF NOT EXISTS okrs_status_idx ON okrs(status)`,
+      `CREATE INDEX IF NOT EXISTS key_results_okr_id_idx ON key_results(okr_id)`,
+      `CREATE INDEX IF NOT EXISTS goal_alignments_okr_id_idx ON goal_alignments(okr_id)`,
+      `CREATE INDEX IF NOT EXISTS goal_alignments_ticket_id_idx ON goal_alignments(ticket_id)`,
+      `CREATE INDEX IF NOT EXISTS daily_briefings_date_idx ON daily_briefings(date)`,
+      `CREATE INDEX IF NOT EXISTS guest_review_analyses_property_idx ON guest_review_analyses(property_name)`,
+      `CREATE INDEX IF NOT EXISTS guest_review_analyses_org_idx ON guest_review_analyses(org_id)`,
+      `CREATE INDEX IF NOT EXISTS guest_review_analyses_created_idx ON guest_review_analyses(created_at)`,
+
       // Missing indexes from audit (Batch 1)
       `CREATE INDEX IF NOT EXISTS chat_run_steps_agent_idx ON chat_run_steps(agent_id)`,
       `CREATE INDEX IF NOT EXISTS guardrail_logs_ticket_id_idx ON guardrail_logs(ticket_id)`,
