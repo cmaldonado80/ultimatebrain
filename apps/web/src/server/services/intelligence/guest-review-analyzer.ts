@@ -843,6 +843,14 @@ export async function getAnalysesByProperty(
   return rows.map(mapRow)
 }
 
+export async function deleteAnalysis(db: Database, id: string): Promise<{ deleted: boolean }> {
+  const result = await db
+    .delete(guestReviewAnalyses)
+    .where(eq(guestReviewAnalyses.id, id))
+    .returning({ id: guestReviewAnalyses.id })
+  return { deleted: result.length > 0 }
+}
+
 function mapRow(row: typeof guestReviewAnalyses.$inferSelect): ReviewAnalysisResult {
   return {
     id: row.id,

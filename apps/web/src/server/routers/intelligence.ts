@@ -1600,4 +1600,12 @@ export const intelligenceRouter = router({
         await import('../services/intelligence/guest-review-analyzer')
       return getAnalysesByProperty(ctx.db, input.propertyName)
     }),
+
+  /** Delete a guest review analysis */
+  deleteGuestReview: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { deleteAnalysis } = await import('../services/intelligence/guest-review-analyzer')
+      return deleteAnalysis(ctx.db, input.id)
+    }),
 })
