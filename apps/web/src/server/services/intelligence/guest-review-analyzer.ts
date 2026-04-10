@@ -258,19 +258,24 @@ async function gatherReviewData(
   const allSnippets: string[] = []
   const allSources: { title: string; url: string }[] = []
 
-  // Comprehensive query set — covers multiple aspects and time periods
+  // Comprehensive query set — covers multiple aspects, time periods, and platforms
   const queries = [
     `${searchTerm} hotel guest reviews`,
-    `${searchTerm} hotel reviews 2024 2025`,
-    `${searchTerm} hotel reviews 2023`,
+    `${searchTerm} hotel reviews 2024 2025 2026`,
+    `${searchTerm} hotel reviews 2023 2022`,
     `${searchTerm} hotel complaints problems issues`,
     `${searchTerm} hotel positive reviews best features`,
     `"${propertyName}" review rooms service cleanliness food`,
-    `"${propertyName}" review noise parking check-in`,
+    `"${propertyName}" review noise parking check-in elevator`,
     `"${propertyName}" review bathroom amenities pool gym wifi`,
+    `"${propertyName}" review air conditioning maintenance renovation`,
+    `"${propertyName}" review staff front desk concierge`,
+    `"${propertyName}" review breakfast restaurant bar dining`,
     `${searchTerm} hotel tripadvisor reviews`,
-    `${searchTerm} hotel booking.com reviews`,
-    `${searchTerm} hotel renovation maintenance`,
+    `${searchTerm} hotel booking.com guest reviews`,
+    `${searchTerm} hotel expedia reviews ratings`,
+    `${searchTerm} hotel google reviews recent`,
+    `${searchTerm} hotel yelp reviews`,
   ]
 
   // Strategy 0: Brave Search API — run ALL queries to maximize data
@@ -278,7 +283,7 @@ async function gatherReviewData(
   if (hasBrave) {
     for (const q of queries) {
       try {
-        const results = await braveSearch(q, 15)
+        const results = await braveSearch(q, 20)
         logger.info({ query: q, count: results.length }, '[GRA] Brave Search results')
         for (const r of results) {
           if (r.snippet) allSnippets.push(r.snippet)
@@ -304,11 +309,11 @@ async function gatherReviewData(
           s.url.includes('kayak') ||
           s.url.includes('google.com/travel'),
       )
-      .slice(0, 5)
+      .slice(0, 8)
 
     for (const source of reviewSites) {
       try {
-        const pageText = await fetchPageContent(source.url, 5000)
+        const pageText = await fetchPageContent(source.url, 8000)
         if (pageText.length > 200) {
           allSnippets.push(pageText)
           logger.info({ url: source.url, len: pageText.length }, '[GRA] Scraped review page')
@@ -479,7 +484,7 @@ export async function analyzePropertyReviews(
 You will receive review snippets gathered from search engines and review platforms. Your job:
 1. Extract EVERY piece of guest sentiment, even from brief snippets
 2. Identify recurring patterns across multiple reviews
-3. Quote guests directly whenever possible
+3. Quote guests directly whenever possible — include the date or time period when mentioned (e.g. "Feb 2025", "December 2024", "2023")
 4. Distinguish between one-off complaints and systemic issues
 5. Provide specific, actionable recommendations grounded in the data
 
@@ -492,13 +497,21 @@ Produce a JSON response with this EXACT structure:
     { "category": "<one of: Staff Service, Cleanliness, Noise, Rooms & Decor, F&B, Location, Amenities, Check-in/Check-out, Maintenance, Value, Bathroom, Parking, WiFi, Safety, Air Conditioning, Pool/Gym, Business Facilities>",
       "sentiment": "positive|negative|mixed",
       "frequency": "high|medium|low",
-      "quotes": ["<actual guest quote>", "<another quote>"] }
+      "quotes": [
+        { "text": "<actual guest quote>", "date": "<date if known, e.g. 'Feb 2025', 'Q4 2024', '2023', or null>", "source": "<platform: TripAdvisor, Booking.com, Expedia, Google, Yelp, or null>" },
+        { "text": "<another quote>", "date": null, "source": null }
+      ]
+    }
   ],
   "strengths": [
-    { "area": "<category>", "description": "<detailed description of what guests love and why>", "quotes": ["<quote1>", "<quote2>"] }
+    { "area": "<category>", "description": "<detailed description of what guests love and why>", "quotes": [
+      { "text": "<quote>", "date": "<date or null>", "source": "<platform or null>" }
+    ] }
   ],
   "weaknesses": [
-    { "area": "<category>", "description": "<detailed description of the problem, how often it occurs, and impact on guest experience>", "severity": "critical|high|medium|low", "quotes": ["<quote1>", "<quote2>"] }
+    { "area": "<category>", "description": "<detailed description of the problem, how often it occurs, and impact on guest experience>", "severity": "critical|high|medium|low", "quotes": [
+      { "text": "<quote>", "date": "<date or null>", "source": "<platform or null>" }
+    ] }
   ],
   "improvementPlan": [
     { "phase": "Quick Wins (0-3 months)",
@@ -511,33 +524,35 @@ Produce a JSON response with this EXACT structure:
     { "phase": "Strategic Initiatives (6-12 months)", "timeframe": "6-12 months", "actions": [...] },
     { "phase": "Long-term Vision (12+ months)", "timeframe": "12+ months", "actions": [...] }
   ],
-  "executiveSummary": "<4-5 paragraph detailed markdown summary covering: 1) Overall positioning and rating trends, 2) Top 3 strengths with evidence, 3) Top 3 weaknesses with evidence and root causes, 4) Investment priority matrix, 5) Expected ROI and timeline>"
+  "executiveSummary": "<Write a detailed 5-7 paragraph executive summary in rich markdown format using ## headings, **bold**, bullet lists, and > blockquotes. Structure: ## Overall Performance, ## Key Strengths (top 3-4 with evidence), ## Critical Weaknesses (top 3-4 with root causes), ## Investment Priority Matrix (table with cost vs impact), ## Recommended Roadmap & Expected ROI>"
 }
 
 IMPORTANT RULES:
-- Generate AT LEAST 8 themes covering different aspects of the property
-- Generate AT LEAST 4 strengths and 4 weaknesses
+- Generate AT LEAST 10 themes covering different aspects of the property
+- Generate AT LEAST 5 strengths and 5 weaknesses with detailed descriptions
 - Each improvement phase must have AT LEAST 4 actions
-- Include 2+ quotes per theme/strength/weakness when available
-- Be SPECIFIC — reference actual rooms, staff, facilities, restaurant names mentioned in reviews
+- Include 3-5 quotes per theme, each with date and source when available
+- Include 2-4 quotes per strength/weakness with dates
+- Be SPECIFIC — reference actual rooms, staff names, restaurant names, specific facilities mentioned in reviews
 - Severity must be based on frequency and impact: critical = affects >30% of guests, high = recurring, medium = occasional, low = rare
-- The executive summary should be detailed enough to present to hotel management
+- The executive summary MUST use markdown formatting (##, **, -, >) and be detailed enough to present to hotel management as a board report
+- Extract ALL dates mentioned in reviews and attach them to the relevant quotes
 
 Be thorough, specific, and actionable. Extract maximum insight from every snippet.`
 
   const userMessage = `Produce a comprehensive guest review analysis for: **${propertyName}**${location ? ` (${location})` : ''}
 
-I gathered ${uniqueSnippets.length} unique review excerpts from ${uniqueSources.length} online sources spanning multiple platforms (TripAdvisor, Booking.com, Expedia, Google, Yelp, etc.) and covering reviews from the last 2-3 years.
+I gathered ${uniqueSnippets.length} unique review excerpts from ${uniqueSources.length} online sources spanning multiple platforms (TripAdvisor, Booking.com, Expedia, Google, Yelp, Hotels.com, Kayak, etc.) and covering reviews from the last 3+ years (2022-2026).
 
 --- BEGIN REVIEW DATA ---
 
-${uniqueSnippets.map((s, i) => `[${i + 1}] ${s.slice(0, 1200)}`).join('\n\n')}
+${uniqueSnippets.map((s, i) => `[${i + 1}] ${s.slice(0, 1500)}`).join('\n\n')}
 
 --- END REVIEW DATA ---
 
 Sources: ${uniqueSources.map((s) => s.title).join(' | ')}
 
-Analyze ALL the data above and produce the comprehensive structured JSON analysis. Extract every theme, quote, and data point. Do not omit any findings.`
+Analyze ALL the data above exhaustively. Extract every theme, every guest quote with its date and platform source when available, and every data point. Produce the most comprehensive analysis possible. Do not omit any findings.`
 
   let analysisJson: Record<string, unknown> = {}
   let rawSummary = ''
