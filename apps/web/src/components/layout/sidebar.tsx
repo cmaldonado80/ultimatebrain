@@ -58,6 +58,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
       { label: 'System Health', href: '/nerve-center', icon: '◎' },
       { label: 'Learning Trends', href: '/learning-organism', icon: '🧬' },
       { label: 'Finance', href: '/finance', icon: '$' },
+      { label: 'Guest Reviews', href: '/intelligence/guest-reviews', icon: '🏨' },
     ],
   },
   // ── ORGANIZATION ──────────────────────────────────────────────────────

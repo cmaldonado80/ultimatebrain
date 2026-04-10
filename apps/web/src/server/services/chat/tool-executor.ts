@@ -378,6 +378,29 @@ export async function flushToolAnalytics(db: Database): Promise<number> {
 }
 
 /** Get or create a tool call history for a session/workspace */
+/** Compact summary of a guest review analysis for tool output */
+function summarizeAnalysis(a: {
+  id: string
+  propertyName: string
+  overallRating: number | null
+  sourceCount: number
+  themes: Array<{ category: string; sentiment: string }>
+  strengths: Array<{ area: string }>
+  weaknesses: Array<{ area: string; severity: string }>
+  createdAt: Date
+}) {
+  return {
+    id: a.id,
+    property: a.propertyName,
+    rating: a.overallRating,
+    sources: a.sourceCount,
+    themes: a.themes.map((t) => `${t.category} (${t.sentiment})`),
+    strengths: a.strengths.map((s) => s.area),
+    weaknesses: a.weaknesses.map((w) => `${w.area} [${w.severity}]`),
+    date: a.createdAt,
+  }
+}
+
 function getHistory(sessionKey: string): ToolCallRecord[] {
   let history = sessionHistories.get(sessionKey)
   if (!history) {
@@ -3650,6 +3673,60 @@ Return ONLY valid JSON: {"actions": [{"title": "...", "description": "...", "pri
           return JSON.stringify({
             error: 'Query failed',
             message: err instanceof Error ? err.message : 'Unknown',
+          })
+        }
+      }
+
+      // ── Hospitality Intelligence Tools ──────────────────────────────────
+
+      case 'guest_review_analyze': {
+        if (!db) return JSON.stringify({ error: 'Database required for review analysis' })
+        const propertyName = toolInput.propertyName as string
+        const location = toolInput.location as string | undefined
+        if (!propertyName) return JSON.stringify({ error: 'propertyName is required' })
+        try {
+          const { analyzePropertyReviews } = await import('../intelligence/guest-review-analyzer')
+          const result = await analyzePropertyReviews(db, { propertyName, location })
+          return JSON.stringify({
+            id: result.id,
+            propertyName: result.propertyName,
+            overallRating: result.overallRating,
+            sourceCount: result.sourceCount,
+            sentimentBreakdown: result.sentimentBreakdown,
+            strengths: result.strengths.length,
+            weaknesses: result.weaknesses.length,
+            themes: result.themes.map((t) => `${t.category} (${t.sentiment})`),
+            improvementPhases: result.improvementPlan.map((p) => ({
+              phase: p.phase,
+              actions: p.actions.length,
+            })),
+            summary: result.rawSummary?.slice(0, 500),
+          })
+        } catch (err) {
+          return JSON.stringify({
+            error: 'Review analysis failed',
+            message: err instanceof Error ? err.message : 'Unknown error',
+          })
+        }
+      }
+
+      case 'guest_review_history': {
+        if (!db) return JSON.stringify({ error: 'Database required' })
+        try {
+          const propFilter = toolInput.propertyName as string | undefined
+          const limit = Math.min((toolInput.limit as number) ?? 10, 20)
+          if (propFilter) {
+            const { getAnalysesByProperty } = await import('../intelligence/guest-review-analyzer')
+            const results = await getAnalysesByProperty(db, propFilter)
+            return JSON.stringify(results.slice(0, limit).map(summarizeAnalysis))
+          }
+          const { getAnalysisHistory } = await import('../intelligence/guest-review-analyzer')
+          const results = await getAnalysisHistory(db, { limit })
+          return JSON.stringify(results.map(summarizeAnalysis))
+        } catch (err) {
+          return JSON.stringify({
+            error: 'Failed to retrieve history',
+            message: err instanceof Error ? err.message : 'Unknown error',
           })
         }
       }

@@ -1528,4 +1528,45 @@ export const AGENT_TOOLS = [
       required: ['query'],
     },
   },
+
+  // ── Hospitality Intelligence ─────────────────────────────────────────────
+
+  {
+    name: 'guest_review_analyze',
+    description:
+      'Search online guest reviews for a hotel or property, analyze sentiment and recurring themes, identify strengths and weaknesses, and generate a structured improvement plan. Results are persisted for historical tracking.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        propertyName: {
+          type: 'string',
+          description:
+            'Name of the hotel or property to analyze (e.g. "Crowne Plaza Monterrey Centro")',
+        },
+        location: {
+          type: 'string',
+          description: 'City or region for the property (optional, helps narrow search)',
+        },
+      },
+      required: ['propertyName'],
+    },
+  },
+  {
+    name: 'guest_review_history',
+    description:
+      'Retrieve past guest review analyses. Returns a list of previously analyzed properties with their scores, themes, and improvement plans.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        propertyName: {
+          type: 'string',
+          description: 'Filter by property name (optional, partial match)',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max results to return (default 10)',
+        },
+      },
+    },
+  },
 ]

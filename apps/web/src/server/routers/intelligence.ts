@@ -1551,4 +1551,53 @@ export const intelligenceRouter = router({
     const content = await generateDailyBriefing(ctx.db)
     return { content }
   }),
+
+  // ── Guest Review Analysis ──────────────────────────────────────────────
+
+  /** Analyze guest reviews for a hotel/property */
+  analyzeGuestReviews: protectedProcedure
+    .input(
+      z.object({
+        propertyName: z.string().min(2).max(200),
+        location: z.string().max(200).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { analyzePropertyReviews } =
+        await import('../services/intelligence/guest-review-analyzer')
+      return analyzePropertyReviews(ctx.db, {
+        propertyName: input.propertyName,
+        location: input.location,
+        orgId: ctx.session.organizationId ?? undefined,
+        createdBy: ctx.session.userId,
+      })
+    }),
+
+  /** Get analysis history */
+  guestReviewHistory: protectedProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(50).optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const { getAnalysisHistory } = await import('../services/intelligence/guest-review-analyzer')
+      return getAnalysisHistory(ctx.db, {
+        orgId: ctx.session.organizationId ?? undefined,
+        limit: input?.limit ?? 20,
+      })
+    }),
+
+  /** Get single analysis by ID */
+  guestReviewById: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { getAnalysisById } = await import('../services/intelligence/guest-review-analyzer')
+      return getAnalysisById(ctx.db, input.id)
+    }),
+
+  /** Search analyses by property name */
+  guestReviewSearch: protectedProcedure
+    .input(z.object({ propertyName: z.string().min(2) }))
+    .query(async ({ ctx, input }) => {
+      const { getAnalysesByProperty } =
+        await import('../services/intelligence/guest-review-analyzer')
+      return getAnalysesByProperty(ctx.db, input.propertyName)
+    }),
 })

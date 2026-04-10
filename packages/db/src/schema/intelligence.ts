@@ -605,6 +605,34 @@ export const dailyBriefings = pgTable(
   (t) => [index('daily_briefings_date_idx').on(t.date)],
 )
 
+/** Guest review analyses — structured analysis of hotel/property guest reviews */
+export const guestReviewAnalyses = pgTable(
+  'guest_review_analyses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    propertyName: text('property_name').notNull(),
+    location: text('location'), // city / region
+    sourceCount: integer('source_count').default(0).notNull(), // how many review sources scanned
+    overallRating: real('overall_rating'), // normalized 0-10
+    sentimentBreakdown: jsonb('sentiment_breakdown').default({}), // { positive, neutral, negative counts + pct }
+    themes: jsonb('themes').default([]), // [{ category, sentiment, frequency, quotes }]
+    strengths: jsonb('strengths').default([]), // [{ area, description, quotes }]
+    weaknesses: jsonb('weaknesses').default([]), // [{ area, description, severity, quotes }]
+    improvementPlan: jsonb('improvement_plan').default([]), // [{ phase, actions: [{ action, problem, kpi }] }]
+    rawSummary: text('raw_summary'), // full markdown analysis
+    metadata: jsonb('metadata').default({}), // { model, sources, searchQueries }
+    orgId: uuid('org_id'),
+    createdBy: uuid('created_by'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (t) => [
+    index('guest_review_analyses_property_idx').on(t.propertyName),
+    index('guest_review_analyses_org_idx').on(t.orgId),
+    index('guest_review_analyses_created_idx').on(t.createdAt),
+  ],
+)
+
 /** Decision records — institutional memory for high-impact decisions */
 export const decisionRecords = pgTable(
   'decision_records',
