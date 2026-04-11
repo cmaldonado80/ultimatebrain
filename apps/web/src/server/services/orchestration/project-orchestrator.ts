@@ -530,13 +530,13 @@ export async function getProjectStatus(
           .orderBy(desc(artifacts.createdAt))
       : []
 
-  // Also get artifacts created during the project timeframe without ticketId
+  // Also get recent workspace_file artifacts (agents write via workspace_files tool without ticketId linkage)
   const recentArtifacts = await db
     .select()
     .from(artifacts)
     .where(and(sql`${artifacts.createdAt} >= ${project.createdAt}`))
     .orderBy(desc(artifacts.createdAt))
-    .limit(20)
+    .limit(50)
 
   const allArtifacts = [
     ...projectArtifacts,
