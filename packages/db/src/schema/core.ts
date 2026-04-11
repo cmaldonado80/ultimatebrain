@@ -227,6 +227,7 @@ export const projects = pgTable('projects', {
   goal: text('goal'),
   domain: text('domain'), // Domain specialization: 'hospitality', 'astrology', 'marketing', etc.
   icon: text('icon'),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
   status: projectStatusEnum('status').default('planning').notNull(),
   deadline: timestamp('deadline'),
   healthScore: real('health_score'),

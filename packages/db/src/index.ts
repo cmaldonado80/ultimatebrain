@@ -1443,6 +1443,11 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
         updated_at timestamp NOT NULL DEFAULT now()
       )`,
 
+      // Add workspaceId to projects
+      `ALTER TABLE projects ADD COLUMN IF NOT EXISTS workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL`,
+      `ALTER TABLE projects ADD COLUMN IF NOT EXISTS domain text`,
+      `ALTER TABLE projects ADD COLUMN IF NOT EXISTS icon text`,
+
       // Indexes for new tables
       `CREATE INDEX IF NOT EXISTS okrs_quarter_idx ON okrs(quarter)`,
       `CREATE INDEX IF NOT EXISTS okrs_status_idx ON okrs(status)`,

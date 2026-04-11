@@ -341,9 +341,13 @@ export class ModeRouter {
   // ── Internal helpers ──────────────────────────────────────────────────────
 
   /** Resolve agent model and soul for a ticket's assigned agent */
-  private async resolveAgentConfig(
-    ticketId: string,
-  ): Promise<{ model?: string; soul?: string; temperature?: number; maxTokens?: number }> {
+  private async resolveAgentConfig(ticketId: string): Promise<{
+    model?: string
+    soul?: string
+    temperature?: number
+    maxTokens?: number
+    toolAccess?: string[] | null
+  }> {
     try {
       const ticket = await this.db.query.tickets.findFirst({ where: eq(tickets.id, ticketId) })
       // Check ticket metadata for embedded soul (used by code repair pipeline)
@@ -361,6 +365,7 @@ export class ModeRouter {
         soul: agent?.soul ?? embeddedSoul ?? undefined,
         temperature: agent?.temperature ?? undefined,
         maxTokens: agent?.maxTokens ?? undefined,
+        toolAccess: agent?.toolAccess ?? null,
       }
     } catch {
       return {}
@@ -510,8 +515,20 @@ export class ModeRouter {
         'web_scrape',
         'render_preview',
         'db_query',
+        'generate_design_system',
+        'generate_component_spec',
+        'design_intelligence',
+        'map_user_journey',
+        'architecture_decision',
+        'guest_review_analyze',
+        'guest_review_history',
       ]
-      const availableTools = AGENT_TOOLS.filter((t) => CODE_TOOLS.includes(t.name))
+      // Filter tools: whitelist first, then intersect with agent's toolAccess if set
+      let availableTools = AGENT_TOOLS.filter((t) => CODE_TOOLS.includes(t.name))
+      if (agentConfig.toolAccess && agentConfig.toolAccess.length > 0) {
+        const agentAllowed = new Set(agentConfig.toolAccess)
+        availableTools = availableTools.filter((t) => agentAllowed.has(t.name))
+      }
 
       const autonomousInstructions = `
 
@@ -739,18 +756,41 @@ You are an autonomous agent in the Solarc Brain AI Corporation. You have access 
     try {
       step.status = 'in_progress'
 
+      // Load tools for deep work steps so agents can actually execute
+      const { AGENT_TOOLS: deepWorkTools } = await import('../chat/tools')
+      const DEEP_WORK_TOOLS = [
+        'file_system',
+        'workspace_files',
+        'web_search',
+        'web_scrape',
+        'memory_store',
+        'memory_search',
+        'db_query',
+        'code_review',
+        'render_preview',
+        'generate_design_system',
+        'generate_component_spec',
+        'design_intelligence',
+        'create_ticket',
+        'run_tests',
+        'guest_review_analyze',
+        'guest_review_history',
+      ]
+      const stepTools = deepWorkTools.filter((t) => DEEP_WORK_TOOLS.includes(t.name))
+
       await this.gateway.chat({
         messages: [
           {
             role: 'system',
             content:
-              'You are an autonomous execution agent. Execute the following step and report the outcome concisely.',
+              'You are an autonomous execution agent with access to real tools. Use them to complete each step. Save all outputs using workspace_files (action: write).',
           },
           {
             role: 'user',
-            content: `Ticket: ${ticketId}\nStep ${step.index + 1}: ${step.title}\nDescription: ${step.description}\nTools available: ${(step.toolsRequired ?? []).join(', ') || 'none'}`,
+            content: `Ticket: ${ticketId}\nStep ${step.index + 1}: ${step.title}\nDescription: ${step.description}\nTools available: ${(step.toolsRequired ?? []).join(', ') || 'all'}`,
           },
         ],
+        tools: stepTools,
       })
 
       step.status = 'done'

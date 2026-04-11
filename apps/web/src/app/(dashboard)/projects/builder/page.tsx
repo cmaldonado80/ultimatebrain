@@ -63,10 +63,15 @@ const EXAMPLE_BRIEFS = [
 export default function ProjectBuilderPage() {
   const [brief, setBrief] = useState('')
   const [projectType, setProjectType] = useState<ProjectType>('landing-page')
+  const [workspaceId, setWorkspaceId] = useState<string>('')
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null)
   const [changeRequest, setChangeRequest] = useState('')
 
+  const workspacesQuery = trpc.workspaces.list.useQuery(
+    { limit: 50, offset: 0 },
+    { staleTime: 60_000 },
+  )
   const projectsQuery = trpc.builder.listBuilderProjects.useQuery({ limit: 20 })
   const statusQuery = trpc.builder.getProjectStatus.useQuery(
     { id: activeProjectId! },
@@ -145,28 +150,51 @@ export default function ProjectBuilderPage() {
               ))}
             </div>
 
-            {/* Project type selector */}
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-[10px] text-slate-500">Type:</span>
-              {PROJECT_TYPES.map((pt) => (
-                <button
-                  key={pt.value}
-                  onClick={() => setProjectType(pt.value)}
-                  className={`text-[11px] px-3 py-1.5 rounded border transition-colors cursor-pointer ${
-                    projectType === pt.value
-                      ? 'border-neon-blue bg-neon-blue/10 text-neon-blue'
-                      : 'border-border-dim text-slate-400 hover:border-white/10'
-                  }`}
+            {/* Project type + Workspace selectors */}
+            <div className="flex items-center gap-4 mb-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-500">Type:</span>
+                {PROJECT_TYPES.map((pt) => (
+                  <button
+                    key={pt.value}
+                    onClick={() => setProjectType(pt.value)}
+                    className={`text-[11px] px-3 py-1.5 rounded border transition-colors cursor-pointer ${
+                      projectType === pt.value
+                        ? 'border-neon-blue bg-neon-blue/10 text-neon-blue'
+                        : 'border-border-dim text-slate-400 hover:border-white/10'
+                    }`}
+                  >
+                    {pt.icon} {pt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-500">Workspace:</span>
+                <select
+                  className="cyber-input cyber-input-sm w-48"
+                  value={workspaceId}
+                  onChange={(e) => setWorkspaceId(e.target.value)}
                 >
-                  {pt.icon} {pt.label}
-                </button>
-              ))}
+                  <option value="">Auto (any workspace)</option>
+                  {(workspacesQuery.data ?? []).map((ws: { id: string; name: string }) => (
+                    <option key={ws.id} value={ws.id}>
+                      {ws.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <button
               className="cyber-btn-primary cyber-btn-sm"
               disabled={!brief.trim() || createMut.isPending}
-              onClick={() => createMut.mutate({ brief: brief.trim(), projectType })}
+              onClick={() =>
+                createMut.mutate({
+                  brief: brief.trim(),
+                  projectType,
+                  workspaceId: workspaceId || undefined,
+                })
+              }
             >
               {createMut.isPending ? 'Decomposing & Building...' : 'Build Project'}
             </button>

@@ -158,6 +158,15 @@ export const miniBrainFactoryRouter = router({
             model: ORCHESTRATOR_MODEL,
             requiredModelType: 'router',
             tags: ['orchestrator', template.id],
+            toolAccess: [
+              'create_ticket',
+              'query_system',
+              'memory_store',
+              'memory_search',
+              'workspace_files',
+              'web_search',
+              'db_query',
+            ],
           })
           .returning()
 
@@ -183,6 +192,21 @@ export const miniBrainFactoryRouter = router({
               model: modelForRole(agentDef.role),
               requiredModelType: 'agentic',
               tags: [template.id, 'domain-agent'],
+              toolAccess: [
+                'workspace_files',
+                'web_search',
+                'web_scrape',
+                'memory_store',
+                'memory_search',
+                'db_query',
+                'file_system',
+                'render_preview',
+                'generate_design_system',
+                'design_intelligence',
+                'code_review',
+                'guest_review_analyze',
+                'guest_review_history',
+              ],
             })
             .returning()
 

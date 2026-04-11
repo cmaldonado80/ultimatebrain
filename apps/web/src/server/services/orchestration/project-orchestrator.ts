@@ -328,6 +328,7 @@ export async function materializeProject(
       name: plan.name,
       goal: plan.goal,
       domain: plan.domain,
+      workspaceId: opts?.workspaceId ?? null,
       status: 'active',
     })
     .returning()
