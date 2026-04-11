@@ -166,6 +166,12 @@ function layoutDAG(tasks: DAGTask[]): {
   return { nodes, width: Math.max(maxX, 400), height: Math.max(maxY, 200) }
 }
 
+function formatElapsed(startIso: string): string {
+  const elapsed = Math.floor((Date.now() - new Date(startIso).getTime()) / 1000)
+  if (elapsed < 60) return `${elapsed}s`
+  return `${Math.floor(elapsed / 60)}m${elapsed % 60}s`
+}
+
 function NodeProgressBar({ node }: { node: DAGTask & { x: number; y: number } }) {
   const pct = node.status === 'done' ? 100 : ((node.metadata?.executionProgress as number) ?? 0)
   const barW = NODE_W - 28
@@ -299,7 +305,7 @@ function ProjectDAG({ tasks, onRetry }: { tasks: DAGTask[]; onRetry: (id: string
               {node.title.length > 18 ? node.title.slice(0, 18) + '...' : node.title}
             </text>
 
-            {/* Status label */}
+            {/* Status label + elapsed time */}
             <text
               x={node.x + 14}
               y={node.y + 36}
@@ -312,6 +318,19 @@ function ProjectDAG({ tasks, onRetry }: { tasks: DAGTask[]; onRetry: (id: string
                 ? ` → ${String(node.metadata.expectedArtifact).slice(0, 15)}`
                 : ''}
             </text>
+            {node.metadata?.executionStartedAt != null &&
+              (node.status === 'in_progress' || node.status === 'done') && (
+                <text
+                  x={node.x + NODE_W - 14}
+                  y={node.y + 36}
+                  fill="#64748b"
+                  fontSize={8}
+                  fontFamily="monospace"
+                  textAnchor="end"
+                >
+                  {formatElapsed(String(node.metadata.executionStartedAt))}
+                </text>
+              )}
 
             {/* Agent name */}
             {node.agentName && (

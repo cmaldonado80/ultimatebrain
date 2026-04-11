@@ -444,7 +444,14 @@ export async function executeNextWave(
   // Execute ready tickets IN PARALLEL
   // Transition all to in_progress first, then fire ModeRouter concurrently
   for (const ticket of readyTickets) {
-    await db.update(tickets).set({ status: 'in_progress' }).where(eq(tickets.id, ticket.id))
+    const existingMeta = (ticket.metadata as Record<string, unknown>) ?? {}
+    await db
+      .update(tickets)
+      .set({
+        status: 'in_progress',
+        metadata: { ...existingMeta, executionStartedAt: new Date().toISOString() },
+      })
+      .where(eq(tickets.id, ticket.id))
   }
 
   const execPromises = readyTickets.map(async (ticket) => {
