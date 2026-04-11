@@ -223,23 +223,22 @@ export async function smartCreateMiniBrain(
     bindingKey: entity.id,
   })
 
-  // Auto-create domain database tables
+  // Auto-create domain database tables (fallback schema, no LLM call for speed)
   try {
-    const { generateSchemaProposal, executeSqlBatch } = await import('./database-builder')
-    const domainBrief = `${template.domain} application with tables for: ${template.dbTables.join(', ')}`
-    const schema = await generateSchemaProposal(db, domainBrief, template.domain)
-    if (schema.sql) {
-      const stmts = schema.sql
-        .split(';')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 10)
-      const results = await executeSqlBatch(db, stmts)
-      const created = results.filter((r) => r.success).length
-      logger.info(
-        { template: opts.template, tablesCreated: created },
-        '[SmartCreateHelper] Domain database tables provisioned',
-      )
-    }
+    const { executeSqlBatch } = await import('./database-builder')
+    const prefix = template.domain.toLowerCase().replace(/[^a-z]/g, '')
+    const fallbackSql = [
+      `CREATE TABLE IF NOT EXISTS ${prefix}_records (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid, name text NOT NULL, description text, data jsonb DEFAULT '{}', status text DEFAULT 'active', created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now())`,
+      `CREATE TABLE IF NOT EXISTS ${prefix}_reports (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid, record_id uuid, report_type text NOT NULL, title text NOT NULL, content text, sections jsonb DEFAULT '[]', created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now())`,
+      `CREATE INDEX IF NOT EXISTS ${prefix}_records_org_idx ON ${prefix}_records(organization_id)`,
+      `CREATE INDEX IF NOT EXISTS ${prefix}_reports_org_idx ON ${prefix}_reports(organization_id)`,
+    ]
+    const results = await executeSqlBatch(db, fallbackSql)
+    const created = results.filter((r) => r.success).length
+    logger.info(
+      { template: opts.template, tablesCreated: created },
+      '[SmartCreateHelper] Domain tables provisioned (fallback)',
+    )
   } catch (dbErr) {
     logger.warn(
       { err: dbErr instanceof Error ? dbErr.message : undefined },

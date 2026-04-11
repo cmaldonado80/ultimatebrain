@@ -238,23 +238,24 @@ export async function launchDomainApp(
     }
   }
 
-  // 2b — Auto-provision domain database tables
+  // 2b — Auto-provision domain database tables (uses fallback schema, no LLM call)
   if (template && workspaceId) {
     try {
-      const { generateSchemaProposal, executeSqlBatch } = await import('./database-builder')
-      const schema = await generateSchemaProposal(db, brief, template)
-      if (schema.sql) {
-        const stmts = schema.sql
-          .split(';')
-          .map((s) => s.trim())
-          .filter((s) => s.length > 10)
-        const results = await executeSqlBatch(db, stmts)
-        const created = results.filter((r) => r.success).length
-        logger.info(
-          { template, tablesCreated: created, total: stmts.length },
-          '[DomainAppLauncher] Database schema provisioned',
-        )
-      }
+      const { executeSqlBatch } = await import('./database-builder')
+      // Use simple fallback tables to avoid LLM timeout during launch
+      const prefix = template.toLowerCase()
+      const fallbackSql = [
+        `CREATE TABLE IF NOT EXISTS ${prefix}_records (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid, name text NOT NULL, description text, data jsonb DEFAULT '{}', status text DEFAULT 'active', created_by_user_id uuid, created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now())`,
+        `CREATE TABLE IF NOT EXISTS ${prefix}_reports (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid, record_id uuid, report_type text NOT NULL, title text NOT NULL, content text, sections jsonb DEFAULT '[]', created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now())`,
+        `CREATE INDEX IF NOT EXISTS ${prefix}_records_org_idx ON ${prefix}_records(organization_id)`,
+        `CREATE INDEX IF NOT EXISTS ${prefix}_reports_org_idx ON ${prefix}_reports(organization_id)`,
+      ]
+      const results = await executeSqlBatch(db, fallbackSql)
+      const created = results.filter((r) => r.success).length
+      logger.info(
+        { template, tablesCreated: created },
+        '[DomainAppLauncher] Domain tables provisioned (fallback)',
+      )
     } catch (err) {
       logger.warn(
         { err: err instanceof Error ? err.message : undefined },
