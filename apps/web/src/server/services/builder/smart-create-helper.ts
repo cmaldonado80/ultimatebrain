@@ -223,6 +223,30 @@ export async function smartCreateMiniBrain(
     bindingKey: entity.id,
   })
 
+  // Auto-create domain database tables
+  try {
+    const { generateSchemaProposal, executeSqlBatch } = await import('./database-builder')
+    const domainBrief = `${template.domain} application with tables for: ${template.dbTables.join(', ')}`
+    const schema = await generateSchemaProposal(db, domainBrief, template.domain)
+    if (schema.sql) {
+      const stmts = schema.sql
+        .split(';')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 10)
+      const results = await executeSqlBatch(db, stmts)
+      const created = results.filter((r) => r.success).length
+      logger.info(
+        { template: opts.template, tablesCreated: created },
+        '[SmartCreateHelper] Domain database tables provisioned',
+      )
+    }
+  } catch (dbErr) {
+    logger.warn(
+      { err: dbErr instanceof Error ? dbErr.message : undefined },
+      '[SmartCreateHelper] DB provisioning failed (non-blocking)',
+    )
+  }
+
   logger.info(
     { entityId: entity.id, workspaceId: ws.id, agents: agentCount, template: opts.template },
     '[SmartCreateHelper] Mini Brain created',

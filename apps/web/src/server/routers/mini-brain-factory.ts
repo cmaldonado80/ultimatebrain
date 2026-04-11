@@ -277,6 +277,32 @@ export const miniBrainFactoryRouter = router({
           .where(eq(brainEntities.id, txResult.entity.id))
       }
 
+      // 10. Auto-create domain database tables from template
+      try {
+        const { generateSchemaProposal, executeSqlBatch } =
+          await import('../services/builder/database-builder')
+        const domainBrief = `${template.domain} application with tables for: ${template.dbTables.join(', ')}`
+        const schema = await generateSchemaProposal(ctx.db, domainBrief, template.domain)
+        if (schema.sql) {
+          const stmts = schema.sql
+            .split(';')
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 10)
+          const results = await executeSqlBatch(ctx.db, stmts)
+          const created = results.filter((r) => r.success).length
+          logger.info(
+            { template: template.id, tablesCreated: created, total: stmts.length },
+            '[smartCreate] Domain database tables provisioned',
+          )
+        }
+      } catch (dbErr) {
+        // Non-blocking — tables can be created later via Database Builder
+        logger.warn(
+          { err: dbErr instanceof Error ? dbErr.message : undefined },
+          '[smartCreate] Domain DB provisioning failed (non-blocking)',
+        )
+      }
+
       // Audit: log Mini Brain creation
       await auditEvent(
         ctx.db,
