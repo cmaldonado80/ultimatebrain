@@ -695,13 +695,16 @@ export default function MiniBrainFactoryPage() {
     },
   })
 
-  // Delete entity
+  // Delete entity (full cascade: agents, workspace, bindings, entity)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-  const deleteEntityMutation = trpc.entities.delete.useMutation({
+  const deleteEntityMutation = trpc.factory.deleteMiniBrain.useMutation({
     onSuccess: () => {
       setDeleteConfirm(null)
       utils.entities.topology.invalidate()
     },
+  })
+  const deleteAllMutation = trpc.factory.deleteAllMiniBrains.useMutation({
+    onSuccess: () => utils.entities.topology.invalidate(),
   })
 
   // Update entity status
@@ -958,6 +961,26 @@ export default function MiniBrainFactoryPage() {
 
       {/* Active Departments */}
       <SectionCard title="Active Departments" className="mb-6">
+        {miniBrains.length > 0 && (
+          <div className="flex justify-end mb-3">
+            <button
+              className="cyber-btn-secondary cyber-btn-xs text-neon-red"
+              disabled={deleteAllMutation.isPending}
+              onClick={() => {
+                if (
+                  confirm(
+                    `DELETE ALL ${miniBrains.length} departments? This removes all agents, workspaces, and entities. This cannot be undone.`,
+                  )
+                )
+                  deleteAllMutation.mutate()
+              }}
+            >
+              {deleteAllMutation.isPending
+                ? 'Deleting All...'
+                : `Delete All (${miniBrains.length})`}
+            </button>
+          </div>
+        )}
         {miniBrains.length === 0 ? (
           <div className="text-xs text-slate-600 py-6 text-center">
             No departments provisioned yet. Use the form above to create one.
@@ -1034,7 +1057,7 @@ export default function MiniBrainFactoryPage() {
                       {deleteConfirm === mb.id ? (
                         <div className="flex gap-1">
                           <button
-                            onClick={() => deleteEntityMutation.mutate({ id: mb.id })}
+                            onClick={() => deleteEntityMutation.mutate({ entityId: mb.id })}
                             disabled={deleteEntityMutation.isPending}
                             className="cyber-btn-secondary text-[9px] px-2 py-0.5 text-neon-red border-neon-red/40"
                           >
@@ -1126,7 +1149,7 @@ export default function MiniBrainFactoryPage() {
                           {deleteConfirm === dev.id ? (
                             <div className="flex gap-1">
                               <button
-                                onClick={() => deleteEntityMutation.mutate({ id: dev.id })}
+                                onClick={() => deleteEntityMutation.mutate({ entityId: dev.id })}
                                 disabled={deleteEntityMutation.isPending}
                                 className="text-[9px] text-neon-red hover:underline"
                               >

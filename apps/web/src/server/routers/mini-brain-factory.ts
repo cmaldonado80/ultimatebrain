@@ -9,7 +9,7 @@ import {
   workspaceLifecycleEvents,
   workspaces,
 } from '@solarc/db'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { logger } from '../../lib/logger'
@@ -878,4 +878,142 @@ export const miniBrainFactoryRouter = router({
 
       return { added, existing: existingAgentNames.length, activated: added > 0 }
     }),
+
+  /**
+   * Delete a Mini Brain and all associated resources:
+   * agents, workspace bindings, workspace, entity-agent links, entity.
+   */
+  deleteMiniBrain: protectedProcedure
+    .input(z.object({ entityId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const entity = await ctx.db.query.brainEntities.findFirst({
+        where: eq(brainEntities.id, input.entityId),
+      })
+      if (!entity) throw new Error('Entity not found')
+
+      // Find workspace via binding
+      const binding = await ctx.db.query.workspaceBindings.findFirst({
+        where: and(
+          eq(workspaceBindings.bindingKey, input.entityId),
+          eq(workspaceBindings.bindingType, 'brain'),
+        ),
+      })
+      const wsId = binding?.workspaceId
+
+      // Delete agents in the workspace
+      if (wsId) {
+        const wsAgents = await ctx.db.query.agents.findMany({
+          where: eq(agents.workspaceId, wsId),
+        })
+        if (wsAgents.length > 0) {
+          const agentIds = wsAgents.map((a) => a.id)
+          // Delete entity-agent links
+          for (const agentId of agentIds) {
+            await ctx.db
+              .delete(brainEntityAgents)
+              .where(eq(brainEntityAgents.agentId, agentId))
+              .catch(() => {})
+          }
+          // Delete agents
+          await ctx.db.delete(agents).where(inArray(agents.id, agentIds))
+        }
+        // Delete workspace bindings
+        await ctx.db.delete(workspaceBindings).where(eq(workspaceBindings.workspaceId, wsId))
+        // Delete workspace lifecycle events
+        await ctx.db
+          .delete(workspaceLifecycleEvents)
+          .where(eq(workspaceLifecycleEvents.workspaceId, wsId))
+        // Delete workspace
+        await ctx.db.delete(workspaces).where(eq(workspaces.id, wsId))
+      }
+
+      // Delete any remaining entity-agent links
+      await ctx.db
+        .delete(brainEntityAgents)
+        .where(eq(brainEntityAgents.entityId, input.entityId))
+        .catch(() => {})
+
+      // Delete child entities (developments)
+      const children = await ctx.db.query.brainEntities.findMany({
+        where: eq(brainEntities.parentId, input.entityId),
+      })
+      for (const child of children) {
+        await ctx.db
+          .delete(brainEntityAgents)
+          .where(eq(brainEntityAgents.entityId, child.id))
+          .catch(() => {})
+        await ctx.db.delete(brainEntities).where(eq(brainEntities.id, child.id))
+      }
+
+      // Delete entity
+      await ctx.db.delete(brainEntities).where(eq(brainEntities.id, input.entityId))
+
+      await auditEvent(
+        ctx.db,
+        ctx.session.userId,
+        'delete_mini_brain',
+        'brain_entity',
+        input.entityId,
+      )
+
+      logger.info(
+        { entityId: input.entityId, name: entity.name, wsId },
+        '[MiniBrainFactory] Mini Brain deleted with all resources',
+      )
+
+      return { deleted: true, name: entity.name }
+    }),
+
+  /** Delete ALL Mini Brains — full system reset */
+  deleteAllMiniBrains: protectedProcedure.mutation(async ({ ctx }) => {
+    const allEntities = await ctx.db.query.brainEntities.findMany()
+    let deleted = 0
+
+    for (const entity of allEntities) {
+      // Find workspace
+      const binding = await ctx.db.query.workspaceBindings.findFirst({
+        where: and(
+          eq(workspaceBindings.bindingKey, entity.id),
+          eq(workspaceBindings.bindingType, 'brain'),
+        ),
+      })
+
+      if (binding?.workspaceId) {
+        const wsAgents = await ctx.db.query.agents.findMany({
+          where: eq(agents.workspaceId, binding.workspaceId),
+        })
+        for (const agent of wsAgents) {
+          await ctx.db
+            .delete(brainEntityAgents)
+            .where(eq(brainEntityAgents.agentId, agent.id))
+            .catch(() => {})
+        }
+        if (wsAgents.length > 0) {
+          await ctx.db.delete(agents).where(
+            inArray(
+              agents.id,
+              wsAgents.map((a) => a.id),
+            ),
+          )
+        }
+        await ctx.db
+          .delete(workspaceBindings)
+          .where(eq(workspaceBindings.workspaceId, binding.workspaceId))
+        await ctx.db
+          .delete(workspaceLifecycleEvents)
+          .where(eq(workspaceLifecycleEvents.workspaceId, binding.workspaceId))
+        await ctx.db.delete(workspaces).where(eq(workspaces.id, binding.workspaceId))
+      }
+
+      await ctx.db
+        .delete(brainEntityAgents)
+        .where(eq(brainEntityAgents.entityId, entity.id))
+        .catch(() => {})
+      await ctx.db.delete(brainEntities).where(eq(brainEntities.id, entity.id))
+      deleted++
+    }
+
+    logger.info({ deleted }, '[MiniBrainFactory] All Mini Brains deleted')
+    return { deleted }
+  }),
 })
