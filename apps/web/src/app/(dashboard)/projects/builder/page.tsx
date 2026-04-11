@@ -53,10 +53,30 @@ const PROJECT_TYPES: { value: ProjectType; label: string; icon: string }[] = [
 ]
 
 const EXAMPLE_BRIEFS = [
+  'Build an astrology website with natal chart calculator, daily horoscopes, and compatibility reports',
   'Build a landing page for a coffee shop with hero, menu, testimonials, and contact form',
-  'Create a portfolio website for a photographer with gallery, about, and booking page',
+  'Create a hotel management dashboard with guest reviews, room status, and booking analytics',
   'Design a SaaS pricing page with 3 tiers, feature comparison, and FAQ section',
 ]
+
+const DOMAIN_TEMPLATES = [
+  {
+    value: 'astrology',
+    label: 'Astrology',
+    icon: '☉',
+    desc: 'Swiss Ephemeris + charts + horoscopes',
+  },
+  {
+    value: 'hospitality',
+    label: 'Hospitality',
+    icon: '🏨',
+    desc: 'Hotels, restaurants, guest management',
+  },
+  { value: 'healthcare', label: 'Healthcare', icon: '🏥', desc: 'Medical, wellness, telemedicine' },
+  { value: 'marketing', label: 'Marketing', icon: '📣', desc: 'Campaigns, content, analytics' },
+  { value: 'engineering', label: 'Engineering', icon: '⚙', desc: 'Software, APIs, infrastructure' },
+  { value: 'design', label: 'Design', icon: '◈', desc: 'UI/UX, branding, prototyping' },
+] as const
 
 // ── Component ────────────────────────────────────────────────────────────
 
@@ -64,9 +84,17 @@ export default function ProjectBuilderPage() {
   const [brief, setBrief] = useState('')
   const [projectType, setProjectType] = useState<ProjectType>('landing-page')
   const [workspaceId, setWorkspaceId] = useState<string>('')
+  const [domainTemplate, setDomainTemplate] = useState<string>('')
+  const [launchMode, setLaunchMode] = useState<'project' | 'domain'>('domain')
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null)
   const [changeRequest, setChangeRequest] = useState('')
+  const [launchInfo, setLaunchInfo] = useState<{
+    entityId: string | null
+    workspaceName: string
+    agentCount: number
+    template: string | null
+  } | null>(null)
 
   const workspacesQuery = trpc.workspaces.list.useQuery(
     { limit: 50, offset: 0 },
@@ -79,6 +107,22 @@ export default function ProjectBuilderPage() {
   )
   const utils = trpc.useUtils()
 
+  // Domain App Launch (unified: detect template → create department → build)
+  const launchMut = trpc.builder.launchDomainApp.useMutation({
+    onSuccess: (data) => {
+      setActiveProjectId(data.projectId)
+      setBrief('')
+      setLaunchInfo({
+        entityId: data.entityId,
+        workspaceName: data.workspaceName,
+        agentCount: data.agentCount,
+        template: data.template,
+      })
+      utils.builder.listBuilderProjects.invalidate()
+    },
+  })
+
+  // Simple project creation (no department)
   const createMut = trpc.builder.createProject.useMutation({
     onSuccess: (data) => {
       setActiveProjectId(data.projectId)
@@ -123,7 +167,7 @@ export default function ProjectBuilderPage() {
     <div className="p-6 text-slate-50">
       <PageHeader
         title="Project Builder"
-        subtitle="Describe what you want to build — AI agents decompose, design, code, and deliver"
+        subtitle="Describe what you want to build — AI agents create the department, assemble a team, and build it autonomously"
       />
 
       {/* ── Brief Input + Recent Projects ──────────────────────────────── */}
@@ -132,7 +176,7 @@ export default function ProjectBuilderPage() {
           <SectionCard title="What do you want to build?" className="mb-6">
             <textarea
               className="cyber-input w-full h-28 resize-none mb-3"
-              placeholder="Describe your project... e.g. Build a landing page for a coffee shop with hero section, menu grid, testimonials, and contact form"
+              placeholder="e.g. Build an astrology website with natal chart calculator, daily horoscopes, and compatibility reports"
               value={brief}
               onChange={(e) => setBrief(e.target.value)}
             />
@@ -150,63 +194,160 @@ export default function ProjectBuilderPage() {
               ))}
             </div>
 
-            {/* Project type + Workspace selectors */}
-            <div className="flex items-center gap-4 mb-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500">Type:</span>
-                {PROJECT_TYPES.map((pt) => (
+            {/* Mode toggle */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setLaunchMode('domain')}
+                className={`text-[11px] px-4 py-2 rounded border transition-colors cursor-pointer ${
+                  launchMode === 'domain'
+                    ? 'border-neon-green bg-neon-green/10 text-neon-green'
+                    : 'border-border-dim text-slate-400 hover:border-white/10'
+                }`}
+              >
+                Launch Domain App
+                <span className="text-[9px] text-slate-500 block">
+                  Creates department + agents + project
+                </span>
+              </button>
+              <button
+                onClick={() => setLaunchMode('project')}
+                className={`text-[11px] px-4 py-2 rounded border transition-colors cursor-pointer ${
+                  launchMode === 'project'
+                    ? 'border-neon-blue bg-neon-blue/10 text-neon-blue'
+                    : 'border-border-dim text-slate-400 hover:border-white/10'
+                }`}
+              >
+                Simple Project
+                <span className="text-[9px] text-slate-500 block">Uses existing agents</span>
+              </button>
+            </div>
+
+            {/* Domain App Launch mode */}
+            {launchMode === 'domain' && (
+              <div className="mb-4">
+                <div className="text-[10px] text-slate-500 mb-2">
+                  Domain (auto-detected from brief, or select):
+                </div>
+                <div className="flex flex-wrap gap-1.5">
                   <button
-                    key={pt.value}
-                    onClick={() => setProjectType(pt.value)}
+                    onClick={() => setDomainTemplate('')}
                     className={`text-[11px] px-3 py-1.5 rounded border transition-colors cursor-pointer ${
-                      projectType === pt.value
-                        ? 'border-neon-blue bg-neon-blue/10 text-neon-blue'
+                      !domainTemplate
+                        ? 'border-neon-green bg-neon-green/10 text-neon-green'
                         : 'border-border-dim text-slate-400 hover:border-white/10'
                     }`}
                   >
-                    {pt.icon} {pt.label}
+                    Auto-detect
                   </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-500">Workspace:</span>
-                <select
-                  className="cyber-input cyber-input-sm w-48"
-                  value={workspaceId}
-                  onChange={(e) => setWorkspaceId(e.target.value)}
-                >
-                  <option value="">Auto (any workspace)</option>
-                  {(workspacesQuery.data ?? []).map((ws: { id: string; name: string }) => (
-                    <option key={ws.id} value={ws.id}>
-                      {ws.name}
-                    </option>
+                  {DOMAIN_TEMPLATES.map((dt) => (
+                    <button
+                      key={dt.value}
+                      onClick={() => setDomainTemplate(dt.value)}
+                      className={`text-[11px] px-3 py-1.5 rounded border transition-colors cursor-pointer ${
+                        domainTemplate === dt.value
+                          ? 'border-neon-green bg-neon-green/10 text-neon-green'
+                          : 'border-border-dim text-slate-400 hover:border-white/10'
+                      }`}
+                      title={dt.desc}
+                    >
+                      {dt.icon} {dt.label}
+                    </button>
                   ))}
-                </select>
-              </div>
-            </div>
-
-            <button
-              className="cyber-btn-primary cyber-btn-sm"
-              disabled={!brief.trim() || createMut.isPending}
-              onClick={() =>
-                createMut.mutate({
-                  brief: brief.trim(),
-                  projectType,
-                  workspaceId: workspaceId || undefined,
-                })
-              }
-            >
-              {createMut.isPending ? 'Decomposing & Building...' : 'Build Project'}
-            </button>
-
-            {createMut.isPending && (
-              <div className="mt-3 text-xs text-neon-blue animate-pulse">
-                AI is analyzing your brief, decomposing into tasks, creating the project DAG, and
-                starting execution...
+                </div>
               </div>
             )}
-            {createMut.error && (
-              <div className="mt-3 text-xs text-neon-red">Failed: {createMut.error.message}</div>
+
+            {/* Simple project mode */}
+            {launchMode === 'project' && (
+              <div className="flex items-center gap-4 mb-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-500">Type:</span>
+                  {PROJECT_TYPES.map((pt) => (
+                    <button
+                      key={pt.value}
+                      onClick={() => setProjectType(pt.value)}
+                      className={`text-[11px] px-3 py-1.5 rounded border transition-colors cursor-pointer ${
+                        projectType === pt.value
+                          ? 'border-neon-blue bg-neon-blue/10 text-neon-blue'
+                          : 'border-border-dim text-slate-400 hover:border-white/10'
+                      }`}
+                    >
+                      {pt.icon} {pt.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-500">Workspace:</span>
+                  <select
+                    className="cyber-input cyber-input-sm w-48"
+                    value={workspaceId}
+                    onChange={(e) => setWorkspaceId(e.target.value)}
+                  >
+                    <option value="">Auto (any workspace)</option>
+                    {(workspacesQuery.data ?? []).map((ws: { id: string; name: string }) => (
+                      <option key={ws.id} value={ws.id}>
+                        {ws.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Launch / Build buttons */}
+            {launchMode === 'domain' ? (
+              <button
+                className="cyber-btn-primary cyber-btn-sm"
+                disabled={!brief.trim() || launchMut.isPending}
+                onClick={() =>
+                  launchMut.mutate({
+                    brief: brief.trim(),
+                    template: (domainTemplate || undefined) as
+                      | 'astrology'
+                      | 'hospitality'
+                      | 'healthcare'
+                      | 'marketing'
+                      | 'soc-ops'
+                      | 'design'
+                      | 'engineering'
+                      | undefined,
+                  })
+                }
+              >
+                {launchMut.isPending ? 'Launching Domain App...' : 'Launch Domain App'}
+              </button>
+            ) : (
+              <button
+                className="cyber-btn-primary cyber-btn-sm"
+                disabled={!brief.trim() || createMut.isPending}
+                onClick={() =>
+                  createMut.mutate({
+                    brief: brief.trim(),
+                    projectType,
+                    workspaceId: workspaceId || undefined,
+                  })
+                }
+              >
+                {createMut.isPending ? 'Building...' : 'Build Project'}
+              </button>
+            )}
+
+            {/* Status messages */}
+            {launchMut.isPending && (
+              <div className="mt-3 text-xs text-neon-green animate-pulse">
+                Detecting domain... creating department + agents... decomposing into tasks...
+                starting autonomous execution...
+              </div>
+            )}
+            {createMut.isPending && (
+              <div className="mt-3 text-xs text-neon-blue animate-pulse">
+                Decomposing into tasks, creating project DAG, starting execution...
+              </div>
+            )}
+            {(launchMut.error ?? createMut.error) && (
+              <div className="mt-3 text-xs text-neon-red">
+                Failed: {(launchMut.error ?? createMut.error)?.message}
+              </div>
             )}
           </SectionCard>
 
@@ -254,6 +395,18 @@ export default function ProjectBuilderPage() {
               </div>
               {project.goal && (
                 <div className="text-xs text-slate-400 mt-1 ml-16">{project.goal}</div>
+              )}
+              {launchInfo && (
+                <div className="flex gap-3 mt-1 ml-16 text-[10px]">
+                  {launchInfo.template && (
+                    <span className="text-neon-green">Domain: {launchInfo.template}</span>
+                  )}
+                  <span className="text-slate-500">Workspace: {launchInfo.workspaceName}</span>
+                  <span className="text-slate-500">{launchInfo.agentCount} agents</span>
+                  {launchInfo.entityId && (
+                    <span className="text-neon-purple">Department created</span>
+                  )}
+                </div>
               )}
             </div>
             <div className="flex gap-2">

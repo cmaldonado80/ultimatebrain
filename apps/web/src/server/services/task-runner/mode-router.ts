@@ -522,6 +522,28 @@ export class ModeRouter {
         'architecture_decision',
         'guest_review_analyze',
         'guest_review_history',
+        // Ephemeris / Astrology tools
+        'ephemeris_natal_chart',
+        'ephemeris_current_transits',
+        'ephemeris_moon_phase',
+        'ephemeris_transit_calendar',
+        'ephemeris_panchanga',
+        'ephemeris_dasha',
+        'ephemeris_synastry',
+        'ephemeris_solar_return',
+        'ephemeris_profections',
+        'ephemeris_lunar_return',
+        'ephemeris_progressions',
+        'ephemeris_arabic_parts',
+        'ephemeris_patterns',
+        'ephemeris_firdaria',
+        'ephemeris_fixed_stars',
+        'ephemeris_dispositors',
+        'ephemeris_midpoints',
+        'ephemeris_medical',
+        'ephemeris_horary',
+        'ephemeris_electional',
+        'ephemeris_report',
       ]
       // Filter tools: whitelist first, then intersect with agent's toolAccess if set
       let availableTools = AGENT_TOOLS.filter((t) => CODE_TOOLS.includes(t.name))

@@ -386,4 +386,45 @@ export const builderRouter = router({
         .where(eq(tickets.id, input.ticketId))
       return { queued: true }
     }),
+
+  // ── Domain App Launcher (unified flow) ───────────────────────────────
+
+  /** Detect domain template from a brief */
+  detectDomain: protectedProcedure
+    .input(z.object({ brief: z.string().min(5) }))
+    .query(({ input }) => {
+      const { detectTemplate } =
+        require('../services/builder/domain-app-launcher') as typeof import('../services/builder/domain-app-launcher')
+      return { template: detectTemplate(input.brief) }
+    }),
+
+  /** Launch a full domain app: detect template → create department → create project → start building */
+  launchDomainApp: protectedProcedure
+    .input(
+      z.object({
+        brief: z.string().min(5).max(2000),
+        template: z
+          .enum([
+            'astrology',
+            'hospitality',
+            'healthcare',
+            'marketing',
+            'soc-ops',
+            'design',
+            'engineering',
+          ])
+          .optional(),
+        name: z.string().max(100).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { launchDomainApp } = await import('../services/builder/domain-app-launcher')
+      return launchDomainApp(ctx.db, {
+        brief: input.brief,
+        template: input.template,
+        name: input.name,
+        userId: ctx.session.userId,
+        organizationId: ctx.session.organizationId ?? undefined,
+      })
+    }),
 })
