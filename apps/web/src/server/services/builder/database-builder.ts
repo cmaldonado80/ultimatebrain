@@ -158,7 +158,11 @@ RULES:
     const text = response.content
     const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) ?? text.match(/(\{[\s\S]*\})/)
     if (jsonMatch?.[1]) {
-      proposal = JSON.parse(jsonMatch[1]) as SchemaProposal
+      try {
+        proposal = JSON.parse(jsonMatch[1]) as SchemaProposal
+      } catch {
+        // JSON parse failed — will use fallback
+      }
     }
   } catch (err) {
     logger.warn(

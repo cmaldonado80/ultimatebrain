@@ -155,7 +155,11 @@ export async function decomposeProject(
     const text = response.content
     const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) ?? text.match(/(\{[\s\S]*\})/)
     if (jsonMatch?.[1]) {
-      plan = JSON.parse(jsonMatch[1]) as ProjectPlan
+      try {
+        plan = JSON.parse(jsonMatch[1]) as ProjectPlan
+      } catch {
+        // JSON parse failed — will use fallback
+      }
     }
   } catch (err) {
     logger.warn(

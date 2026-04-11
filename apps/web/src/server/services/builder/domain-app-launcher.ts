@@ -286,10 +286,29 @@ export async function launchDomainApp(
         ? ('landing-page' as const)
         : ('general' as const)
 
-  const plan = await decomposeProject(db, brief, projectType)
-  const { projectId, ticketIds } = await materializeProject(db, plan, {
-    workspaceId: workspaceId ?? undefined,
-  })
+  let projectId: string
+  let ticketIds: string[]
+
+  try {
+    const plan = await decomposeProject(db, brief, projectType)
+    const result = await materializeProject(db, plan, {
+      workspaceId: workspaceId ?? undefined,
+    })
+    projectId = result.projectId
+    ticketIds = result.ticketIds
+  } catch (err) {
+    // If decomposition fails, use fallback plan directly
+    logger.warn(
+      { err: err instanceof Error ? err.message : undefined },
+      '[DomainAppLauncher] Decomposition failed, using fallback',
+    )
+    const plan = await decomposeProject(db, `Simple project: ${brief}`, 'landing-page')
+    const result = await materializeProject(db, plan, {
+      workspaceId: workspaceId ?? undefined,
+    })
+    projectId = result.projectId
+    ticketIds = result.ticketIds
+  }
 
   // 5 — Start execution
   await executeNextWave(db, projectId)
