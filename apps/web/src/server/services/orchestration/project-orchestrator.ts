@@ -11,7 +11,7 @@
  */
 
 import type { Database } from '@solarc/db'
-import { artifacts, projects, ticketDependencies, tickets } from '@solarc/db'
+import { agents, artifacts, projects, ticketDependencies, tickets } from '@solarc/db'
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 
 import { logger } from '../../../lib/logger'
@@ -50,9 +50,12 @@ export interface ProjectStatus {
     title: string
     status: string
     assignedAgentId: string | null
+    agentName: string | null
     result: string | null
     dagId: string | null
+    dagNodeType: string | null
     metadata: Record<string, unknown> | null
+    dependsOn: string[] // ticket IDs this task is blocked by
   }>
   artifacts: Array<{
     id: string
@@ -512,6 +515,37 @@ export async function getProjectStatus(
     ...recentArtifacts.filter((a) => !projectArtifacts.some((pa) => pa.id === a.id)),
   ]
 
+  // Get dependency edges for this project's tickets
+  const ticketIds = projectTickets.map((t) => t.id)
+  const deps =
+    ticketIds.length > 0
+      ? await db
+          .select()
+          .from(ticketDependencies)
+          .where(inArray(ticketDependencies.ticketId, ticketIds))
+      : []
+
+  // Build dependency map: ticketId → [blockedByTicketIds]
+  const depMap = new Map<string, string[]>()
+  for (const d of deps) {
+    const existing = depMap.get(d.ticketId) ?? []
+    existing.push(d.blockedByTicketId)
+    depMap.set(d.ticketId, existing)
+  }
+
+  // Get agent names for assigned agents
+  const assignedAgentIds = projectTickets
+    .map((t) => t.assignedAgentId)
+    .filter((id): id is string => !!id)
+  const agentNames =
+    assignedAgentIds.length > 0
+      ? await db
+          .select({ id: agents.id, name: agents.name })
+          .from(agents)
+          .where(inArray(agents.id, [...new Set(assignedAgentIds)]))
+      : []
+  const agentNameMap = new Map(agentNames.map((a) => [a.id, a.name]))
+
   const total = projectTickets.length
   const done = projectTickets.filter((t) => t.status === 'done').length
   const inProgress = projectTickets.filter((t) => t.status === 'in_progress').length
@@ -528,9 +562,12 @@ export async function getProjectStatus(
       title: t.title,
       status: t.status,
       assignedAgentId: t.assignedAgentId,
+      agentName: t.assignedAgentId ? (agentNameMap.get(t.assignedAgentId) ?? null) : null,
       result: t.result,
       dagId: t.dagId,
+      dagNodeType: t.dagNodeType,
       metadata: t.metadata as Record<string, unknown> | null,
+      dependsOn: depMap.get(t.id) ?? [],
     })),
     artifacts: allArtifacts.map((a) => ({
       id: a.id,

@@ -25,14 +25,6 @@ function statusColor(s: string): 'green' | 'blue' | 'yellow' | 'red' | 'purple' 
   return 'purple'
 }
 
-function statusIcon(s: string): string {
-  if (s === 'done') return '✓'
-  if (s === 'in_progress') return '●'
-  if (s === 'queued') return '○'
-  if (s === 'failed') return '✗'
-  return '◌'
-}
-
 function timeAgo(d: Date | string): string {
   const diff = Date.now() - new Date(d).getTime()
   if (diff < 60_000) return 'just now'
@@ -77,6 +69,290 @@ const DOMAIN_TEMPLATES = [
   { value: 'engineering', label: 'Engineering', icon: '⚙', desc: 'Software, APIs, infrastructure' },
   { value: 'design', label: 'Design', icon: '◈', desc: 'UI/UX, branding, prototyping' },
 ] as const
+
+// ── DAG Visualization ────────────────────────────────────────────────────
+
+interface DAGTask {
+  id: string
+  title: string
+  status: string
+  agentName: string | null
+  dagNodeType: string | null
+  dependsOn: string[]
+  metadata: Record<string, unknown> | null
+}
+
+const NODE_W = 180
+const NODE_H = 72
+const GAP_X = 40
+const GAP_Y = 30
+const PAD = 20
+
+function nodeStatusColor(s: string): string {
+  if (s === 'done') return '#22c55e'
+  if (s === 'in_progress') return '#3b82f6'
+  if (s === 'failed') return '#ef4444'
+  if (s === 'queued') return '#eab308'
+  return '#475569' // blocked/backlog
+}
+
+function nodeStatusBg(s: string): string {
+  if (s === 'done') return 'rgba(34,197,94,0.08)'
+  if (s === 'in_progress') return 'rgba(59,130,246,0.12)'
+  if (s === 'failed') return 'rgba(239,68,68,0.08)'
+  if (s === 'queued') return 'rgba(234,179,8,0.06)'
+  return 'rgba(71,85,105,0.05)'
+}
+
+function layoutDAG(tasks: DAGTask[]): {
+  nodes: Array<DAGTask & { x: number; y: number; wave: number }>
+  width: number
+  height: number
+} {
+  if (tasks.length === 0) return { nodes: [], width: 0, height: 0 }
+
+  // Assign waves via topological layering
+  const taskMap = new Map(tasks.map((t) => [t.id, t]))
+  const waveMap = new Map<string, number>()
+
+  function getWave(id: string, visited = new Set<string>()): number {
+    if (waveMap.has(id)) return waveMap.get(id)!
+    if (visited.has(id)) return 0
+    visited.add(id)
+    const task = taskMap.get(id)
+    if (!task || task.dependsOn.length === 0) {
+      waveMap.set(id, 0)
+      return 0
+    }
+    const maxParent = Math.max(...task.dependsOn.map((d) => getWave(d, visited)))
+    const w = maxParent + 1
+    waveMap.set(id, w)
+    return w
+  }
+
+  for (const t of tasks) getWave(t.id)
+
+  // Group by wave
+  const waves = new Map<number, DAGTask[]>()
+  for (const t of tasks) {
+    const w = waveMap.get(t.id) ?? 0
+    const arr = waves.get(w) ?? []
+    arr.push(t)
+    waves.set(w, arr)
+  }
+
+  const maxWave = Math.max(...waves.keys())
+  const nodes: Array<DAGTask & { x: number; y: number; wave: number }> = []
+
+  for (let w = 0; w <= maxWave; w++) {
+    const waveTasks = waves.get(w) ?? []
+    const totalWaveWidth = waveTasks.length * NODE_W + (waveTasks.length - 1) * GAP_X
+    const maxTotalWidth = (maxWave + 1) * NODE_W + maxWave * GAP_X
+    const startX = PAD + Math.max(0, (Math.max(totalWaveWidth, maxTotalWidth) - totalWaveWidth) / 2)
+
+    for (let i = 0; i < waveTasks.length; i++) {
+      nodes.push({
+        ...waveTasks[i]!,
+        x: startX + i * (NODE_W + GAP_X),
+        y: PAD + w * (NODE_H + GAP_Y),
+        wave: w,
+      })
+    }
+  }
+
+  const maxX = Math.max(...nodes.map((n) => n.x + NODE_W)) + PAD
+  const maxY = Math.max(...nodes.map((n) => n.y + NODE_H)) + PAD
+
+  return { nodes, width: Math.max(maxX, 400), height: Math.max(maxY, 200) }
+}
+
+function ProjectDAG({ tasks, onRetry }: { tasks: DAGTask[]; onRetry: (id: string) => void }) {
+  const { nodes, width, height } = layoutDAG(tasks)
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]))
+
+  if (nodes.length === 0) {
+    return <div className="text-xs text-slate-600 py-6 text-center">No tasks yet</div>
+  }
+
+  // Build edges
+  const edges: Array<{
+    from: { x: number; y: number }
+    to: { x: number; y: number }
+    done: boolean
+  }> = []
+  for (const node of nodes) {
+    for (const depId of node.dependsOn) {
+      const parent = nodeMap.get(depId)
+      if (parent) {
+        edges.push({
+          from: { x: parent.x + NODE_W / 2, y: parent.y + NODE_H },
+          to: { x: node.x + NODE_W / 2, y: node.y },
+          done: parent.status === 'done',
+        })
+      }
+    }
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <svg width={width} height={height} className="min-w-full">
+        {/* Edges */}
+        {edges.map((e, i) => {
+          const midY = (e.from.y + e.to.y) / 2
+          return (
+            <path
+              key={i}
+              d={`M${e.from.x},${e.from.y} C${e.from.x},${midY} ${e.to.x},${midY} ${e.to.x},${e.to.y}`}
+              fill="none"
+              stroke={e.done ? '#22c55e40' : '#475569'}
+              strokeWidth={2}
+              strokeDasharray={e.done ? 'none' : '4 4'}
+            />
+          )
+        })}
+
+        {/* Nodes */}
+        {nodes.map((node) => (
+          <g key={node.id}>
+            {/* Node background */}
+            <rect
+              x={node.x}
+              y={node.y}
+              width={NODE_W}
+              height={NODE_H}
+              rx={8}
+              fill={nodeStatusBg(node.status)}
+              stroke={nodeStatusColor(node.status)}
+              strokeWidth={node.status === 'in_progress' ? 2 : 1}
+              opacity={node.status === 'in_progress' ? 1 : 0.9}
+            />
+
+            {/* Pulsing ring for in_progress */}
+            {node.status === 'in_progress' && (
+              <rect
+                x={node.x}
+                y={node.y}
+                width={NODE_W}
+                height={NODE_H}
+                rx={8}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                opacity={0.4}
+              >
+                <animate
+                  attributeName="opacity"
+                  values="0.4;0;0.4"
+                  dur="2s"
+                  repeatCount="indefinite"
+                />
+              </rect>
+            )}
+
+            {/* Status dot */}
+            <circle cx={node.x + 14} cy={node.y + 16} r={4} fill={nodeStatusColor(node.status)} />
+
+            {/* Title */}
+            <text
+              x={node.x + 26}
+              y={node.y + 19}
+              fill="#e2e8f0"
+              fontSize={11}
+              fontWeight={600}
+              fontFamily="monospace"
+            >
+              {node.title.length > 18 ? node.title.slice(0, 18) + '...' : node.title}
+            </text>
+
+            {/* Status label */}
+            <text
+              x={node.x + 14}
+              y={node.y + 36}
+              fill={nodeStatusColor(node.status)}
+              fontSize={9}
+              fontFamily="monospace"
+            >
+              {node.status}
+              {node.metadata?.expectedArtifact
+                ? ` → ${String(node.metadata.expectedArtifact).slice(0, 15)}`
+                : ''}
+            </text>
+
+            {/* Agent name */}
+            {node.agentName && (
+              <text
+                x={node.x + 14}
+                y={node.y + 50}
+                fill="#64748b"
+                fontSize={9}
+                fontFamily="monospace"
+              >
+                ⬡{' '}
+                {node.agentName.length > 20 ? node.agentName.slice(0, 20) + '...' : node.agentName}
+              </text>
+            )}
+
+            {/* Wave label */}
+            <text
+              x={node.x + NODE_W - 12}
+              y={node.y + 64}
+              fill="#334155"
+              fontSize={8}
+              textAnchor="end"
+              fontFamily="monospace"
+            >
+              W{node.wave + 1}
+            </text>
+
+            {/* Retry button for failed */}
+            {node.status === 'failed' && (
+              <g onClick={() => onRetry(node.id)} className="cursor-pointer">
+                <rect
+                  x={node.x + NODE_W - 42}
+                  y={node.y + 4}
+                  width={36}
+                  height={16}
+                  rx={4}
+                  fill="#ef444420"
+                  stroke="#ef4444"
+                  strokeWidth={0.5}
+                />
+                <text
+                  x={node.x + NODE_W - 24}
+                  y={node.y + 15}
+                  fill="#ef4444"
+                  fontSize={8}
+                  textAnchor="middle"
+                  fontFamily="monospace"
+                >
+                  retry
+                </text>
+              </g>
+            )}
+          </g>
+        ))}
+
+        {/* Wave labels on left */}
+        {[...new Set(nodes.map((n) => n.wave))].map((w) => {
+          const firstNode = nodes.find((n) => n.wave === w)!
+          return (
+            <text
+              key={`wave-${w}`}
+              x={4}
+              y={firstNode.y + NODE_H / 2 + 3}
+              fill="#1e293b"
+              fontSize={9}
+              fontFamily="monospace"
+              fontWeight={700}
+            >
+              W{w + 1}
+            </text>
+          )
+        })}
+      </svg>
+    </div>
+  )
+}
 
 // ── Component ────────────────────────────────────────────────────────────
 
@@ -471,54 +747,15 @@ export default function ProjectBuilderPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* Task List */}
-            <SectionCard title={`Tasks (${project.tasks.length})`}>
-              <div className="space-y-1.5">
-                {project.tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className={`flex items-center gap-3 bg-bg-deep rounded px-3 py-2.5 border border-border-dim ${
-                      task.status === 'in_progress' ? 'border-neon-blue/30' : ''
-                    }`}
-                  >
-                    <span
-                      className={`text-sm flex-shrink-0 ${
-                        task.status === 'done'
-                          ? 'text-neon-green'
-                          : task.status === 'in_progress'
-                            ? 'text-neon-blue animate-pulse'
-                            : task.status === 'failed'
-                              ? 'text-neon-red'
-                              : 'text-slate-600'
-                      }`}
-                    >
-                      {statusIcon(task.status)}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] text-slate-200 font-medium truncate">
-                        {task.title}
-                      </div>
-                      <div className="text-[9px] text-slate-600">
-                        {task.status}
-                        {task.metadata?.expectedArtifact
-                          ? ` → ${String(task.metadata.expectedArtifact)}`
-                          : ''}
-                      </div>
-                    </div>
-                    {task.status === 'failed' && (
-                      <button
-                        className="text-[10px] text-neon-yellow hover:text-neon-blue cursor-pointer"
-                        onClick={() => retryMut.mutate({ ticketId: task.id })}
-                      >
-                        Retry
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+          {/* ── DAG Visualization ──────────────────────────────────────── */}
+          <SectionCard title={`Execution DAG (${project.tasks.length} tasks)`}>
+            <ProjectDAG
+              tasks={project.tasks}
+              onRetry={(ticketId) => retryMut.mutate({ ticketId })}
+            />
+          </SectionCard>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Artifacts + Preview */}
             <div className="space-y-4">
               <SectionCard title={`Artifacts (${project.artifacts.length})`}>
