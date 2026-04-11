@@ -435,6 +435,50 @@ export const builderRouter = router({
       return executeSqlBatch(ctx.db, input.statements)
     }),
 
+  /** Drop a table (non-system only) */
+  dropDatabaseTable: protectedProcedure
+    .input(z.object({ tableName: z.string().min(1).max(63) }))
+    .mutation(async ({ ctx, input }) => {
+      const { dropTable } = await import('../services/builder/database-builder')
+      return dropTable(ctx.db, input.tableName)
+    }),
+
+  /** Add a column to an existing table */
+  addDatabaseColumn: protectedProcedure
+    .input(
+      z.object({
+        tableName: z.string().min(1).max(63),
+        columnName: z.string().min(1).max(63),
+        columnType: z.string().min(1).max(50),
+        nullable: z.boolean().default(true),
+        defaultValue: z.string().max(200).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { addColumn } = await import('../services/builder/database-builder')
+      return addColumn(
+        ctx.db,
+        input.tableName,
+        input.columnName,
+        input.columnType,
+        input.nullable,
+        input.defaultValue,
+      )
+    }),
+
+  /** Drop a column from a table */
+  dropDatabaseColumn: protectedProcedure
+    .input(
+      z.object({
+        tableName: z.string().min(1).max(63),
+        columnName: z.string().min(1).max(63),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { dropColumn } = await import('../services/builder/database-builder')
+      return dropColumn(ctx.db, input.tableName, input.columnName)
+    }),
+
   /** Launch a full domain app: detect template → create department → create project → start building */
   launchDomainApp: protectedProcedure
     .input(

@@ -259,6 +259,110 @@ export async function executeSqlBatch(
   return results
 }
 
+// ── Table management ─────────────────────────────────────────────────────
+
+export async function dropTable(
+  db: Database,
+  tableName: string,
+): Promise<{ success: boolean; error?: string }> {
+  // Validate table name (no SQL injection)
+  if (!/^[a-z_][a-z0-9_]*$/i.test(tableName)) {
+    return { success: false, error: 'Invalid table name' }
+  }
+  // Block dropping system tables
+  const systemTables = [
+    'users',
+    'accounts',
+    'sessions',
+    'verification_tokens',
+    'user_roles',
+    'workspaces',
+    'agents',
+    'tickets',
+    'projects',
+    'brain_entities',
+    'organizations',
+    'organization_members',
+  ]
+  if (systemTables.includes(tableName)) {
+    return { success: false, error: 'Cannot drop system table' }
+  }
+  try {
+    await db.execute(sql.raw(`DROP TABLE IF EXISTS ${tableName} CASCADE`))
+    logger.info({ tableName }, '[DatabaseBuilder] Table dropped')
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Drop failed' }
+  }
+}
+
+export async function addColumn(
+  db: Database,
+  tableName: string,
+  columnName: string,
+  columnType: string,
+  nullable: boolean,
+  defaultValue?: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!/^[a-z_][a-z0-9_]*$/i.test(tableName) || !/^[a-z_][a-z0-9_]*$/i.test(columnName)) {
+    return { success: false, error: 'Invalid table or column name' }
+  }
+  const allowedTypes = [
+    'text',
+    'integer',
+    'bigint',
+    'real',
+    'boolean',
+    'uuid',
+    'jsonb',
+    'json',
+    'timestamp',
+    'date',
+    'time',
+    'numeric',
+    'smallint',
+    'varchar',
+  ]
+  const baseType = columnType.toLowerCase().split('(')[0]!.trim()
+  if (!allowedTypes.includes(baseType)) {
+    return {
+      success: false,
+      error: `Type "${columnType}" not allowed. Use: ${allowedTypes.join(', ')}`,
+    }
+  }
+  let ddl = `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS ${columnName} ${columnType}`
+  if (!nullable) ddl += ' NOT NULL'
+  if (defaultValue) ddl += ` DEFAULT ${defaultValue}`
+  try {
+    await db.execute(sql.raw(ddl))
+    logger.info({ tableName, columnName, columnType }, '[DatabaseBuilder] Column added')
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Add column failed' }
+  }
+}
+
+export async function dropColumn(
+  db: Database,
+  tableName: string,
+  columnName: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!/^[a-z_][a-z0-9_]*$/i.test(tableName) || !/^[a-z_][a-z0-9_]*$/i.test(columnName)) {
+    return { success: false, error: 'Invalid table or column name' }
+  }
+  // Block dropping critical columns
+  if (['id', 'created_at'].includes(columnName)) {
+    return { success: false, error: 'Cannot drop id or created_at columns' }
+  }
+  try {
+    await db.execute(sql.raw(`ALTER TABLE ${tableName} DROP COLUMN IF EXISTS ${columnName}`))
+    logger.info({ tableName, columnName }, '[DatabaseBuilder] Column dropped')
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Drop column failed' }
+  }
+}
+
 // ── Fallback schema ──────────────────────────────────────────────────────
 
 function buildFallbackSchema(_brief: string, domain?: string): SchemaProposal {
