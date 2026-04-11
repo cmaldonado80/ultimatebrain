@@ -411,6 +411,32 @@ export async function executeNextWave(
     where: eq(tickets.projectId, projectId),
   })
 
+  // Auto-recover stuck tasks: if in_progress for > 2 min, reset to queued
+  const STUCK_THRESHOLD_MS = 2 * 60 * 1000
+  for (const ticket of projectTickets) {
+    if (ticket.status === 'in_progress') {
+      const meta = (ticket.metadata as Record<string, unknown>) ?? {}
+      const startedAt = meta.executionStartedAt as string | undefined
+      if (startedAt) {
+        const elapsed = Date.now() - new Date(startedAt).getTime()
+        if (elapsed > STUCK_THRESHOLD_MS) {
+          await db
+            .update(tickets)
+            .set({
+              status: 'queued',
+              metadata: { ...meta, executionProgress: 0, retriedAt: new Date().toISOString() },
+            })
+            .where(eq(tickets.id, ticket.id))
+          ticket.status = 'queued' // update local ref
+          logger.info(
+            { ticketId: ticket.id, elapsed: Math.round(elapsed / 1000) },
+            '[ProjectOrchestrator] Auto-recovered stuck task',
+          )
+        }
+      }
+    }
+  }
+
   const total = projectTickets.length
   const doneCount = projectTickets.filter((t) => t.status === 'done').length
   const failedCount = projectTickets.filter((t) => t.status === 'failed').length
@@ -441,45 +467,35 @@ export async function executeNextWave(
     return blockers.every((b) => doneSet.has(b))
   })
 
-  // Execute ready tickets IN PARALLEL
-  // Transition all to in_progress first, then fire ModeRouter concurrently
-  for (const ticket of readyTickets) {
-    const existingMeta = (ticket.metadata as Record<string, unknown>) ?? {}
-    await db
-      .update(tickets)
-      .set({
-        status: 'in_progress',
-        metadata: { ...existingMeta, executionStartedAt: new Date().toISOString() },
-      })
-      .where(eq(tickets.id, ticket.id))
+  // Execute ONE ready ticket per call (avoids Vercel serverless timeout)
+  // The UI polls every 4s and auto-triggers executeNextWave when tasks are ready
+  const ticket = readyTickets[0]
+  if (!ticket) {
+    return { executed: 0, remaining: total - doneCount, done: false }
   }
 
-  const execPromises = readyTickets.map(async (ticket) => {
-    try {
-      const { ModeRouter } = await import('../task-runner/mode-router')
-      const router = new ModeRouter(db)
-      await router.route(ticket.id, ticket.description ?? ticket.title, {
-        forceMode: 'autonomous',
-      })
-    } catch (routerErr) {
-      logger.warn(
-        { ticketId: ticket.id, err: routerErr instanceof Error ? routerErr.message : undefined },
-        '[ProjectOrchestrator] ModeRouter execution failed',
-      )
-    }
-  })
+  const existingMeta = (ticket.metadata as Record<string, unknown>) ?? {}
+  await db
+    .update(tickets)
+    .set({
+      status: 'in_progress',
+      metadata: { ...existingMeta, executionStartedAt: new Date().toISOString() },
+    })
+    .where(eq(tickets.id, ticket.id))
 
-  // Await all with a timeout to stay within serverless limits
-  // Execute in parallel but don't exceed 55s total (Vercel Pro limit ~60s)
   try {
-    await Promise.race([
-      Promise.allSettled(execPromises),
-      new Promise((resolve) => setTimeout(resolve, 55000)),
-    ])
-  } catch {
-    // timeout or error — tasks stay in_progress, can be retried
+    const { ModeRouter } = await import('../task-runner/mode-router')
+    const router = new ModeRouter(db)
+    await router.route(ticket.id, ticket.description ?? ticket.title, {
+      forceMode: 'autonomous',
+    })
+  } catch (routerErr) {
+    logger.warn(
+      { ticketId: ticket.id, err: routerErr instanceof Error ? routerErr.message : undefined },
+      '[ProjectOrchestrator] ModeRouter execution failed',
+    )
   }
-  const executed = readyTickets.length
+  const executed = 1
 
   return { executed, remaining: total - doneCount - executed, done: false }
 }

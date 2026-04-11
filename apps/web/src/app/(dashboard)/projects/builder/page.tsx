@@ -6,7 +6,7 @@
  * reviewable artifacts with live preview.
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { PageGrid } from '../../../../components/ui/page-grid'
 import { PageHeader } from '../../../../components/ui/page-header'
@@ -497,6 +497,13 @@ export default function ProjectBuilderPage() {
     project.status === 'active' &&
     project.tasks.some((t) => t.status === 'queued') &&
     !project.tasks.some((t) => t.status === 'in_progress')
+
+  // Auto-execute next task when current one finishes
+  useEffect(() => {
+    if (hasReadyWork && activeProjectId && !executeWaveMut.isPending) {
+      executeWaveMut.mutate({ projectId: activeProjectId })
+    }
+  }, [hasReadyWork, activeProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="p-6 text-slate-50">
