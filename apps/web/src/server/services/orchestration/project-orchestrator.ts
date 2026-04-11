@@ -441,37 +441,31 @@ export async function executeNextWave(
     return blockers.every((b) => doneSet.has(b))
   })
 
-  // Execute ready tickets
-  let executed = 0
+  // Execute ready tickets IN PARALLEL
+  // Transition all to in_progress first, then fire ModeRouter concurrently
   for (const ticket of readyTickets) {
+    await db.update(tickets).set({ status: 'in_progress' }).where(eq(tickets.id, ticket.id))
+  }
+
+  const execPromises = readyTickets.map(async (ticket) => {
     try {
-      // Transition to in_progress
-      await db.update(tickets).set({ status: 'in_progress' }).where(eq(tickets.id, ticket.id))
-
-      // Try to execute via ModeRouter
-      try {
-        const { ModeRouter } = await import('../task-runner/mode-router')
-        const router = new ModeRouter(db)
-        await router.route(ticket.id, ticket.description ?? ticket.title, {
-          forceMode: 'autonomous',
-        })
-      } catch (routerErr) {
-        // If ModeRouter fails (e.g. no agents), just leave ticket in_progress
-        // It will be picked up by the worker cron
-        logger.warn(
-          { ticketId: ticket.id, err: routerErr instanceof Error ? routerErr.message : undefined },
-          '[ProjectOrchestrator] ModeRouter execution deferred',
-        )
-      }
-
-      executed++
-    } catch (err) {
+      const { ModeRouter } = await import('../task-runner/mode-router')
+      const router = new ModeRouter(db)
+      await router.route(ticket.id, ticket.description ?? ticket.title, {
+        forceMode: 'autonomous',
+      })
+    } catch (routerErr) {
       logger.warn(
-        { ticketId: ticket.id, err: err instanceof Error ? err.message : undefined },
-        '[ProjectOrchestrator] Failed to execute ticket',
+        { ticketId: ticket.id, err: routerErr instanceof Error ? routerErr.message : undefined },
+        '[ProjectOrchestrator] ModeRouter execution deferred',
       )
     }
-  }
+  })
+
+  // Don't await all — let them run concurrently, but don't block the response
+  // We fire-and-forget so the UI gets a response immediately
+  Promise.allSettled(execPromises).catch(() => {})
+  const executed = readyTickets.length
 
   return { executed, remaining: total - doneCount - executed, done: false }
 }
