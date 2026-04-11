@@ -238,6 +238,31 @@ export async function launchDomainApp(
     }
   }
 
+  // 2b — Auto-provision domain database tables
+  if (template && workspaceId) {
+    try {
+      const { generateSchemaProposal, executeSqlBatch } = await import('./database-builder')
+      const schema = await generateSchemaProposal(db, brief, template)
+      if (schema.sql) {
+        const stmts = schema.sql
+          .split(';')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 10)
+        const results = await executeSqlBatch(db, stmts)
+        const created = results.filter((r) => r.success).length
+        logger.info(
+          { template, tablesCreated: created, total: stmts.length },
+          '[DomainAppLauncher] Database schema provisioned',
+        )
+      }
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err.message : undefined },
+        '[DomainAppLauncher] DB provisioning failed (non-blocking)',
+      )
+    }
+  }
+
   // 3 — Fallback: find any workspace with idle agents
   if (!workspaceId) {
     const anyWs = await db.query.workspaces.findFirst({

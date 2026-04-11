@@ -75,6 +75,7 @@ const BASE_NAV_SECTIONS: NavSection[] = [
     title: 'Build',
     items: [
       { label: 'Project Builder', href: '/projects/builder', icon: '▷' },
+      { label: 'Database Builder', href: '/database-builder', icon: '◆' },
       { label: 'Workflow Builder', href: '/workflows/builder', icon: '◈' },
       { label: 'Playbooks', href: '/playbooks', icon: '▶' },
       { label: 'Skills & Tools', href: '/skills', icon: '★' },

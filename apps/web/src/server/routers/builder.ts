@@ -398,6 +398,43 @@ export const builderRouter = router({
       return { template: detectTemplate(input.brief) }
     }),
 
+  // ── Database Builder ──────────────────────────────────────────────────
+
+  /** List all tables in the database with columns and stats */
+  listDatabaseTables: protectedProcedure.query(async ({ ctx }) => {
+    const { listTables } = await import('../services/builder/database-builder')
+    return listTables(ctx.db)
+  }),
+
+  /** Generate a schema proposal from a brief via LLM */
+  generateSchema: protectedProcedure
+    .input(
+      z.object({
+        brief: z.string().min(5).max(2000),
+        domain: z.string().max(50).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { generateSchemaProposal } = await import('../services/builder/database-builder')
+      return generateSchemaProposal(ctx.db, input.brief, input.domain)
+    }),
+
+  /** Create a single table from SQL */
+  createDatabaseTable: protectedProcedure
+    .input(z.object({ sql: z.string().min(10).max(5000) }))
+    .mutation(async ({ ctx, input }) => {
+      const { createTable } = await import('../services/builder/database-builder')
+      return createTable(ctx.db, input.sql)
+    }),
+
+  /** Execute a batch of CREATE TABLE/INDEX statements */
+  executeSchemaBatch: protectedProcedure
+    .input(z.object({ statements: z.array(z.string().max(5000)) }))
+    .mutation(async ({ ctx, input }) => {
+      const { executeSqlBatch } = await import('../services/builder/database-builder')
+      return executeSqlBatch(ctx.db, input.statements)
+    }),
+
   /** Launch a full domain app: detect template → create department → create project → start building */
   launchDomainApp: protectedProcedure
     .input(
