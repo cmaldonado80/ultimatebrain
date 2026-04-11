@@ -464,14 +464,21 @@ export async function executeNextWave(
     } catch (routerErr) {
       logger.warn(
         { ticketId: ticket.id, err: routerErr instanceof Error ? routerErr.message : undefined },
-        '[ProjectOrchestrator] ModeRouter execution deferred',
+        '[ProjectOrchestrator] ModeRouter execution failed',
       )
     }
   })
 
-  // Don't await all — let them run concurrently, but don't block the response
-  // We fire-and-forget so the UI gets a response immediately
-  Promise.allSettled(execPromises).catch(() => {})
+  // Await all with a timeout to stay within serverless limits
+  // Execute in parallel but don't exceed 55s total (Vercel Pro limit ~60s)
+  try {
+    await Promise.race([
+      Promise.allSettled(execPromises),
+      new Promise((resolve) => setTimeout(resolve, 55000)),
+    ])
+  } catch {
+    // timeout or error — tasks stay in_progress, can be retried
+  }
   const executed = readyTickets.length
 
   return { executed, remaining: total - doneCount - executed, done: false }
