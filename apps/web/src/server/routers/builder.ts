@@ -282,4 +282,108 @@ export const builderRouter = router({
       )
       return { rejected: true }
     }),
+
+  // ── Project Builder ──────────────────────────────────────────────────
+
+  /** Decompose a brief into a project plan (preview before building) */
+  decomposeProject: protectedProcedure
+    .input(
+      z.object({
+        brief: z.string().min(5).max(2000),
+        projectType: z.enum(['landing-page', 'api', 'full-stack', 'general']).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { decomposeProject } = await import('../services/orchestration/project-orchestrator')
+      return decomposeProject(ctx.db, input.brief, input.projectType)
+    }),
+
+  /** Create a project from a brief — decompose + materialize + start execution */
+  createProject: protectedProcedure
+    .input(
+      z.object({
+        brief: z.string().min(5).max(2000),
+        projectType: z.enum(['landing-page', 'api', 'full-stack', 'general']).optional(),
+        workspaceId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { decomposeProject, materializeProject, executeNextWave } =
+        await import('../services/orchestration/project-orchestrator')
+      const plan = await decomposeProject(ctx.db, input.brief, input.projectType)
+      const { projectId, ticketIds } = await materializeProject(ctx.db, plan, {
+        workspaceId: input.workspaceId,
+      })
+      // Start first wave
+      const wave = await executeNextWave(ctx.db, projectId)
+      return { projectId, ticketIds, plan, wave }
+    }),
+
+  /** Get project status with tasks + artifacts */
+  getProjectStatus: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { getProjectStatus } = await import('../services/orchestration/project-orchestrator')
+      return getProjectStatus(ctx.db, input.id)
+    }),
+
+  /** List all builder projects */
+  listBuilderProjects: protectedProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(50).optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db.query.projects.findMany({
+        orderBy: (p, { desc }) => [desc(p.createdAt)],
+        limit: input?.limit ?? 20,
+      })
+      return rows
+    }),
+
+  /** Execute next wave of ready tickets for a project */
+  executeNextWave: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { executeNextWave } = await import('../services/orchestration/project-orchestrator')
+      return executeNextWave(ctx.db, input.projectId)
+    }),
+
+  /** Request a revision/change to a project */
+  requestProjectChange: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        description: z.string().min(5).max(1000),
+        targetTicketId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { requestChange } = await import('../services/orchestration/project-orchestrator')
+      const ticketId = await requestChange(
+        ctx.db,
+        input.projectId,
+        input.description,
+        input.targetTicketId,
+      )
+      return { ticketId }
+    }),
+
+  /** Delete a builder project and all its tickets */
+  deleteBuilderProject: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { deleteProject } = await import('../services/orchestration/project-orchestrator')
+      return deleteProject(ctx.db, input.id)
+    }),
+
+  /** Retry a failed task */
+  retryTask: protectedProcedure
+    .input(z.object({ ticketId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { tickets } = await import('@solarc/db')
+      const { eq } = await import('drizzle-orm')
+      await ctx.db
+        .update(tickets)
+        .set({ status: 'queued', result: null })
+        .where(eq(tickets.id, input.ticketId))
+      return { queued: true }
+    }),
 })
