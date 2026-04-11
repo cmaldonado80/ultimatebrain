@@ -82,8 +82,8 @@ interface DAGTask {
   metadata: Record<string, unknown> | null
 }
 
-const NODE_W = 180
-const NODE_H = 72
+const NODE_W = 190
+const NODE_H = 82
 const GAP_X = 40
 const GAP_Y = 30
 const PAD = 20
@@ -164,6 +164,41 @@ function layoutDAG(tasks: DAGTask[]): {
   const maxY = Math.max(...nodes.map((n) => n.y + NODE_H)) + PAD
 
   return { nodes, width: Math.max(maxX, 400), height: Math.max(maxY, 200) }
+}
+
+function NodeProgressBar({ node }: { node: DAGTask & { x: number; y: number } }) {
+  const pct = node.status === 'done' ? 100 : ((node.metadata?.executionProgress as number) ?? 0)
+  const barW = NODE_W - 28
+  const fillColor = node.status === 'done' ? '#22c55e' : '#3b82f6'
+  return (
+    <g>
+      <rect x={node.x + 14} y={node.y + 55} width={barW} height={4} rx={2} fill="#1e293b" />
+      <rect
+        x={node.x + 14}
+        y={node.y + 55}
+        width={Math.max(barW * (pct / 100), 2)}
+        height={4}
+        rx={2}
+        fill={fillColor}
+      />
+      {pct > 0 && pct < 100 && (
+        <text
+          x={node.x + 14 + barW + 2}
+          y={node.y + 59}
+          fill={fillColor}
+          fontSize={7}
+          fontFamily="monospace"
+        >
+          {pct}%
+        </text>
+      )}
+      {node.metadata?.lastTool != null && node.status === 'in_progress' && (
+        <text x={node.x + 14} y={node.y + 68} fill="#475569" fontSize={7} fontFamily="monospace">
+          {String(node.metadata.lastTool as string).slice(0, 28)}
+        </text>
+      )}
+    </g>
+  )
 }
 
 function ProjectDAG({ tasks, onRetry }: { tasks: DAGTask[]; onRetry: (id: string) => void }) {
@@ -292,10 +327,15 @@ function ProjectDAG({ tasks, onRetry }: { tasks: DAGTask[]; onRetry: (id: string
               </text>
             )}
 
+            {/* Progress bar */}
+            {(node.status === 'in_progress' || node.status === 'done') && (
+              <NodeProgressBar node={node} />
+            )}
+
             {/* Wave label */}
             <text
               x={node.x + NODE_W - 12}
-              y={node.y + 64}
+              y={node.y + 74}
               fill="#334155"
               fontSize={8}
               textAnchor="end"

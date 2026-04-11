@@ -628,6 +628,26 @@ You are an autonomous agent in the Solarc Brain AI Corporation. You have access 
           })
           stepsCompleted++
 
+          // Update ticket progress in metadata so the UI can show %
+          try {
+            const progressPct = Math.round(((round + 1) / MAX_TOOL_ROUNDS) * 100)
+            const existingMeta = (ticket?.metadata as Record<string, unknown>) ?? {}
+            await this.db
+              .update(tickets)
+              .set({
+                metadata: {
+                  ...existingMeta,
+                  executionProgress: progressPct,
+                  toolRound: round + 1,
+                  maxToolRounds: MAX_TOOL_ROUNDS,
+                  lastTool: result.toolUse.name,
+                },
+              })
+              .where(eq(tickets.id, ticketId))
+          } catch {
+            // non-critical
+          }
+
           // Record tool usage pattern for emergent role detection
           try {
             const { EmergentRoleCreator } = await import('../orchestration/emergent-roles')
