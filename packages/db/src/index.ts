@@ -1448,6 +1448,12 @@ async function ensureSchema(pool: pg.Pool): Promise<void> {
       `ALTER TABLE projects ADD COLUMN IF NOT EXISTS domain text`,
       `ALTER TABLE projects ADD COLUMN IF NOT EXISTS icon text`,
 
+      // Add projectId + workspaceId to artifacts for organization
+      `ALTER TABLE artifacts ADD COLUMN IF NOT EXISTS project_id uuid REFERENCES projects(id) ON DELETE SET NULL`,
+      `ALTER TABLE artifacts ADD COLUMN IF NOT EXISTS workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL`,
+      `CREATE INDEX IF NOT EXISTS artifacts_project_id_idx ON artifacts(project_id)`,
+      `CREATE INDEX IF NOT EXISTS artifacts_workspace_id_idx ON artifacts(workspace_id)`,
+
       // Indexes for new tables
       `CREATE INDEX IF NOT EXISTS okrs_quarter_idx ON okrs(quarter)`,
       `CREATE INDEX IF NOT EXISTS okrs_status_idx ON okrs(status)`,

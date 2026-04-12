@@ -508,7 +508,11 @@ export async function executeNextWave(
     if (unlinkedArtifacts.length > 0) {
       await db
         .update(artifacts)
-        .set({ ticketId: ticket.id })
+        .set({
+          ticketId: ticket.id,
+          projectId: ticket.projectId ?? null,
+          workspaceId: ticket.workspaceId ?? null,
+        })
         .where(
           inArray(
             artifacts.id,

@@ -22,13 +22,21 @@ export default function ArtifactStudioPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [improveText, setImproveText] = useState('')
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [projectFilter, setProjectFilter] = useState<string>('all')
 
   const artifactsQuery = trpc.integrations.allArtifacts.useQuery(
-    { limit: 50 },
+    { limit: 100 },
     { refetchInterval: REFRESH },
   )
+  const projectsQuery = trpc.builder.listBuilderProjects.useQuery({ limit: 50 })
   const createArtifactMut = trpc.integrations.createArtifact.useMutation({
     onSuccess: () => artifactsQuery.refetch(),
+  })
+  const deleteArtifactMut = trpc.builder.deleteArtifact.useMutation({
+    onSuccess: () => {
+      artifactsQuery.refetch()
+      if (selectedId) setSelectedId(null)
+    },
   })
   const createTicketMut = trpc.tickets.create.useMutation({
     onSuccess: () => {
@@ -36,16 +44,30 @@ export default function ArtifactStudioPage() {
     },
   })
 
-  const allArtifacts = (artifactsQuery.data ?? []) as Array<{
+  const rawArtifacts = (artifactsQuery.data ?? []) as Array<{
     id: string
     name: string
     content: string | null
     type: string | null
     agentId: string | null
     ticketId: string | null
+    projectId: string | null
+    workspaceId: string | null
     createdAt: Date
     updatedAt: Date | null
   }>
+
+  // Filter by project
+  const allArtifacts =
+    projectFilter === 'all'
+      ? rawArtifacts
+      : projectFilter === 'unlinked'
+        ? rawArtifacts.filter((a) => !a.projectId)
+        : rawArtifacts.filter((a) => a.projectId === projectFilter)
+
+  const projectList = (projectsQuery.data ?? []) as Array<{ id: string; name: string }>
+  // Get unique project IDs from artifacts
+  const artifactProjectIds = [...new Set(rawArtifacts.map((a) => a.projectId).filter(Boolean))]
 
   const htmlArtifacts = allArtifacts.filter(
     (a) =>
@@ -133,34 +155,65 @@ export default function ArtifactStudioPage() {
         {/* Left: Artifact List */}
         <div className="lg:col-span-1">
           <SectionCard title={`Artifacts (${allArtifacts.length})`}>
+            {/* Project filter */}
+            <div className="mb-3">
+              <select
+                className="cyber-input cyber-input-sm w-full text-[10px]"
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+              >
+                <option value="all">All Projects ({rawArtifacts.length})</option>
+                <option value="unlinked">Unlinked (no project)</option>
+                {projectList
+                  .filter((p) => artifactProjectIds.includes(p.id))
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({rawArtifacts.filter((a) => a.projectId === p.id).length})
+                    </option>
+                  ))}
+              </select>
+            </div>
+
             {allArtifacts.length === 0 ? (
               <div className="text-xs text-slate-600 py-8 text-center">
-                No artifacts yet. Agents will create them when working on tickets.
+                {projectFilter !== 'all'
+                  ? 'No artifacts for this filter.'
+                  : 'No artifacts yet. Agents will create them when working on tickets.'}
               </div>
             ) : (
               <div className="space-y-1 max-h-[600px] overflow-y-auto">
                 {allArtifacts.map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() => setSelectedId(a.id)}
-                    className={`w-full text-left px-3 py-2 rounded text-[11px] transition-colors ${
-                      selectedId === a.id
-                        ? 'bg-neon-teal/10 border border-neon-teal/30'
-                        : 'hover:bg-bg-elevated border border-transparent'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <StatusBadge
-                        label={a.type?.split('|')[0] ?? 'file'}
-                        color={getTypeColor(a.type)}
-                      />
-                      <span className="text-slate-200 truncate flex-1">{a.name}</span>
-                    </div>
-                    <div className="text-[9px] text-slate-600 mt-0.5">
-                      {new Date(a.createdAt).toLocaleString()}
-                      {a.agentId && <span className="ml-2">by agent</span>}
-                    </div>
-                  </button>
+                  <div key={a.id} className="group flex items-center gap-1">
+                    <button
+                      onClick={() => setSelectedId(a.id)}
+                      className={`flex-1 text-left px-3 py-2 rounded text-[11px] transition-colors ${
+                        selectedId === a.id
+                          ? 'bg-neon-teal/10 border border-neon-teal/30'
+                          : 'hover:bg-bg-elevated border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <StatusBadge
+                          label={a.type?.split('|')[0] ?? 'file'}
+                          color={getTypeColor(a.type)}
+                        />
+                        <span className="text-slate-200 truncate flex-1">{a.name}</span>
+                      </div>
+                      <div className="text-[9px] text-slate-600 mt-0.5">
+                        {new Date(a.createdAt).toLocaleString()}
+                        {a.agentId && <span className="ml-2">by agent</span>}
+                      </div>
+                    </button>
+                    <button
+                      className="text-[10px] text-slate-700 hover:text-neon-red opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0 px-1"
+                      title="Delete"
+                      onClick={() => {
+                        if (confirm(`Delete "${a.name}"?`)) deleteArtifactMut.mutate({ id: a.id })
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

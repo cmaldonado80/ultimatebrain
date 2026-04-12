@@ -1,6 +1,6 @@
 import { boolean, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
-import { agents, tickets, workspaces } from './core'
+import { agents, projects, tickets, workspaces } from './core'
 
 export const channels = pgTable('channels', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -27,6 +27,8 @@ export const artifacts = pgTable('artifacts', {
   content: text('content'),
   ticketId: uuid('ticket_id').references(() => tickets.id, { onDelete: 'set null' }),
   agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
   type: text('type'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow(),
