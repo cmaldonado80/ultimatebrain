@@ -614,9 +614,14 @@ You are an autonomous agent in the Solarc Brain AI Corporation. You have access 
         try {
           const toolResult = await executeTool(
             result.toolUse.name,
-            result.toolUse.input,
+            {
+              ...result.toolUse.input,
+              _ticketId: ticketId,
+              _projectId: ticket?.projectId ?? undefined,
+              _workspaceId: ticket?.workspaceId ?? undefined,
+            },
             this.db,
-            undefined,
+            ticket?.workspaceId ?? undefined,
             undefined,
             undefined,
             undefined,

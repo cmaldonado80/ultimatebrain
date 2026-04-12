@@ -1332,6 +1332,9 @@ async function executeToolInner(
               name: filename,
               content,
               type: 'workspace_file',
+              ticketId: (toolInput._ticketId as string) ?? null,
+              projectId: (toolInput._projectId as string) ?? null,
+              workspaceId: (toolInput._workspaceId as string) ?? null,
             })
             .returning()
           return JSON.stringify({ id: file?.id, filename, written: true })
