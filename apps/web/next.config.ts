@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
     '@solarc/ephemeris',
   ],
   serverExternalPackages: ['swisseph'],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
   outputFileTracingIncludes: {
     '/api/**': ['./src/server/services/orchestration/agents/**/*.md'],
   },

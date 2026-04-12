@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic'
+export const maxDuration = 300 // 5 minutes — allows agent autonomous execution to complete
 
 import { createDb, type Database, waitForSchema } from '@solarc/db'
 

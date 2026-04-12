@@ -483,25 +483,22 @@ export async function executeNextWave(
     })
     .where(eq(tickets.id, ticket.id))
 
-  // Execute with 55s timeout (Vercel Pro ~60s limit)
+  // Execute without artificial timeout — let Vercel's natural limit apply
+  // Auto-recovery (2-min threshold) handles stuck tasks on next poll
   try {
     const { ModeRouter } = await import('../task-runner/mode-router')
     const router = new ModeRouter(db)
-    await Promise.race([
-      router.route(ticket.id, ticket.description ?? ticket.title, {
-        forceMode: 'autonomous',
-      }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Execution timeout (55s)')), 55000),
-      ),
-    ])
+    await router.route(ticket.id, ticket.description ?? ticket.title, {
+      forceMode: 'autonomous',
+    })
   } catch (routerErr) {
     const errMsg = routerErr instanceof Error ? routerErr.message : 'Unknown error'
     logger.warn(
       { ticketId: ticket.id, err: errMsg },
       '[ProjectOrchestrator] ModeRouter execution failed',
     )
-    // Mark as failed so it can be retried, don't leave stuck in_progress
+    // Only mark as failed if it's a real error, not a timeout
+    // (Vercel timeout will kill the function without reaching here)
     await db
       .update(tickets)
       .set({
