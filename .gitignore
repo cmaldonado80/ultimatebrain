@@ -14,3 +14,4 @@ next-env.d.ts
 
 # Generated test artifacts
 .generated-test/
+.gitnexus/
