@@ -1314,12 +1314,17 @@ async function executeToolInner(
         const filename = toolInput.filename as string | undefined
         const content = toolInput.content as string | undefined
         const { artifacts } = await import('@solarc/db')
-        const { eq: eqOp } = await import('drizzle-orm')
+        const { and, eq: eqOp } = await import('drizzle-orm')
 
         if (action === 'list') {
+          const projectScope = toolInput._projectId as string | undefined
+          const conditions = []
+          if (projectScope) conditions.push(eqOp(artifacts.projectId, projectScope))
+          else if (workspaceId) conditions.push(eqOp(artifacts.workspaceId, workspaceId))
           const files = await db.query.artifacts.findMany({
-            ...(workspaceId ? { where: eqOp(artifacts.agentId, workspaceId) } : {}),
+            ...(conditions.length > 0 ? { where: and(...conditions) } : {}),
             limit: 50,
+            orderBy: (t, { desc }) => [desc(t.createdAt)],
           })
           return JSON.stringify(
             files.map((f) => ({ id: f.id, name: f.name, type: f.type, createdAt: f.createdAt })),
@@ -1340,9 +1345,21 @@ async function executeToolInner(
           return JSON.stringify({ id: file?.id, filename, written: true })
         }
         if (action === 'read' && filename) {
-          const file = await db.query.artifacts.findFirst({
-            where: eqOp(artifacts.name, filename),
-          })
+          // Scope reads to current project if available, fall back to global
+          const projectScope = toolInput._projectId as string | undefined
+          let file
+          if (projectScope) {
+            file = await db.query.artifacts.findFirst({
+              where: and(eqOp(artifacts.name, filename), eqOp(artifacts.projectId, projectScope)),
+            })
+          }
+          // Fallback: search globally if not found in project scope
+          if (!file) {
+            file = await db.query.artifacts.findFirst({
+              where: eqOp(artifacts.name, filename),
+              orderBy: (t, { desc }) => [desc(t.createdAt)],
+            })
+          }
           return JSON.stringify(
             file ? { filename, content: file.content } : { error: 'File not found' },
           )

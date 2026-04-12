@@ -503,11 +503,12 @@ export default function ProjectBuilderPage() {
     !project.tasks.some((t) => t.status === 'in_progress')
 
   // Auto-execute next task when current one finishes
+  const isPending = executeWaveMut.isPending
   useEffect(() => {
-    if (hasReadyWork && activeProjectId && !executeWaveMut.isPending) {
+    if (hasReadyWork && activeProjectId && !isPending) {
       executeWaveMut.mutate({ projectId: activeProjectId })
     }
-  }, [hasReadyWork, activeProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasReadyWork, activeProjectId, isPending]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="p-6 text-slate-50">

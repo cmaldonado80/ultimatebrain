@@ -483,17 +483,32 @@ export async function executeNextWave(
     })
     .where(eq(tickets.id, ticket.id))
 
+  // Execute with 55s timeout (Vercel Pro ~60s limit)
   try {
     const { ModeRouter } = await import('../task-runner/mode-router')
     const router = new ModeRouter(db)
-    await router.route(ticket.id, ticket.description ?? ticket.title, {
-      forceMode: 'autonomous',
-    })
+    await Promise.race([
+      router.route(ticket.id, ticket.description ?? ticket.title, {
+        forceMode: 'autonomous',
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Execution timeout (55s)')), 55000),
+      ),
+    ])
   } catch (routerErr) {
+    const errMsg = routerErr instanceof Error ? routerErr.message : 'Unknown error'
     logger.warn(
-      { ticketId: ticket.id, err: routerErr instanceof Error ? routerErr.message : undefined },
+      { ticketId: ticket.id, err: errMsg },
       '[ProjectOrchestrator] ModeRouter execution failed',
     )
+    // Mark as failed so it can be retried, don't leave stuck in_progress
+    await db
+      .update(tickets)
+      .set({
+        status: 'failed',
+        result: `Execution failed: ${errMsg}`,
+      })
+      .where(eq(tickets.id, ticket.id))
   }
 
   // Link any unlinked artifacts created during this execution to the ticket
