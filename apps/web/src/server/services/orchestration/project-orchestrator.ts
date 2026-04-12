@@ -495,6 +495,35 @@ export async function executeNextWave(
       '[ProjectOrchestrator] ModeRouter execution failed',
     )
   }
+
+  // Link any unlinked artifacts created during this execution to the ticket
+  try {
+    const startedAt = new Date(
+      (existingMeta.executionStartedAt as string) ?? new Date().toISOString(),
+    )
+    const unlinkedArtifacts = await db
+      .select({ id: artifacts.id })
+      .from(artifacts)
+      .where(and(sql`${artifacts.createdAt} >= ${startedAt}`, sql`${artifacts.ticketId} IS NULL`))
+    if (unlinkedArtifacts.length > 0) {
+      await db
+        .update(artifacts)
+        .set({ ticketId: ticket.id })
+        .where(
+          inArray(
+            artifacts.id,
+            unlinkedArtifacts.map((a) => a.id),
+          ),
+        )
+      logger.info(
+        { ticketId: ticket.id, linked: unlinkedArtifacts.length },
+        '[ProjectOrchestrator] Linked artifacts to ticket',
+      )
+    }
+  } catch {
+    // non-critical
+  }
+
   const executed = 1
 
   return { executed, remaining: total - doneCount - executed, done: false }

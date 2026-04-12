@@ -435,6 +435,19 @@ export const builderRouter = router({
       return executeSqlBatch(ctx.db, input.statements)
     }),
 
+  /** Delete an artifact */
+  deleteArtifact: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { artifacts } = await import('@solarc/db')
+      const { eq } = await import('drizzle-orm')
+      const result = await ctx.db
+        .delete(artifacts)
+        .where(eq(artifacts.id, input.id))
+        .returning({ id: artifacts.id })
+      return { deleted: result.length > 0 }
+    }),
+
   /** Drop a table (non-system only) */
   dropDatabaseTable: protectedProcedure
     .input(z.object({ tableName: z.string().min(1).max(63) }))

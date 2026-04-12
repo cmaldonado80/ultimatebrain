@@ -488,6 +488,10 @@ export default function ProjectBuilderPage() {
     onSuccess: () => utils.builder.getProjectStatus.invalidate(),
   })
 
+  const deleteArtifactMut = trpc.builder.deleteArtifact.useMutation({
+    onSuccess: () => utils.builder.getProjectStatus.invalidate(),
+  })
+
   const recentProjects = projectsQuery.data ?? []
   const project = statusQuery.data
 
@@ -832,21 +836,34 @@ export default function ProjectBuilderPage() {
                 ) : (
                   <div className="space-y-1.5">
                     {project.artifacts.map((a) => (
-                      <button
-                        key={a.id}
-                        onClick={() =>
-                          setSelectedArtifactId(selectedArtifactId === a.id ? null : a.id)
-                        }
-                        className={`w-full text-left flex items-center gap-2 bg-bg-deep rounded px-3 py-2 border transition-colors cursor-pointer ${
-                          selectedArtifactId === a.id
-                            ? 'border-neon-blue bg-neon-blue/5'
-                            : 'border-border-dim hover:border-white/10'
-                        }`}
-                      >
-                        <span className="text-[10px] text-neon-green">◆</span>
-                        <span className="text-[11px] text-slate-200 truncate flex-1">{a.name}</span>
-                        <span className="text-[9px] text-slate-600">{a.type}</span>
-                      </button>
+                      <div key={a.id} className="flex items-center gap-1">
+                        <button
+                          onClick={() =>
+                            setSelectedArtifactId(selectedArtifactId === a.id ? null : a.id)
+                          }
+                          className={`flex-1 text-left flex items-center gap-2 bg-bg-deep rounded px-3 py-2 border transition-colors cursor-pointer ${
+                            selectedArtifactId === a.id
+                              ? 'border-neon-blue bg-neon-blue/5'
+                              : 'border-border-dim hover:border-white/10'
+                          }`}
+                        >
+                          <span className="text-[10px] text-neon-green">◆</span>
+                          <span className="text-[11px] text-slate-200 truncate flex-1">
+                            {a.name}
+                          </span>
+                          <span className="text-[9px] text-slate-600">{a.type}</span>
+                        </button>
+                        <button
+                          className="text-[10px] text-slate-700 hover:text-neon-red cursor-pointer flex-shrink-0 px-1"
+                          title="Delete artifact"
+                          onClick={() => {
+                            if (confirm(`Delete artifact "${a.name}"?`))
+                              deleteArtifactMut.mutate({ id: a.id })
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
