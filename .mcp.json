@@ -1,5 +1,10 @@
 {
   "mcpServers": {
+    "gitnexus": {
+      "command": "npx",
+      "args": ["-y", "gitnexus@latest", "mcp"],
+      "env": {}
+    },
     "ruflo": {
       "command": "npx",
       "args": ["-y", "ruflo@latest", "serve"],
