@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.48.0",
     "@solarc/db": "workspace:*",
     "@solarc/engine-contracts": "workspace:*",
     "@solarc/ephemeris": "workspace:*",

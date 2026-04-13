@@ -3,11 +3,20 @@ import { cookies } from 'next/headers'
 
 const ACCESS_COOKIE = 'session-token'
 const REFRESH_COOKIE = 'refresh-token'
-const AUTH_SECRET = process.env.AUTH_SECRET
-if (!AUTH_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('AUTH_SECRET environment variable is required in production')
+
+/** Lazy-initialised JWT secret — deferred to runtime so Next.js can
+ *  collect page data at build time without requiring AUTH_SECRET. */
+let _secret: Uint8Array | undefined
+function getSecret(): Uint8Array {
+  if (!_secret) {
+    const raw = process.env.AUTH_SECRET
+    if (!raw && process.env.NODE_ENV === 'production') {
+      throw new Error('AUTH_SECRET environment variable is required in production')
+    }
+    _secret = new TextEncoder().encode(raw || 'dev-secret-change-me')
+  }
+  return _secret
 }
-const SECRET = new TextEncoder().encode(AUTH_SECRET || 'dev-secret-change-me')
 
 export interface Session {
   user: { id: string; email: string; name: string }
@@ -28,13 +37,13 @@ export async function createSession(
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('24h')
-    .sign(SECRET)
+    .sign(getSecret())
 
   const refreshToken = await new SignJWT({ email, sub, userId, type: 'refresh' })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(SECRET)
+    .sign(getSecret())
 
   return { accessToken, refreshToken }
 }
@@ -47,7 +56,7 @@ export async function refreshSession(
   refreshToken: string,
 ): Promise<{ accessToken: string; refreshToken: string } | null> {
   try {
-    const { payload } = await jwtVerify(refreshToken, SECRET)
+    const { payload } = await jwtVerify(refreshToken, getSecret())
     if (payload.type !== 'refresh') return null
     const email = payload.email as string
     const userId = payload.userId as string | undefined
@@ -70,7 +79,7 @@ export async function auth(): Promise<Session | null> {
   const token = cookieStore.get(ACCESS_COOKIE)?.value
   if (!token) return null
   try {
-    const { payload } = await jwtVerify(token, SECRET)
+    const { payload } = await jwtVerify(token, getSecret())
     const email = payload.email as string
     if (!email) return null
     // Prefer userId claim (UUID) over sub (which may be email for old tokens)
