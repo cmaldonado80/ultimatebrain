@@ -44,6 +44,9 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "swisseph"
-    ]
+    ],
+    "overrides": {
+      "drizzle-orm": "0.38.4"
+    }
   }
 }

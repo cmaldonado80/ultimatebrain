@@ -14,3 +14,7 @@ next-env.d.ts
 
 # Generated test artifacts
 .generated-test/
+.vercel
+.env*.local
+.mcp.json
+.remember/
