@@ -163,7 +163,7 @@ export class SemanticCache {
       ORDER BY created_at DESC
       LIMIT 1
     `)
-    const exactMatch = (exactRows as { rows: any[] }).rows?.[0]
+    const exactMatch = (exactRows as { rows: Record<string, unknown>[] }).rows?.[0]
     if (exactMatch) {
       return {
         response: exactMatch.response,
@@ -191,7 +191,7 @@ export class SemanticCache {
       ORDER BY embedding <=> ${vectorStr}::vector ASC
       LIMIT 1
     `)
-    const semanticMatch = (semanticRows as { rows: any[] }).rows?.[0]
+    const semanticMatch = (semanticRows as { rows: Record<string, unknown>[] }).rows?.[0]
     if (semanticMatch) {
       return {
         response: semanticMatch.response,

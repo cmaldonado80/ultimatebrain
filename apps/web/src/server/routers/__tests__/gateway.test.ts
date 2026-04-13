@@ -19,7 +19,7 @@ function createMockDb() {
         returning: mockInsertReturning,
       }),
     }),
-  } as any
+  } as unknown
 }
 
 // ---------------------------------------------------------------------------
@@ -108,15 +108,16 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(gatewayRouter as any)(ctx)
+type AnyRouter = Parameters<typeof t.createCallerFactory>[0]
+const caller = (ctx: MockContext) => t.createCallerFactory(gatewayRouter as AnyRouter)(ctx)
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 const UUID1 = '550e8400-e29b-41d4-a716-446655440000'
-const authedCtx = (db: any) => ({ db, session: { userId: 'user-1' } })
-const unauthCtx = (db: any) => ({ db, session: null })
+const authedCtx = (db: MockContext['db']) => ({ db, session: { userId: 'user-1' } })
+const unauthCtx = (db: MockContext['db']) => ({ db, session: null })
 
 // ---------------------------------------------------------------------------
 // Tests

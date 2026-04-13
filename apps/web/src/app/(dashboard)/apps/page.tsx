@@ -96,9 +96,9 @@ export default function AppsPage() {
     )
   }
 
-  const agents = (data as any[]) ?? []
+  const agents = (data ?? []) as Array<Record<string, unknown>>
 
-  const apps: DisplayApp[] = agents.map((a: any) => ({
+  const apps: DisplayApp[] = agents.map((a: Record<string, unknown>) => ({
     id: a.id,
     name: a.name ?? `Agent ${a.id.slice(0, 8)}`,
     type: a.type ?? 'agent',

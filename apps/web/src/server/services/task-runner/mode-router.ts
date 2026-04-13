@@ -597,7 +597,7 @@ export class ModeRouter {
         },
         'mode-router',
       )
-    } catch (_err) {
+    } catch {
       // Fallback to console logging if webhook dispatch fails
       console.warn(`[ModeRouter] ${progressSummary}`)
     }

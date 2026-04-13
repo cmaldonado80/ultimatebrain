@@ -13,7 +13,7 @@ function createMockDb() {
         findMany: mockFindMany,
       },
     },
-  } as any
+  } as Record<string, unknown>
 }
 
 // ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ vi.mock('@solarc/db', () => ({
 
 vi.mock('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val }),
-  and: (...conds: any[]) => ({ and: conds }),
+  and: (...conds: unknown[]) => ({ and: conds }),
 }))
 
 // Import after mocks are set up
@@ -64,14 +64,15 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(memoryRouter as any)(ctx)
+const caller = (ctx: MockContext) =>
+  t.createCallerFactory(memoryRouter as Parameters<typeof t.createCallerFactory>[0])(ctx)
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 const UUID1 = '550e8400-e29b-41d4-a716-446655440000'
-const UUID2 = '660e8400-e29b-41d4-a716-446655440001'
+const _UUID2 = '660e8400-e29b-41d4-a716-446655440001'
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -130,7 +131,7 @@ describe('memory router', () => {
 
     it('rejects invalid tier value', async () => {
       const trpc = caller({ db, session: { userId: 'user-1' } })
-      await expect(trpc.list({ tier: 'invalid' as any })).rejects.toThrow()
+      await expect(trpc.list({ tier: 'invalid' as unknown as 'core' })).rejects.toThrow()
     })
 
     it('rejects unauthenticated calls', async () => {

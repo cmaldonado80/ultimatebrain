@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { EvalRunner } from '../runner'
-import type { Scorer, ScorerInput } from '../scorers'
+import type { Scorer } from '../scorers'
 
 // --- Mock DB ---
 
@@ -21,17 +21,17 @@ function createMockDb() {
         returning: vi.fn().mockResolvedValue([]),
       }),
     }),
-  } as any
+  } as unknown as ReturnType<typeof createMockDb>
 }
 
 // --- Simple test scorers ---
 
-const alwaysPassScorer: Scorer = {
+const _alwaysPassScorer: Scorer = {
   name: 'taskCompletion',
   score: () => 1.0,
 }
 
-const alwaysFailScorer: Scorer = {
+const _alwaysFailScorer: Scorer = {
   name: 'taskCompletion',
   score: () => 0.0,
 }

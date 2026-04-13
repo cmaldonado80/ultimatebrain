@@ -58,11 +58,14 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     retry: false,
   })
 
+  const { data: orgsData, isLoading: orgsLoading, refetch: refetchOrgs } = orgsQuery
+  const { data: globalRoleData, refetch: refetchGlobalRole } = globalRoleQuery
+
   const value = useMemo<OrgContextValue>(() => {
-    const allOrgs = (orgsQuery.data ?? []) as OrgEntry[]
+    const allOrgs = (orgsData ?? []) as OrgEntry[]
     const activeOrg = allOrgs.find((o) => o.isActive) ?? null
     const role = activeOrg?.role ?? 'viewer'
-    const isPlatformOwner = globalRoleQuery.data?.isPlatformOwner ?? false
+    const isPlatformOwner = globalRoleData?.isPlatformOwner ?? false
 
     const switchOrg = (orgId: string) => {
       document.cookie = `active-org=${orgId}; path=/; max-age=31536000; samesite=lax`
@@ -85,14 +88,14 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
       isOperator: ['owner', 'admin', 'operator'].includes(role) || isPlatformOwner,
       isViewer: true, // Everyone can view
       isPlatformOwner,
-      isLoading: orgsQuery.isLoading,
+      isLoading: orgsLoading,
       switchOrg,
       refetch: () => {
-        void orgsQuery.refetch()
-        void globalRoleQuery.refetch()
+        void refetchOrgs()
+        void refetchGlobalRole()
       },
     }
-  }, [orgsQuery.data, orgsQuery.isLoading, globalRoleQuery.data, pathname])
+  }, [orgsData, orgsLoading, refetchOrgs, globalRoleData, refetchGlobalRole, pathname])
 
   return <OrgContext.Provider value={value}>{children}</OrgContext.Provider>
 }

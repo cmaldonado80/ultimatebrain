@@ -100,7 +100,7 @@ export function yamlToAgentValues(def: YamlAgentDef, workspaceId?: string) {
     temperature: def.temperature,
     maxTokens: def.maxTokens,
     tags: def.tags ?? [],
-    requiredModelType: def.requiredModelType as any,
+    requiredModelType: def.requiredModelType as string | undefined,
     workspaceId,
   }
 }

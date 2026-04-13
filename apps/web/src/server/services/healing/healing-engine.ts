@@ -249,7 +249,7 @@ export class HealingEngine {
 
       this.log('restart_agent', agentId, reason, true)
       return true
-    } catch (_err) {
+    } catch {
       this.log('restart_agent', agentId, reason, false)
       return false
     }

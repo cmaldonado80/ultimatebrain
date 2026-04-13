@@ -10,7 +10,7 @@ function createMockDb() {
     insert: vi.fn().mockReturnValue({
       values: vi.fn().mockResolvedValue(undefined),
     }),
-  } as any
+  } as unknown as ReturnType<typeof createMockDb>
 }
 
 describe('GuardrailEngine', () => {

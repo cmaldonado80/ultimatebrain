@@ -21,7 +21,7 @@ function createMockDb() {
         returning: mockInsertReturning,
       }),
     }),
-  } as any
+  } as Record<string, unknown>
 }
 
 // ---------------------------------------------------------------------------
@@ -48,7 +48,8 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(projectsRouter as any)(ctx)
+const caller = (ctx: MockContext) =>
+  t.createCallerFactory(projectsRouter as Parameters<typeof t.createCallerFactory>[0])(ctx)
 
 // ---------------------------------------------------------------------------
 // Tests
