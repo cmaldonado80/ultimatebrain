@@ -8,7 +8,7 @@ import { useState } from 'react'
 
 import { PageHeader } from '../../../components/ui/page-header'
 import { PermissionGate } from '../../../components/ui/permission-gate'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 export default function OrgPage() {
   const [addEmail, setAddEmail] = useState('')

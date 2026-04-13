@@ -17,7 +17,7 @@ import { PageHeader } from '../../../components/ui/page-header'
 import type { StatusColor } from '../../../components/ui/status-badge'
 import { StatusBadge } from '../../../components/ui/status-badge'
 import { useOrgRole } from '../../../hooks/use-org-role'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 const STATUS_STYLE: Record<string, { label: string; dot: string }> = {
   provisioning: { label: 'Provisioning', dot: 'bg-slate-400' },

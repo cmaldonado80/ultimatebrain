@@ -16,7 +16,7 @@ import { PageHeader } from '../../../components/ui/page-header'
 import { PermissionGate } from '../../../components/ui/permission-gate'
 import type { StatusColor } from '../../../components/ui/status-badge'
 import { StatusBadge } from '../../../components/ui/status-badge'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 const SEVERITY_STYLE: Record<string, { dot: string; border: string }> = {
   critical: { dot: 'bg-neon-red', border: 'border-neon-red/30' },

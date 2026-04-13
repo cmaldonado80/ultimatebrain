@@ -11,8 +11,8 @@
 import Image from 'next/image'
 import { useState } from 'react'
 
+import { trpc } from '../../lib/trpc'
 import type { PresenceEntry } from '../../server/services/presence/types'
-import { trpc } from '../../utils/trpc'
 
 // ── Mock data ─────────────────────────────────────────────────────────────
 

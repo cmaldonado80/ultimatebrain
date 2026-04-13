@@ -11,7 +11,7 @@ import { DbErrorBanner } from '../../../components/db-error-banner'
 import { EmptyState } from '../../../components/ui/empty-state'
 import { LoadingState } from '../../../components/ui/loading-state'
 import { PageHeader } from '../../../components/ui/page-header'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 interface DisplayApp {
   id: string
@@ -96,14 +96,14 @@ export default function AppsPage() {
     )
   }
 
-  const agents = (data ?? []) as Array<Record<string, unknown>>
+  const agents = data ?? []
 
-  const apps: DisplayApp[] = agents.map((a: Record<string, unknown>) => ({
-    id: a.id,
-    name: a.name ?? `Agent ${a.id.slice(0, 8)}`,
-    type: a.type ?? 'agent',
-    description: a.description ?? '',
-    model: a.model ?? '',
+  const apps: DisplayApp[] = agents.map((a) => ({
+    id: String(a.id),
+    name: String(a.name ?? `Agent ${String(a.id).slice(0, 8)}`),
+    type: String(a.type ?? 'agent'),
+    description: String(a.description ?? ''),
+    model: String(a.model ?? ''),
     status: (a.status === 'idle' ||
     a.status === 'planning' ||
     a.status === 'executing' ||
@@ -112,9 +112,9 @@ export default function AppsPage() {
       : a.status === 'error'
         ? 'degraded'
         : 'offline') as 'running' | 'degraded' | 'offline',
-    tags: a.tags ?? [],
-    skills: a.skills ?? [],
-    createdAt: new Date(a.createdAt),
+    tags: (a.tags ?? []) as string[],
+    skills: (a.skills ?? []) as string[],
+    createdAt: a.createdAt instanceof Date ? a.createdAt : new Date(String(a.createdAt)),
   }))
 
   // Collect unique types for filter tabs

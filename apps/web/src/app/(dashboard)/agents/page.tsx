@@ -11,7 +11,7 @@ import { useRef, useState } from 'react'
 import { DbErrorBanner } from '../../../components/db-error-banner'
 import ConfirmDialog from '../../../components/ui/confirm-dialog'
 import { PageHeader } from '../../../components/ui/page-header'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 interface Agent {
   id: string

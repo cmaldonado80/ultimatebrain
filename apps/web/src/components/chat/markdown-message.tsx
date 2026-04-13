@@ -1,10 +1,22 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { type ComponentPropsWithoutRef, useCallback, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism'
 import remarkGfm from 'remark-gfm'
+
+const SyntaxHighlighter = dynamic(
+  () => import('react-syntax-highlighter').then((mod) => ({ default: mod.Prism })),
+  {
+    ssr: false,
+    loading: () => (
+      <pre className="bg-gray-900 p-4 rounded-lg overflow-x-auto">
+        <code>Loading...</code>
+      </pre>
+    ),
+  },
+)
 
 /** Copy-to-clipboard button for code blocks */
 function CopyButton({ text }: { text: string }) {

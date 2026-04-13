@@ -14,7 +14,7 @@ import { EmptyState } from '../../../components/ui/empty-state'
 import { LoadingState } from '../../../components/ui/loading-state'
 import { PageHeader } from '../../../components/ui/page-header'
 import { SectionCard } from '../../../components/ui/section-card'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 const ACTION_LABELS: Record<string, string> = {
   create_mini_brain: 'Created Mini Brain',

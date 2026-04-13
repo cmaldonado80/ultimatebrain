@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { useEffect } from 'react'
 
 import { useActiveOrg } from '../../../../hooks/use-active-org'
-import { trpc } from '../../../../utils/trpc'
+import { trpc } from '../../../../lib/trpc'
 
 function PlatformOwnerBanner() {
   return (

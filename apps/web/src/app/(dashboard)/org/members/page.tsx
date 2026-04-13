@@ -8,7 +8,7 @@ import { useState } from 'react'
 
 import { PageHeader } from '../../../../components/ui/page-header'
 import { useOrgRole } from '../../../../hooks/use-org-role'
-import { trpc } from '../../../../utils/trpc'
+import { trpc } from '../../../../lib/trpc'
 
 export default function OrgMembersPage() {
   const [addEmail, setAddEmail] = useState('')

@@ -5,7 +5,7 @@ import { httpBatchLink } from '@trpc/client'
 import { useRef, useState } from 'react'
 import superjson from 'superjson'
 
-import { trpc } from '../utils/trpc'
+import { trpc } from '../lib/trpc'
 
 function getBaseUrl() {
   if (typeof window !== 'undefined') return ''

@@ -11,6 +11,15 @@
 import type { Database } from '@solarc/db'
 import { sql } from 'drizzle-orm'
 
+/** Row shape returned by raw SQL cache lookups */
+interface CacheRow {
+  response: string
+  model: string
+  tokens_in: number
+  tokens_out: number
+  similarity?: number
+}
+
 export interface CacheEntry {
   promptHash: string
   model: string
@@ -163,7 +172,7 @@ export class SemanticCache {
       ORDER BY created_at DESC
       LIMIT 1
     `)
-    const exactMatch = (exactRows as { rows: Record<string, unknown>[] }).rows?.[0]
+    const exactMatch = (exactRows as unknown as { rows: CacheRow[] }).rows?.[0]
     if (exactMatch) {
       return {
         response: exactMatch.response,
@@ -191,7 +200,7 @@ export class SemanticCache {
       ORDER BY embedding <=> ${vectorStr}::vector ASC
       LIMIT 1
     `)
-    const semanticMatch = (semanticRows as { rows: Record<string, unknown>[] }).rows?.[0]
+    const semanticMatch = (semanticRows as unknown as { rows: CacheRow[] }).rows?.[0]
     if (semanticMatch) {
       return {
         response: semanticMatch.response,

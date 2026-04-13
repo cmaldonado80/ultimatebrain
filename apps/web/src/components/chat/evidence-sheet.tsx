@@ -6,7 +6,7 @@
  * and workflow/autonomy/memory evidence from real persisted data.
  */
 
-import { trpc } from '../../utils/trpc'
+import { trpc } from '../../lib/trpc'
 
 // ── Score Bar ─────────────────────────────────────────────────────────
 

@@ -12,7 +12,7 @@ import Link from 'next/link'
 import { LoadingState } from '../../../components/ui/loading-state'
 import { PageHeader } from '../../../components/ui/page-header'
 import { StatusBadge } from '../../../components/ui/status-badge'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 const COLUMNS = [
   { status: 'backlog', label: 'Backlog', color: 'slate' as const },

@@ -57,10 +57,7 @@ export async function GET(req: NextRequest) {
         },
       },
     )
-  } catch (err) {
-    return NextResponse.json(
-      { error: 'Failed to generate agent cards', detail: String(err) },
-      { status: 500 },
-    )
+  } catch {
+    return NextResponse.json({ error: 'Failed to generate agent cards' }, { status: 500 })
   }
 }

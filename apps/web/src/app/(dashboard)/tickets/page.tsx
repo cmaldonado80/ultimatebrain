@@ -15,7 +15,7 @@ import { LoadingState } from '../../../components/ui/loading-state'
 import { PageHeader } from '../../../components/ui/page-header'
 import type { StatusColor } from '../../../components/ui/status-badge'
 import { StatusBadge } from '../../../components/ui/status-badge'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 interface Ticket {
   id: string

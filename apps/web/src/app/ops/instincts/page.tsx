@@ -11,7 +11,7 @@ import { EmptyState } from '../../../components/ui/empty-state'
 import { FilterPills } from '../../../components/ui/filter-pills'
 import { LoadingState } from '../../../components/ui/loading-state'
 import { PageHeader } from '../../../components/ui/page-header'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 export default function InstinctsPage() {
   const [scopeFilter, setScopeFilter] = useState<string>('all')

@@ -11,7 +11,7 @@
 import { usePathname } from 'next/navigation'
 import { createContext, useContext, useMemo } from 'react'
 
-import { trpc } from '../../utils/trpc'
+import { trpc } from '../../lib/trpc'
 
 // ── Types ──────────────────────────────────────────────────────────────
 

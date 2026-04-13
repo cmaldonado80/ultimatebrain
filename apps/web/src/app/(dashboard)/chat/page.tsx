@@ -16,7 +16,7 @@ import { DbErrorBanner } from '../../../components/db-error-banner'
 import { useChatKeyboardShortcuts } from '../../../hooks/chat/use-chat-shortcuts'
 import { sessionTitle, streamEventToItem, useChatStream } from '../../../hooks/chat/use-chat-stream'
 import { useInspector } from '../../../hooks/chat/use-inspector'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 interface Agent {
   id: string
