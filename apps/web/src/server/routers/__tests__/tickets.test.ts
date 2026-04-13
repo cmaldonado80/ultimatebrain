@@ -29,7 +29,7 @@ function createMockDb() {
         }),
       }),
     }),
-  } as any
+  } as Record<string, unknown>
 }
 
 // ---------------------------------------------------------------------------
@@ -65,7 +65,8 @@ interface MockContext {
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
 // We wrap the router in a fresh tRPC instance to create a caller
-const caller = (ctx: MockContext) => t.createCallerFactory(ticketsRouter as any)(ctx)
+const caller = (ctx: MockContext) =>
+  t.createCallerFactory(ticketsRouter as Parameters<typeof t.createCallerFactory>[0])(ctx)
 
 // ---------------------------------------------------------------------------
 // Tests

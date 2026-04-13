@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---------------------------------------------------------------------------
 
 function createMockDb() {
-  return {} as any
+  return {} as Record<string, unknown>
 }
 
 // ---------------------------------------------------------------------------
@@ -72,7 +72,8 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(integrationsRouter as any)(ctx)
+const caller = (ctx: MockContext) =>
+  t.createCallerFactory(integrationsRouter as Parameters<typeof t.createCallerFactory>[0])(ctx)
 
 // ---------------------------------------------------------------------------
 // Tests

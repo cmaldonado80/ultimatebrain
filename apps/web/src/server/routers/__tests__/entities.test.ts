@@ -11,7 +11,7 @@ function createMockDb() {
     query: {
       brainEntities: { findMany: mockFindMany },
     },
-  } as any
+  } as unknown
 }
 
 // ---------------------------------------------------------------------------
@@ -38,7 +38,8 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(entitiesRouter as any)(ctx)
+type AnyRouter = Parameters<typeof t.createCallerFactory>[0]
+const caller = (ctx: MockContext) => t.createCallerFactory(entitiesRouter as AnyRouter)(ctx)
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -89,7 +90,7 @@ describe('entities router', () => {
 
     it('rejects invalid tier', async () => {
       const trpc = caller({ db, session: { userId: 'user-1' } })
-      await expect(trpc.byTier({ tier: 'invalid' as any })).rejects.toThrow()
+      await expect(trpc.byTier({ tier: 'invalid' as string })).rejects.toThrow()
     })
   })
 

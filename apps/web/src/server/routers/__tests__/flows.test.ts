@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---------------------------------------------------------------------------
 
 function createMockDb() {
-  return {} as any
+  return {} as unknown
 }
 
 // ---------------------------------------------------------------------------
@@ -59,7 +59,8 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(flowsRouter as any)(ctx)
+type AnyRouter = Parameters<typeof t.createCallerFactory>[0]
+const caller = (ctx: MockContext) => t.createCallerFactory(flowsRouter as AnyRouter)(ctx)
 
 // ---------------------------------------------------------------------------
 // Helpers

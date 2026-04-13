@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Mock DB layer
 // ---------------------------------------------------------------------------
 
-const mockFindMany = vi.fn()
-const mockFindFirst = vi.fn()
+const _mockFindMany = vi.fn()
+const _mockFindFirst = vi.fn()
 const mockInsertReturning = vi.fn()
 
 const mockEvalDatasetsFindMany = vi.fn()
@@ -25,7 +25,7 @@ function createMockDb() {
         returning: mockInsertReturning,
       }),
     }),
-  } as any
+  } as unknown
 }
 
 // ---------------------------------------------------------------------------
@@ -82,7 +82,8 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(evalsRouter as any)(ctx)
+type AnyRouter = Parameters<typeof t.createCallerFactory>[0]
+const caller = (ctx: MockContext) => t.createCallerFactory(evalsRouter as AnyRouter)(ctx)
 
 // ---------------------------------------------------------------------------
 // Tests

@@ -149,14 +149,10 @@ export default function ObservatoryPage() {
   )
 
   // Merge runtime overlay + highlighting WITHOUT re-layout (prevents jitter)
+  const runtimeData = runtimeQuery.data ?? null
   const flowNodes = useMemo(
-    () =>
-      mergeOverlayIntoFlowNodes(
-        staticNodes,
-        (runtimeQuery.data as typeof runtimeQuery.data) ?? null,
-        highlightedNodes,
-      ),
-    [staticNodes, runtimeQuery.data, highlightedNodes],
+    () => mergeOverlayIntoFlowNodes(staticNodes, runtimeData, highlightedNodes),
+    [staticNodes, runtimeData, highlightedNodes],
   )
 
   const selectedData = useMemo(() => {

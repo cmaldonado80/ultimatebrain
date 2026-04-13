@@ -45,10 +45,10 @@ function createMockDb() {
       }),
     }),
     transaction: vi.fn(async (fn: (tx: typeof tx) => Promise<void>) => {
-      await fn(tx as any)
+      await fn(tx as unknown)
     }),
     _tx: tx,
-  } as any
+  } as unknown as ReturnType<typeof createMockDb>
 }
 
 describe('MemoryService', () => {

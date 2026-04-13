@@ -869,7 +869,9 @@ async function executeToolInner(
           return JSON.stringify({ error: 'Only read-only SELECT queries are allowed' })
         }
         try {
-          const result = await (db as any).execute(sql)
+          const result = await (
+            db as unknown as { execute: (q: string) => Promise<{ rows?: unknown[] }> }
+          ).execute(sql)
           const rows = result?.rows ?? []
           return JSON.stringify({ rowCount: rows.length, rows: rows.slice(0, 100) })
         } catch (err) {
@@ -946,7 +948,9 @@ async function executeToolInner(
           return JSON.stringify({ error: 'Only read-only SELECT queries are allowed' })
         }
         try {
-          const result = await (db as any).execute(sqlQ)
+          const result = await (
+            db as unknown as { execute: (q: string) => Promise<{ rows?: unknown[] }> }
+          ).execute(sqlQ)
           const rows = result?.rows ?? []
           const summary = `Query returned ${rows.length} rows. Sample: ${JSON.stringify(rows.slice(0, 3))}`
           return JSON.stringify({
@@ -1050,13 +1054,21 @@ async function executeToolInner(
             })
             const containers = await res.json()
             return JSON.stringify(
-              containers.map((c: any) => ({
-                id: c.Id?.slice(0, 12),
-                names: c.Names,
-                state: c.State,
-                status: c.Status,
-                image: c.Image,
-              })),
+              containers.map(
+                (c: {
+                  Id?: string
+                  Names?: string[]
+                  State?: string
+                  Status?: string
+                  Image?: string
+                }) => ({
+                  id: c.Id?.slice(0, 12),
+                  names: c.Names,
+                  state: c.State,
+                  status: c.Status,
+                  image: c.Image,
+                }),
+              ),
             )
           }
           if (!containerId) return JSON.stringify({ error: 'containerId required for this action' })

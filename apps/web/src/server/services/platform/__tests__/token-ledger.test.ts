@@ -52,7 +52,7 @@ function createMockDb() {
       }),
     }),
     _mock: { whereFn, setFn, valuesFn, fromFn, groupByFn },
-  } as any
+  } as unknown as ReturnType<typeof createMockDb>
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────

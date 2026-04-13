@@ -23,7 +23,7 @@ function createMockDb() {
 
   return {
     select: mockSelect,
-  } as any
+  } as unknown
 }
 
 // ---------------------------------------------------------------------------
@@ -65,9 +65,9 @@ vi.mock('@solarc/engine-contracts', () => {
 vi.mock('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val }),
   desc: (col: string) => ({ desc: col }),
-  and: (...args: any[]) => ({ and: args }),
-  gte: (col: string, val: any) => ({ gte: col, val }),
-  sql: (strings: TemplateStringsArray, ...values: any[]) => ({ sql: strings.join('?') }),
+  and: (...args: unknown[]) => ({ and: args }),
+  gte: (col: string, val: unknown) => ({ gte: col, val }),
+  sql: (strings: TemplateStringsArray, ..._values: unknown[]) => ({ sql: strings.join('?') }),
 }))
 
 // Import after mocks are set up
@@ -84,7 +84,8 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(guardrailsRouter as any)(ctx)
+type AnyRouter = Parameters<typeof t.createCallerFactory>[0]
+const caller = (ctx: MockContext) => t.createCallerFactory(guardrailsRouter as AnyRouter)(ctx)
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -187,7 +188,7 @@ describe('guardrails router', () => {
 
     it('rejects invalid layer value', async () => {
       const trpc = caller({ db, session: { userId: 'user-1' } })
-      await expect(trpc.check({ content: 'x', layer: 'invalid' as any })).rejects.toThrow()
+      await expect(trpc.check({ content: 'x', layer: 'invalid' as string })).rejects.toThrow()
     })
   })
 
@@ -245,7 +246,7 @@ describe('guardrails router', () => {
       mockOrderBy.mockResolvedValue(stats)
 
       const trpc = caller({ db, session: { userId: 'user-1' } })
-      const result = await trpc.stats()
+      await trpc.stats()
 
       expect(mockSelect).toHaveBeenCalled()
     })

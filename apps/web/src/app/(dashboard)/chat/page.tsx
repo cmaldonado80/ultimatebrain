@@ -58,26 +58,34 @@ export default function ChatPage() {
     { enabled: !!selectedSession },
   )
   const agentsQuery = trpc.agents.list.useQuery({ limit: 200, offset: 0 })
-  const agents: Agent[] = (agentsQuery.data ?? []) as Agent[]
+  const agents: Agent[] = useMemo(() => (agentsQuery.data ?? []) as Agent[], [agentsQuery.data])
   const agentMap = useMemo(() => new Map(agents.map((a) => [a.id, a])), [agents])
 
   const createSession = trpc.intelligence.createChatSession.useMutation()
   const deleteSession = trpc.intelligence.deleteChatSession.useMutation()
   const utils = trpc.useUtils()
 
-  const sessions = (sessionsQuery.data ?? []) as Array<{
-    id: string
-    agentId: string | null
-    createdAt: Date
-    updatedAt: Date
-  }>
-  const messages = (sessionQuery.data?.messages ?? []) as Array<{
-    id: string
-    role: string
-    text: string
-    sourceAgentId: string | null
-    createdAt: Date
-  }>
+  const sessions = useMemo(
+    () =>
+      (sessionsQuery.data ?? []) as Array<{
+        id: string
+        agentId: string | null
+        createdAt: Date
+        updatedAt: Date
+      }>,
+    [sessionsQuery.data],
+  )
+  const messages = useMemo(
+    () =>
+      (sessionQuery.data?.messages ?? []) as Array<{
+        id: string
+        role: string
+        text: string
+        sourceAgentId: string | null
+        createdAt: Date
+      }>,
+    [sessionQuery.data?.messages],
+  )
   const currentSession = sessions.find((s) => s.id === selectedSession)
 
   // ── Custom hooks ────────────────────────────────────────────────────

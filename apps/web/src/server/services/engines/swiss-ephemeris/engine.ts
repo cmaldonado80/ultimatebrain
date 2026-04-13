@@ -452,7 +452,7 @@ function calcPlanet(jd: number, planet: Planet, flags: number): Omit<Position, '
   }
 
   const bodyId = PLANET_IDS[planet]
-  let result: any
+  let result: { error?: string; longitude?: number; latitude?: number; longitudeSpeed?: number }
   try {
     result = swe.swe_calc_ut(jd, bodyId, flags)
   } catch (e) {

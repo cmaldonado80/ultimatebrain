@@ -19,7 +19,7 @@ function createMockDb() {
         }),
       }),
     }),
-  } as any
+  } as unknown
 }
 
 // ---------------------------------------------------------------------------
@@ -46,7 +46,8 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(approvalsRouter as any)(ctx)
+type AnyRouter = Parameters<typeof t.createCallerFactory>[0]
+const caller = (ctx: MockContext) => t.createCallerFactory(approvalsRouter as AnyRouter)(ctx)
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -141,7 +142,7 @@ describe('approvals router', () => {
       await expect(
         trpc.decide({
           id: '550e8400-e29b-41d4-a716-446655440000',
-          status: 'maybe' as any,
+          status: 'maybe' as string,
           decidedBy: 'admin',
         }),
       ).rejects.toThrow()

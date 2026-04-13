@@ -20,7 +20,7 @@ function createMockDb() {
 
   return {
     select: mockSelect,
-  } as any
+  } as Record<string, unknown>
 }
 
 // ---------------------------------------------------------------------------
@@ -43,10 +43,13 @@ vi.mock('@solarc/db', () => ({
 
 vi.mock('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val }),
-  and: (...conditions: any[]) => ({ and: conditions }),
-  gte: (col: string, val: any) => ({ gte: { col, val } }),
+  and: (...conditions: unknown[]) => ({ and: conditions }),
+  gte: (col: string, val: unknown) => ({ gte: { col, val } }),
   desc: (col: string) => ({ desc: col }),
-  sql: (strings: TemplateStringsArray, ...values: any[]) => ({ sql: strings.join('?'), values }),
+  sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
+    sql: strings.join('?'),
+    values,
+  }),
 }))
 
 const { tracesRouter } = await import('../traces')
@@ -61,7 +64,8 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(tracesRouter as any)(ctx)
+const caller = (ctx: MockContext) =>
+  t.createCallerFactory(tracesRouter as Parameters<typeof t.createCallerFactory>[0])(ctx)
 
 // ---------------------------------------------------------------------------
 // Tests

@@ -66,7 +66,7 @@ function createMockDb() {
       values: insertValuesFn,
     }),
     _mock: { whereFn, setFn, fromFn, limitFn, orderByFn, insertValuesFn, insertCatchFn },
-  } as any
+  } as unknown as ReturnType<typeof createMockDb>
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -98,7 +98,7 @@ describe('HealingEngine', () => {
 
       expect(report.overallStatus).toBe('healthy')
       expect(report.checks).toHaveLength(5)
-      expect(report.checks.every((c: any) => c.status === 'pass')).toBe(true)
+      expect(report.checks.every((c: { status: string }) => c.status === 'pass')).toBe(true)
       expect(report.recommendations).toHaveLength(0)
     })
 
@@ -116,7 +116,9 @@ describe('HealingEngine', () => {
       const report = await engine.diagnose()
 
       expect(report.overallStatus).toBe('degraded')
-      const agentCheck = report.checks.find((c: any) => c.name === 'agents.error_state')
+      const agentCheck = report.checks.find(
+        (c: { name: string }) => c.name === 'agents.error_state',
+      )
       expect(agentCheck?.status).toBe('warn')
       expect(agentCheck?.message).toContain('1 agent(s) in error state')
       expect(report.recommendations[0]).toContain('agents in error state')
@@ -140,7 +142,9 @@ describe('HealingEngine', () => {
       const report = await engine.diagnose()
 
       expect(report.overallStatus).toBe('unhealthy')
-      const agentCheck = report.checks.find((c: any) => c.name === 'agents.error_state')
+      const agentCheck = report.checks.find(
+        (c: { name: string }) => c.name === 'agents.error_state',
+      )
       expect(agentCheck?.status).toBe('fail')
     })
 
@@ -156,7 +160,9 @@ describe('HealingEngine', () => {
       const report = await engine.diagnose()
 
       expect(report.overallStatus).toBe('degraded')
-      const leaseCheck = report.checks.find((c: any) => c.name === 'tickets.expired_leases')
+      const leaseCheck = report.checks.find(
+        (c: { name: string }) => c.name === 'tickets.expired_leases',
+      )
       expect(leaseCheck?.status).toBe('warn')
       expect(leaseCheck?.message).toContain('1 expired execution lease(s)')
       expect(report.recommendations[0]).toContain('expired leases')
@@ -174,7 +180,7 @@ describe('HealingEngine', () => {
       const report = await engine.diagnose()
 
       expect(report.overallStatus).toBe('unhealthy')
-      const stuckCheck = report.checks.find((c: any) => c.name === 'tickets.stuck')
+      const stuckCheck = report.checks.find((c: { name: string }) => c.name === 'tickets.stuck')
       expect(stuckCheck?.status).toBe('fail')
       expect(stuckCheck?.message).toContain('5 ticket(s) stuck')
     })
@@ -195,7 +201,9 @@ describe('HealingEngine', () => {
       const report = await engine.diagnose()
 
       expect(report.overallStatus).toBe('degraded')
-      const entityCheck = report.checks.find((c: any) => c.name === 'entities.degraded')
+      const entityCheck = report.checks.find(
+        (c: { name: string }) => c.name === 'entities.degraded',
+      )
       expect(entityCheck?.status).toBe('warn')
       expect(entityCheck?.message).toContain('1 degraded')
     })
@@ -212,7 +220,9 @@ describe('HealingEngine', () => {
       const report = await engine.diagnose()
 
       expect(report.overallStatus).toBe('unhealthy')
-      const failedCheck = report.checks.find((c: any) => c.name === 'tickets.recent_failures')
+      const failedCheck = report.checks.find(
+        (c: { name: string }) => c.name === 'tickets.recent_failures',
+      )
       expect(failedCheck?.status).toBe('fail')
       expect(failedCheck?.message).toContain('8 ticket(s) failed')
       expect(report.recommendations).toEqual(
