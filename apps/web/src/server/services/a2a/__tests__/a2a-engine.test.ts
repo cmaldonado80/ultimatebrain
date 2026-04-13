@@ -72,7 +72,7 @@ function createMockDb() {
       orderByFn,
       innerJoinFn,
     },
-  } as any
+  } as unknown as ReturnType<typeof createMockDb>
 }
 
 function makeDelegateInput(overrides: Record<string, unknown> = {}) {

@@ -52,7 +52,7 @@ function createMockDb() {
     update: vi.fn().mockReturnValue({ set: setFn }),
     select: vi.fn().mockReturnValue({ from: fromFn }),
     _mock: { whereFn, setFn, valuesFn, returningFn, fromFn },
-  } as any
+  } as unknown as ReturnType<typeof createMockDb>
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────

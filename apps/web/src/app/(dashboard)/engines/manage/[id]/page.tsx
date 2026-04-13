@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { DbErrorBanner } from '../../../../../components/db-error-banner'
 import { LoadingState } from '../../../../../components/ui/loading-state'
 import { PageHeader } from '../../../../../components/ui/page-header'
-import { trpc } from '../../../../../utils/trpc'
+import { trpc } from '../../../../../lib/trpc'
 
 const TIER_BADGE: Record<string, string> = {
   brain: 'bg-purple-500/20 text-purple-400 border-purple-500/30',

@@ -31,6 +31,61 @@ scripts/
   run-evals.ts         — Evaluation runner
 ```
 
+## Frontend layout (`apps/web/src/`)
+
+```
+app/
+  layout.tsx            — Root layout (server component, wraps AppShell)
+  loading.tsx           — Root shimmer skeleton
+  error.tsx             — Root error boundary (Sentry-integrated)
+  global-error.tsx      — Catches errors above root layout (Sentry-integrated)
+  (dashboard)/          — Main app route group (auth-protected)
+    layout.tsx          — n/a (inherits root)
+    loading.tsx         — Shared dashboard loading state
+    error.tsx           — Dashboard error boundary (Sentry-integrated)
+    agents/ chat/ settings/ apps/ flows/ memory/ tickets/
+    workspaces/ intelligence/ astrology/ engines/ guardrails/
+    playbooks/ skills/ projects/ admin/ ...
+  ops/                  — Operator/observability route group
+    loading.tsx + error.tsx
+    gateway/ traces/ evals/ healing/ ...
+  auth/signin/          — Public signin page
+  api/                  — API routes (self-authenticated, not middleware-protected)
+components/
+  ui/                   — Reusable design-system primitives
+  chat/                 — Chat-specific components (markdown, panels)
+  layout/               — Shell, sidebar, topbar, cursors, presence
+  observatory/          — Flow canvas (dynamically imported)
+  astrology/            — Chart components
+  providers/            — React context providers (org, trpc)
+hooks/
+  chat/                 — Chat-specific hooks (use-chat-stream, etc.)
+  use-active-org.ts     — Org context hook
+lib/
+  trpc.ts               — tRPC React client (all components import from here)
+  astrology/            — Astrology utility functions
+server/
+  auth.ts               — JWT session (lazy secret)
+  trpc.ts               — tRPC server setup + procedures
+  errors.ts             — Domain error classes
+  routers/              — ~50 tRPC routers
+  services/             — 34 service modules (see below)
+```
+
+### Where does X go?
+
+| You want to add…             | Put it in…                                           |
+| ---------------------------- | ---------------------------------------------------- |
+| A new dashboard page         | `app/(dashboard)/your-page/page.tsx` + `loading.tsx` |
+| An API route                 | `app/api/your-route/route.ts` (add auth check)       |
+| A reusable UI component      | `components/ui/`                                     |
+| A feature-specific component | `components/<feature>/`                              |
+| A React hook                 | `hooks/` (or `hooks/<feature>/` if scoped)           |
+| A shared utility             | `lib/`                                               |
+| A tRPC router                | `server/routers/` (register in `_app.ts`)            |
+| A backend service            | `server/services/<name>/` with `index.ts` barrel     |
+| Shared TypeScript types      | `packages/types/src/`                                |
+
 ## Services (`apps/web/src/server/services/`)
 
 | Service                | Path                  | Purpose                                                                                                                      |
@@ -219,14 +274,29 @@ See `.env.example` and `apps/web/.env.example` for full list with defaults.
 - `apps/web/src/app/error.tsx` — App error boundary with `Sentry.captureException`
 - `next.config.ts` wrapped with `withSentryConfig()` (source maps disabled when no DSN)
 - Set `NEXT_PUBLIC_SENTRY_DSN` to activate; without it Sentry is inert
-- Test route: `GET /api/test-error` (remove after verifying)
 
 ## Rate limiting
 
 Gateway-level rate limiter at `apps/web/src/server/services/gateway/rate-limiter.ts`. Applied in the GatewayRouter and API routes (`/api/chat/stream`, `/api/a2a/[agentId]`).
 
+## Security
+
+- **Auth**: JWT sessions via `server/auth.ts`. Middleware redirects unauthenticated page requests to `/auth/signin` (skipped with `SKIP_AUTH=true`). API routes handle their own auth.
+- **CSRF**: Origin-based validation in middleware for mutating API requests. Exempt: `/api/a2a/`, `/api/.well-known/`, `/api/brain/`, `/api/cron`, `/api/webhooks`.
+- **CSP**: Strict Content-Security-Policy in `next.config.ts` — allows `'self'`, Sentry, Google Fonts. `frame-ancestors 'none'`, `form-action 'self'`.
+- **Input sanitization**: tRPC middleware sanitizes all inputs via XSS filter on `protectedProcedure`.
+- **Rate limiting**: In-memory IP-based rate limiters on `/api/chat/stream` (20/min) and `/api/a2a/` (30/min per IP, 100/min per agent).
+- **Headers**: X-Frame-Options DENY, HSTS, X-Content-Type-Options nosniff, Permissions-Policy.
+
+## Performance
+
+- Heavy client components (`react-syntax-highlighter`, `@xyflow/react`) loaded via `next/dynamic` with `ssr: false`
+- Loading skeletons on all major route groups (`loading.tsx`)
+- Database pool: max 3 connections (serverless), max 20 (normal), with idle timeout
+- `useMemo`/`useCallback` used throughout dashboard components for derived state and handlers
+
 ## Notes
 
 - `pnpm.overrides` pins `drizzle-orm@0.38.4` to prevent dual-instance type conflicts from `@opentelemetry/api` (transitive via `@sentry/nextjs`)
-- Next.js middleware at `apps/web/src/middleware.ts` redirects unauthenticated requests to `/auth/signin` (skipped with `SKIP_AUTH=true`)
 - The tRPC context is built in `apps/web/src/server/trpc.ts` with SuperJSON transformer
+- All API routes must include auth checks — they are excluded from middleware auth redirect but included in CSRF origin validation

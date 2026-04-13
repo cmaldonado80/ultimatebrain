@@ -35,7 +35,7 @@ export const route = {
     try {
       const input = await c.req.json()
 
-      // TODO: Implement {{DOMAIN}} domain logic for {{PURPOSE}}
+      // Template placeholders ({{DOMAIN}}, {{PURPOSE}}, {{ROUTE_PATH}}) are replaced at runtime by the blueprint generator
       // Examples:
       //   const memory = await brain.memory.search({ query: '...' })
       //   const llm = await brain.llm.chat({ messages: [...] })

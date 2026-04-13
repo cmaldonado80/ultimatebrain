@@ -8,7 +8,6 @@ import {
   InsightSeverityEnum,
   NodeTypeEnum,
   TopologyNodeSchema,
-  TopologySnapshotSchema,
 } from '../schemas'
 
 // ── Health Score Tests ──────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---------------------------------------------------------------------------
 
 function createMockDb() {
-  return {} as any
+  return {} as Record<string, unknown>
 }
 
 // ---------------------------------------------------------------------------
@@ -51,7 +51,8 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(taskRunnerRouter as any)(ctx)
+const caller = (ctx: MockContext) =>
+  t.createCallerFactory(taskRunnerRouter as Parameters<typeof t.createCallerFactory>[0])(ctx)
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -97,7 +98,9 @@ describe('task-runner router', () => {
 
     it('rejects invalid mode', async () => {
       const trpc = caller({ db, session: { userId: 'user-1' } })
-      await expect(trpc.setMode({ ticketId: UUID, mode: 'invalid' as any })).rejects.toThrow()
+      await expect(
+        trpc.setMode({ ticketId: UUID, mode: 'invalid' as unknown as 'autonomous' }),
+      ).rejects.toThrow()
     })
   })
 

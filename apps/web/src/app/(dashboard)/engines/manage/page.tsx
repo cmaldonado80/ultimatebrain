@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { DbErrorBanner } from '../../../../components/db-error-banner'
 import { LoadingState } from '../../../../components/ui/loading-state'
 import { PageHeader } from '../../../../components/ui/page-header'
-import { trpc } from '../../../../utils/trpc'
+import { trpc } from '../../../../lib/trpc'
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 

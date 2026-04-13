@@ -10,7 +10,7 @@ import Link from 'next/link'
 import { PageHeader } from '../../../../components/ui/page-header'
 import { PermissionGate } from '../../../../components/ui/permission-gate'
 import { useActiveOrg } from '../../../../hooks/use-active-org'
-import { trpc } from '../../../../utils/trpc'
+import { trpc } from '../../../../lib/trpc'
 
 // ── Stat Card ───────────────────────────────────────────────────────────
 

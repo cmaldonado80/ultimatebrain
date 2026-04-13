@@ -48,11 +48,11 @@ function createMockDb(overrides: Record<string, unknown> = {}) {
       }),
     }),
     transaction: vi.fn(async (fn: (tx: ReturnType<typeof createMockTx>) => Promise<void>) => {
-      await fn(tx as any)
+      await fn(tx as unknown)
     }),
     _tx: tx,
     ...overrides,
-  } as any
+  } as unknown as ReturnType<typeof createMockDb>
 }
 
 describe('TicketExecutionEngine', () => {

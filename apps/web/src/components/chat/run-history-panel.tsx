@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { trpc } from '../../utils/trpc'
+import { trpc } from '../../lib/trpc'
 import type { InspectorSelection } from './inspector-panel'
 
 // ── Types ─────────────────────────────────────────────────────────────

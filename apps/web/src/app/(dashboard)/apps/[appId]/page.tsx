@@ -15,7 +15,7 @@ import { PageGrid } from '../../../../components/ui/page-grid'
 import { PageHeader } from '../../../../components/ui/page-header'
 import { SectionCard } from '../../../../components/ui/section-card'
 import { StatCard } from '../../../../components/ui/stat-card'
-import { trpc } from '../../../../utils/trpc'
+import { trpc } from '../../../../lib/trpc'
 
 /** Row shape returned by `trpc.agents.byId` (drizzle `agents` table select) */
 interface AgentRecord {

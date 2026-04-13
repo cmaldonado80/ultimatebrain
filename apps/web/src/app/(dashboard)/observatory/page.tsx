@@ -1,19 +1,25 @@
 'use client'
 
-import '@xyflow/react/dist/style.css'
-
-import { Background, Controls, MiniMap, type Node, ReactFlow } from '@xyflow/react'
+import type { Node } from '@xyflow/react'
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { DbErrorBanner } from '../../../components/db-error-banner'
-import { NODE_COLORS } from '../../../components/observatory/constants'
-import { nodeTypes } from '../../../components/observatory/custom-nodes'
 import { HealthPanel } from '../../../components/observatory/health-panel'
 import { InsightsPanel } from '../../../components/observatory/insights-panel'
 import { layoutTopology } from '../../../components/observatory/layout'
 import { mergeOverlayIntoFlowNodes } from '../../../components/observatory/merge'
 import { PageHeader } from '../../../components/ui/page-header'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
+
+const FlowCanvas = dynamic(() => import('../../../components/observatory/flow-canvas'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+      Loading flow canvas...
+    </div>
+  ),
+})
 
 // ── Inspector ───────────────────────────────────────────────────────────
 
@@ -149,14 +155,10 @@ export default function ObservatoryPage() {
   )
 
   // Merge runtime overlay + highlighting WITHOUT re-layout (prevents jitter)
+  const runtimeData = runtimeQuery.data ?? null
   const flowNodes = useMemo(
-    () =>
-      mergeOverlayIntoFlowNodes(
-        staticNodes,
-        (runtimeQuery.data as typeof runtimeQuery.data) ?? null,
-        highlightedNodes,
-      ),
-    [staticNodes, runtimeQuery.data, highlightedNodes],
+    () => mergeOverlayIntoFlowNodes(staticNodes, runtimeData, highlightedNodes),
+    [staticNodes, runtimeData, highlightedNodes],
   )
 
   const selectedData = useMemo(() => {
@@ -283,27 +285,13 @@ export default function ObservatoryPage() {
               Loading topology...
             </div>
           ) : (
-            <ReactFlow
+            <FlowCanvas
               nodes={flowNodes}
               edges={flowEdges}
-              nodeTypes={nodeTypes}
               onNodeClick={onNodeClick}
               onEdgeClick={onEdgeClick}
               onPaneClick={() => setHighlightedNodes(new Set())}
-              fitView
-              minZoom={0.2}
-              maxZoom={2}
-              style={{ background: '#06090f' }}
-              proOptions={{ hideAttribution: true }}
-            >
-              <Background color="#1e293b" gap={24} size={1} />
-              <Controls className="!bg-bg-card !border-border !shadow-lg" />
-              <MiniMap
-                nodeColor={(n) => NODE_COLORS[n.type ?? ''] ?? '#475569'}
-                maskColor="rgba(6,9,15,0.8)"
-                className="!bg-bg-deep !border-border"
-              />
-            </ReactFlow>
+            />
           )}
 
           {healthOpen && <HealthPanel data={runtime} onClose={() => setHealthOpen(false)} />}

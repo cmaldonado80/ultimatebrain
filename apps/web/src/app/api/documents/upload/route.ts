@@ -9,7 +9,9 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 import { createDb, type Database, documents, waitForSchema } from '@solarc/db'
+import { NextResponse } from 'next/server'
 
+import { auth } from '../../../../server/auth'
 import { MemoryService } from '../../../../server/services/memory/memory-service'
 
 let _db: Database | undefined
@@ -49,6 +51,12 @@ function chunkText(text: string, maxLen = 500): string[] {
 }
 
 export async function POST(req: Request) {
+  // Auth check
+  const session = await auth()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     await waitForSchema()
     const body = await req.json()

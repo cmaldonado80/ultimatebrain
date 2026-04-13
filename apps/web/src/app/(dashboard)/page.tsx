@@ -17,7 +17,7 @@ import { PageHeader } from '../../components/ui/page-header'
 import { SectionCard } from '../../components/ui/section-card'
 import { StatCard } from '../../components/ui/stat-card'
 import { StatusBadge } from '../../components/ui/status-badge'
-import { trpc } from '../../utils/trpc'
+import { trpc } from '../../lib/trpc'
 
 export default function CommandCenter() {
   const orgQuery = trpc.org.chart.useQuery()

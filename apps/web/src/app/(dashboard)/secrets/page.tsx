@@ -2,7 +2,7 @@
 import { PageHeader } from '../../../components/ui/page-header'
 import { SectionCard } from '../../../components/ui/section-card'
 import { StatusBadge } from '../../../components/ui/status-badge'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 export default function SecretsPage() {
   // Secrets require an entityId — show placeholder when none selected

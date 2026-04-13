@@ -10,7 +10,7 @@ import { usePathname } from 'next/navigation'
 import { memo, useEffect, useState } from 'react'
 
 import { useActiveOrg } from '../../hooks/use-active-org'
-import { trpc } from '../../utils/trpc'
+import { trpc } from '../../lib/trpc'
 
 // ── Navigation Structure ────────────────────────────────────────────────
 

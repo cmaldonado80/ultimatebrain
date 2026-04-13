@@ -8,10 +8,11 @@
  * - Agent avatars pulse when executing
  */
 
+import Image from 'next/image'
 import { useState } from 'react'
 
+import { trpc } from '../../lib/trpc'
 import type { PresenceEntry } from '../../server/services/presence/types'
-import { trpc } from '../../utils/trpc'
 
 // ── Mock data ─────────────────────────────────────────────────────────────
 
@@ -128,7 +129,13 @@ function Avatar({
         }}
       >
         {entry.avatarUrl ? (
-          <img src={entry.avatarUrl} alt={entry.name} style={styles.avatarImg} />
+          <Image
+            src={entry.avatarUrl}
+            alt={entry.name}
+            width={32}
+            height={32}
+            style={styles.avatarImg}
+          />
         ) : (
           <span style={styles.initials}>{getInitials(entry.name)}</span>
         )}

@@ -12,7 +12,7 @@ vi.mock('../../gateway', () => ({
 }))
 
 function createMockDb() {
-  return {} as any
+  return {} as unknown as ReturnType<typeof createMockDb>
 }
 
 function makePlaybook(overrides: Partial<SavedPlaybook> = {}): SavedPlaybook {

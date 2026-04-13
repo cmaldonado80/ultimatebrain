@@ -8,7 +8,7 @@ import { DbErrorBanner } from '../../../components/db-error-banner'
 import { EmptyState } from '../../../components/ui/empty-state'
 import { LoadingState } from '../../../components/ui/loading-state'
 import { PageHeader } from '../../../components/ui/page-header'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 export default function CanvasPage() {
   const featuresQuery = trpc.intelligence.features.useQuery()

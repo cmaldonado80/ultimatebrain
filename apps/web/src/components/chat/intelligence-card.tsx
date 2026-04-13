@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-import { trpc } from '../../utils/trpc'
+import { trpc } from '../../lib/trpc'
 
 // ── Types (mirrored from recommendation-engine) ───────────────────────
 

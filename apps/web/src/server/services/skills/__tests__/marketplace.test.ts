@@ -40,7 +40,7 @@ function createMockDb() {
     insert: vi.fn().mockReturnValue({ values: valuesFn }),
     update: vi.fn().mockReturnValue({ set: setFn }),
     _mock: { whereFn, setFn, valuesFn, returningFn },
-  } as any
+  } as unknown as ReturnType<typeof createMockDb>
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────

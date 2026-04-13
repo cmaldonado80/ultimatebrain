@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 
 import { useActiveOrg } from '../../hooks/use-active-org'
-import { trpc } from '../../utils/trpc'
+import { trpc } from '../../lib/trpc'
 import PresenceAvatars from './presence-avatars'
 
 // ── Org Switcher ───────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // ---------------------------------------------------------------------------
 
 function createMockDb() {
-  return {} as any
+  return {} as Record<string, unknown>
 }
 
 // ---------------------------------------------------------------------------
@@ -85,7 +85,8 @@ interface MockContext {
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(platformRouter as any)(ctx)
+const caller = (ctx: MockContext) =>
+  t.createCallerFactory(platformRouter as Parameters<typeof t.createCallerFactory>[0])(ctx)
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -178,7 +179,9 @@ describe('platform router', () => {
 
     it('rejects invalid tier', async () => {
       const trpc = caller({ db, session: { userId: 'user-1' } })
-      await expect(trpc.createEntity({ name: 'Test', tier: 'invalid' as any })).rejects.toThrow()
+      await expect(
+        trpc.createEntity({ name: 'Test', tier: 'invalid' as unknown as 'brain' }),
+      ).rejects.toThrow()
     })
   })
 

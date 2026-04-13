@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react'
 
 import type { ThreadItemData } from '../../components/chat/thread-item'
-import { trpc } from '../../utils/trpc'
+import { trpc } from '../../lib/trpc'
 
 export type StreamEvent =
   // Execution lifecycle (new in V10)

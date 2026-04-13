@@ -452,7 +452,7 @@ function calcPlanet(jd: number, planet: Planet, flags: number): Omit<Position, '
   }
 
   const bodyId = PLANET_IDS[planet]
-  let result: any
+  let result: { error?: string; longitude?: number; latitude?: number; longitudeSpeed?: number }
   try {
     result = swe.swe_calc_ut(jd, bodyId, flags)
   } catch (e) {
@@ -470,9 +470,9 @@ function calcPlanet(jd: number, planet: Planet, flags: number): Omit<Position, '
     console.warn(`[SwissEphemeris] calc warning for ${planet}: ${result.error}`)
   }
 
-  const pos = longitudeToSign(result.longitude)
+  const pos = longitudeToSign(result.longitude!)
   return {
-    longitude: result.longitude,
+    longitude: result.longitude!,
     latitude: result.latitude ?? 0,
     speed: result.longitudeSpeed ?? 0,
     ...pos,

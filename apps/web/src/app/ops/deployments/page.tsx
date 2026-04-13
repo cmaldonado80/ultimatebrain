@@ -13,7 +13,7 @@ import { FilterPills } from '../../../components/ui/filter-pills'
 import { LoadingState } from '../../../components/ui/loading-state'
 import { PageHeader } from '../../../components/ui/page-header'
 import { PermissionGate } from '../../../components/ui/permission-gate'
-import { trpc } from '../../../utils/trpc'
+import { trpc } from '../../../lib/trpc'
 
 interface WorkflowStep {
   name: string

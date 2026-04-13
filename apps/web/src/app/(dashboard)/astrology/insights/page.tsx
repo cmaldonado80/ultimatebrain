@@ -33,7 +33,7 @@ export default function InsightsPage() {
     } else {
       setLoading(false)
     }
-  }, [])
+  }, [period])
 
   const loadData = async (p: BirthData, per: string) => {
     setLoading(true)

@@ -67,13 +67,14 @@ import { initTRPC } from '@trpc/server'
 import superjson from 'superjson'
 
 interface MockContext {
-  db: any
+  db: Record<string, unknown>
   session: { userId: string } | null
 }
 
 const t = initTRPC.context<MockContext>().create({ transformer: superjson })
 
-const caller = (ctx: MockContext) => t.createCallerFactory(orchestrationRouter as any)(ctx)
+const caller = (ctx: MockContext) =>
+  t.createCallerFactory(orchestrationRouter as Parameters<typeof t.createCallerFactory>[0])(ctx)
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -184,7 +185,7 @@ describe('orchestration router', () => {
     it('rejects invalid status values', async () => {
       const trpc = caller(authedCtx())
       await expect(
-        trpc.transition({ ticketId: UUID1, status: 'invalid_status' as any }),
+        trpc.transition({ ticketId: UUID1, status: 'invalid_status' as unknown as 'in_progress' }),
       ).rejects.toThrow()
     })
   })

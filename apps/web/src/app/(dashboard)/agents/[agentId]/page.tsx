@@ -8,7 +8,7 @@ import { DbErrorBanner } from '../../../../components/db-error-banner'
 import { LoadingState } from '../../../../components/ui/loading-state'
 import { PageHeader } from '../../../../components/ui/page-header'
 import { SectionCard } from '../../../../components/ui/section-card'
-import { trpc } from '../../../../utils/trpc'
+import { trpc } from '../../../../lib/trpc'
 
 export default function AgentDetailPage() {
   const params = useParams()

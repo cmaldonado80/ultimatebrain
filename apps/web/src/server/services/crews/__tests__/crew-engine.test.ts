@@ -11,11 +11,11 @@ vi.mock('../../gateway', () => ({
 }))
 
 function createMockDb() {
-  return {} as any
+  return {} as unknown as ReturnType<typeof createMockDb>
 }
 
 function getGatewayChat(engine: CrewEngine) {
-  return (engine as any).gateway.chat as ReturnType<typeof vi.fn>
+  return (engine as unknown as { gateway: { chat: ReturnType<typeof vi.fn> } }).gateway.chat
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

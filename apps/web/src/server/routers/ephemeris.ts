@@ -552,7 +552,7 @@ export const ephemerisRouter = router({
     .query(async ({ input }) => {
       const { generateNatalReport } =
         await import('../services/engines/swiss-ephemeris/report-generator')
-      return generateNatalReport({ ...input, birthHour: input.birthHour } as any)
+      return generateNatalReport({ ...input, birthHour: input.birthHour })
     }),
 
   // ── Horary & Electional ────────────────────────────────────────────
@@ -570,7 +570,7 @@ export const ephemerisRouter = router({
     )
     .query(async ({ input }) => {
       const { assessHoraryChart } = await import('../services/engines/swiss-ephemeris/horary')
-      return assessHoraryChart(input as any)
+      return assessHoraryChart(input)
     }),
 
   electional: protectedProcedure
@@ -589,6 +589,6 @@ export const ephemerisRouter = router({
     )
     .query(async ({ input }) => {
       const { scoreElection } = await import('../services/engines/swiss-ephemeris/electional')
-      return scoreElection(input as any)
+      return scoreElection(input)
     }),
 })
